@@ -1,0 +1,13 @@
+version: 2.1
+
+jobs:
+  build-and-test:
+    machine: true
+    steps:
+      - checkout
+      - run: make deps build check
+
+workflows:
+  main:
+    jobs:
+      - build-and-test
