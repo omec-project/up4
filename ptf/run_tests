@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+set -e
+
+PTF_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+P4SRC_DIR=${PTF_DIR}/../p4src
+P4C_OUT=${P4SRC_DIR}/build
+PTF_DOCKER_IMG=${PTF_DOCKER_IMG:-undefined}
+
+runName=ptf-${RANDOM}
+
+function stop() {
+        echo "Stopping container ${runName}..."
+        docker stop -t0 "${runName}" > /dev/null
+}
+trap stop INT
+
+echo "*** Starting stratum_bmv2 in Docker (${runName})..."
+docker run --name "${runName}" -d --privileged --rm \
+    -v "${PTF_DIR}":/ptf -w /ptf \
+    -v "${P4C_OUT}":/p4c-out \
+    "${PTF_DOCKER_IMG}" \
+    ./lib/start_bmv2.sh > /dev/null
+
+sleep 2
+
+set +e
+
+printf "*** Starting tests...\n"
+docker exec "${runName}" ./lib/runner.py \
+    --bmv2-json /p4c-out/bmv2.json \
+    --p4info /p4c-out/p4info.bin \
+    --grpc-addr localhost:28000 \
+    --device-id 1 \
+    --ptf-dir ./tests \
+    --cpu-port 255 \
+    --port-map /ptf/lib/port_map.json "${@}"
+
+stop
