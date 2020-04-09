@@ -27,6 +27,10 @@ To build the P4 program:
 
     make build
 
+To generate the pipeline graphs (in PDF format):
+
+    make graph
+
 ### Packet-based Unit Tests
 
 The directory `ptf` contains unit tests for the P4 program. Tests use PTF, a

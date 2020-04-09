@@ -32,5 +32,16 @@ build: p4src/upf.p4
 		p4src/upf.p4
 	@echo "*** P4 program compiled successfully! Output files are in p4src/build"
 
+graph: p4src/upf.p4
+	$(info *** Generating P4 program graphs...)
+	@mkdir -p p4src/build/graphs
+	docker run --rm -v ${curr_dir}:/workdir -w /workdir ${P4C_IMG} \
+		p4c-graphs --graphs-dir p4src/build/graphs p4src/upf.p4
+	for f in p4src/build/graphs/*.dot; do \
+		docker run --rm -v ${curr_dir}:/workdir -w /workdir ${P4C_IMG} \
+			dot -Tpdf $${f} > $${f}.pdf; rm -f $${f}; \
+	done
+	@echo "*** Done! Graph files are in p4src/build/graphs"
+
 check:
 	@cd ptf && PTF_DOCKER_IMG=$(PTF_IMG) ./run_tests $(TEST)
