@@ -27,6 +27,13 @@
 // insert a CloneSessionEntry that maps this session ID to the CPU_PORT.
 #define CPU_CLONE_SESSION_ID 99
 
+
+#define UDP_PORT_GTPU 2152
+#define GTP_GPDU 0xff
+#define GTPU_VERSION 0x01
+#define GTP_PROTOCOL_TYPE_GTP 0x01
+
+
 typedef bit<9>   port_num_t;
 typedef bit<48>  mac_addr_t;
 typedef bit<32>  ipv4_addr_t;
@@ -38,6 +45,14 @@ const bit<16> ETHERTYPE_IPV6 = 0x86dd;
 const bit<8> IP_PROTO_ICMP   = 1;
 const bit<8> IP_PROTO_TCP    = 6;
 const bit<8> IP_PROTO_UDP    = 17;
+
+typedef bit<8> spgw_iface_type_t;
+typedef bit<32> pdr_rule_id_t;
+typedef bit<32> teid_t;
+
+const bit<8> SPGW_IFACE_TYPE_UNKNOWN = 0x0;
+const bit<8> SPGW_IFACE_TYPE_ACCESS  = 0x1;
+const bit<8> SPGW_IFACE_TYPE_CORE    = 0x2;
 
 //------------------------------------------------------------------------------
 // HEADER DEFINITIONS
@@ -139,6 +154,138 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
                          inout local_metadata_t    local_meta,
                          inout standard_metadata_t std_meta) {
 
+
+
+
+
+    action set_source_interface(spgw_iface_t src_iface) {
+        local_meta.src_iface = src_iface;
+    }
+    table source_iface_lookup {
+        key = {
+            standard_metadata.ingress_port : exact;
+        }
+        actions = {
+            set_source_interface;
+        }
+        const default_action = set_source_interface(SPGW_IFACE_TYPE_UNKNOWN);
+    }
+
+
+
+    action gtpu_decap() {
+        local_meta.teid = gtpu.teid;
+        outer_ipv4.setInvalid();
+        outer_udp.setInvalid();
+        gtpu.setInvalid();
+    }
+
+
+    action set_pdr_rule_id(pdr_rule_id_t id) {
+        local_meta.pdr_rule_id = id;
+    }
+
+    // teid+destip+srcip+srcport+dst+port to pdr id
+    table pdr_rule_lookup {
+        key = {
+            local_meta.teid         : ternary;
+            local_meta.ue_addr      : exact;
+            local_meta.inet_addr    : exact;
+            local_meta.ue_port      : exact;
+            local_meta.inet_port    : exact;
+            hdr.ipv4.protocol       : exact;
+        }
+        actions = {
+            set_pdr_rule_id();
+        }
+        const default_action = set_pdr_rule_id(DEFAULT_PDR_RULE_ID);
+    }
+
+
+    action set_far_rule_id(far_rule_id_t id){
+        local_meta.far_rule_id = id;
+    }
+
+    table far_rule_lookup {
+        key = {
+            local_meta.pdr_rule_id : exact; 
+        }
+        actions = {
+            set_far_rule_id();
+        }
+        const default_action = set_pcc_rule_id(DEFAULT_FAR_RULE_ID);
+    }
+
+
+    // TODO: convert this to an action profile instead of a two-stage indirect lookup
+    action set_far_rule_info(forwarding_action_type_t action_type) {
+        local_meta.forwarding_action = action_type;
+    }
+
+
+    action decap_and_forward()
+    {
+    }
+    action encap_and_forward()
+    {
+    }
+    action buffer()
+    {
+    }
+
+    table get_far_rule_info {
+        key = {
+            local_meta.far_rule_id : exact;
+        }
+        actions = {
+            decap_and_forward;
+            encap_and_forward;
+            mark_to_drop;
+            buffer;
+
+            set_far_rule_info;
+        }
+        const default_action = set_far_rule_info(FORWARDING_ACTION_DROP);
+    }
+
+
+    direct_counter(SPGW_MAX_ACTIVE, CounterType.bytes) ue_usage;
+
+
+    @hidden
+    action load_far_info(bit<8> val1, bit<8> val2, bit<8> val3) {
+        local_meta.val1 = val1;
+        local_meta.val2 = val2;
+        local_meta.val3 = val3;
+    }
+
+    action load_and_buffer(val
+
+    action load_and_forward(bit<8> val1, bit<8> val2, bit<8> val3, addr) {
+
+        ue_usage.count();
+        load_far_info(val1, val2, val3);
+        ipv4.dst = addr;
+    }    
+
+    table execute_far {
+        key = {
+            local_meta.forwarding_action : exact;
+        }
+        actions = {
+            load_and_forward;
+            drop;
+            buffer;
+        }
+        const entries = {
+            (FORWARDING_ACTION_FORWARD) : forward();
+
+        
+
+
+
+
+
     // Drop action shared by many tables.
     action drop() {
         mark_to_drop(std_meta);
@@ -203,6 +350,23 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             hdr.cpu_out.setInvalid();
             exit;
         }
+
+        if (local_meta.interface_type == SPGW_IFACE_TYPE_ACCESS) {
+            local_meta.ue_addr = hdr.ipv4.src_addr;
+            local_meta.inet_addr = hdr.ipv4.dst_addr;
+            local_meta.ue_l4_port = local_meta.l4_sport;
+            local_meta.net_l4_port = local_meta.l4_dport;
+        }
+        else if (local_meta.interface_type == SPGW_IFACE_TYPE_CORE) {
+            local_meta.ue_addr = hdr.ipv4.dst_addr;
+            local_meta.inet_addr = hdr.iv4.src_addr;
+            local_meta.ue_l4_port = local_meta.l4_dport;
+            local_meta.net_l4_port = local_meta.l4_sport;
+        }
+
+        pdr_rule_lookup.apply();
+        far_rule_lookup.apply();
+        
 
         // TODO: exit if action is punt
         punt.apply();
