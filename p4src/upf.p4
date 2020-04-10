@@ -28,11 +28,13 @@
 #define CPU_CLONE_SESSION_ID 99
 
 
-#define UDP_PORT_GTPU 2152
-#define GTP_GPDU 0xff
-#define GTPU_VERSION 0x01
-#define GTP_PROTOCOL_TYPE_GTP 0x01
-
+#define ETH_HDR_SIZE 14
+#define IPV4_HDR_SIZE 20
+#define UDP_HDR_SIZE 8
+#define GTP_HDR_SIZE 8
+#define IP_VERSION_4 4
+const bit<4> IPV4_MIN_IHL = 5;
+const bit<8> DEFAULT_IPV4_TTL = 64;
 
 typedef bit<9>   port_num_t;
 typedef bit<48>  mac_addr_t;
@@ -46,9 +48,21 @@ const bit<8> IP_PROTO_ICMP   = 1;
 const bit<8> IP_PROTO_TCP    = 6;
 const bit<8> IP_PROTO_UDP    = 17;
 
+const bit<16> UDP_PORT_GTPU 2152;
+const bit<8> GTP_GPDU 0xff;
+const bit<3> GTPU_VERSION 0x1;
+const bit<1> GTP_PROTOCOL_TYPE_GTP 0x1;
+// const bit<8> GTP_MESSAGE_TYPE_something 0x00;
+
+
+typedef bit<2> direction_t;
 typedef bit<8> spgw_iface_type_t;
 typedef bit<32> pdr_rule_id_t;
 typedef bit<32> teid_t;
+
+const direction_t SPGW_DIR_UNKNOWN = 2w0;
+const direction_t SPGW_DIR_UPLINK = 2w1;
+const direction_t SPGW_DIR_DOWNLINK = 2w2;
 
 const bit<8> SPGW_IFACE_TYPE_UNKNOWN = 0x0;
 const bit<8> SPGW_IFACE_TYPE_ACCESS  = 0x1;
@@ -80,6 +94,26 @@ header ipv4_t {
     bit<32>  dst_addr;
 }
 
+header udp_t {
+    bit<16> sport;
+    bit<16> dport;
+    bit<16> len;
+    bit<16> checksum;
+}
+
+header gtpu_t {
+    bit<3>  version;    /* version */
+    bit<1>  pt;         /* protocol type */
+    bit<1>  spare;      /* reserved */
+    bit<1>  ex_flag;    /* next extension hdr present? */
+    bit<1>  seq_flag;   /* sequence no. */
+    bit<1>  npdu_flag;  /* n-pdn number present ? */
+    bit<8>  msgtype;    /* message type */
+    bit<16> msglen;     /* message length */
+    bit<32> teid;       /* tunnel endpoint id */
+}
+
+
 @controller_header("packet_in")
 header cpu_in_header_t {
     port_num_t  ingress_port;
@@ -96,10 +130,22 @@ struct parsed_headers_t {
     cpu_out_header_t cpu_out;
     cpu_in_header_t cpu_in;
     ethernet_t ethernet;
+    ipv4_t outer_ipv4;
+    udp_t outer_udp;
+    gtpu_t gtpu;
     ipv4_t ipv4;
+    udp_t udp;
+    ipv4_t inner_ipv4;
+    udp_t inner_udp;
 }
 
 struct local_metadata_t {
+    ipv4_addr_t ue_addr;
+    ipv4_addr_t inet_addr;
+
+    l4_port_t ue_port;
+    l4_port_t inet_port;
+
     l4_port_t   l4_src_port;
     l4_port_t   l4_dst_port;
 }
@@ -136,6 +182,35 @@ parser ParserImpl (packet_in packet,
 
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
+        transition select(hdr.ipv4.proto) {
+            IP_PROTO_UDP: parse_udp;
+            default: accept;
+        }
+    }
+    
+    state parse_udp {
+        packet.extract(hdr.udp);
+        transition select(hdr.udp.dport) {
+            UDP_PORT_GTPU: parse_gtpu;
+            default: accept;
+        }
+    }
+
+    state parse_gtpu {
+        packet.extract(hdr.gtpu)
+        transition parse_inner_ipv4;
+    }
+
+    state parse_inner_ipv4 {
+        packet.extract(hdr.inner_ipv4);
+        transition select(hdr.ipv4.proto) {
+            IP_PROTO_UDP: parse_inner_udp;
+            default: accept;
+        }
+    }
+
+    state parse_inner_udp {
+        packet.extract(hdr.inner_udp);
         transition accept;
     }
 }
@@ -155,29 +230,31 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
                          inout standard_metadata_t std_meta) {
 
 
+    /* used by many tables */
+    action drop() {
+        mark_to_drop(std_meta);
+    }
 
 
-
-    action set_source_interface(spgw_iface_t src_iface) {
+    action set_source_spgw_interface(spgw_iface_t src_iface, direction_t direction) {
         local_meta.src_iface = src_iface;
+        local_meta.direction = direction;
     }
     table source_iface_lookup {
         key = {
             standard_metadata.ingress_port : exact;
         }
         actions = {
-            set_source_interface;
+            set_source_spgw_interface;
         }
-        const default_action = set_source_interface(SPGW_IFACE_TYPE_UNKNOWN);
+        const default_action = set_source_spgw_interface(SPGW_IFACE_TYPE_UNKNOWN);
     }
 
 
-
     action gtpu_decap() {
-        local_meta.teid = gtpu.teid;
+        gtp.setInvalid();
         outer_ipv4.setInvalid();
         outer_udp.setInvalid();
-        gtpu.setInvalid();
     }
 
 
@@ -202,8 +279,9 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
     }
 
 
-    action set_far_rule_id(far_rule_id_t id){
+    action set_far_rule_id(far_rule_id_t id) {
         local_meta.far_rule_id = id;
+        // load other info here? if so, make this an action profile
     }
 
     table far_rule_lookup {
@@ -213,24 +291,36 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         actions = {
             set_far_rule_id();
         }
-        const default_action = set_pcc_rule_id(DEFAULT_FAR_RULE_ID);
+        const default_action = set_far_rule_id(DEFAULT_FAR_RULE_ID);
     }
 
-
-    // TODO: convert this to an action profile instead of a two-stage indirect lookup
-    action set_far_rule_info(forwarding_action_type_t action_type) {
-        local_meta.forwarding_action = action_type;
+    
+    @hidden
+    action mark_to_gtpu_encap(ip_addr_t src_addr, ip_addr_t dst_addr) {
+        local_meta.needs_gtpu_encap = true;
+        local_meta.gtpu_encap_src_addr = src_addr;
+        local_meta.gtpu_encap_dst_addr = dst_addr;
     }
 
+    @hidden
+    action forward(mac_addr_t dst_addr, port_num_t outport) {
+        std_meta.egress_spec = outport;
+        hdr.ethernet.src_addr = hdr.ethernet.dst_addr;;
+        hdr.ethernet.dst_addr = dst_addr;
+        hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
+    }
 
-    action decap_and_forward()
-    {
+    action decap_and_forward(mac_addr_t nexthop_mac, port_num_t outport) {
+        gtpu_decap();
+        forward(nexthop_mac, outport);
     }
-    action encap_and_forward()
-    {
+    action encap_and_forward(ip_addr_t encap_src_addr, ip_addr_t encap_dst_addr,
+                        mac_addr_t nexthop_mac, port_num_t outport) {
+        mark_to_gtpu_encap(encap_src_addr, encap_dst_addr);
+        forward(nexthop_mac, outport); 
     }
-    action buffer()
-    {
+    action buffer() {
+        // do_buffer();
     }
 
     table get_far_rule_info {
@@ -240,56 +330,14 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         actions = {
             decap_and_forward;
             encap_and_forward;
-            mark_to_drop;
-            buffer;
-
-            set_far_rule_info;
-        }
-        const default_action = set_far_rule_info(FORWARDING_ACTION_DROP);
-    }
-
-
-    direct_counter(SPGW_MAX_ACTIVE, CounterType.bytes) ue_usage;
-
-
-    @hidden
-    action load_far_info(bit<8> val1, bit<8> val2, bit<8> val3) {
-        local_meta.val1 = val1;
-        local_meta.val2 = val2;
-        local_meta.val3 = val3;
-    }
-
-    action load_and_buffer(val
-
-    action load_and_forward(bit<8> val1, bit<8> val2, bit<8> val3, addr) {
-
-        ue_usage.count();
-        load_far_info(val1, val2, val3);
-        ipv4.dst = addr;
-    }    
-
-    table execute_far {
-        key = {
-            local_meta.forwarding_action : exact;
-        }
-        actions = {
-            load_and_forward;
             drop;
             buffer;
         }
-        const entries = {
-            (FORWARDING_ACTION_FORWARD) : forward();
-
-        
-
-
-
-
-
-    // Drop action shared by many tables.
-    action drop() {
-        mark_to_drop(std_meta);
+        @name("far_rule_counter")
+        counters = direct_counter(CounterType.packets_and_bytes);
+        const default_action = set_far_rule_info(FORWARDING_ACTION_DROP);
     }
+
 
     table my_station {
         key = {
@@ -351,13 +399,26 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             exit;
         }
 
-        if (local_meta.interface_type == SPGW_IFACE_TYPE_ACCESS) {
+        // gtpu_normalize
+        if (gtpu.isValid()) {
+            outer_ipv4 = ipv4;
+            ipv4 = inner_ipv4;
+            outer_udp = udp;
+            if (inner_udp.isValid()) {
+                udp = inner_udp;
+            } else {
+                udp.setInvalid();
+            }
+        }
+
+        // 5tuple_normalize
+        if (local_meta.direction == SPGW_DIR_UPLINK) {
             local_meta.ue_addr = hdr.ipv4.src_addr;
             local_meta.inet_addr = hdr.ipv4.dst_addr;
             local_meta.ue_l4_port = local_meta.l4_sport;
             local_meta.net_l4_port = local_meta.l4_dport;
         }
-        else if (local_meta.interface_type == SPGW_IFACE_TYPE_CORE) {
+        else if (local_meta.direction == SPGW_DIR_DOWNLINK) {
             local_meta.ue_addr = hdr.ipv4.dst_addr;
             local_meta.inet_addr = hdr.iv4.src_addr;
             local_meta.ue_l4_port = local_meta.l4_dport;
@@ -383,7 +444,48 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 control EgressPipeImpl (inout parsed_headers_t hdr,
                         inout local_metadata_t local_meta,
                         inout standard_metadata_t std_meta) {
+    @hidden
+    action gtpu_encap() {
+        outer_ipv4.setValid();
+        outer_ipv4.version = IP_VERSION_4;
+        outer_ipv4.ihl = IPV4_MIN_IHL;
+        outer_ipv4.dscp = 0;
+        outer_ipv4.ecn = 0;
+        outer_ipv4.total_len = ipv4.total_len
+                + (IPV4_HDR_SIZE + UDP_HDR_SIZE + GTP_HDR_SIZE);
+        outer_ipv4.identification = 0x1513; /* From NGIC */
+        outer_ipv4.flags = 0;
+        outer_ipv4.frag_offset = 0;
+        outer_ipv4.ttl = DEFAULT_IPV4_TTL;
+        outer_ipv4.protocol = IP_PROTO_UDP;
+        outer_ipv4.dst_addr = local_meta.gtpu_encap_dst_addr;
+        outer_ipv4.src_addr = local_meta.gtpu_encap_src_addr;
+        outer_ipv4.hdr_checksum = 0; // Updated later
+
+        outer_udp.setValid();
+        outer_udp.sport = UDP_PORT_GTPU;
+        outer_udp.dport = UDP_PORT_GTPU;
+        outer_udp.len = fabric_meta.spgw.ipv4_len
+                + (UDP_HDR_SIZE + GTP_HDR_SIZE);
+        outer_udp.checksum = 0; // Updated later
+
+        gtpu.setValid();
+        gtpu.version = GTPU_VERSION;
+        gtpu.pt = GTP_PROTOCOL_TYPE_GTP;
+        gtpu.spare = 0;
+        gtpu.ex_flag = 0;
+        gtpu.seq_flag = 0;
+        gtpu.npdu_flag = 0;
+        gtpu.msgtype = GTP_GPDU;
+        gtpu.msglen = fabric_meta.spgw.ipv4_len;
+        gtpu.teid = fabric_meta.spgw.teid;
+    }
+
     apply {
+
+        if (local_meta.needs_gtpu_encap) {
+            gtpu_encap();
+        }
 
         if (std_meta.egress_port == CPU_PORT) {
             hdr.cpu_in.setValid();
@@ -423,7 +525,11 @@ control DeparserImpl(packet_out packet, in parsed_headers_t hdr) {
     apply {
         packet.emit(hdr.cpu_in);
         packet.emit(hdr.ethernet);
+        packet.emit(hdr.outer_ipv4);
+        packet.emit(hdr.outer_udp);
+        packet.emit(hdr.gtpu);
         packet.emit(hdr.ipv4);
+        packet.emit(hdr.udp);
     }
 }
 
