@@ -349,10 +349,11 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             encap_and_forward;
             drop;
             buffer;
+            NoAction;
         }
         @name("far_rule_counter")
         counters = direct_counter(CounterType.packets_and_bytes);
-        const default_action = drop(); 
+        const default_action = NoAction(); 
     }
 
 
