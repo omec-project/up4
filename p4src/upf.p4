@@ -55,22 +55,22 @@ const bit<1> GTP_PROTOCOL_TYPE_GTP = 0x1;
 // const bit<8> GTP_MESSAGE_TYPE_something 0x00;
 
 
+typedef bit<8> iface_type_t;
 typedef bit<2> direction_t;
-typedef bit<8> spgw_iface_t;
-typedef bit<32> pdr_rule_id_t;
-typedef bit<32> far_rule_id_t;
+typedef bit<32> pdr_id_t;
+typedef bit<32> far_id_t;
 typedef bit<32> teid_t;
 
-const pdr_rule_id_t DEFAULT_PDR_RULE_ID = 0;
-const far_rule_id_t DEFAULT_FAR_RULE_ID = 0;
+const pdr_id_t DEFAULT_PDR_ID = 0;
+const far_id_t DEFAULT_FAR_ID = 0;
 
-const direction_t SPGW_DIR_UNKNOWN = 2w0;
-const direction_t SPGW_DIR_UPLINK = 2w1;
-const direction_t SPGW_DIR_DOWNLINK = 2w2;
+const direction_t UPF_DIR_UNKNOWN = 2w0;
+const direction_t UPF_DIR_UPLINK = 2w1;
+const direction_t UPF_DIR_DOWNLINK = 2w2;
 
-const spgw_iface_t SPGW_IFACE_TYPE_UNKNOWN = 0x0;
-const spgw_iface_t SPGW_IFACE_TYPE_ACCESS  = 0x1;
-const spgw_iface_t SPGW_IFACE_TYPE_CORE    = 0x2;
+const iface_type_t IFACE_TYPE_UNKNOWN = 0x0;
+const iface_type_t IFACE_TYPE_ACCESS  = 0x1;
+const iface_type_t IFACE_TYPE_CORE    = 0x2;
 
 //------------------------------------------------------------------------------
 // HEADER DEFINITIONS
@@ -147,22 +147,20 @@ struct local_metadata_t {
     direction_t direction;
     ipv4_addr_t ue_addr;
     ipv4_addr_t inet_addr;
+    // each subscriber can have multiple TEIDs
+    // we need a counter per TEID+direction
     teid_t teid;
-    spgw_iface_t src_spgw_iface;
+    iface_type_t src_iface_type;
 
-    pdr_rule_id_t pdr_rule_id;
-    far_rule_id_t far_rule_id;
+    pdr_id_t pdr_id; // needs counter for pdr_id+direction
+    far_id_t far_id;
+    // TODO: add charging rule id
 
     l4_port_t ue_l4_port;
     l4_port_t inet_l4_port;
 
     l4_port_t   l4_sport;
     l4_port_t   l4_dport;
-    
-    bool needs_gtpu_encap;
-    ipv4_addr_t gtpu_encap_src_addr;
-    ipv4_addr_t gtpu_encap_dst_addr;
-    bit<16> gtpu_encap_ipv4_len;
 }
 
 
@@ -205,6 +203,9 @@ parser ParserImpl (packet_in packet,
     
     state parse_udp {
         packet.extract(hdr.udp);
+        // note: this eventually wont work
+        local_meta.l4_sport = hdr.udp.sport;
+        local_meta.l4_dport = hdr.udp.dport;
         transition select(hdr.udp.dport) {
             UDP_PORT_GTPU: parse_gtpu;
             default: accept;
@@ -214,11 +215,14 @@ parser ParserImpl (packet_in packet,
     state parse_gtpu {
         packet.extract(hdr.gtpu);
         local_meta.teid = hdr.gtpu.teid;
+        // eventually need to add conditional parsing, in the case of non-ip payloads
         transition parse_inner_ipv4;
     }
 
     state parse_inner_ipv4 {
         packet.extract(hdr.inner_ipv4);
+        local_meta.l4_sport = hdr.udp.sport;
+        local_meta.l4_dport = hdr.udp.dport;
         transition select(hdr.ipv4.proto) {
             IP_PROTO_UDP: parse_inner_udp;
             default: accept;
@@ -252,74 +256,113 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
     }
 
 
-    action set_source_spgw_interface(spgw_iface_t src_iface, direction_t direction) {
-        local_meta.src_spgw_iface = src_iface;
-        local_meta.direction = direction;
+    action set_source_iface_type(iface_type_t src_iface_type) {
+        local_meta.src_iface_type = src_iface_type;
     }
     table source_iface_lookup {
         key = {
             std_meta.ingress_port : exact;
+            // in practice, will also check vlan ID and destination IP
         }
         actions = {
-            set_source_spgw_interface;
+            set_source_iface_type;
         }
-        const default_action = set_source_spgw_interface(SPGW_IFACE_TYPE_UNKNOWN, SPGW_DIR_UNKNOWN);
+        const default_action = set_source_iface_type(IFACE_TYPE_UNKNOWN); 
     }
 
 
+    @hidden
     action gtpu_decap() {
         hdr.gtpu.setInvalid();
         hdr.outer_ipv4.setInvalid();
         hdr.outer_udp.setInvalid();
     }
 
+    @hidden
+    action gtpu_encap(ipv4_addr_t src_addr, ipv4_addr_t dst_addr) {
+        hdr.outer_ipv4.setValid();
+        hdr.outer_ipv4.version = IP_VERSION_4;
+        hdr.outer_ipv4.ihl = IPV4_MIN_IHL;
+        hdr.outer_ipv4.dscp = 0;
+        hdr.outer_ipv4.ecn = 0;
+        hdr.outer_ipv4.total_len = hdr.ipv4.total_len
+                + (IPV4_HDR_SIZE + UDP_HDR_SIZE + GTP_HDR_SIZE);
+        hdr.outer_ipv4.identification = 0x1513; /* From NGIC */
+        hdr.outer_ipv4.flags = 0;
+        hdr.outer_ipv4.frag_offset = 0;
+        hdr.outer_ipv4.ttl = DEFAULT_IPV4_TTL;
+        hdr.outer_ipv4.proto = IP_PROTO_UDP;
+        hdr.outer_ipv4.src_addr = src_addr; 
+        hdr.outer_ipv4.dst_addr = dst_addr;
+        hdr.outer_ipv4.checksum = 0; // Updated later
 
-    action set_pdr_rule_id(pdr_rule_id_t id) {
-        local_meta.pdr_rule_id = id;
+        hdr.outer_udp.setValid();
+        hdr.outer_udp.sport = UDP_PORT_GTPU;
+        hdr.outer_udp.dport = UDP_PORT_GTPU;
+        hdr.outer_udp.len = hdr.ipv4.total_len 
+                + (UDP_HDR_SIZE + GTP_HDR_SIZE);
+        hdr.outer_udp.checksum = 0; // Updated later
+
+        hdr.gtpu.setValid();
+        hdr.gtpu.version = GTPU_VERSION;
+        hdr.gtpu.pt = GTP_PROTOCOL_TYPE_GTP;
+        hdr.gtpu.spare = 0;
+        hdr.gtpu.ex_flag = 0;
+        hdr.gtpu.seq_flag = 0;
+        hdr.gtpu.npdu_flag = 0;
+        hdr.gtpu.msgtype = GTP_GPDU;
+        hdr.gtpu.msglen = hdr.ipv4.total_len; 
+        hdr.gtpu.teid = local_meta.teid;
     }
 
-    // teid+destip+srcip+srcport+dst+port to pdr id
-    table pdr_rule_lookup {
+    action set_pdr_id(pdr_id_t id) {
+        local_meta.pdr_id = id;
+    }
+    action set_pdr_id_and_gtpu_decap(pdr_id_t id) {
+        local_meta.pdr_id = id;
+        gtpu_decap();
+    }
+
+    table pdrs {
         key = {
-            local_meta.teid         : ternary;
-            local_meta.ue_addr      : exact;
-            local_meta.inet_addr    : exact;
-            local_meta.ue_l4_port      : exact;
-            local_meta.inet_l4_port    : exact;
-            hdr.ipv4.proto          : exact;
+            // teid, sport, dport, proto should be optional instead of ternary
+            // bmv2 supports multiple LPMs, tofino does not
+            local_meta.teid         : ternary @name("teid");
+            local_meta.ue_addr      : lpm @name("ue_addr"); 
+            local_meta.inet_addr    : lpm @name("inet_addr");
+            local_meta.ue_l4_port   : range @name("ue_l4_port");
+            local_meta.inet_l4_port : range @name("inet_l4_port");
+            hdr.ipv4.proto          : ternary @name("ip_proto");
+            // add ToS, SPI
+            // all these fields should be optional
         }
         actions = {
-            set_pdr_rule_id();
+            set_pdr_id;
+            set_pdr_id_and_gtpu_decap;
         }
-        const default_action = set_pdr_rule_id(DEFAULT_PDR_RULE_ID);
+        @name("pdr_counter")
+        counters = direct_counter(CounterType.packets_and_bytes);
+        const default_action = set_pdr_id(DEFAULT_PDR_ID);
     }
 
 
-    action set_far_rule_id(far_rule_id_t id) {
-        local_meta.far_rule_id = id;
+    action set_far_id(far_id_t id) {
+        local_meta.far_id = id;
         // load other info here? if so, make this an action profile
     }
 
-    table far_rule_lookup {
+    // Forwarding Action Rules
+    table fars {
         key = {
-            local_meta.pdr_rule_id : exact; 
+            local_meta.pdr_id : exact; 
         }
         actions = {
-            set_far_rule_id();
+            set_far_id();
         }
-        const default_action = set_far_rule_id(DEFAULT_FAR_RULE_ID);
+        const default_action = set_far_id(DEFAULT_FAR_ID);
     }
-
     
-    @hidden
-    action mark_to_gtpu_encap(ipv4_addr_t src_addr, ipv4_addr_t dst_addr) {
-        local_meta.needs_gtpu_encap = true;
-        local_meta.gtpu_encap_src_addr = src_addr;
-        local_meta.gtpu_encap_dst_addr = dst_addr;
-        local_meta.gtpu_encap_ipv4_len = hdr.ipv4.total_len;
-    }
 
-    @hidden
     action forward(mac_addr_t dst_addr, port_num_t outport) {
         std_meta.egress_spec = outport;
         hdr.ethernet.src_addr = hdr.ethernet.dst_addr;;
@@ -327,33 +370,34 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
     }
 
-    action decap_and_forward(mac_addr_t nexthop_mac, port_num_t outport) {
-        gtpu_decap();
-        forward(nexthop_mac, outport);
-    }
-    action encap_and_forward(ipv4_addr_t encap_src_addr, ipv4_addr_t encap_dst_addr,
+    action gtpu_encap_and_forward(ipv4_addr_t encap_src_addr, ipv4_addr_t encap_dst_addr,
                         mac_addr_t nexthop_mac, port_num_t outport) {
-        mark_to_gtpu_encap(encap_src_addr, encap_dst_addr);
+        gtpu_encap(encap_src_addr, encap_dst_addr);
         forward(nexthop_mac, outport); 
     }
+
     action buffer() {
         // do_buffer();
     }
 
-    table execute_far_rule {
+    table execute_far {
         key = {
-            local_meta.far_rule_id : exact;
+            local_meta.far_id : exact;
         }
         actions = {
-            decap_and_forward;
-            encap_and_forward;
+            // other types of encap can happen (ex udp+ip)
+            gtpu_encap_and_forward;
+            forward;
             drop;
             buffer;
             NoAction;
         }
-        @name("far_rule_counter")
+        @name("far_counter")
         counters = direct_counter(CounterType.packets_and_bytes);
-        const default_action = NoAction(); 
+        const default_action = NoAction();
+        //const entries = {
+        //    (DEFAULT_FAR_ID) : NoAction();
+        //}
     }
 
 
@@ -411,6 +455,9 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 
     apply {
 
+        // TODO: have counter per (subscriber,PDR_ID)? aggregate into URRs in ONOS
+        
+
         if (hdr.cpu_out.isValid()) {
             std_meta.egress_spec = hdr.cpu_out.egress_port;
             hdr.cpu_out.setInvalid();
@@ -431,23 +478,34 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 
         source_iface_lookup.apply();
 
+        // map interface type to direction
+        if (local_meta.src_iface_type == IFACE_TYPE_ACCESS) {
+            local_meta.direction = UPF_DIR_UPLINK;
+        }
+        else if (local_meta.src_iface_type == IFACE_TYPE_CORE) {
+            local_meta.direction = UPF_DIR_DOWNLINK;
+        }
+        else {
+            local_meta.direction = UPF_DIR_UNKNOWN;
+        }
+
         // 5tuple_normalize
-        if (local_meta.direction == SPGW_DIR_UPLINK) {
+        if (local_meta.direction == UPF_DIR_UPLINK) {
             local_meta.ue_addr = hdr.ipv4.src_addr;
             local_meta.inet_addr = hdr.ipv4.dst_addr;
             local_meta.ue_l4_port = local_meta.l4_sport;
             local_meta.inet_l4_port = local_meta.l4_dport;
         }
-        else if (local_meta.direction == SPGW_DIR_DOWNLINK) {
+        else if (local_meta.direction == UPF_DIR_DOWNLINK) {
             local_meta.ue_addr = hdr.ipv4.dst_addr;
             local_meta.inet_addr = hdr.ipv4.src_addr;
             local_meta.ue_l4_port = local_meta.l4_dport;
             local_meta.inet_l4_port = local_meta.l4_sport;
         }
 
-        pdr_rule_lookup.apply();
-        far_rule_lookup.apply();
-        execute_far_rule.apply();
+        pdrs.apply();
+        fars.apply();
+        execute_far.apply();
         
 
         // TODO: exit if action is punt
@@ -465,49 +523,8 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 control EgressPipeImpl (inout parsed_headers_t hdr,
                         inout local_metadata_t local_meta,
                         inout standard_metadata_t std_meta) {
-    @hidden
-    action gtpu_encap() {
-        hdr.outer_ipv4.setValid();
-        hdr.outer_ipv4.version = IP_VERSION_4;
-        hdr.outer_ipv4.ihl = IPV4_MIN_IHL;
-        hdr.outer_ipv4.dscp = 0;
-        hdr.outer_ipv4.ecn = 0;
-        hdr.outer_ipv4.total_len = hdr.ipv4.total_len
-                + (IPV4_HDR_SIZE + UDP_HDR_SIZE + GTP_HDR_SIZE);
-        hdr.outer_ipv4.identification = 0x1513; /* From NGIC */
-        hdr.outer_ipv4.flags = 0;
-        hdr.outer_ipv4.frag_offset = 0;
-        hdr.outer_ipv4.ttl = DEFAULT_IPV4_TTL;
-        hdr.outer_ipv4.proto = IP_PROTO_UDP;
-        hdr.outer_ipv4.dst_addr = local_meta.gtpu_encap_dst_addr;
-        hdr.outer_ipv4.src_addr = local_meta.gtpu_encap_src_addr;
-        hdr.outer_ipv4.checksum = 0; // Updated later
-
-        hdr.outer_udp.setValid();
-        hdr.outer_udp.sport = UDP_PORT_GTPU;
-        hdr.outer_udp.dport = UDP_PORT_GTPU;
-        hdr.outer_udp.len = local_meta.gtpu_encap_ipv4_len
-                + (UDP_HDR_SIZE + GTP_HDR_SIZE);
-        hdr.outer_udp.checksum = 0; // Updated later
-
-        hdr.gtpu.setValid();
-        hdr.gtpu.version = GTPU_VERSION;
-        hdr.gtpu.pt = GTP_PROTOCOL_TYPE_GTP;
-        hdr.gtpu.spare = 0;
-        hdr.gtpu.ex_flag = 0;
-        hdr.gtpu.seq_flag = 0;
-        hdr.gtpu.npdu_flag = 0;
-        hdr.gtpu.msgtype = GTP_GPDU;
-        hdr.gtpu.msglen = local_meta.gtpu_encap_ipv4_len;
-        hdr.gtpu.teid = local_meta.teid;
-    }
 
     apply {
-
-        if (local_meta.needs_gtpu_encap) {
-            gtpu_encap();
-        }
-
         if (std_meta.egress_port == CPU_PORT) {
             hdr.cpu_in.setValid();
             hdr.cpu_in.ingress_port = std_meta.ingress_port;
