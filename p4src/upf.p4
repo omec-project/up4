@@ -221,8 +221,6 @@ parser ParserImpl (packet_in packet,
 
     state parse_inner_ipv4 {
         packet.extract(hdr.inner_ipv4);
-        local_meta.l4_sport = hdr.udp.sport;
-        local_meta.l4_dport = hdr.udp.dport;
         transition select(hdr.ipv4.proto) {
             IP_PROTO_UDP: parse_inner_udp;
             default: accept;
@@ -231,6 +229,8 @@ parser ParserImpl (packet_in packet,
 
     state parse_inner_udp {
         packet.extract(hdr.inner_udp);
+        local_meta.l4_sport = hdr.udp.sport;
+        local_meta.l4_dport = hdr.udp.dport;
         transition accept;
     }
 }
@@ -328,10 +328,10 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             // teid, sport, dport, proto should be optional instead of ternary
             // bmv2 supports multiple LPMs, tofino does not
             local_meta.teid         : ternary @name("teid");
-            local_meta.ue_addr      : lpm @name("ue_addr"); 
-            local_meta.inet_addr    : lpm @name("inet_addr");
-            local_meta.ue_l4_port   : range @name("ue_l4_port");
-            local_meta.inet_l4_port : range @name("inet_l4_port");
+            local_meta.ue_addr      : ternary @name("ue_addr"); 
+            local_meta.inet_addr    : ternary @name("inet_addr");
+            local_meta.ue_l4_port   : range   @name("ue_l4_port");
+            local_meta.inet_l4_port : range   @name("inet_l4_port");
             hdr.ipv4.proto          : ternary @name("ip_proto");
             // add ToS, SPI
             // all these fields should be optional
