@@ -315,18 +315,36 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         hdr.gtpu.teid = local_meta.teid;
     }
 
-    action set_pdr_id(pdr_id_t id) {
+
+    action set_pdr_attributes(pdr_id_t id, 
+                             bool needs_encap, ipv4_addr_t src_encap_addr, ipv4_addr_t dst_encap_addr,
+                             bool needs_decap,
+                             far_id_t far_id, 
+                             urr_id_t urr_id, // urr_id_2, urr_id_3, ...
+                             session_id_t n4_sess_id,
+                             qer_id_t qer_id,
+                             qfi_id_t qfi_id
+                             // TODO: add more attributes to load. 
+                             )
+    {
         local_meta.pdr_id = id;
-    }
-    action set_pdr_id_and_gtpu_decap(pdr_id_t id) {
-        local_meta.pdr_id = id;
-        gtpu_decap();
+        local_meta.needs_encap = needs_encap;
+        local_meta.src_encap_addr = src_encap_addr;
+        local_meta.dst_encap_addr = dst_encap_addr;
+        local_meta.needs_decap = needs_decap;
+        local_meta.far_id = far_id;
+        local_meta.urr_id = urr_id;
+        local_meta.n4_sess_id = n4_sess_id;
+        local_meta.qer_id = qer_id;
+        local_meta.qfi_id = qfi_id;
     }
 
+    // Contains PDRs for both the Uplink and Downlink Direction
     table pdrs {
         key = {
             // teid, sport, dport, proto should be optional instead of ternary
             // bmv2 supports multiple LPMs, tofino does not
+            local_meta.src_iface    : exact   @name("source_interface"); // To differentiate uplink and downlink
             local_meta.teid         : ternary @name("teid");
             local_meta.ue_addr      : ternary @name("ue_addr"); 
             local_meta.inet_addr    : ternary @name("inet_addr");
@@ -334,15 +352,15 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             local_meta.inet_l4_port : range   @name("inet_l4_port");
             hdr.ipv4.proto          : ternary @name("ip_proto");
             // add ToS, SPI
-            // all these fields should be optional
+            // all these fields *should* be optional, but it is not currently supported by targets
         }
         actions = {
-            set_pdr_id;
-            set_pdr_id_and_gtpu_decap;
+            // TODO: should encap and decap actions be moved to a second table that matches on the PDR ID?
+            set_pdr_attributes; 
+            @defaultonly NoAction;
         }
         @name("pdr_counter")
         counters = direct_counter(CounterType.packets_and_bytes);
-        const default_action = set_pdr_id(DEFAULT_PDR_ID);
     }
 
 
@@ -351,16 +369,31 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         // load other info here? if so, make this an action profile
     }
 
-    // Forwarding Action Rules
+
+    action set_far_attributes(  far_type_t far_action, // forward, duplicate, drop, or buffer
+                                iface_type_t dst_iface,   
+                                bit<32> net_instance,
+                                bool needs_encap,
+                                port_num_t outport
+                                // TODO: outer header attributes
+                                )
+    {
+        local_meta.far_action = far_action;
+        local_meta.dst_iface = dst_iface;
+
+
+        std_meta.egress_spec = outport;
+    }
     table fars {
         key = {
-            local_meta.pdr_id : exact; 
+            local_meta.far_id : exact;
         }
         actions = {
-            set_far_id();
+            set_far_attributes;
         }
-        const default_action = set_far_id(DEFAULT_FAR_ID);
     }
+
+
     
 
     action forward(mac_addr_t dst_addr, port_num_t outport) {
@@ -455,9 +488,8 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 
     apply {
 
-        // TODO: have counter per (subscriber,PDR_ID)? aggregate into URRs in ONOS
         
-
+        // TODO: remove this leftover tables before intel meeting
         if (hdr.cpu_out.isValid()) {
             std_meta.egress_spec = hdr.cpu_out.egress_port;
             hdr.cpu_out.setInvalid();
@@ -477,6 +509,9 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         }
 
         source_iface_lookup.apply();
+
+        // TODO: have counter per (subscriber,PDR_ID)? aggregate into URRs in ONOS
+        // TODO: RX per-UE counter here 
 
         // map interface type to direction
         if (local_meta.src_iface_type == IFACE_TYPE_ACCESS) {
@@ -508,7 +543,8 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         execute_far.apply();
         
 
-        // TODO: exit if action is punt
+        // TODO: remove these leftover tables before intel meeting
+
         punt.apply();
 
         if (my_station.apply().hit) {
