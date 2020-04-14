@@ -55,14 +55,24 @@ const bit<1> GTP_PROTOCOL_TYPE_GTP = 0x1;
 // const bit<8> GTP_MESSAGE_TYPE_something 0x00;
 
 
-typedef bit<8> iface_type_t;
-typedef bit<2> direction_t;
+typedef bit<1> bool_param_t;
+typedef bit<32> teid_t;
+typedef bit<8>  iface_type_t;
+typedef bit<2>  direction_t;
+typedef bit<8>  far_action_t;
 typedef bit<32> pdr_id_t;
 typedef bit<32> far_id_t;
-typedef bit<32> teid_t;
+typedef bit<32> urr_id_t;
+typedef bit<32> qer_id_t;
+typedef bit<32> qfi_id_t;
+typedef bit<32> session_id_t;
+typedef bit<32> net_instance_t;
 
 const pdr_id_t DEFAULT_PDR_ID = 0;
 const far_id_t DEFAULT_FAR_ID = 0;
+const urr_id_t DEFAULT_URR_ID = 0;
+const qer_id_t DEFAULT_QER_ID = 0;
+const qfi_id_t DEFAULT_QFI_ID = 0;
 
 const direction_t UPF_DIR_UNKNOWN = 2w0;
 const direction_t UPF_DIR_UPLINK = 2w1;
@@ -151,16 +161,28 @@ struct local_metadata_t {
     // we need a counter per TEID+direction
     teid_t teid;
     iface_type_t src_iface_type;
+    iface_type_t dst_iface_type;
 
     pdr_id_t pdr_id; // needs counter for pdr_id+direction
+    urr_id_t urr_id;
+    qer_id_t qer_id;
+    qfi_id_t qfi_id;
     far_id_t far_id;
-    // TODO: add charging rule id
+    far_action_t far_action;
 
     l4_port_t ue_l4_port;
     l4_port_t inet_l4_port;
 
     l4_port_t   l4_sport;
     l4_port_t   l4_dport;
+
+    bool needs_gtpu_encap;
+    bool needs_gtpu_decap;
+    ipv4_addr_t src_encap_addr;
+    ipv4_addr_t dst_encap_addr;
+
+    net_instance_t net_instance;
+    session_id_t n4_sess_id;
 }
 
 
@@ -292,7 +314,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         hdr.outer_ipv4.frag_offset = 0;
         hdr.outer_ipv4.ttl = DEFAULT_IPV4_TTL;
         hdr.outer_ipv4.proto = IP_PROTO_UDP;
-        hdr.outer_ipv4.src_addr = src_addr; 
+        hdr.outer_ipv4.src_addr = src_addr;
         hdr.outer_ipv4.dst_addr = dst_addr;
         hdr.outer_ipv4.checksum = 0; // Updated later
 
@@ -317,8 +339,8 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 
 
     action set_pdr_attributes(pdr_id_t id, 
-                             bool needs_encap, ipv4_addr_t src_encap_addr, ipv4_addr_t dst_encap_addr,
-                             bool needs_decap,
+                             bool_param_t needs_gtpu_encap, ipv4_addr_t src_encap_addr, ipv4_addr_t dst_encap_addr,
+                             bool_param_t needs_gtpu_decap,
                              far_id_t far_id, 
                              urr_id_t urr_id, // urr_id_2, urr_id_3, ...
                              session_id_t n4_sess_id,
@@ -328,10 +350,10 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
                              )
     {
         local_meta.pdr_id = id;
-        local_meta.needs_encap = needs_encap;
+        local_meta.needs_gtpu_encap = (bool)needs_gtpu_encap;
         local_meta.src_encap_addr = src_encap_addr;
         local_meta.dst_encap_addr = dst_encap_addr;
-        local_meta.needs_decap = needs_decap;
+        local_meta.needs_gtpu_decap = (bool)needs_gtpu_decap;
         local_meta.far_id = far_id;
         local_meta.urr_id = urr_id;
         local_meta.n4_sess_id = n4_sess_id;
@@ -344,13 +366,13 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         key = {
             // teid, sport, dport, proto should be optional instead of ternary
             // bmv2 supports multiple LPMs, tofino does not
-            local_meta.src_iface    : exact   @name("source_interface"); // To differentiate uplink and downlink
-            local_meta.teid         : ternary @name("teid");
-            local_meta.ue_addr      : ternary @name("ue_addr"); 
-            local_meta.inet_addr    : ternary @name("inet_addr");
-            local_meta.ue_l4_port   : range   @name("ue_l4_port");
-            local_meta.inet_l4_port : range   @name("inet_l4_port");
-            hdr.ipv4.proto          : ternary @name("ip_proto");
+            local_meta.src_iface_type: exact   @name("src_iface_type"); // To differentiate uplink and downlink
+            local_meta.teid          : ternary @name("teid");
+            local_meta.ue_addr       : ternary @name("ue_addr"); 
+            local_meta.inet_addr     : ternary @name("inet_addr");
+            local_meta.ue_l4_port    : range   @name("ue_l4_port");
+            local_meta.inet_l4_port  : range   @name("inet_l4_port");
+            hdr.ipv4.proto           : ternary @name("ip_proto");
             // add ToS, SPI
             // all these fields *should* be optional, but it is not currently supported by targets
         }
@@ -370,18 +392,18 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
     }
 
 
-    action set_far_attributes(  far_type_t far_action, // forward, duplicate, drop, or buffer
-                                iface_type_t dst_iface,   
+    action set_far_attributes(  far_action_t far_action, // forward, duplicate, drop, or buffer
+                                iface_type_t dst_iface_type,   
                                 bit<32> net_instance,
-                                bool needs_encap,
+                                bool_param_t needs_gtpu_encap,
                                 port_num_t outport
                                 // TODO: outer header attributes
                                 )
     {
         local_meta.far_action = far_action;
-        local_meta.dst_iface = dst_iface;
-
-
+        local_meta.dst_iface_type = dst_iface_type;
+        local_meta.net_instance = net_instance;
+        local_meta.needs_gtpu_encap = (bool)needs_gtpu_encap;
         std_meta.egress_spec = outport;
     }
     table fars {
@@ -434,13 +456,6 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
     }
 
 
-    table my_station {
-        key = {
-            hdr.ethernet.dst_addr: exact;
-        }
-        actions = { NoAction; }
-    }
-
     action set_next_hop(mac_addr_t dmac, port_num_t port) {
         hdr.ethernet.src_addr = hdr.ethernet.dst_addr;
         hdr.ethernet.dst_addr = dmac;
@@ -448,53 +463,27 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         std_meta.egress_spec = port;
     }
 
-    table routing_v4 {
-      key = {
-          hdr.ipv4.dst_addr: lpm;
-      }
-      actions = {
-          set_next_hop;
-      }
-      @name("routing_v4_counter")
-      counters = direct_counter(CounterType.packets_and_bytes);
-    }
-
     action send_to_cpu() {
         std_meta.egress_spec = CPU_PORT;
     }
 
-    action clone_to_cpu() {
-        // Cloning is achieved by using a v1model-specific primitive. Here we
-        // set the type of clone operation (ingress-to-egress pipeline), the
-        // clone session ID (the CPU one), and the metadata fields we want to
-        // preserve for the cloned packet replica.
-        clone3(CloneType.I2E, CPU_CLONE_SESSION_ID, { std_meta.ingress_port });
-    }
 
-    table punt {
+    table rx_count {
         key = {
-            std_meta.ingress_port:   ternary;
-            hdr.ethernet.dst_addr:   ternary;
-            hdr.ethernet.src_addr:   ternary;
-            hdr.ethernet.ether_type: ternary;
+            local_meta.teid      : exact;
+            local_meta.ue_addr   : exact;
+            local_meta.src_iface_type : exact;
         }
         actions = {
-            send_to_cpu;
-            clone_to_cpu;
+            NoAction;
         }
-        @name("punt_counter")
+        @name("rx_counter")
         counters = direct_counter(CounterType.packets_and_bytes);
     }
 
-    apply {
 
-        
-        // TODO: remove this leftover tables before intel meeting
-        if (hdr.cpu_out.isValid()) {
-            std_meta.egress_spec = hdr.cpu_out.egress_port;
-            hdr.cpu_out.setInvalid();
-            exit;
-        }
+
+    apply {
 
         // gtpu_normalize
         if (hdr.gtpu.isValid()) {
@@ -510,8 +499,6 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 
         source_iface_lookup.apply();
 
-        // TODO: have counter per (subscriber,PDR_ID)? aggregate into URRs in ONOS
-        // TODO: RX per-UE counter here 
 
         // map interface type to direction
         if (local_meta.src_iface_type == IFACE_TYPE_ACCESS) {
@@ -538,20 +525,22 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             local_meta.inet_l4_port = local_meta.l4_sport;
         }
 
+        // count received packets per UE
+        // TODO: have fine-grained counters aggregated into URRs in ONOS
+        rx_count.apply();
+
         pdrs.apply();
-        fars.apply();
-        execute_far.apply();
-        
 
-        // TODO: remove these leftover tables before intel meeting
-
-        punt.apply();
-
-        if (my_station.apply().hit) {
-            routing_v4.apply();
+        if (local_meta.needs_gtpu_encap) {
+            gtpu_encap(local_meta.src_encap_addr, local_meta.dst_encap_addr);
+        }
+        if (local_meta.needs_gtpu_decap) {
+            gtpu_decap();
         }
 
-        if(hdr.ipv4.ttl == 0) { drop(); }
+        fars.apply();
+        execute_far.apply();
+
     }
 }
 
@@ -559,8 +548,25 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 control EgressPipeImpl (inout parsed_headers_t hdr,
                         inout local_metadata_t local_meta,
                         inout standard_metadata_t std_meta) {
+    
+    
+    table tx_count {
+        key = {
+            local_meta.teid : exact;
+            local_meta.ue_addr : exact;
+            local_meta.src_iface_type : exact;
+        }
+        actions = {
+            NoAction;
+        }
+        @name("tx_counter")
+        counters = direct_counter(CounterType.packets_and_bytes);
+    }
 
     apply {
+
+        tx_count.apply();
+
         if (std_meta.egress_port == CPU_PORT) {
             hdr.cpu_in.setValid();
             hdr.cpu_in.ingress_port = std_meta.ingress_port;
