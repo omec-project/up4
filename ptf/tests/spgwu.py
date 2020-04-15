@@ -56,6 +56,8 @@ UL_PDR_ID = 100
 DL_PDR_ID = 200
 UL_FAR_ID = 300
 DL_FAR_ID = 400
+DL_CTR_ID = 50
+UL_CTR_ID = 60
 
 UDP_GTP_SRC_PORT = 2100
 UDP_GTP_DST_PORT = 2152
@@ -86,13 +88,14 @@ class GTPU_far_UPLINK_Test(P4RuntimeTest):
               self.inner_pkt = pkt
               self.testPacket(self.pkt_add_gtp(pkt, out_ipv4_src, out_ipv4_dst,
                                                src_teid))
-
+    
     @autocleanup
     def testPacket(self, pkt):
         next_hop_mac = SWITCH2_MAC
 
         # Add entry to "source_iface_lookup" table. 
-       
+      
+        line_id = 0
         self.insert(self.helper.build_table_entry(
                    table_name="IngressPipeImpl.source_iface_lookup",
                    match_fields={
@@ -120,7 +123,7 @@ class GTPU_far_UPLINK_Test(P4RuntimeTest):
             "ip_proto":(IP_PROTO_UDP, 0xFF)
         },
         action_name="IngressPipeImpl.set_pdr_id_and_gtpu_decap",
-        action_params={"id":UL_PDR_ID},
+        action_params={"id":UL_PDR_ID,"cid":UL_CTR_ID},
         priority = 1
         ))
         
@@ -144,6 +147,8 @@ class GTPU_far_UPLINK_Test(P4RuntimeTest):
                 action_params={"dst_addr":next_hop_mac,"outport":self.port2}
                 ))
 
+        old_uplink = self.helper.read_pkt_count_pdr(UL_CTR_ID)
+        old_byte_uplink = self.helper.read_pkt_count_pdr(UL_CTR_ID)
 
         # Expected pkt should have routed MAC addresses and decremented hop
         # limit (TTL).
@@ -153,6 +158,10 @@ class GTPU_far_UPLINK_Test(P4RuntimeTest):
         
         testutils.send_packet(self, self.port1, str(pkt))
         testutils.verify_packet(self, exp_pkt, self.port2)
+        new_uplink = self.helper.read_pkt_count_pdr(UL_CTR_ID)
+        new_byte_uplink = self.helper.read_byte_count_pdr(UL_CTR_ID)
+        self.assertEqual(new_uplink, old_uplink +1)
+        self.assertEqual(new_byte_uplink, old_byte_uplink +136)
 
 class GTPU_far_DOWNLINK_Test(P4RuntimeTest):
     """Tests GTPU routing"""
@@ -213,7 +222,7 @@ class GTPU_far_DOWNLINK_Test(P4RuntimeTest):
             "ip_proto":(IP_PROTO_UDP, 0xFF)
         },
         action_name="IngressPipeImpl.set_pdr_id",
-        action_params={"id":DL_PDR_ID},
+        action_params={"id":DL_PDR_ID,"cid":DL_CTR_ID},
         priority = 1
         ))
         
@@ -238,10 +247,16 @@ class GTPU_far_DOWNLINK_Test(P4RuntimeTest):
                 ))
 
 
+        old_downlink = self.helper.read_pkt_count_pdr(DL_CTR_ID)
+        old_byte_downlink = self.helper.read_byte_count_pdr(DL_CTR_ID)
         # Expected pkt should have routed MAC addresses and decremented hop
         # limit (TTL).
         exp_pkt = pkt.copy()
         pkt_decrement_ttl(exp_pkt)
         outer_pkt = self.pkt_add_gtp(exp_pkt, out_ipv4_src, out_ipv4_dst, dst_teid) 
         testutils.send_packet(self, self.port2, str(pkt))
+        new_downlink = self.helper.read_pkt_count_pdr(DL_CTR_ID)
+        new_byte_downlink = self.helper.read_byte_count_pdr(DL_CTR_ID)
         testutils.verify_packet(self, outer_pkt, self.port1)
+        self.assertEqual(new_downlink, old_downlink +1)
+        self.assertEqual(new_byte_downlink, old_byte_downlink +1)

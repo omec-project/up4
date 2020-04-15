@@ -33,6 +33,7 @@
 #define UDP_HDR_SIZE 8
 #define GTP_HDR_SIZE 8
 #define IP_VERSION_4 4
+#define MAX_PDRS 256
 const bit<4> IPV4_MIN_IHL = 5;
 const bit<8> DEFAULT_IPV4_TTL = 64;
 
@@ -58,10 +59,12 @@ const bit<1> GTP_PROTOCOL_TYPE_GTP = 0x1;
 typedef bit<8> iface_type_t;
 typedef bit<2> direction_t;
 typedef bit<32> pdr_id_t;
+typedef bit<8>  counter_index_t;
 typedef bit<32> far_id_t;
 typedef bit<32> teid_t;
 
 const pdr_id_t DEFAULT_PDR_ID = 0;
+const counter_index_t DEFAULT_CTR_IDX_ID = 0;
 const far_id_t DEFAULT_FAR_ID = 0;
 
 const direction_t UPF_DIR_UNKNOWN = 2w0;
@@ -153,6 +156,7 @@ struct local_metadata_t {
     iface_type_t src_iface_type;
 
     pdr_id_t pdr_id; // needs counter for pdr_id+direction
+    counter_index_t ctr_id;
     far_id_t far_id;
     // TODO: add charging rule id
 
@@ -315,11 +319,13 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         hdr.gtpu.teid = local_meta.teid;
     }
 
-    action set_pdr_id(pdr_id_t id) {
+    action set_pdr_id(pdr_id_t id, counter_index_t cid) {
         local_meta.pdr_id = id;
+        local_meta.ctr_id = cid;
     }
-    action set_pdr_id_and_gtpu_decap(pdr_id_t id) {
+    action set_pdr_id_and_gtpu_decap(pdr_id_t id, counter_index_t cid) {
         local_meta.pdr_id = id;
+        local_meta.ctr_id = cid;
         gtpu_decap();
     }
 
@@ -342,7 +348,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         }
         @name("pdr_counter")
         counters = direct_counter(CounterType.packets_and_bytes);
-        const default_action = set_pdr_id(DEFAULT_PDR_ID);
+        const default_action = set_pdr_id(DEFAULT_PDR_ID, DEFAULT_CTR_IDX_ID);
     }
 
 
@@ -453,6 +459,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         counters = direct_counter(CounterType.packets_and_bytes);
     }
 
+    counter(MAX_PDRS, CounterType.packets_and_bytes) pdr_counter;
     apply {
 
         // TODO: have counter per (subscriber,PDR_ID)? aggregate into URRs in ONOS
@@ -504,6 +511,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         }
 
         pdrs.apply();
+        pdr_counter.count((bit<32>)local_meta.ctr_id);
         fars.apply();
         execute_far.apply();
         
