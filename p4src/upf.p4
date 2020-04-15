@@ -221,7 +221,7 @@ parser ParserImpl (packet_in packet,
 
     state parse_inner_ipv4 {
         packet.extract(hdr.inner_ipv4);
-        transition select(hdr.ipv4.proto) {
+        transition select(hdr.inner_ipv4.proto) {
             IP_PROTO_UDP: parse_inner_udp;
             default: accept;
         }
@@ -229,8 +229,8 @@ parser ParserImpl (packet_in packet,
 
     state parse_inner_udp {
         packet.extract(hdr.inner_udp);
-        local_meta.l4_sport = hdr.udp.sport;
-        local_meta.l4_dport = hdr.udp.dport;
+        local_meta.l4_sport = hdr.inner_udp.sport;
+        local_meta.l4_dport = hdr.inner_udp.dport;
         transition accept;
     }
 }
