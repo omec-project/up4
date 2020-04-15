@@ -41,9 +41,6 @@ out_ipv4_src = '192.168.0.202'
 out_ipv4_dst = '10.92.1.164'
 src_teid = 101
 dst_teid = 1201
-SPGW_DIR_UNKNOWN = 0;
-SPGW_DIR_UPLINK = 1;
-SPGW_DIR_DOWNLINK = 2;
 
 IP_MASK = '255.255.255.255'
 PORT_MASK = 65535
@@ -62,10 +59,6 @@ DL_FAR_ID = 400
 
 UDP_GTP_SRC_PORT = 2100
 UDP_GTP_DST_PORT = 2152
-UDP_SRC_PORT = None
-UDP_DST_PORT = None
-PKT_SRC_IP = None
-PKT_DST_IP = None
 
 @group("gtpu")
 class GTPU_far_UPLINK_Test(P4RuntimeTest):
@@ -93,9 +86,7 @@ class GTPU_far_UPLINK_Test(P4RuntimeTest):
               self.inner_pkt = pkt
               self.testPacket(self.pkt_add_gtp(pkt, out_ipv4_src, out_ipv4_dst,
                                                src_teid))
-#self.testPacket(pkt)
 
-#pkt[IP].payload[IP]
     @autocleanup
     def testPacket(self, pkt):
         next_hop_mac = SWITCH2_MAC
@@ -113,45 +104,19 @@ class GTPU_far_UPLINK_Test(P4RuntimeTest):
                 ))
 
         # Add entry to pdr_rule_lookup
-        UDP_SRC_PORT = self.inner_pkt[UDP].sport
-        UDP_DST_PORT = self.inner_pkt[UDP].dport
-        PKT_SRC_IP = self.inner_pkt[IP].src
-        PKT_DST_IP = self.inner_pkt[IP].dst
-        '''
-        for teid, src_addr, dst_addr, src_port, dst_port, proto, pdr_id in \
-           zip([(src_teid, 0xffffffff),(0xfffff,0)], \
-           [(PKT_SRC_IP,IP_MASK), (PKT_DST_IP,IP_MASK)], \
-           [(PKT_DST_IP,IP_MASK), (PKT_DST_IP,IP_MASK)], \
-           [(UDP_SRC_PORT, UDP_SRC_PORT), (UDP_DST_PORT,UDP_DST_PORT)], \
-           [(UDP_DST_PORT, UDP_DST_PORT), (UDP_SRC_PORT, UDP_SRC_PORT)], \
-#range still not sure how to write
-           [(IP_PROTO_UDP, 0xFF), (IP_PROTO_UDP, 0xFF)], \
-           [UL_PDR_ID, DL_PDR_ID]):
-                self.insert(self.helper.build_table_entry(
-                   table_name="IngressPipeImpl.pdrs",
-                   match_fields={
-                   # Exact match.
-                     "teid": teid,
-                     "ue_addr": src_addr,
-                     "inet_addr": dst_addr,
-                     "ue_l4_port":src_port,
-                     "inet_l4_port":dst_port,
-                     "ip_proto":proto
-                },
-                action_name="IngressPipeImpl.set_pdr_id",
-                action_params={"id":pdr_id},
-                priority = 1
-                ))
-        '''
+        udp_src_port = self.inner_pkt[UDP].sport
+        udp_dst_port = self.inner_pkt[UDP].dport
+        pkt_src_ip = self.inner_pkt[IP].src
+        pkt_dst_ip = self.inner_pkt[IP].dst
         self.insert(self.helper.build_table_entry(
             table_name="IngressPipeImpl.pdrs",
             match_fields={
             # Exact match.
             "teid": (src_teid, 0xffffffff),
-            "ue_addr": (PKT_SRC_IP, IP_MASK),
-            "inet_addr": (PKT_DST_IP, IP_MASK),
-            "ue_l4_port":(UDP_SRC_PORT, UDP_SRC_PORT),
-            "inet_l4_port":(UDP_DST_PORT, UDP_DST_PORT),
+            "ue_addr": (pkt_src_ip, IP_MASK),
+            "inet_addr": (pkt_dst_ip, IP_MASK),
+            "ue_l4_port":(udp_src_port, udp_src_port),
+            "inet_l4_port":(udp_dst_port, udp_dst_port),
             "ip_proto":(IP_PROTO_UDP, 0xFF)
         },
         action_name="IngressPipeImpl.set_pdr_id_and_gtpu_decap",
@@ -185,8 +150,7 @@ class GTPU_far_UPLINK_Test(P4RuntimeTest):
         exp_pkt = self.inner_pkt.copy()
         pkt_route(exp_pkt, next_hop_mac)
         pkt_decrement_ttl(exp_pkt)
-#exp_pkt = pkt.copy()
-        print self.port1
+        
         testutils.send_packet(self, self.port1, str(pkt))
         testutils.verify_packet(self, exp_pkt, self.port2)
 
@@ -233,19 +197,19 @@ class GTPU_far_DOWNLINK_Test(P4RuntimeTest):
                 ))
 
         # Add entry to pdr_rule_lookup
-        UDP_SRC_PORT = pkt[UDP].sport
-        UDP_DST_PORT = pkt[UDP].dport
-        PKT_SRC_IP = pkt[IP].src
-        PKT_DST_IP = pkt[IP].dst
+        udp_src_port = pkt[UDP].sport
+        udp_dst_port = pkt[UDP].dport
+        pkt_src_ip = pkt[IP].src
+        pkt_dst_ip = pkt[IP].dst
         
         self.insert(self.helper.build_table_entry(
             table_name="IngressPipeImpl.pdrs",
             match_fields={
             # Exact match.
-            "ue_addr": (PKT_DST_IP, IP_MASK),
-            "inet_addr": (PKT_SRC_IP, IP_MASK),
-            "ue_l4_port":(UDP_DST_PORT, UDP_DST_PORT),
-            "inet_l4_port":(UDP_SRC_PORT, UDP_SRC_PORT),
+            "ue_addr": (pkt_dst_ip, IP_MASK),
+            "inet_addr": (pkt_src_ip, IP_MASK),
+            "ue_l4_port":(udp_dst_port, udp_dst_port),
+            "inet_l4_port":(udp_src_port, udp_src_port),
             "ip_proto":(IP_PROTO_UDP, 0xFF)
         },
         action_name="IngressPipeImpl.set_pdr_id",
