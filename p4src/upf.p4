@@ -27,6 +27,8 @@
 // insert a CloneSessionEntry that maps this session ID to the CPU_PORT.
 #define CPU_CLONE_SESSION_ID 99
 
+#define MAX_PDRS 1024
+
 
 #define ETH_HDR_SIZE 14
 #define IPV4_HDR_SIZE 20
@@ -55,32 +57,64 @@ const bit<1> GTP_PROTOCOL_TYPE_GTP = 0x1;
 // const bit<8> GTP_MESSAGE_TYPE_something 0x00;
 
 
-typedef bit<1> bool_param_t;
-typedef bit<32> teid_t;
-typedef bit<8>  iface_type_t;
-typedef bit<2>  direction_t;
-typedef bit<8>  far_action_t;
 typedef bit<32> pdr_id_t;
 typedef bit<32> far_id_t;
 typedef bit<32> urr_id_t;
 typedef bit<32> qer_id_t;
-typedef bit<32> qfi_id_t;
-typedef bit<32> session_id_t;
+typedef bit<32> qfi_t;
 typedef bit<32> net_instance_t;
+typedef bit<32> counter_index_t;
+
+
+typedef bit<32> teid_t;
+typedef bit<64> seid_t;
+// F-TEID = (4-byte)TEID + GTP endpoint (gnodeb OR UPF) address
+typedef bit<64> f_teid_t;
+// F-SEID = 8-byte SEID + UPF IP(v4/v6) address
+typedef bit<96> fseid_t;
+
 
 const pdr_id_t DEFAULT_PDR_ID = 0;
 const far_id_t DEFAULT_FAR_ID = 0;
 const urr_id_t DEFAULT_URR_ID = 0;
 const qer_id_t DEFAULT_QER_ID = 0;
-const qfi_id_t DEFAULT_QFI_ID = 0;
+const qfi_t    DEFAULT_QFI    = 0;
 
-const direction_t UPF_DIR_UNKNOWN = 2w0;
-const direction_t UPF_DIR_UPLINK = 2w1;
-const direction_t UPF_DIR_DOWNLINK = 2w2;
+typedef bit<8>  direction_t;
+//enum direction_t UPF_DIR {
+const direction_t UPF_DIR_UNKNOWN             = 0x0;
+const direction_t UPF_DIR_UPLINK              = 0x1;
+const direction_t UPF_DIR_DOWNLINK            = 0x2;
+const direction_t UPF_DIR_OTHER               = 0x3;
+//}
 
-const iface_type_t IFACE_TYPE_UNKNOWN = 0x0;
-const iface_type_t IFACE_TYPE_ACCESS  = 0x1;
-const iface_type_t IFACE_TYPE_CORE    = 0x2;
+typedef bit<8>  iface_type_t;
+//enum iface_type_t IFACE_TYPE {
+const iface_type_t IFACE_TYPE_UNKNOWN     = 0x0;
+const iface_type_t IFACE_TYPE_ACCESS      = 0x1;
+const iface_type_t IFACE_TYPE_CORE        = 0x2;
+const iface_type_t IFACE_TYPE_N6_LAN      = 0x3;
+const iface_type_t IFACE_TYPE_VN_INTERNAL = 0x4;
+//}
+
+typedef bit<8>  far_type_t;
+//enum far_type_t FAR_TYPE {
+const far_type_t FAR_TYPE_NONE        = 0x0;
+const far_type_t FAR_TYPE_FORWARD     = 0x1;
+const far_type_t FAR_TYPE_BUFFER      = 0x2;
+const far_type_t FAR_TYPE_TUNNEL      = 0x3;
+const far_type_t FAR_TYPE_DROP        = 0x4;
+//}
+
+
+typedef bit<8> tunnel_type_t;
+//enum tunnel_type_t TUNNEL_TYPE {
+const tunnel_type_t TUNNEL_TYPE_UNKNOWN     = 0x0;
+const tunnel_type_t TUNNEL_TYPE_UDP         = 0x1;
+const tunnel_type_t TUNNEL_TYPE_IP          = 0x2;
+const tunnel_type_t TUNNEL_TYPE_GTPU        = 0x3;
+//}
+
 
 //------------------------------------------------------------------------------
 // HEADER DEFINITIONS
@@ -128,21 +162,8 @@ header gtpu_t {
 }
 
 
-@controller_header("packet_in")
-header cpu_in_header_t {
-    port_num_t  ingress_port;
-    bit<7>      _pad;
-}
-
-@controller_header("packet_out")
-header cpu_out_header_t {
-    port_num_t  egress_port;
-    bit<7>      _pad;
-}
 
 struct parsed_headers_t {
-    cpu_out_header_t cpu_out;
-    cpu_in_header_t cpu_in;
     ethernet_t ethernet;
     ipv4_t outer_ipv4;
     udp_t outer_udp;
@@ -153,36 +174,62 @@ struct parsed_headers_t {
     udp_t inner_udp;
 }
 
+
+struct pdr_metadata_t {
+    pdr_id_t id;
+    counter_index_t ctr_idx;
+}
+
+
+// Data that will be loaded by a FAR (except ID which is loaded by a PDR)
+struct far_metadata_t {
+    far_id_t id;
+    far_type_t action_type;
+
+    tunnel_type_t tunnel_type;
+    ipv4_addr_t tunnel_src_ipv4_addr;
+    ipv4_addr_t tunnel_dst_ipv4_addr;
+    teid_t tunnel_teid;
+
+    mac_addr_t dst_mac_addr;
+    port_num_t egress_spec;
+    iface_type_t dst_iface_type;
+}
+
+struct qos_metadata_t {
+    qer_id_t qer_id;
+    qfi_t    qfi;
+}
+
 struct local_metadata_t {
     direction_t direction;
-    ipv4_addr_t ue_addr;
-    ipv4_addr_t inet_addr;
-    // each subscriber can have multiple TEIDs
-    // we need a counter per TEID+direction
-    teid_t teid;
+    
+    teid_t teid; // local Tunnel ID.  F-TEID = TEID + GTP endpoint address
+    seid_t seid; // local Session ID. F-SEID = SEID + GTP endpoint address
+
+    f_teid_t f_teid;
+    fseid_t fseid;
+
+    bool needs_gtpu_decap;
+    bool needs_udp_decap;
+    bool needs_vlan_removal;
+
     iface_type_t src_iface_type;
     iface_type_t dst_iface_type;
 
-    pdr_id_t pdr_id; // needs counter for pdr_id+direction
-    urr_id_t urr_id;
-    qer_id_t qer_id;
-    qfi_id_t qfi_id;
-    far_id_t far_id;
-    far_action_t far_action;
-
+    ipv4_addr_t ue_addr;
+    ipv4_addr_t inet_addr;
     l4_port_t ue_l4_port;
     l4_port_t inet_l4_port;
 
     l4_port_t   l4_sport;
     l4_port_t   l4_dport;
 
-    bool needs_gtpu_encap;
-    bool needs_gtpu_decap;
-    ipv4_addr_t src_encap_addr;
-    ipv4_addr_t dst_encap_addr;
-
     net_instance_t net_instance;
-    session_id_t n4_sess_id;
+
+    far_metadata_t far;
+    qos_metadata_t qos;
+    pdr_metadata_t pdr;
 }
 
 
@@ -196,14 +243,6 @@ parser ParserImpl (packet_in packet,
                    inout standard_metadata_t std_meta)
 {
     state start {
-        transition select(std_meta.ingress_port) {
-            CPU_PORT: parse_packet_out;
-            default: parse_ethernet;
-        }
-    }
-
-    state parse_packet_out {
-        packet.extract(hdr.cpu_out);
         transition parse_ethernet;
     }
 
@@ -267,38 +306,10 @@ control VerifyChecksumImpl(inout parsed_headers_t hdr,
 }
 
 
-control IngressPipeImpl (inout parsed_headers_t    hdr,
-                         inout local_metadata_t    local_meta,
-                         inout standard_metadata_t std_meta) {
 
-
-    /* used by many tables */
-    action drop() {
-        mark_to_drop(std_meta);
-    }
-
-
-    action set_source_iface_type(iface_type_t src_iface_type) {
-        local_meta.src_iface_type = src_iface_type;
-    }
-    table source_iface_lookup {
-        key = {
-            std_meta.ingress_port : exact;
-            // in practice, will also check vlan ID and destination IP
-        }
-        actions = {
-            set_source_iface_type;
-        }
-        const default_action = set_source_iface_type(IFACE_TYPE_UNKNOWN); 
-    }
-
-
-    @hidden
-    action gtpu_decap() {
-        hdr.gtpu.setInvalid();
-        hdr.outer_ipv4.setInvalid();
-        hdr.outer_udp.setInvalid();
-    }
+control execute_far (inout parsed_headers_t    hdr,
+                     inout local_metadata_t    local_meta,
+                     inout standard_metadata_t std_meta) {
 
     @hidden
     action gtpu_encap(ipv4_addr_t src_addr, ipv4_addr_t dst_addr) {
@@ -337,151 +348,175 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         hdr.gtpu.teid = local_meta.teid;
     }
 
+    @hidden
+    action forward(mac_addr_t dst_addr, port_num_t egress_spec) {
+        std_meta.egress_spec = egress_spec;
+        hdr.ethernet.src_addr = hdr.ethernet.dst_addr;
+        hdr.ethernet.dst_addr = dst_addr;
+        hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
+    }
+    
+
+    action do_forward() {
+        forward(local_meta.far.dst_mac_addr, local_meta.far.egress_spec);
+    }
+
+    action do_gtpu_tunnel() {
+        gtpu_encap(local_meta.far.tunnel_src_ipv4_addr, 
+                   local_meta.far.tunnel_dst_ipv4_addr);
+        forward(local_meta.far.dst_mac_addr, local_meta.far.egress_spec);
+    }
+
+    action do_buffer() {
+        // add_buffer_info_header();
+        // forward(hdr.ethernet.src_addr, BUFFER_DEVICE_PORT);
+    }
+
+    action do_drop() {
+        mark_to_drop(std_meta);
+    }
+
+    apply {
+        if      (local_meta.far.action_type == FAR_TYPE_FORWARD) {
+            do_forward();
+        }
+        else if (local_meta.far.action_type == FAR_TYPE_BUFFER) {
+            do_buffer();
+        }
+        else if (local_meta.far.action_type == FAR_TYPE_TUNNEL &&
+                 local_meta.far.tunnel_type == TUNNEL_TYPE_GTPU) {
+            do_gtpu_tunnel();
+        }
+        else if (local_meta.far.action_type == FAR_TYPE_DROP) {
+            do_drop();
+        }
+    }
+}
+
+control IngressPipeImpl (inout parsed_headers_t    hdr,
+                         inout local_metadata_t    local_meta,
+                         inout standard_metadata_t std_meta) {
+
+
+    counter(MAX_PDRS, CounterType.packets_and_bytes) pre_qos_pdr_counter;
+
+    /* used by many tables */
+    action drop() {
+        mark_to_drop(std_meta);
+    }
+
+
+    action set_source_iface_type(iface_type_t src_iface_type) {
+        local_meta.src_iface_type = src_iface_type;
+    }
+    table source_iface_lookup {
+        key = {
+            std_meta.ingress_port : exact;
+            // in practice, will also check vlan ID and destination IP
+        }
+        actions = {
+            set_source_iface_type;
+        }
+        const default_action = set_source_iface_type(IFACE_TYPE_UNKNOWN);
+    }
+
+
+    @hidden
+    action gtpu_decap() {
+        hdr.gtpu.setInvalid();
+        hdr.outer_ipv4.setInvalid();
+        hdr.outer_udp.setInvalid();
+    }
+
+
 
     action set_pdr_attributes(pdr_id_t id, 
-                             bool_param_t needs_gtpu_encap, ipv4_addr_t src_encap_addr, ipv4_addr_t dst_encap_addr,
-                             bool_param_t needs_gtpu_decap,
                              far_id_t far_id, 
-                             urr_id_t urr_id, // urr_id_2, urr_id_3, ...
-                             session_id_t n4_sess_id,
                              qer_id_t qer_id,
-                             qfi_id_t qfi_id
+                             qfi_t qfi,
+                             bit<1> needs_gtpu_decap,
+                             bit<1> needs_udp_decap,
+                             bit<1> needs_vlan_removal,
+                             net_instance_t net_instance
                              // TODO: add more attributes to load. 
                              )
     {
-        local_meta.pdr_id = id;
-        local_meta.needs_gtpu_encap = (bool)needs_gtpu_encap;
-        local_meta.src_encap_addr = src_encap_addr;
-        local_meta.dst_encap_addr = dst_encap_addr;
+        local_meta.pdr.id = id;
+        local_meta.far.id = far_id;
+        local_meta.qos.qer_id = qer_id;
+        local_meta.qos.qfi = qfi;
         local_meta.needs_gtpu_decap = (bool)needs_gtpu_decap;
-        local_meta.far_id = far_id;
-        local_meta.urr_id = urr_id;
-        local_meta.n4_sess_id = n4_sess_id;
-        local_meta.qer_id = qer_id;
-        local_meta.qfi_id = qfi_id;
+        local_meta.needs_udp_decap  = (bool)needs_udp_decap;
+        local_meta.net_instance = net_instance;
     }
 
     // Contains PDRs for both the Uplink and Downlink Direction
     table pdrs {
         key = {
-            // teid, sport, dport, proto should be optional instead of ternary
-            // bmv2 supports multiple LPMs, tofino does not
-            local_meta.src_iface_type: exact   @name("src_iface_type"); // To differentiate uplink and downlink
-            local_meta.teid          : ternary @name("teid");
-            local_meta.ue_addr       : ternary @name("ue_addr"); 
-            local_meta.inet_addr     : ternary @name("inet_addr");
-            local_meta.ue_l4_port    : range   @name("ue_l4_port");
-            local_meta.inet_l4_port  : range   @name("inet_l4_port");
-            hdr.ipv4.proto           : ternary @name("ip_proto");
+            local_meta.fseid           : exact     @name("fseid");
+            local_meta.src_iface_type   : exact     @name("src_iface_type"); // To differentiate uplink and downlink
+            // 5-Tuple
+            local_meta.ue_addr          : ternary   @name("ue_addr"); 
+            local_meta.inet_addr        : ternary   @name("inet_addr");
+            local_meta.ue_l4_port       : range     @name("ue_l4_port");
+            local_meta.inet_l4_port     : range     @name("inet_l4_port");
+            hdr.ipv4.proto              : ternary   @name("ip_proto");
             // add ToS, SPI
-            // all these fields *should* be optional, but it is not currently supported by targets
+            // The 5-tuple fields *should* be optional, but optional is not currently supported by targets
         }
         actions = {
-            // TODO: should encap and decap actions be moved to a second table that matches on the PDR ID?
             set_pdr_attributes; 
             @defaultonly NoAction;
         }
-        @name("pdr_counter")
-        counters = direct_counter(CounterType.packets_and_bytes);
     }
 
-
-    action set_far_id(far_id_t id) {
-        local_meta.far_id = id;
-        // load other info here? if so, make this an action profile
+    action set_far_attributes_forward(port_num_t egress_spec,
+                                      mac_addr_t dst_addr) {
+        local_meta.far.action_type = FAR_TYPE_FORWARD;
+        local_meta.far.egress_spec = egress_spec;
+        local_meta.far.dst_mac_addr = dst_addr;
     }
-
-
-    action set_far_attributes(  far_action_t far_action, // forward, duplicate, drop, or buffer
-                                iface_type_t dst_iface_type,   
-                                bit<32> net_instance,
-                                bool_param_t needs_gtpu_encap,
-                                port_num_t outport
-                                // TODO: outer header attributes
-                                )
-    {
-        local_meta.far_action = far_action;
-        local_meta.dst_iface_type = dst_iface_type;
-        local_meta.net_instance = net_instance;
-        local_meta.needs_gtpu_encap = (bool)needs_gtpu_encap;
-        std_meta.egress_spec = outport;
+    action set_far_attributes_buffer() {
+        local_meta.far.action_type = FAR_TYPE_BUFFER;
+    }
+    action set_far_attributes_tunnel(tunnel_type_t tunnel_type,
+                                ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
+                                teid_t teid) {
+        local_meta.far.action_type          = FAR_TYPE_TUNNEL;
+        local_meta.far.tunnel_type          = tunnel_type;
+        local_meta.far.tunnel_teid          = teid;
+        local_meta.far.tunnel_src_ipv4_addr = src_addr;
+        local_meta.far.tunnel_dst_ipv4_addr = dst_addr;
+    } 
+    action set_far_attributes_drop() {
+        local_meta.far.action_type = FAR_TYPE_DROP;
     }
     table fars {
         key = {
-            local_meta.far_id : exact;
+            local_meta.far.id : exact;
         }
         actions = {
-            set_far_attributes;
+            set_far_attributes_forward;
+            set_far_attributes_buffer;
+            set_far_attributes_tunnel;
+            set_far_attributes_drop;
         }
     }
 
 
-    
 
-    action forward(mac_addr_t dst_addr, port_num_t outport) {
-        std_meta.egress_spec = outport;
-        hdr.ethernet.src_addr = hdr.ethernet.dst_addr;;
-        hdr.ethernet.dst_addr = dst_addr;
-        hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
+    action set_fseid(fseid_t fseid) {
+        local_meta.fseid = fseid;
     }
-
-    action gtpu_encap_and_forward(ipv4_addr_t encap_src_addr, ipv4_addr_t encap_dst_addr,
-                        mac_addr_t nexthop_mac, port_num_t outport) {
-        gtpu_encap(encap_src_addr, encap_dst_addr);
-        forward(nexthop_mac, outport); 
-    }
-
-    action buffer() {
-        // do_buffer();
-    }
-
-    table execute_far {
+    table fseid_lookup {
         key = {
-            local_meta.far_id : exact;
+            local_meta.ue_addr : exact;
+            // TODO: what is the other part of the lookup?
         }
         actions = {
-            // other types of encap can happen (ex udp+ip)
-            gtpu_encap_and_forward;
-            forward;
-            drop;
-            buffer;
-            NoAction;
+            set_fseid;
         }
-        @name("far_counter")
-        counters = direct_counter(CounterType.packets_and_bytes);
-        const default_action = NoAction();
-        //const entries = {
-        //    (DEFAULT_FAR_ID) : NoAction();
-        //}
     }
-
-
-    action set_next_hop(mac_addr_t dmac, port_num_t port) {
-        hdr.ethernet.src_addr = hdr.ethernet.dst_addr;
-        hdr.ethernet.dst_addr = dmac;
-        hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
-        std_meta.egress_spec = port;
-    }
-
-    action send_to_cpu() {
-        std_meta.egress_spec = CPU_PORT;
-    }
-
-
-    table rx_count {
-        key = {
-            local_meta.teid      : exact;
-            local_meta.ue_addr   : exact;
-            local_meta.src_iface_type : exact;
-        }
-        actions = {
-            NoAction;
-        }
-        @name("rx_counter")
-        counters = direct_counter(CounterType.packets_and_bytes);
-    }
-
-
 
     apply {
 
@@ -496,9 +531,22 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
                 hdr.udp.setInvalid();
             }
         }
+        /*
+        if (std_meta.ingress_port != FROM_BUFFERING_DEVICE) {
+            bypass_ingress();
+        }
+        */
+
+        // N4 session ID = F-SEID = (8-byte)SEID + UPF address
+        // F-TEID = (4-byte)TEID + GTP endpoint (gnodeb OR UPF) address
+        // downlink lookup = UE address lookup
+
+        // TODO: pdr table matches on F-SEID
+        // TODO: counters only on PDR table. no need for any others
 
         source_iface_lookup.apply();
 
+        // TODO: F-SEID lookup table
 
         // map interface type to direction
         if (local_meta.src_iface_type == IFACE_TYPE_ACCESS) {
@@ -525,21 +573,18 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             local_meta.inet_l4_port = local_meta.l4_sport;
         }
 
-        // count received packets per UE
-        // TODO: have fine-grained counters aggregated into URRs in ONOS
-        rx_count.apply();
 
+
+        fseid_lookup.apply();
         pdrs.apply();
+        pre_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
 
-        if (local_meta.needs_gtpu_encap) {
-            gtpu_encap(local_meta.src_encap_addr, local_meta.dst_encap_addr);
-        }
         if (local_meta.needs_gtpu_decap) {
             gtpu_decap();
         }
 
         fars.apply();
-        execute_far.apply();
+        execute_far.apply(hdr, local_meta, std_meta);
 
     }
 }
@@ -548,30 +593,14 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 control EgressPipeImpl (inout parsed_headers_t hdr,
                         inout local_metadata_t local_meta,
                         inout standard_metadata_t std_meta) {
-    
-    
-    table tx_count {
-        key = {
-            local_meta.teid : exact;
-            local_meta.ue_addr : exact;
-            local_meta.src_iface_type : exact;
-        }
-        actions = {
-            NoAction;
-        }
-        @name("tx_counter")
-        counters = direct_counter(CounterType.packets_and_bytes);
-    }
+
+
+    counter(MAX_PDRS, CounterType.packets_and_bytes) post_qos_pdr_counter;
 
     apply {
 
-        tx_count.apply();
+        post_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
 
-        if (std_meta.egress_port == CPU_PORT) {
-            hdr.cpu_in.setValid();
-            hdr.cpu_in.ingress_port = std_meta.ingress_port;
-            exit;
-        }
     }
 }
 
@@ -603,7 +632,6 @@ control ComputeChecksumImpl(inout parsed_headers_t hdr,
 
 control DeparserImpl(packet_out packet, in parsed_headers_t hdr) {
     apply {
-        packet.emit(hdr.cpu_in);
         packet.emit(hdr.ethernet);
         packet.emit(hdr.outer_ipv4);
         packet.emit(hdr.outer_udp);
