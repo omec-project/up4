@@ -80,40 +80,37 @@ const urr_id_t DEFAULT_URR_ID = 0;
 const qer_id_t DEFAULT_QER_ID = 0;
 const qfi_t    DEFAULT_QFI    = 0;
 
-typedef bit<8>  direction_t;
-//enum direction_t UPF_DIR {
-const direction_t UPF_DIR_UNKNOWN             = 0x0;
-const direction_t UPF_DIR_UPLINK              = 0x1;
-const direction_t UPF_DIR_DOWNLINK            = 0x2;
-const direction_t UPF_DIR_OTHER               = 0x3;
-//}
+//typedef bit<8>  direction_t;
+enum bit<8> Direction {
+    UNKNOWN             = 0x0,
+    UPLINK              = 0x1,
+    DOWNLINK            = 0x2,
+    OTHER               = 0x3
+};
 
-typedef bit<8>  iface_type_t;
-//enum iface_type_t IFACE_TYPE {
-const iface_type_t IFACE_TYPE_UNKNOWN     = 0x0;
-const iface_type_t IFACE_TYPE_ACCESS      = 0x1;
-const iface_type_t IFACE_TYPE_CORE        = 0x2;
-const iface_type_t IFACE_TYPE_N6_LAN      = 0x3;
-const iface_type_t IFACE_TYPE_VN_INTERNAL = 0x4;
-//}
+enum bit<8> InterfaceType {
+    UNKNOWN     = 0x0,
+    ACCESS      = 0x1,
+    CORE        = 0x2,
+    N6_LAN      = 0x3,
+    VN_INTERNAL = 0x4
+}
 
-typedef bit<8>  far_type_t;
-//enum far_type_t FAR_TYPE {
-const far_type_t FAR_TYPE_NONE        = 0x0;
-const far_type_t FAR_TYPE_FORWARD     = 0x1;
-const far_type_t FAR_TYPE_BUFFER      = 0x2;
-const far_type_t FAR_TYPE_TUNNEL      = 0x3;
-const far_type_t FAR_TYPE_DROP        = 0x4;
-//}
+enum bit<8> ActionType {
+    NONE        = 0x0,
+    FORWARD     = 0x1,
+    BUFFER      = 0x2,
+    TUNNEL      = 0x3,
+    DROP        = 0x4
+}
 
 
-typedef bit<8> tunnel_type_t;
-//enum tunnel_type_t TUNNEL_TYPE {
-const tunnel_type_t TUNNEL_TYPE_UNKNOWN     = 0x0;
-const tunnel_type_t TUNNEL_TYPE_UDP         = 0x1;
-const tunnel_type_t TUNNEL_TYPE_IP          = 0x2;
-const tunnel_type_t TUNNEL_TYPE_GTPU        = 0x3;
-//}
+enum bit<8> TunnelType {
+    UNKNOWN = 0x0,
+    IP      = 0x1,
+    UDP     = 0x2,
+    GTPU    = 0x3
+}
 
 
 //------------------------------------------------------------------------------
@@ -184,16 +181,16 @@ struct pdr_metadata_t {
 // Data that will be loaded by a FAR (except ID which is loaded by a PDR)
 struct far_metadata_t {
     far_id_t id;
-    far_type_t action_type;
+    ActionType action_type;
 
-    tunnel_type_t tunnel_type;
+    TunnelType tunnel_type;
     ipv4_addr_t tunnel_src_ipv4_addr;
     ipv4_addr_t tunnel_dst_ipv4_addr;
     teid_t tunnel_teid;
 
     mac_addr_t dst_mac_addr;
     port_num_t egress_spec;
-    iface_type_t dst_iface_type;
+    InterfaceType dst_iface_type;
 }
 
 struct qos_metadata_t {
@@ -202,7 +199,7 @@ struct qos_metadata_t {
 }
 
 struct local_metadata_t {
-    direction_t direction;
+    Direction direction;
     
     teid_t teid; // local Tunnel ID.  F-TEID = TEID + GTP endpoint address
     seid_t seid; // local Session ID. F-SEID = SEID + GTP endpoint address
@@ -214,8 +211,8 @@ struct local_metadata_t {
     bool needs_udp_decap;
     bool needs_vlan_removal;
 
-    iface_type_t src_iface_type;
-    iface_type_t dst_iface_type;
+    InterfaceType src_iface_type;
+    InterfaceType dst_iface_type;
 
     ipv4_addr_t ue_addr;
     ipv4_addr_t inet_addr;
@@ -377,17 +374,17 @@ control execute_far (inout parsed_headers_t    hdr,
     }
 
     apply {
-        if      (local_meta.far.action_type == FAR_TYPE_FORWARD) {
+        if      (local_meta.far.action_type == ActionType.FORWARD) {
             do_forward();
         }
-        else if (local_meta.far.action_type == FAR_TYPE_BUFFER) {
+        else if (local_meta.far.action_type == ActionType.BUFFER) {
             do_buffer();
         }
-        else if (local_meta.far.action_type == FAR_TYPE_TUNNEL &&
-                 local_meta.far.tunnel_type == TUNNEL_TYPE_GTPU) {
+        else if (local_meta.far.action_type == ActionType.TUNNEL &&
+                 local_meta.far.tunnel_type == TunnelType.GTPU) {
             do_gtpu_tunnel();
         }
-        else if (local_meta.far.action_type == FAR_TYPE_DROP) {
+        else if (local_meta.far.action_type == ActionType.DROP) {
             do_drop();
         }
     }
@@ -406,7 +403,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
     }
 
 
-    action set_source_iface_type(iface_type_t src_iface_type) {
+    action set_source_iface_type(InterfaceType src_iface_type) {
         local_meta.src_iface_type = src_iface_type;
     }
     table source_iface_lookup {
@@ -417,7 +414,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         actions = {
             set_source_iface_type;
         }
-        const default_action = set_source_iface_type(IFACE_TYPE_UNKNOWN);
+        const default_action = set_source_iface_type(InterfaceType.UNKNOWN);
     }
 
 
@@ -447,6 +444,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         local_meta.qos.qfi = qfi;
         local_meta.needs_gtpu_decap = (bool)needs_gtpu_decap;
         local_meta.needs_udp_decap  = (bool)needs_udp_decap;
+        local_meta.needs_vlan_removal = (bool)needs_vlan_removal;
         local_meta.net_instance = net_instance;
     }
 
@@ -472,24 +470,24 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 
     action set_far_attributes_forward(port_num_t egress_spec,
                                       mac_addr_t dst_addr) {
-        local_meta.far.action_type = FAR_TYPE_FORWARD;
+        local_meta.far.action_type = ActionType.FORWARD;
         local_meta.far.egress_spec = egress_spec;
         local_meta.far.dst_mac_addr = dst_addr;
     }
     action set_far_attributes_buffer() {
-        local_meta.far.action_type = FAR_TYPE_BUFFER;
+        local_meta.far.action_type = ActionType.BUFFER;
     }
-    action set_far_attributes_tunnel(tunnel_type_t tunnel_type,
+    action set_far_attributes_tunnel(TunnelType tunnel_type,
                                 ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
                                 teid_t teid) {
-        local_meta.far.action_type          = FAR_TYPE_TUNNEL;
+        local_meta.far.action_type          = ActionType.TUNNEL;
         local_meta.far.tunnel_type          = tunnel_type;
         local_meta.far.tunnel_teid          = teid;
         local_meta.far.tunnel_src_ipv4_addr = src_addr;
         local_meta.far.tunnel_dst_ipv4_addr = dst_addr;
     } 
     action set_far_attributes_drop() {
-        local_meta.far.action_type = FAR_TYPE_DROP;
+        local_meta.far.action_type = ActionType.DROP;
     }
     table fars {
         key = {
@@ -549,24 +547,24 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         // TODO: F-SEID lookup table
 
         // map interface type to direction
-        if (local_meta.src_iface_type == IFACE_TYPE_ACCESS) {
-            local_meta.direction = UPF_DIR_UPLINK;
+        if (local_meta.src_iface_type == InterfaceType.ACCESS) {
+            local_meta.direction = Direction.UPLINK;
         }
-        else if (local_meta.src_iface_type == IFACE_TYPE_CORE) {
-            local_meta.direction = UPF_DIR_DOWNLINK;
+        else if (local_meta.src_iface_type == InterfaceType.CORE) {
+            local_meta.direction = Direction.DOWNLINK;
         }
         else {
-            local_meta.direction = UPF_DIR_UNKNOWN;
+            local_meta.direction = Direction.UNKNOWN;
         }
 
         // 5tuple_normalize
-        if (local_meta.direction == UPF_DIR_UPLINK) {
+        if (local_meta.direction == Direction.UPLINK) {
             local_meta.ue_addr = hdr.ipv4.src_addr;
             local_meta.inet_addr = hdr.ipv4.dst_addr;
             local_meta.ue_l4_port = local_meta.l4_sport;
             local_meta.inet_l4_port = local_meta.l4_dport;
         }
-        else if (local_meta.direction == UPF_DIR_DOWNLINK) {
+        else if (local_meta.direction == Direction.DOWNLINK) {
             local_meta.ue_addr = hdr.ipv4.dst_addr;
             local_meta.inet_addr = hdr.ipv4.src_addr;
             local_meta.ue_l4_port = local_meta.l4_dport;
