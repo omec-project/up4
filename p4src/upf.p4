@@ -541,6 +541,10 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         }
     }
 
+
+    //----------------------------------------
+    // INGRESS APPLY BLOCK
+    //----------------------------------------
     apply {
 
         // gtpu_normalize
@@ -611,6 +615,9 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 }
 
 
+//------------------------------------------------------------------------------
+// EGRESS PIPELINE
+//------------------------------------------------------------------------------
 control EgressPipeImpl (inout parsed_headers_t hdr,
                         inout local_metadata_t local_meta,
                         inout standard_metadata_t std_meta) {
@@ -625,7 +632,9 @@ control EgressPipeImpl (inout parsed_headers_t hdr,
     }
 }
 
-
+//------------------------------------------------------------------------------
+// CHECKSUM COMPUTATION
+//------------------------------------------------------------------------------
 control ComputeChecksumImpl(inout parsed_headers_t hdr,
                             inout local_metadata_t local_meta)
 {
@@ -651,6 +660,9 @@ control ComputeChecksumImpl(inout parsed_headers_t hdr,
 }
 
 
+//------------------------------------------------------------------------------
+// DEPARSER
+//------------------------------------------------------------------------------
 control DeparserImpl(packet_out packet, in parsed_headers_t hdr) {
     apply {
         packet.emit(hdr.ethernet);
