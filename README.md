@@ -1,6 +1,6 @@
 # UP4
 
-Yet another UPF implementation in P4.
+P4 implementation of the mobile core user plane. The initial focus is 4G, but eventually the same P4 program will evolve to support 5G.
 
 ## Requirements
 
