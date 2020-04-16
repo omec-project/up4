@@ -54,6 +54,23 @@ class P4InfoHelper(object):
         self.next_grp_id = self.next_grp_id + 1
         return grp_id
 
+    def get_enum_obj(self, name):
+        if "type_info" in dir(self.p4info):
+            type_info = self.p4info.type_info
+            if "serializable_enums" in dir(type_info):
+                for key, val in type_info.serializable_enums.items():
+                    if key == name:
+                        return val
+        raise AttributeError("Could not find enum named %s"
+                             % name)
+
+    def get_enum_members(self, name):
+        obj = self.get_enum_obj(name)
+        return {member.name.encode('ascii', 'ignore'):member.value for member in obj.members}
+
+    def get_enum_width(self, name):
+        return self.get_enum_obj(name).underlying_type.bitwidth
+
     def get(self, entity_type, name=None, id=None):
         if name is not None and id is not None:
             raise AssertionError("name or id must be None")
