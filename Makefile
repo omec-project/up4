@@ -22,21 +22,21 @@ clean:
 	-rm -rf ptf/*.log
 	-rm -rf ptf/*.pcap
 
-build: p4src/upf.p4
+build: p4src/main.p4
 	$(info *** Building P4 program...)
 	@mkdir -p p4src/build
 	docker run --rm -v ${curr_dir}:/workdir -w /workdir ${P4C_IMG} \
 		p4c-bm2-ss --arch v1model -o p4src/build/bmv2.json \
 		--p4runtime-files p4src/build/p4info.txt,p4src/build/p4info.bin \
 		--Wdisable=unsupported \
-		p4src/upf.p4
+		p4src/main.p4
 	@echo "*** P4 program compiled successfully! Output files are in p4src/build"
 
-graph: p4src/upf.p4
+graph: p4src/main.p4
 	$(info *** Generating P4 program graphs...)
 	@mkdir -p p4src/build/graphs
 	docker run --rm -v ${curr_dir}:/workdir -w /workdir ${P4C_IMG} \
-		p4c-graphs --graphs-dir p4src/build/graphs p4src/upf.p4
+		p4c-graphs --graphs-dir p4src/build/graphs p4src/main.p4
 	for f in p4src/build/graphs/*.dot; do \
 		docker run --rm -v ${curr_dir}:/workdir -w /workdir ${P4C_IMG} \
 			dot -Tpdf $${f} > $${f}.pdf; rm -f $${f}; \
