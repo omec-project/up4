@@ -15,8 +15,10 @@
 import re
 
 import google.protobuf.text_format
+import grpc
+from ptf import testutils as testutils
 from p4.config.v1 import p4info_pb2
-from p4.v1 import p4runtime_pb2
+from p4.v1 import p4runtime_pb2, p4runtime_pb2_grpc
 
 from convert import encode
 
@@ -49,6 +51,71 @@ class P4InfoHelper(object):
         self.next_mbr_id = self.next_mbr_id + 1
         return mbr_id
 
+    def read_pkt_count(self, c_name, line_id):
+        counter = self.read_counter(c_name, line_id, typ="BOTH")
+        return counter.data.packet_count
+
+    def read_byte_count(self, c_name, line_id):
+        counter = self.read_counter(c_name, line_id, typ="BYTES")
+        return counter.data.byte_count
+
+    def read_pkt_count_pre_qos_pdr(self, line_id):
+        return self.read_pkt_count("IngressPipeImpl.pre_qos_pdr_counter", line_id)
+
+    def read_byte_count_pre_qos_pdr(self, line_id):
+        return self.read_byte_count("IngressPipeImpl.pre_qos_pdr_counter", line_id)
+
+    def read_counter(self, c_name, c_index, typ):
+        # Check counter type with P4Info
+        counter = self.get_obj('counters',c_name)
+        counter_type_unit = p4info_pb2.CounterSpec.Unit.items()[counter.spec.unit][0]
+        if counter_type_unit != "BOTH" and counter_type_unit != typ:
+            raise Exception("Counter " + c_name + " is of type " + counter_type_unit + ", but requested: " + typ)
+        req = self.get_new_read_request()
+        entity = req.entities.add()
+        counter_entry = entity.counter_entry
+        c_id = self.get_id('counters',c_name)
+        counter_entry.counter_id = c_id
+        index = counter_entry.index
+        index.index = c_index
+
+        for entity in self.read_request(req):
+            if entity.HasField("counter_entry"):
+                return entity.counter_entry
+        return None
+
+    def read_request(self, req):
+        entities = []
+        grpc_addr = testutils.test_param_get("grpcaddr")
+        channel = grpc.insecure_channel(grpc_addr)
+        stub = p4runtime_pb2_grpc.P4RuntimeStub(channel)
+        try:
+            for resp in stub.Read(req):
+                entities.extend(resp.entities)
+        except grpc.RpcError as e:
+            if e.code() != grpc.StatusCode.UNKNOWN:
+                raise e
+            raise P4RuntimeException(e)
+        return entities
+
+    def write_request(self, req, store=True):
+        rep = self._write(req)
+        if store:
+            self.reqs.append(req)
+        return rep
+
+    def get_new_write_request(self):
+        req = p4runtime_pb2.WriteRequest()
+        req.device_id = int(testutils.test_param_get("device_id"))
+        election_id = req.election_id
+        election_id.high = 0
+        election_id.low = self.election_id
+        return req
+
+    def get_new_read_request(self):
+        req = p4runtime_pb2.ReadRequest()
+        req.device_id = int(testutils.test_param_get("device_id"))
+        return req
     def get_next_grp_id(self):
         grp_id = self.next_grp_id
         self.next_grp_id = self.next_grp_id + 1
@@ -96,6 +163,9 @@ class P4InfoHelper(object):
 
     def get_name(self, entity_type, id):
         return self.get(entity_type, id=id).preamble.name
+
+    def get_obj(self, entity_type, name):
+        return self.get(entity_type, name=name)
 
     def __getattr__(self, attr):
         # Synthesize convenience functions for name to id lookups for top-level
@@ -194,6 +264,15 @@ class P4InfoHelper(object):
         raise AttributeError(
             "Action %r has no param %r (check your P4Info)"
             % (action_name, name if name is not None else id))
+
+    def get_counter(self, counter_name):
+        for a in self.p4info.direct_counters:
+            pre = a.preamble
+            if pre.name == counter_name:
+                  return a
+        raise AttributeError(
+            "Counter %r doesnt exist (check your P4Info)"
+            % (counter_name))
 
     def get_action_param_id(self, action_name, param_name):
         return self.get_action_param(action_name, name=param_name).id
