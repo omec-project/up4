@@ -302,8 +302,8 @@ parser ParserImpl (packet_in packet,
 
     state parse_inner_udp {
         packet.extract(hdr.inner_udp);
-        local_meta.l4_sport = hdr.udp.sport;
-        local_meta.l4_dport = hdr.udp.dport;
+        local_meta.l4_sport = hdr.inner_udp.sport;
+        local_meta.l4_dport = hdr.inner_udp.dport;
         transition accept;
     }
 }
@@ -459,11 +459,13 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
                              bit<1> needs_gtpu_decap,
                              bit<1> needs_udp_decap,
                              bit<1> needs_vlan_removal,
-                             net_instance_t net_instance
+                             net_instance_t net_instance,
+                             counter_index_t ctr_id
                              // TODO: add more attributes to load. 
                              )
     {
         local_meta.pdr.id       = id;
+        local_meta.pdr.ctr_idx  = ctr_id;
         local_meta.far.id       = far_id;
         local_meta.qos.qer_id   = qer_id;
         local_meta.qos.qfi      = qfi;
@@ -504,12 +506,15 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
     }
     action set_far_attributes_tunnel(TunnelType tunnel_type,
                                 ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
-                                teid_t teid) {
+                                teid_t teid, port_num_t egress_spec,
+                                mac_addr_t dst_mac) {
         local_meta.far.action_type              = ActionType.TUNNEL;
         local_meta.far.tunnel_out_type          = tunnel_type;
+        local_meta.far.egress_spec              = egress_spec;
         local_meta.far.tunnel_out_teid          = teid;
         local_meta.far.tunnel_out_src_ipv4_addr = src_addr;
         local_meta.far.tunnel_out_dst_ipv4_addr = dst_addr;
+        local_meta.far.dst_mac_addr = dst_mac;
     } 
     action set_far_attributes_drop() {
         local_meta.far.action_type = ActionType.DROP;

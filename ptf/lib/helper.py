@@ -59,11 +59,11 @@ class P4InfoHelper(object):
         counter = self.read_counter(c_name, line_id, typ="BYTES")
         return counter.data.byte_count
 
-    def read_pkt_count_pdr(self, line_id):
-        return self.read_pkt_count("IngressPipeImpl.pdr_counter", line_id)
+    def read_pkt_count_pre_qos_pdr(self, line_id):
+        return self.read_pkt_count("IngressPipeImpl.pre_qos_pdr_counter", line_id)
 
-    def read_byte_count_pdr(self, line_id):
-        return self.read_byte_count("IngressPipeImpl.pdr_counter", line_id)
+    def read_byte_count_pre_qos_pdr(self, line_id):
+        return self.read_byte_count("IngressPipeImpl.pre_qos_pdr_counter", line_id)
 
     def read_counter(self, c_name, c_index, typ):
         # Check counter type with P4Info

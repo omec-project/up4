@@ -28,7 +28,7 @@
 
 from base_test import *
 from ptf.testutils import group
-
+from scapy.contrib.gtp import *
 
 CPU_PORT = 255
 CPU_CLONE_SESSION_ID = 99
@@ -59,6 +59,9 @@ DL_FAR_ID = 400
 DL_CTR_ID = 50
 UL_CTR_ID = 60
 
+TRUE = 1
+FALSE = 0
+
 UDP_GTP_SRC_PORT = 2100
 UDP_GTP_DST_PORT = 2152
 
@@ -67,6 +70,7 @@ class GTPU_far_UPLINK_Test(P4RuntimeTest):
     """Tests GTPU routing"""
 
     inner_pkt = None
+    ulfseid = 1
     def make_gtp(self,msg_len, teid, flags=0x30, msg_type=0xff):
         """Convenience function since GTP header has no scapy support"""
         return struct.pack(">BBHL", flags, msg_type, msg_len, teid)
@@ -77,7 +81,7 @@ class GTPU_far_UPLINK_Test(P4RuntimeTest):
                IP(src=out_ipv4_src, dst=out_ipv4_dst, tos=0,
                   id=0x1513, flags=0, frag=0) / \
                UDP(sport=UDP_GTP_SRC_PORT, dport=UDP_GTP_DST_PORT, chksum=0) / \
-               self.make_gtp(len(payload_ether_frame), teid) / \
+               GTP_U_Header(gtp_type=255,teid=teid) / \
                payload_ether_frame
 
     def runTest(self):
@@ -95,7 +99,18 @@ class GTPU_far_UPLINK_Test(P4RuntimeTest):
 
         # Add entry to "source_iface_lookup" table. 
       
-        line_id = 0
+        ue_src_port = self.inner_pkt[UDP].sport
+        inet_dst_port = self.inner_pkt[UDP].dport
+        pkt_ue_ip = self.inner_pkt[IP].src
+        pkt_inet_ip = self.inner_pkt[IP].dst
+
+        ul_far_id_forward = 1
+        ul_qer_id = 1
+        ul_pdr_id = 1
+        ul_qfi = 5
+        ul_upf_instance = 10
+        ul_ctr_id = 50
+        
         self.insert(self.helper.build_table_entry(
                    table_name="IngressPipeImpl.source_iface_lookup",
                    match_fields={
@@ -106,24 +121,34 @@ class GTPU_far_UPLINK_Test(P4RuntimeTest):
                 action_params={"src_iface_type":SPGW_IFACE_TYPE_ACCESS}
                 ))
 
+        self.insert(self.helper.build_table_entry(
+                   table_name="IngressPipeImpl.fseid_lookup",
+                   match_fields={
+                   # Exact match.
+                     "local_meta.ue_addr": pkt_ue_ip
+                },
+                action_name="IngressPipeImpl.set_fseid",
+                action_params={"fseid":self.ulfseid}
+                ))
+
         # Add entry to pdr_rule_lookup
-        udp_src_port = self.inner_pkt[UDP].sport
-        udp_dst_port = self.inner_pkt[UDP].dport
-        pkt_src_ip = self.inner_pkt[IP].src
-        pkt_dst_ip = self.inner_pkt[IP].dst
         self.insert(self.helper.build_table_entry(
             table_name="IngressPipeImpl.pdrs",
             match_fields={
             # Exact match.
-            "teid": (src_teid, 0xffffffff),
-            "ue_addr": (pkt_src_ip, IP_MASK),
-            "inet_addr": (pkt_dst_ip, IP_MASK),
-            "ue_l4_port":(udp_src_port, udp_src_port),
-            "inet_l4_port":(udp_dst_port, udp_dst_port),
+            "fseid": self.ulfseid,
+            "src_iface_type":SPGW_IFACE_TYPE_ACCESS,
+            "ue_addr": (pkt_ue_ip, IP_MASK),
+            "inet_addr": (pkt_inet_ip, IP_MASK),
+            "ue_l4_port":(ue_src_port, ue_src_port),
+            "inet_l4_port":(inet_dst_port, inet_dst_port),
             "ip_proto":(IP_PROTO_UDP, 0xFF)
         },
-        action_name="IngressPipeImpl.set_pdr_id_and_gtpu_decap",
-        action_params={"id":UL_PDR_ID,"cid":UL_CTR_ID},
+        action_name="IngressPipeImpl.set_pdr_attributes",
+        action_params={"id":ul_pdr_id,"far_id":ul_far_id_forward,
+                       "qer_id":ul_qer_id,"qfi":ul_qfi, "needs_gtpu_decap":TRUE,
+                       "needs_udp_decap":FALSE,"needs_vlan_removal":FALSE,
+                       "net_instance":ul_upf_instance,"ctr_id":ul_ctr_id},
         priority = 1
         ))
         
@@ -131,24 +156,14 @@ class GTPU_far_UPLINK_Test(P4RuntimeTest):
                    table_name="IngressPipeImpl.fars",
                    match_fields={
                    # Exact match.
-                     "local_meta.pdr_id": UL_PDR_ID,
+                     "local_meta.far.id": ul_far_id_forward,
                 },
-                action_name="IngressPipeImpl.set_far_id",
-                action_params={"id":UL_FAR_ID}
+                action_name="IngressPipeImpl.set_far_attributes_forward",
+                action_params={"egress_spec":self.port2,"dst_addr":next_hop_mac}
                 ))
 
-        self.insert(self.helper.build_table_entry(
-               table_name="IngressPipeImpl.execute_far",
-               match_fields={
-                   # Exact match.
-                     "local_meta.far_id": UL_FAR_ID
-                },
-                action_name="IngressPipeImpl.forward",
-                action_params={"dst_addr":next_hop_mac,"outport":self.port2}
-                ))
-
-        old_uplink = self.helper.read_pkt_count_pdr(UL_CTR_ID)
-        old_byte_uplink = self.helper.read_pkt_count_pdr(UL_CTR_ID)
+        old_uplink = self.helper.read_pkt_count_pre_qos_pdr(ul_ctr_id)
+        old_byte_uplink = self.helper.read_byte_count_pre_qos_pdr(ul_ctr_id)
 
         # Expected pkt should have routed MAC addresses and decremented hop
         # limit (TTL).
@@ -158,8 +173,8 @@ class GTPU_far_UPLINK_Test(P4RuntimeTest):
         
         testutils.send_packet(self, self.port1, str(pkt))
         testutils.verify_packet(self, exp_pkt, self.port2)
-        new_uplink = self.helper.read_pkt_count_pdr(UL_CTR_ID)
-        new_byte_uplink = self.helper.read_byte_count_pdr(UL_CTR_ID)
+        new_uplink = self.helper.read_pkt_count_pre_qos_pdr(ul_ctr_id)
+        new_byte_uplink = self.helper.read_byte_count_pre_qos_pdr(ul_ctr_id)
         self.assertEqual(new_uplink, old_uplink +1)
         self.assertEqual(new_byte_uplink, old_byte_uplink +136)
 
@@ -167,6 +182,7 @@ class GTPU_far_DOWNLINK_Test(P4RuntimeTest):
     """Tests GTPU routing"""
 
     outer_pkt = None
+    dlfseid = 2
     def make_gtp(self,msg_len, teid, flags=0x30, msg_type=0xff):
         """Convenience function since GTP header has no scapy support"""
         return struct.pack(">BBHL", flags, msg_type, msg_len, teid)
@@ -175,9 +191,9 @@ class GTPU_far_DOWNLINK_Test(P4RuntimeTest):
         payload_ether_frame = pkt[Ether].payload
         return Ether(src=pkt[Ether].dst, dst=SWITCH1_MAC) / \
                IP(src=out_ipv4_dst, dst=out_ipv4_src, tos=0,
-                  id=0x1513, flags=0, frag=0) / \
+                  id=0x1513, flags=0, frag=0, chksum=0) / \
                UDP(sport=UDP_GTP_DST_PORT, dport=UDP_GTP_DST_PORT, chksum=0) / \
-               self.make_gtp(len(pkt), dst_teid) / \
+               GTP_U_Header(gtp_type=255,teid=teid,length=86) / \
                payload_ether_frame
 
 
@@ -195,6 +211,19 @@ class GTPU_far_DOWNLINK_Test(P4RuntimeTest):
 
         # Add entry to "source_iface_lookup" table. 
        
+        inet_src_port = pkt[UDP].sport
+        ue_dst_port = pkt[UDP].dport
+        pkt_inet_ip = pkt[IP].src
+        pkt_ue_ip = pkt[IP].dst
+        
+        dl_far_id_forward = 1
+        dl_qer_id = 1
+        dl_pdr_id = 1
+        dl_qfi = 5
+        dl_upf_instance = 10
+        dl_ctr_id = 60
+        tunnel_type = 3
+        
         self.insert(self.helper.build_table_entry(
                    table_name="IngressPipeImpl.source_iface_lookup",
                    match_fields={
@@ -205,24 +234,34 @@ class GTPU_far_DOWNLINK_Test(P4RuntimeTest):
                 action_params={"src_iface_type":SPGW_IFACE_TYPE_CORE}
                 ))
 
+        self.insert(self.helper.build_table_entry(
+                   table_name="IngressPipeImpl.fseid_lookup",
+                   match_fields={
+                   # Exact match.
+                     "local_meta.ue_addr": pkt_ue_ip
+                },
+                action_name="IngressPipeImpl.set_fseid",
+                action_params={"fseid":self.dlfseid}
+                ))
+
         # Add entry to pdr_rule_lookup
-        udp_src_port = pkt[UDP].sport
-        udp_dst_port = pkt[UDP].dport
-        pkt_src_ip = pkt[IP].src
-        pkt_dst_ip = pkt[IP].dst
-        
         self.insert(self.helper.build_table_entry(
             table_name="IngressPipeImpl.pdrs",
             match_fields={
             # Exact match.
-            "ue_addr": (pkt_dst_ip, IP_MASK),
-            "inet_addr": (pkt_src_ip, IP_MASK),
-            "ue_l4_port":(udp_dst_port, udp_dst_port),
-            "inet_l4_port":(udp_src_port, udp_src_port),
+            "fseid": self.dlfseid,
+            "src_iface_type":SPGW_IFACE_TYPE_CORE,
+            "ue_addr": (pkt_ue_ip, IP_MASK),
+            "inet_addr": (pkt_inet_ip, IP_MASK),
+            "ue_l4_port":(ue_dst_port, ue_dst_port),
+            "inet_l4_port":(inet_src_port, inet_src_port),
             "ip_proto":(IP_PROTO_UDP, 0xFF)
         },
-        action_name="IngressPipeImpl.set_pdr_id",
-        action_params={"id":DL_PDR_ID,"cid":DL_CTR_ID},
+        action_name="IngressPipeImpl.set_pdr_attributes",
+        action_params={"id":dl_pdr_id,"far_id":dl_far_id_forward,
+                       "qer_id":dl_qer_id,"qfi":dl_qfi, "needs_gtpu_decap":TRUE,
+                       "needs_udp_decap":FALSE,"needs_vlan_removal":FALSE,
+                       "net_instance":dl_upf_instance,"ctr_id":dl_ctr_id},
         priority = 1
         ))
         
@@ -230,33 +269,27 @@ class GTPU_far_DOWNLINK_Test(P4RuntimeTest):
                    table_name="IngressPipeImpl.fars",
                    match_fields={
                    # Exact match.
-                     "local_meta.pdr_id": DL_PDR_ID,
+                     "local_meta.far.id": dl_far_id_forward,
                 },
-                action_name="IngressPipeImpl.set_far_id",
-                action_params={"id":DL_FAR_ID}
-                ))
-
-        self.insert(self.helper.build_table_entry(
-               table_name="IngressPipeImpl.execute_far",
-               match_fields={
-                   # Exact match.
-                     "local_meta.far_id": DL_FAR_ID
-                },
-                action_name="IngressPipeImpl.gtpu_encap_and_forward",
-                action_params={"encap_src_addr":out_ipv4_dst, "encap_dst_addr":out_ipv4_src,"nexthop_mac":next_hop_mac,"outport":self.port1}
+                action_name="IngressPipeImpl.set_far_attributes_tunnel",
+                action_params={"tunnel_type":tunnel_type,"src_addr":out_ipv4_dst,
+                               "dst_addr":out_ipv4_src,"teid":dst_teid,
+                               "egress_spec":self.port1, "dst_mac":next_hop_mac}
                 ))
 
 
-        old_downlink = self.helper.read_pkt_count_pdr(DL_CTR_ID)
-        old_byte_downlink = self.helper.read_byte_count_pdr(DL_CTR_ID)
+        old_downlink = self.helper.read_pkt_count_pre_qos_pdr(dl_ctr_id)
+        old_byte_downlink = self.helper.read_byte_count_pre_qos_pdr(dl_ctr_id)
         # Expected pkt should have routed MAC addresses and decremented hop
         # limit (TTL).
         exp_pkt = pkt.copy()
         pkt_decrement_ttl(exp_pkt)
-        outer_pkt = self.pkt_add_gtp(exp_pkt, out_ipv4_src, out_ipv4_dst, dst_teid) 
+        outer_pkt = self.pkt_add_gtp(exp_pkt, out_ipv4_src, out_ipv4_dst, dst_teid)
+        outer_pkt = Ether(raw(outer_pkt))
         testutils.send_packet(self, self.port2, str(pkt))
-        new_downlink = self.helper.read_pkt_count_pdr(DL_CTR_ID)
-        new_byte_downlink = self.helper.read_byte_count_pdr(DL_CTR_ID)
+        
         testutils.verify_packet(self, outer_pkt, self.port1)
+        new_downlink = self.helper.read_pkt_count_pre_qos_pdr(dl_ctr_id)
+        new_byte_downlink = self.helper.read_byte_count_pre_qos_pdr(dl_ctr_id)
         self.assertEqual(new_downlink, old_downlink +1)
-        self.assertEqual(new_byte_downlink, old_byte_downlink +1)
+        self.assertEqual(new_byte_downlink, old_byte_downlink +100)
