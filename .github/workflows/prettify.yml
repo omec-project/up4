@@ -2,7 +2,8 @@ name: Prettify
 
 on:
   push:
-    branches: [ ccascone-patch-1 ]
+    branches:
+      - ccascone-patch-1
 
 jobs:
   build:
@@ -22,5 +23,6 @@ jobs:
       with:
         commit-message: Auto-prettify 💅
         title: Auto-prettify 💅
+        body: ""
         labels: prettybot
-        assignees: ccascone
+        branch: prettybot
