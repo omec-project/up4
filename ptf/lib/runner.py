@@ -113,7 +113,7 @@ def update_config(p4info_path, bmv2_json_path, grpc_addr, device_id):
         return None
 
     stream = stub.StreamChannel(stream_req_iterator())
-    stream_recv_thread = threading.Thread(target=stream_recv, args=(stream,))
+    stream_recv_thread = threading.Thread(target=stream_recv, args=(stream, ))
     stream_recv_thread.start()
 
     req = p4runtime_pb2.StreamMessageRequest()
@@ -153,7 +153,12 @@ def update_config(p4info_path, bmv2_json_path, grpc_addr, device_id):
         stream_recv_thread.join()
 
 
-def run_test(p4info_path, grpc_addr, device_id, cpu_port, ptfdir, port_map_path,
+def run_test(p4info_path,
+             grpc_addr,
+             device_id,
+             cpu_port,
+             ptfdir,
+             port_map_path,
              extra_args=()):
     """
     Runs PTF tests included in provided directory.
@@ -209,7 +214,8 @@ def check_ptf():
     try:
         with open(os.devnull, 'w') as devnull:
             subprocess.check_call(['ptf', '--version'],
-                                  stdout=devnull, stderr=devnull)
+                                  stdout=devnull,
+                                  stderr=devnull)
         return True
     except subprocess.CalledProcessError:
         return True
@@ -223,25 +229,35 @@ def main():
         description="Compile the provided P4 program and run PTF tests on it")
     parser.add_argument('--p4info',
                         help='Location of p4info proto in binary format',
-                        type=str, action="store", required=True)
-    parser.add_argument('--bmv2-json',
-                        help='Location BMv2 JSON output from p4c (if target is bmv2)',
-                        type=str, action="store", required=False)
+                        type=str,
+                        action="store",
+                        required=True)
+    parser.add_argument(
+        '--bmv2-json',
+        help='Location BMv2 JSON output from p4c (if target is bmv2)',
+        type=str,
+        action="store",
+        required=False)
     parser.add_argument('--grpc-addr',
                         help='Address to use to connect to P4 Runtime server',
-                        type=str, default='localhost:50051')
+                        type=str,
+                        default='localhost:50051')
     parser.add_argument('--device-id',
                         help='Device id for device under test',
-                        type=int, default=1)
+                        type=int,
+                        default=1)
     parser.add_argument('--cpu-port',
                         help='CPU port ID of device under test',
-                        type=int, required=True)
+                        type=int,
+                        required=True)
     parser.add_argument('--ptf-dir',
                         help='Directory containing PTF tests',
-                        type=str, required=True)
+                        type=str,
+                        required=True)
     parser.add_argument('--port-map',
                         help='Path to JSON port mapping',
-                        type=str, required=True)
+                        type=str,
+                        required=True)
     args, unknown_args = parser.parse_known_args()
 
     if not check_ptf():

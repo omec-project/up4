@@ -17,7 +17,6 @@ import re
 import socket
 
 import ipaddress
-
 """
 This package contains several helper functions for encoding to and decoding from
 byte strings:
@@ -76,9 +75,9 @@ def bitwidthToBytes(bitwidth):
 def encodeNum(number, bitwidth):
     byte_len = bitwidthToBytes(bitwidth)
     num_str = '%x' % number
-    if number >= 2 ** bitwidth:
-        raise Exception(
-            "Number, %d, does not fit in %d bits" % (number, bitwidth))
+    if number >= 2**bitwidth:
+        raise Exception("Number, %d, does not fit in %d bits" %
+                        (number, bitwidth))
     return ('0' * (byte_len * 2 - len(num_str)) + num_str).decode('hex')
 
 
@@ -137,14 +136,15 @@ def test():
     assert (not matchesIPv4('10001'))
 
     assert (matchesIPv6('::1'))
-    assert (encode('1:2:3:4:5:6:7:8', 128) == '\x00\x01\x00\x02\x00\x03\x00\x04\x00\x05\x00\x06\x00\x07\x00\x08')
+    assert (encode('1:2:3:4:5:6:7:8', 128) ==
+            '\x00\x01\x00\x02\x00\x03\x00\x04\x00\x05\x00\x06\x00\x07\x00\x08')
     assert (matchesIPv6('2001:0000:85a3::8a2e:370:1111'))
     assert (not matchesIPv6('10.0.0.1'))
 
     assert (encode(mac, 6 * 8) == enc_mac)
     assert (encode(ip, 4 * 8) == enc_ip)
     assert (encode(num, 5 * 8) == enc_num)
-    assert (encode((num,), 5 * 8) == enc_num)
+    assert (encode((num, ), 5 * 8) == enc_num)
     assert (encode([num], 5 * 8) == enc_num)
 
     num = 256
