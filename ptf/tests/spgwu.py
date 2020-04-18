@@ -71,7 +71,8 @@ class GtpuDecapUplinkTest(P4RuntimeTest):
 
     inner_pkt = None
     ulfseid = 1
-
+    
+    # test comment
     def make_gtp(self, msg_len, teid, flags=0x30, msg_type=0xff):
         """Convenience function since GTP header has no scapy support"""
         return struct.pack(">BBHL", flags, msg_type, msg_len, teid)
