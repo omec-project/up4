@@ -1,0 +1,17 @@
+name: P4 build and test
+
+on:
+  push:
+    branches: [ gh-ci ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: make deps
+    - name: Build P4 program
+      run: make build
+    - name: Run PTF tests
+      run: make check
