@@ -1,0 +1,27 @@
+name: Prettify
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  create_pull_request:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+    - name: Run yapf
+      run: |
+        git clone --depth 1 https://github.com/google/yapf.git /tmp/yapf
+        PYTHONPATH=/tmp/yapf python /tmp/yapf/yapf -ir --style google .
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v2.7.0
+      with:
+        commit-message: Auto-prettify ${{ github.sha }}
+        title: Auto-prettify 💅
+        labels: prettybot
+        branch: prettybot
