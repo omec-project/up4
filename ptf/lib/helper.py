@@ -59,12 +59,6 @@ class P4InfoHelper(object):
         counter = self.read_counter(c_name, line_id, typ="BYTES")
         return counter.data.byte_count
 
-    def read_pkt_count_pre_qos_pdr(self, line_id):
-        return self.read_pkt_count("IngressPipeImpl.pre_qos_pdr_counter", line_id)
-
-    def read_byte_count_pre_qos_pdr(self, line_id):
-        return self.read_byte_count("IngressPipeImpl.pre_qos_pdr_counter", line_id)
-
     def read_counter(self, c_name, c_index, typ):
         # Check counter type with P4Info
         counter = self.get_obj('counters',c_name)
@@ -116,10 +110,19 @@ class P4InfoHelper(object):
         req = p4runtime_pb2.ReadRequest()
         req.device_id = int(testutils.test_param_get("device_id"))
         return req
+
     def get_next_grp_id(self):
         grp_id = self.next_grp_id
         self.next_grp_id = self.next_grp_id + 1
         return grp_id
+
+    def get_enum_member_val(self, enum_name, enum_member):
+        members = self.get_enum_members(name=enum_name)
+        val = members.get(enum_member, None)
+        if val is None:
+            raise Exception("%s not a member of enum %s. Available Members: %s" \
+                            % (enum_member, enum_name, str(list(members.keys()))))
+        return val
 
     def get_enum_obj(self, name):
         if "type_info" in dir(self.p4info):
@@ -131,8 +134,11 @@ class P4InfoHelper(object):
         raise AttributeError("Could not find enum named %s"
                              % name)
 
-    def get_enum_members(self, name):
-        obj = self.get_enum_obj(name)
+    def get_enum_members(self, name=None, obj=None):
+        if obj is None:
+            if name is None:
+                raise AssertionError("Must provide either an enum name or enum object")
+            obj = self.get_enum_obj(name)
         return {member.name.encode('ascii', 'ignore'):member.value for member in obj.members}
 
     def get_enum_width(self, name):

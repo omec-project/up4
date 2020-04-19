@@ -15,6 +15,8 @@
  */
 
 
+// TODO: PDR-ID and FAR-ID are not globally unique. need to combine them with F-SEID
+
 #include <core.p4>
 #include <v1model.p4>
 
@@ -428,6 +430,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
     }
 
 
+    // TODO: change type to ID / Number ??
     action set_source_iface_type(InterfaceType src_iface_type) {
         local_meta.src_iface_type = src_iface_type;
     }
@@ -496,10 +499,10 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
     }
 
     action set_far_attributes_forward(port_num_t egress_spec,
-                                      mac_addr_t dst_addr) {
+                                      mac_addr_t dst_mac) {
         local_meta.far.action_type = ActionType.FORWARD;
         local_meta.far.egress_spec = egress_spec;
-        local_meta.far.dst_mac_addr = dst_addr;
+        local_meta.far.dst_mac_addr = dst_mac;
     }
     action set_far_attributes_buffer() {
         local_meta.far.action_type = ActionType.BUFFER;
@@ -521,7 +524,8 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
     }
     table fars {
         key = {
-            local_meta.far.id : exact;
+            local_meta.far.id : exact      @name("far_id");
+            local_meta.fseid  : exact      @name("session_id");
         }
         actions = {
             set_far_attributes_forward;
@@ -571,12 +575,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 
         // downlink lookup = UE address lookup
 
-        // TODO: pdr table matches on F-SEID
-        // TODO: counters only on PDR table. no need for any others
-
         source_iface_lookup.apply();
-
-        // TODO: F-SEID lookup table
 
         // map interface type to direction
         if (local_meta.src_iface_type == InterfaceType.ACCESS) {
