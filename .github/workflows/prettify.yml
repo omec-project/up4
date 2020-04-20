@@ -15,9 +15,7 @@ jobs:
       with:
         python-version: 3.8
     - name: Run yapf
-      run: |
-        git clone --depth 1 https://github.com/google/yapf.git /tmp/yapf
-        PYTHONPATH=/tmp/yapf python /tmp/yapf/yapf -ir .
+      run: make prettify
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v2.7.0
       with:
