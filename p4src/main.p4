@@ -490,6 +490,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             local_meta.ue_l4_port       : range     @name("ue_l4_port");
             local_meta.inet_l4_port     : range     @name("inet_l4_port");
             hdr.ipv4.proto              : ternary   @name("ip_proto");
+            // why no teid is used for the match..required for 4G case?
             // add ToS, SPI
             // The 5-tuple fields *should* be optional, but optional is not currently supported by targets
         }
