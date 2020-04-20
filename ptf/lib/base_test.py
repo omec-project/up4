@@ -92,11 +92,11 @@ def print_inline(text):
 # See https://gist.github.com/carymrobbins/8940382
 # functools.partialmethod is introduced in Python 3.4
 class partialmethod(partial):
+
     def __get__(self, instance, owner):
         if instance is None:
             return self
-        return partial(self.func, instance,
-                       *(self.args or ()), **(self.keywords or {}))
+        return partial(self.func, instance, *(self.args or ()), **(self.keywords or {}))
 
 
 # Convert integer (with length) to binary byte string
@@ -193,8 +193,7 @@ def genNdpNsPkt(target_ip, src_mac=HOST1_MAC, src_ip=HOST1_IPV6):
     return p
 
 
-def genNdpNaPkt(target_ip, target_mac,
-                src_mac=SWITCH1_MAC, dst_mac=IPV6_MCAST_MAC_1,
+def genNdpNaPkt(target_ip, target_mac, src_mac=SWITCH1_MAC, dst_mac=IPV6_MCAST_MAC_1,
                 src_ip=SWITCH1_IPV6, dst_ip=HOST1_IPV6):
     p = Ether(src=src_mac, dst=dst_mac)
     p /= IPv6(dst=dst_ip, src=src_ip, hlim=255)
@@ -214,6 +213,7 @@ class P4RuntimeErrorFormatException(Exception):
 
 # Used to iterate over the p4.Error messages in a gRPC error Status object
 class P4RuntimeErrorIterator:
+
     def __init__(self, grpc_error):
         assert (grpc_error.code() == grpc.StatusCode.UNKNOWN)
         self.grpc_error = grpc_error
@@ -244,8 +244,7 @@ class P4RuntimeErrorIterator:
             p4_error = p4runtime_pb2.Error()
             one_error_any = self.errors[self.idx]
             if not one_error_any.Unpack(p4_error):
-                raise P4RuntimeErrorFormatException(
-                    "Cannot convert Any message to p4.Error")
+                raise P4RuntimeErrorFormatException("Cannot convert Any message to p4.Error")
             if p4_error.canonical_code == code_pb2.OK:
                 continue
             v = self.idx, p4_error
@@ -262,6 +261,7 @@ class P4RuntimeErrorIterator:
 # the batch) in order to print error code + user-facing message.  See P4 Runtime
 # documentation for more details on error-reporting.
 class P4RuntimeWriteException(Exception):
+
     def __init__(self, grpc_error):
         assert (grpc_error.code() == grpc.StatusCode.UNKNOWN)
         super(P4RuntimeWriteException, self).__init__()
@@ -276,10 +276,8 @@ class P4RuntimeWriteException(Exception):
     def __str__(self):
         message = "Error(s) during Write:\n"
         for idx, p4_error in self.errors:
-            code_name = code_pb2._CODE.values_by_number[
-                p4_error.canonical_code].name
-            message += "\t* At index {}: {}, '{}'\n".format(
-                idx, code_name, p4_error.message)
+            code_name = code_pb2._CODE.values_by_number[p4_error.canonical_code].name
+            message += "\t* At index {}: {}, '{}'\n".format(idx, code_name, p4_error.message)
         return message
 
 
@@ -288,6 +286,7 @@ class P4RuntimeWriteException(Exception):
 # failed / errored.
 # noinspection PyUnresolvedReferences
 class P4RuntimeTest(BaseTest):
+
     def setUp(self):
         BaseTest.setUp(self)
 
@@ -316,8 +315,7 @@ class P4RuntimeTest(BaseTest):
             self.fail("CPU port is not set")
 
         pltfm = testutils.test_param_get("pltfm")
-        if pltfm is not None and pltfm == 'hw' and getattr(self, "_skip_on_hw",
-                                                           False):
+        if pltfm is not None and pltfm == 'hw' and getattr(self, "_skip_on_hw", False):
             raise SkipTest("Skipping test in HW")
 
         self.channel = grpc.insecure_channel(grpc_addr)
@@ -354,8 +352,7 @@ class P4RuntimeTest(BaseTest):
                 self.stream_in_q.put(p)
 
         self.stream = self.stub.StreamChannel(stream_req_iterator())
-        self.stream_recv_thread = threading.Thread(
-            target=stream_recv, args=(self.stream,))
+        self.stream_recv_thread = threading.Thread(target=stream_recv, args=(self.stream,))
         self.stream_recv_thread.start()
 
         self.handshake()
@@ -395,22 +392,21 @@ class P4RuntimeTest(BaseTest):
         rx_pkt = Ether(rx_packet_in_msg.payload)
         exp_pkt = exp_packet_in_msg.payload
         if not match_exp_pkt(exp_pkt, rx_pkt):
-            self.fail("Received PacketIn.payload is not the expected one\n"
-                      + format_pkt_match(rx_pkt, exp_pkt))
+            self.fail("Received PacketIn.payload is not the expected one\n" +
+                      format_pkt_match(rx_pkt, exp_pkt))
 
-        rx_meta_dict = {m.metadata_id: m.value
-                        for m in rx_packet_in_msg.metadata}
-        exp_meta_dict = {m.metadata_id: m.value
-                         for m in exp_packet_in_msg.metadata}
-        shared_meta = {mid: rx_meta_dict[mid] for mid in rx_meta_dict
-                       if mid in exp_meta_dict
-                       and rx_meta_dict[mid] == exp_meta_dict[mid]}
+        rx_meta_dict = {m.metadata_id: m.value for m in rx_packet_in_msg.metadata}
+        exp_meta_dict = {m.metadata_id: m.value for m in exp_packet_in_msg.metadata}
+        shared_meta = {
+            mid: rx_meta_dict[mid]
+            for mid in rx_meta_dict
+            if mid in exp_meta_dict and rx_meta_dict[mid] == exp_meta_dict[mid]
+        }
 
         if len(rx_meta_dict) is not len(exp_meta_dict) \
                 or len(shared_meta) is not len(exp_meta_dict):
-            self.fail("Received PacketIn.metadata is not the expected one\n"
-                      + format_pb_msg_match(rx_packet_in_msg,
-                                            exp_packet_in_msg))
+            self.fail("Received PacketIn.metadata is not the expected one\n" +
+                      format_pb_msg_match(rx_packet_in_msg, exp_packet_in_msg))
 
     def get_stream_packet(self, type_, timeout=1):
         start = time.time()
@@ -491,8 +487,7 @@ class P4RuntimeTest(BaseTest):
             replica.instance = 0
         return req, self.write_request(req)
 
-    def insert_pre_clone_session(self, session_id, ports, cos=0,
-                                 packet_length_bytes=0):
+    def insert_pre_clone_session(self, session_id, ports, cos=0, packet_length_bytes=0):
         req = self.get_new_write_request()
         update = req.updates.add()
         update.type = p4runtime_pb2.Update.INSERT
@@ -539,6 +534,7 @@ class P4RuntimeTest(BaseTest):
 # it seems more appropriate to define a decorator for this rather than do it
 # unconditionally in the P4RuntimeTest tearDown method.
 def autocleanup(f):
+
     @wraps(f)
     def handle(*args, **kwargs):
         test = args[0]
