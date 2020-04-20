@@ -45,3 +45,6 @@ graph: p4src/main.p4
 
 check:
 	@cd ptf && PTF_DOCKER_IMG=$(PTF_IMG) ./run_tests $(TEST)
+
+prettify:
+	yapf -ir .

@@ -96,8 +96,7 @@ class partialmethod(partial):
     def __get__(self, instance, owner):
         if instance is None:
             return self
-        return partial(self.func, instance, *(self.args or ()),
-                       **(self.keywords or {}))
+        return partial(self.func, instance, *(self.args or ()), **(self.keywords or {}))
 
 
 # Convert integer (with length) to binary byte string
@@ -194,12 +193,8 @@ def genNdpNsPkt(target_ip, src_mac=HOST1_MAC, src_ip=HOST1_IPV6):
     return p
 
 
-def genNdpNaPkt(target_ip,
-                target_mac,
-                src_mac=SWITCH1_MAC,
-                dst_mac=IPV6_MCAST_MAC_1,
-                src_ip=SWITCH1_IPV6,
-                dst_ip=HOST1_IPV6):
+def genNdpNaPkt(target_ip, target_mac, src_mac=SWITCH1_MAC, dst_mac=IPV6_MCAST_MAC_1,
+                src_ip=SWITCH1_IPV6, dst_ip=HOST1_IPV6):
     p = Ether(src=src_mac, dst=dst_mac)
     p /= IPv6(dst=dst_ip, src=src_ip, hlim=255)
     p /= ICMPv6ND_NA(tgt=target_ip)
@@ -249,8 +244,7 @@ class P4RuntimeErrorIterator:
             p4_error = p4runtime_pb2.Error()
             one_error_any = self.errors[self.idx]
             if not one_error_any.Unpack(p4_error):
-                raise P4RuntimeErrorFormatException(
-                    "Cannot convert Any message to p4.Error")
+                raise P4RuntimeErrorFormatException("Cannot convert Any message to p4.Error")
             if p4_error.canonical_code == code_pb2.OK:
                 continue
             v = self.idx, p4_error
@@ -282,10 +276,8 @@ class P4RuntimeWriteException(Exception):
     def __str__(self):
         message = "Error(s) during Write:\n"
         for idx, p4_error in self.errors:
-            code_name = code_pb2._CODE.values_by_number[
-                p4_error.canonical_code].name
-            message += "\t* At index {}: {}, '{}'\n".format(
-                idx, code_name, p4_error.message)
+            code_name = code_pb2._CODE.values_by_number[p4_error.canonical_code].name
+            message += "\t* At index {}: {}, '{}'\n".format(idx, code_name, p4_error.message)
         return message
 
 
@@ -323,8 +315,7 @@ class P4RuntimeTest(BaseTest):
             self.fail("CPU port is not set")
 
         pltfm = testutils.test_param_get("pltfm")
-        if pltfm is not None and pltfm == 'hw' and getattr(
-                self, "_skip_on_hw", False):
+        if pltfm is not None and pltfm == 'hw' and getattr(self, "_skip_on_hw", False):
             raise SkipTest("Skipping test in HW")
 
         self.channel = grpc.insecure_channel(grpc_addr)
@@ -361,8 +352,7 @@ class P4RuntimeTest(BaseTest):
                 self.stream_in_q.put(p)
 
         self.stream = self.stub.StreamChannel(stream_req_iterator())
-        self.stream_recv_thread = threading.Thread(target=stream_recv,
-                                                   args=(self.stream,))
+        self.stream_recv_thread = threading.Thread(target=stream_recv, args=(self.stream,))
         self.stream_recv_thread.start()
 
         self.handshake()
@@ -405,12 +395,8 @@ class P4RuntimeTest(BaseTest):
             self.fail("Received PacketIn.payload is not the expected one\n" +
                       format_pkt_match(rx_pkt, exp_pkt))
 
-        rx_meta_dict = {
-            m.metadata_id: m.value for m in rx_packet_in_msg.metadata
-        }
-        exp_meta_dict = {
-            m.metadata_id: m.value for m in exp_packet_in_msg.metadata
-        }
+        rx_meta_dict = {m.metadata_id: m.value for m in rx_packet_in_msg.metadata}
+        exp_meta_dict = {m.metadata_id: m.value for m in exp_packet_in_msg.metadata}
         shared_meta = {
             mid: rx_meta_dict[mid]
             for mid in rx_meta_dict
@@ -501,11 +487,7 @@ class P4RuntimeTest(BaseTest):
             replica.instance = 0
         return req, self.write_request(req)
 
-    def insert_pre_clone_session(self,
-                                 session_id,
-                                 ports,
-                                 cos=0,
-                                 packet_length_bytes=0):
+    def insert_pre_clone_session(self, session_id, ports, cos=0, packet_length_bytes=0):
         req = self.get_new_write_request()
         update = req.updates.add()
         update.type = p4runtime_pb2.Update.INSERT
