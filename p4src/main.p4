@@ -35,7 +35,7 @@
 #define ETH_HDR_SIZE 14
 #define IPV4_HDR_SIZE 20
 #define UDP_HDR_SIZE 8
-#define GTP_HDR_SIZE 8
+#define GTP_HDR_SIZE 8 // this is MIN GTP header. 
 #define IP_VERSION_4 4
 const bit<4> IPV4_MIN_IHL = 5;
 const bit<8> DEFAULT_IPV4_TTL = 64;
@@ -531,7 +531,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             local_meta.fseid  : exact      @name("session_id");
         }
         actions = {
-            set_far_attributes_forward;
+            set_far_attributes_forward; // does the order here in actions matters ?
             set_far_attributes_buffer;
             set_far_attributes_tunnel;
             set_far_attributes_drop;
