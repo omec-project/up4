@@ -40,6 +40,7 @@ def get_match_field_value(match_field):
 
 
 class P4InfoHelper(object):
+
     def __init__(self, p4info):
         self.p4info = p4info
 
@@ -61,14 +62,15 @@ class P4InfoHelper(object):
 
     def read_counter(self, c_name, c_index, typ):
         # Check counter type with P4Info
-        counter = self.get_obj('counters',c_name)
+        counter = self.get_obj('counters', c_name)
         counter_type_unit = p4info_pb2.CounterSpec.Unit.items()[counter.spec.unit][0]
         if counter_type_unit != "BOTH" and counter_type_unit != typ:
-            raise Exception("Counter " + c_name + " is of type " + counter_type_unit + ", but requested: " + typ)
+            raise Exception("Counter " + c_name + " is of type " + counter_type_unit +
+                            ", but requested: " + typ)
         req = self.get_new_read_request()
         entity = req.entities.add()
         counter_entry = entity.counter_entry
-        c_id = self.get_id('counters',c_name)
+        c_id = self.get_id('counters', c_name)
         counter_entry.counter_id = c_id
         index = counter_entry.index
         index.index = c_index
@@ -131,15 +133,14 @@ class P4InfoHelper(object):
                 for key, val in type_info.serializable_enums.items():
                     if key == name:
                         return val
-        raise AttributeError("Could not find enum named %s"
-                             % name)
+        raise AttributeError("Could not find enum named %s" % name)
 
     def get_enum_members(self, name=None, obj=None):
         if obj is None:
             if name is None:
                 raise AssertionError("Must provide either an enum name or enum object")
             obj = self.get_enum_obj(name)
-        return {member.name.encode('ascii', 'ignore'):member.value for member in obj.members}
+        return {member.name.encode('ascii', 'ignore'): member.value for member in obj.members}
 
     def get_enum_width(self, name):
         return self.get_enum_obj(name).underlying_type.bitwidth
@@ -158,11 +159,9 @@ class P4InfoHelper(object):
                     return o
 
         if name:
-            raise AttributeError("Could not find %r of type %s"
-                                 % (name, entity_type))
+            raise AttributeError("Could not find %r of type %s" % (name, entity_type))
         else:
-            raise AttributeError("Could not find id %r of type %s"
-                                 % (id, entity_type))
+            raise AttributeError("Could not find id %r of type %s" % (id, entity_type))
 
     def get_id(self, entity_type, name):
         return self.get(entity_type, name=name).preamble.id
@@ -189,9 +188,8 @@ class P4InfoHelper(object):
             primitive = m.group(1)
             return lambda x: self.get_name(primitive, x)
 
-        raise AttributeError(
-            "%r object has no attribute %r (check your P4Info)"
-            % (self.__class__, attr))
+        raise AttributeError("%r object has no attribute %r (check your P4Info)" %
+                             (self.__class__, attr))
 
     def get_match_field(self, table_name, name=None, id=None):
         t = None
@@ -207,8 +205,8 @@ class P4InfoHelper(object):
             elif id is not None:
                 if mf.id == id:
                     return mf
-        raise AttributeError("%r has no match field %r (check your P4Info)"
-                             % (table_name, name if name is not None else id))
+        raise AttributeError("%r has no match field %r (check your P4Info)" %
+                             (table_name, name if name is not None else id))
 
     def get_packet_metadata(self, meta_type, name=None, id=None):
         for t in self.p4info.controller_packet_metadata:
@@ -221,9 +219,8 @@ class P4InfoHelper(object):
                     elif id is not None:
                         if m.id == id:
                             return m
-        raise AttributeError(
-            "ControllerPacketMetadata %r has no metadata %r (check your P4Info)"
-            % (meta_type, name if name is not None else id))
+        raise AttributeError("ControllerPacketMetadata %r has no metadata %r (check your P4Info)" %
+                             (meta_type, name if name is not None else id))
 
     def get_match_field_id(self, table_name, match_field_name):
         return self.get_match_field(table_name, name=match_field_name).id
@@ -267,18 +264,15 @@ class P4InfoHelper(object):
                     elif id is not None:
                         if p.id == id:
                             return p
-        raise AttributeError(
-            "Action %r has no param %r (check your P4Info)"
-            % (action_name, name if name is not None else id))
+        raise AttributeError("Action %r has no param %r (check your P4Info)" %
+                             (action_name, name if name is not None else id))
 
     def get_counter(self, counter_name):
         for a in self.p4info.direct_counters:
             pre = a.preamble
             if pre.name == counter_name:
-                  return a
-        raise AttributeError(
-            "Counter %r doesnt exist (check your P4Info)"
-            % (counter_name))
+                return a
+        raise AttributeError("Counter %r doesnt exist (check your P4Info)" % (counter_name))
 
     def get_action_param_id(self, action_name, param_name):
         return self.get_action_param(action_name, name=param_name).id
@@ -293,14 +287,8 @@ class P4InfoHelper(object):
         p4runtime_param.value = encode(value, p4info_param.bitwidth)
         return p4runtime_param
 
-    def build_table_entry(self,
-                          table_name,
-                          match_fields=None,
-                          default_action=False,
-                          action_name=None,
-                          action_params=None,
-                          group_id=None,
-                          priority=None):
+    def build_table_entry(self, table_name, match_fields=None, default_action=False,
+                          action_name=None, action_params=None, group_id=None, priority=None):
         table_entry = p4runtime_pb2.TableEntry()
         table_entry.table_id = self.get_tables_id(table_name)
 
@@ -335,9 +323,7 @@ class P4InfoHelper(object):
             ])
         return action
 
-    def build_act_prof_member(self, act_prof_name,
-                              action_name, action_params=None,
-                              member_id=None):
+    def build_act_prof_member(self, act_prof_name, action_name, action_params=None, member_id=None):
         member = p4runtime_pb2.ActionProfileMember()
         member.action_profile_id = self.get_action_profiles_id(act_prof_name)
         member.member_id = member_id if member_id else self.get_next_mbr_id()
@@ -355,8 +341,7 @@ class P4InfoHelper(object):
                 action_params = action[1]
             else:
                 action_params = None
-            member = self.build_act_prof_member(
-                act_prof_name, action_name, action_params)
+            member = self.build_act_prof_member(act_prof_name, action_name, action_params)
             messages.extend([member])
             group_member = p4runtime_pb2.ActionProfileGroup.Member()
             group_member.member_id = member.member_id
