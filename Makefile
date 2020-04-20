@@ -52,4 +52,4 @@ check:
 	rm -rf .yapf/.git
 
 prettify: .yapf
-		PYTHONPATH=${curr_dir}/.yapf python .yapf/yapf -ir -e .yapf/ .
+	PYTHONPATH=${curr_dir}/.yapf python .yapf/yapf -ir -e .yapf/ .
