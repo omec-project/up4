@@ -222,7 +222,7 @@ struct local_metadata_t {
     teid_t teid; // local Tunnel ID.  F-TEID = TEID + GTP endpoint address
     seid_t seid; // local Session ID. F-SEID = SEID + GTP endpoint address
 
-    fteid_t fteid;
+    fteid_t fteid; //why teid & fteid both fields ?
     fseid_t fseid;
 
     bool needs_gtpu_decap;
@@ -297,7 +297,7 @@ parser ParserImpl (packet_in packet,
     state parse_inner_ipv4 {
         packet.extract(hdr.inner_ipv4);
         transition select(hdr.ipv4.proto) {
-            IpProtocol.UDP: parse_inner_udp;
+            IpProtocol.UDP: parse_inner_udp; //inner packet can be anything.tcp/udp/icmp/....
             default: accept;
         }
     }
@@ -339,7 +339,7 @@ control execute_far (inout parsed_headers_t    hdr,
         hdr.outer_ipv4.ecn = 0;
         hdr.outer_ipv4.total_len = hdr.ipv4.total_len
                 + (IPV4_HDR_SIZE + UDP_HDR_SIZE + GTP_HDR_SIZE);
-        hdr.outer_ipv4.identification = 0x1513; /* From NGIC */
+        hdr.outer_ipv4.identification = 0x1513; /* From NGIC */ //need correction
         hdr.outer_ipv4.flags = 0;
         hdr.outer_ipv4.frag_offset = 0;
         hdr.outer_ipv4.ttl = DEFAULT_IPV4_TTL;
@@ -350,7 +350,7 @@ control execute_far (inout parsed_headers_t    hdr,
 
         hdr.outer_udp.setValid();
         hdr.outer_udp.sport = UDP_PORT_GTPU;
-        hdr.outer_udp.dport = UDP_PORT_GTPU;
+        hdr.outer_udp.dport = UDP_PORT_GTPU; //should come from FAR
         hdr.outer_udp.len = hdr.ipv4.total_len 
                 + (UDP_HDR_SIZE + GTP_HDR_SIZE);
         hdr.outer_udp.checksum = 0; // Updated later
@@ -363,7 +363,7 @@ control execute_far (inout parsed_headers_t    hdr,
         hdr.gtpu.seq_flag = 0;
         hdr.gtpu.npdu_flag = 0;
         hdr.gtpu.msgtype = GTPUMessageType.GPDU;
-        hdr.gtpu.msglen = hdr.ipv4.total_len; 
+        hdr.gtpu.msglen = hdr.ipv4.total_len; //this will include udp header as well... 
         hdr.gtpu.teid = teid; 
     }
 
@@ -438,9 +438,10 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         key = {
             std_meta.ingress_port : exact;
             // in practice, will also check vlan ID and destination IP
+            // may be this physical port needs to be mapped to logic group - access/core/smf/SGi-LAN/N6-LAN ?
         }
         actions = {
-            set_source_iface_type;
+            set_source_iface_type; //what if no match ? looks to be config mismatch. We need a port->{access,core,smf) mapping 
         }
         const default_action = set_source_iface_type(InterfaceType.UNKNOWN);
     }
@@ -511,13 +512,14 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
                                 ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
                                 teid_t teid, port_num_t egress_spec,
                                 mac_addr_t dst_mac) {
-        local_meta.far.action_type              = ActionType.TUNNEL;
+        local_meta.far.action_type              = ActionType.TUNNEL; //only if outer header creation is present else action is forward..Take the action from FAR
         local_meta.far.tunnel_out_type          = tunnel_type;
         local_meta.far.egress_spec              = egress_spec;
         local_meta.far.tunnel_out_teid          = teid;
         local_meta.far.tunnel_out_src_ipv4_addr = src_addr;
         local_meta.far.tunnel_out_dst_ipv4_addr = dst_addr;
-        local_meta.far.dst_mac_addr = dst_mac;
+        local_meta.far.dst_mac_addr = dst_mac; // is this implementation specific..Spec does not talk about this. 
+        // gtpu port needs to be added. Its part of FAR 
     } 
     action set_far_attributes_drop() {
         local_meta.far.action_type = ActionType.DROP;
@@ -544,9 +546,13 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         key = {
             local_meta.ue_addr : exact;
             // TODO: what is the other part of the lookup?
+            // f-seid is : 8 byte number (SEID), + IPV4 or IPV6 or Both address present. 
         }
         actions = {
             set_fseid;
+            //if no fseid found then drop/reject message.
+            //if uplink or downlink N9 interface : reject 
+            //if dowlink N6 interface - slow path transition
         }
     }
 
@@ -577,9 +583,10 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 
         source_iface_lookup.apply();
 
-        // map interface type to direction
+        // we directly get destination interface in the FAR...Refer 7.5.2.3-2 table
+        // i see you are using Rx interface type to get direction ...this all just to normalize ??
         if (local_meta.src_iface_type == InterfaceType.ACCESS) {
-            local_meta.direction = Direction.UPLINK;
+            local_meta.direction = Direction.UPLINK; 
         }
         else if (local_meta.src_iface_type == InterfaceType.CORE) {
             local_meta.direction = Direction.DOWNLINK;
@@ -602,10 +609,8 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             local_meta.inet_l4_port = local_meta.l4_sport;
         }
 
-
-
-        fseid_lookup.apply();
-        pdrs.apply();
+        fseid_lookup.apply(); // looks like normalize is done to make sure we have ue_addr set from outer header or internal header  
+        pdrs.apply(); // i guess we look for pdrs only if fseid is set in local_meta
         pre_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
 
         if (local_meta.needs_gtpu_decap) {
