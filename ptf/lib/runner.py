@@ -153,8 +153,7 @@ def update_config(p4info_path, bmv2_json_path, grpc_addr, device_id):
         stream_recv_thread.join()
 
 
-def run_test(p4info_path, grpc_addr, device_id, cpu_port, ptfdir, port_map_path,
-             extra_args=()):
+def run_test(p4info_path, grpc_addr, device_id, cpu_port, ptfdir, port_map_path, extra_args=()):
     """
     Runs PTF tests included in provided directory.
     Device must be running and configfured with appropriate P4 program.
@@ -208,8 +207,7 @@ def run_test(p4info_path, grpc_addr, device_id, cpu_port, ptfdir, port_map_path,
 def check_ptf():
     try:
         with open(os.devnull, 'w') as devnull:
-            subprocess.check_call(['ptf', '--version'],
-                                  stdout=devnull, stderr=devnull)
+            subprocess.check_call(['ptf', '--version'], stdout=devnull, stderr=devnull)
         return True
     except subprocess.CalledProcessError:
         return True
@@ -221,27 +219,18 @@ def check_ptf():
 def main():
     parser = argparse.ArgumentParser(
         description="Compile the provided P4 program and run PTF tests on it")
-    parser.add_argument('--p4info',
-                        help='Location of p4info proto in binary format',
-                        type=str, action="store", required=True)
+    parser.add_argument('--p4info', help='Location of p4info proto in binary format', type=str,
+                        action="store", required=True)
     parser.add_argument('--bmv2-json',
-                        help='Location BMv2 JSON output from p4c (if target is bmv2)',
-                        type=str, action="store", required=False)
-    parser.add_argument('--grpc-addr',
-                        help='Address to use to connect to P4 Runtime server',
+                        help='Location BMv2 JSON output from p4c (if target is bmv2)', type=str,
+                        action="store", required=False)
+    parser.add_argument('--grpc-addr', help='Address to use to connect to P4 Runtime server',
                         type=str, default='localhost:50051')
-    parser.add_argument('--device-id',
-                        help='Device id for device under test',
-                        type=int, default=1)
-    parser.add_argument('--cpu-port',
-                        help='CPU port ID of device under test',
-                        type=int, required=True)
-    parser.add_argument('--ptf-dir',
-                        help='Directory containing PTF tests',
-                        type=str, required=True)
-    parser.add_argument('--port-map',
-                        help='Path to JSON port mapping',
-                        type=str, required=True)
+    parser.add_argument('--device-id', help='Device id for device under test', type=int, default=1)
+    parser.add_argument('--cpu-port', help='CPU port ID of device under test', type=int,
+                        required=True)
+    parser.add_argument('--ptf-dir', help='Directory containing PTF tests', type=str, required=True)
+    parser.add_argument('--port-map', help='Path to JSON port mapping', type=str, required=True)
     args, unknown_args = parser.parse_known_args()
 
     if not check_ptf():
@@ -259,20 +248,24 @@ def main():
         sys.exit(1)
 
     try:
-        success = update_config(p4info_path=args.p4info,
-                                bmv2_json_path=args.bmv2_json,
-                                grpc_addr=args.grpc_addr,
-                                device_id=args.device_id)
+        success = update_config(
+            p4info_path=args.p4info,
+            bmv2_json_path=args.bmv2_json,
+            grpc_addr=args.grpc_addr,
+            device_id=args.device_id,
+        )
         if not success:
             sys.exit(2)
 
-        success = run_test(p4info_path=args.p4info,
-                           device_id=args.device_id,
-                           grpc_addr=args.grpc_addr,
-                           cpu_port=args.cpu_port,
-                           ptfdir=args.ptf_dir,
-                           port_map_path=args.port_map,
-                           extra_args=unknown_args)
+        success = run_test(
+            p4info_path=args.p4info,
+            device_id=args.device_id,
+            grpc_addr=args.grpc_addr,
+            cpu_port=args.cpu_port,
+            ptfdir=args.ptf_dir,
+            port_map_path=args.port_map,
+            extra_args=unknown_args,
+        )
 
         if not success:
             sys.exit(3)
