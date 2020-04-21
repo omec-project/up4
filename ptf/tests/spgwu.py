@@ -510,6 +510,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
 
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, str(pkt))
+        testutils.verify_no_other_packets(self)
 
         # wait for counters to update
         sleep(0.1)
@@ -570,6 +571,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
 
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, str(pkt))
+        testutils.verify_no_other_packets(self)
 
         # wait for counters to update
         sleep(0.1)
