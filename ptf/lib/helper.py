@@ -112,7 +112,7 @@ class P4InfoHelper(object):
         req = p4runtime_pb2.ReadRequest()
         req.device_id = int(testutils.test_param_get("device_id"))
         return req
-    
+ 
     def get_next_grp_id(self):
         grp_id = self.next_grp_id
         self.next_grp_id = self.next_grp_id + 1
@@ -273,15 +273,6 @@ class P4InfoHelper(object):
             if pre.name == counter_name:
                 return a
         raise AttributeError("Counter %r doesnt exist (check your P4Info)" % (counter_name))
-
-    def get_counter(self, counter_name):
-        for a in self.p4info.direct_counters:
-            pre = a.preamble
-            if pre.name == counter_name:
-                  return a
-        raise AttributeError(
-            "Counter %r doesnt exist (check your P4Info)"
-            % (counter_name))
 
     def get_action_param_id(self, action_name, param_name):
         return self.get_action_param(action_name, name=param_name).id
