@@ -580,7 +580,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         self.assertEqual(downlink_pkt_count_new, downlink_pkt_count + 1)
         self.assertEqual(downlink_byte_count_new, downlink_byte_count + len(pkt))
 
-        # Check if post-QoS packet and byte counters incremented
+        # Make sure post-QoS packet and byte counters shouldnt be incremented in Post Qos. 
         downlink_pkt_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
         downlink_byte_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
         self.assertEqual(downlink_pkt_count2_new, downlink_pkt_count)
