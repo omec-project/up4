@@ -112,7 +112,7 @@ class P4InfoHelper(object):
         req = p4runtime_pb2.ReadRequest()
         req.device_id = int(testutils.test_param_get("device_id"))
         return req
- 
+
     def get_next_grp_id(self):
         grp_id = self.next_grp_id
         self.next_grp_id = self.next_grp_id + 1
