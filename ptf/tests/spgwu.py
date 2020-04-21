@@ -32,11 +32,16 @@ from ptf.testutils import group
 from ptf import testutils as testutils
 from scapy.contrib import gtp
 from time import sleep
+from enum import Enum
 import random
 random.seed(123456)  # for reproducible PTF tests
 
 UDP_GTP_PORT = 2152
 
+class Action(Enum):
+    DROP    = 1
+    FORWARD = 2
+    TUNNEL  = 3
 
 class GtpuBaseTest(P4RuntimeTest):
 
@@ -175,6 +180,17 @@ class GtpuBaseTest(P4RuntimeTest):
                 },
             ))
 
+    def add_far_drop(self, far_id, session_id):
+        self.insert(
+            self.helper.build_table_entry(
+                table_name="IngressPipeImpl.fars",
+                match_fields={
+                    "far_id": far_id,
+                    "session_id": session_id,
+                },
+                action_name="IngressPipeImpl.set_far_attributes_drop",
+            ))
+
     def add_far_tunnel(self, far_id, session_id, teid, src_addr, dst_addr, egress_port, dst_mac,
                        tunnel_type="GTPU"):
         _tunnel_type = self.helper.get_enum_member_val("TunnelType", tunnel_type)
@@ -213,7 +229,7 @@ class GtpuBaseTest(P4RuntimeTest):
         self._last_used_rule_id += 1
         return self._last_used_rule_id
 
-    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, session_id=None):
+    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, action, session_id=None):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -250,14 +266,20 @@ class GtpuBaseTest(P4RuntimeTest):
             needs_gtpu_decap=True,
         )
 
-        self.add_far_forward(
-            far_id=far_id,
-            session_id=session_id,
-            egress_port=outport,
-            dst_mac=exp_pkt[Ether].dst,
-        )
+        if (action == Action.FORWARD):
 
-    def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, session_id=None):
+            self.add_far_forward(
+                far_id=far_id,
+                session_id=session_id,
+                egress_port=outport,
+                dst_mac=exp_pkt[Ether].dst,
+            )
+        elif (action == Action.DROP):
+            self.add_far_drop(far_id=far_id, session_id=session_id)
+        else:
+            raise AssertionError("Action Not handled")
+
+    def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, action, session_id=None):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -299,15 +321,20 @@ class GtpuBaseTest(P4RuntimeTest):
             needs_gtpu_decap=False,
         )
 
-        self.add_far_tunnel(
-            far_id=far_id,
-            session_id=session_id,
-            teid=exp_pkt[gtp.GTP_U_Header].teid,
-            src_addr=exp_pkt[IP].src,
-            dst_addr=exp_pkt[IP].dst,
-            egress_port=outport,
-            dst_mac=exp_pkt[Ether].dst,
-        )
+        if (action == Action.TUNNEL):
+            self.add_far_tunnel(
+                far_id=far_id,
+                session_id=session_id,
+                teid=exp_pkt[gtp.GTP_U_Header].teid,
+                src_addr=exp_pkt[IP].src,
+                dst_addr=exp_pkt[IP].dst,
+                egress_port=outport,
+                dst_mac=exp_pkt[Ether].dst,
+            )
+        elif (action == Action.DROP):
+            self.add_far_drop(far_id=far_id, session_id=session_id)
+        else:
+            raise AssertionError("FAR Action Not handled %d",action);
 
     def random_mac_addr(self):
         octets = [random.randint(0, 0xff) for _ in range(6)]
@@ -350,7 +377,7 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
         ctr_id = random.randint(0, 1023)
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id)
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, Action.FORWARD)
 
         # read pre-QoS packet and byte counters
         uplink_pkt_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
@@ -412,7 +439,66 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         ctr_id = random.randint(0, 1023)
 
         # program all the tables
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id=ctr_id)
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, Action.TUNNEL)
+
+        # read pre-QoS packet and byte counters
+        downlink_pkt_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
+        downlink_byte_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=False)
+
+        # read post-QoS packet and byte counters
+        downlink_pkt_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
+        downlink_byte_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
+
+        # send packet and verify it is decapsulated and routed
+        testutils.send_packet(self, self.port1, str(pkt))
+        testutils.verify_packet(self, exp_pkt, self.port2)
+
+        # wait for counters to update
+        sleep(0.1)
+
+        # Check if pre-QoS packet and byte counters incremented
+        downlink_pkt_count_new = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
+        downlink_byte_count_new = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=False)
+        self.assertEqual(downlink_pkt_count_new, downlink_pkt_count + 1)
+        self.assertEqual(downlink_byte_count_new, downlink_byte_count + len(pkt))
+
+        # Check if post-QoS packet and byte counters incremented
+        downlink_pkt_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
+        downlink_byte_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
+        self.assertEqual(downlink_pkt_count2_new, downlink_pkt_count + 1)
+        self.assertEqual(downlink_byte_count2_new, downlink_byte_count + len(pkt))
+
+class GtpuDropUplinkTest(GtpuBaseTest):
+    """ Tests that a packet received from a UE gets decapsulated and dropped because of FAR rule.
+    """
+
+    def runTest(self):
+        # Test with different type of packets.
+        for pkt_type in ["udp"]:
+            print_inline("%s ... " % pkt_type)
+            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
+            pkt = self.gtpu_encap(pkt)
+
+            self.testPacket(pkt)
+
+    @autocleanup
+    def testPacket(self, pkt):
+
+        if gtp.GTP_U_Header not in pkt:
+            raise AssertionError("Packet given to decap test is not encapsulated!")
+        # build the expected decapsulated packet
+        exp_pkt = self.gtpu_decap(pkt)
+        dst_mac = self.random_mac_addr()
+        # Expected pkt should have routed MAC addresses and decremented hop
+        # limit (TTL).
+        pkt_route(exp_pkt, dst_mac)
+        pkt_decrement_ttl(exp_pkt)
+
+        # PDR counter ID
+        ctr_id = random.randint(0, 1023)
+
+        # program all the tables
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, Action.DROP)
 
         # read pre-QoS packet and byte counters
         uplink_pkt_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
@@ -424,7 +510,6 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
 
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, str(pkt))
-        testutils.verify_packet(self, exp_pkt, self.port2)
 
         # wait for counters to update
         sleep(0.1)
@@ -435,8 +520,70 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         self.assertEqual(uplink_pkt_count_new, uplink_pkt_count + 1)
         self.assertEqual(uplink_byte_count_new, uplink_byte_count + len(pkt))
 
-        # Check if post-QoS packet and byte counters incremented
+        # Make sure post-QoS packet and byte counters shouldnt be incremented in Post Qos. 
         uplink_pkt_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
         uplink_byte_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
-        self.assertEqual(uplink_pkt_count2_new, uplink_pkt_count + 1)
-        self.assertEqual(uplink_byte_count2_new, uplink_byte_count + len(pkt))
+        self.assertEqual(uplink_pkt_count2_new, uplink_pkt_count)
+        self.assertEqual(uplink_byte_count2_new, uplink_byte_count)
+
+@group("gtpu")
+class GtpuDropDownlinkTest(GtpuBaseTest):
+    """ Tests that a packet received from the internet/core gets dropped because of FAR rule.
+    """
+
+    def runTest(self):
+        # Test with different type of packets.
+        for pkt_type in ["udp"]:
+            print_inline("%s ... " % pkt_type)
+            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
+            self.testPacket(pkt)
+
+    @autocleanup
+    def testPacket(self, pkt):
+
+        # build the expected encapsulated packet
+        exp_pkt = pkt.copy()
+        dst_mac = self.random_mac_addr()
+        # Expected pkt should have routed MAC addresses and decremented hop
+        # limit (TTL).
+        pkt_route(exp_pkt, dst_mac)
+        pkt_decrement_ttl(exp_pkt)
+        # force recomputation of checksum after routing/ttl decrement
+        del pkt[IP].chksum
+
+        # Should be encapped too obv.
+        exp_pkt = self.gtpu_encap(exp_pkt)
+
+        # PDR counter ID
+        ctr_id = random.randint(0, 1023)
+
+        # program all the tables
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, Action.DROP)
+
+        # read pre-QoS packet and byte counters
+        downlink_pkt_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
+        downlink_byte_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=False)
+
+        # read post-QoS packet and byte counters
+        downlink_pkt_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
+        downlink_byte_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
+
+        # send packet and verify it is decapsulated and routed
+        testutils.send_packet(self, self.port1, str(pkt))
+
+        # wait for counters to update
+        sleep(0.1)
+
+        # Check if pre-QoS packet and byte counters incremented
+        downlink_pkt_count_new = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
+        downlink_byte_count_new = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=False)
+        self.assertEqual(downlink_pkt_count_new, downlink_pkt_count + 1)
+        self.assertEqual(downlink_byte_count_new, downlink_byte_count + len(pkt))
+
+        # Check if post-QoS packet and byte counters incremented
+        downlink_pkt_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
+        downlink_byte_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
+        self.assertEqual(downlink_pkt_count2_new, downlink_pkt_count)
+        self.assertEqual(downlink_byte_count2_new, downlink_byte_count)
+
+
