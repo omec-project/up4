@@ -15,7 +15,6 @@
  */
 
 
-// TODO: PDR-ID and FAR-ID are not globally unique. need to combine them with F-SEID
 
 #include <core.p4>
 #include <v1model.p4>
@@ -56,6 +55,7 @@ typedef bit<32> pdr_id_t;
 typedef bit<32> far_id_t;
 typedef bit<32> urr_id_t;
 typedef bit<32> qer_id_t;
+typedef bit<32> bar_id_t;
 typedef bit<32> qfi_t;
 typedef bit<32> net_instance_t;
 typedef bit<32> counter_index_t;
@@ -76,6 +76,7 @@ const far_id_t DEFAULT_FAR_ID = 0;
 const urr_id_t DEFAULT_URR_ID = 0;
 const qer_id_t DEFAULT_QER_ID = 0;
 const qfi_t    DEFAULT_QFI    = 0;
+const fseid_t  DEFAULT_FSEID  = 0;
 
 //------------------------------------------------------------------------------
 // ENUMS
@@ -154,11 +155,34 @@ header ipv4_t {
     ipv4_addr_t     dst_addr;
 }
 
+header tcp_t {
+    bit<16> sport;
+    bit<16> dport;
+    bit<32> seq_no;
+    bit<32> ack_no;
+    bit<4>  data_offset;
+    bit<3>  res;
+    bit<3>  ecn;
+    bit<6>  ctrl;
+    bit<16> window;
+    bit<16> checksum;
+    bit<16> urgent_ptr;
+}
+
 header udp_t {
     bit<16> sport;
     bit<16> dport;
     bit<16> len;
     bit<16> checksum;
+}
+
+header icmp_t {
+    bit<8> icmp_type;
+    bit<8> icmp_code;
+    bit<16> checksum;
+    bit<16> identifier;
+    bit<16> sequence_number;
+    bit<64> timestamp;
 }
 
 header gtpu_t {
@@ -182,10 +206,17 @@ struct parsed_headers_t {
     gtpu_t gtpu;
     ipv4_t ipv4;
     udp_t udp;
+    tcp_t tcp;
+    icmp_t icmp;
     ipv4_t inner_ipv4;
     udp_t inner_udp;
+    tcp_t inner_tcp;
+    icmp_t inner_icmp;
 }
 
+//------------------------------------------------------------------------------
+// METADATA DEFINITIONS
+//------------------------------------------------------------------------------
 
 // Data associated with a PDR entry
 struct pdr_metadata_t {
@@ -193,20 +224,25 @@ struct pdr_metadata_t {
     counter_index_t ctr_idx;
 }
 
+// Data assocaited with a BAR entry
+struct bar_metadata_t {
+    bar_id_t id;
+}
+
 
 // Data associated with a FAR entry. Loaded by a FAR (except ID which is loaded by a PDR)
 struct far_metadata_t {
-    far_id_t id;
-    ActionType action_type;
+    far_id_t    id;
+    ActionType  action_type;
 
-    TunnelType tunnel_out_type;
+    TunnelType  tunnel_out_type;
     ipv4_addr_t tunnel_out_src_ipv4_addr;
     ipv4_addr_t tunnel_out_dst_ipv4_addr;
-    teid_t tunnel_out_teid;
+    l4_port_t   tunnel_out_udp_dport;
+    teid_t      tunnel_out_teid;
 
-    mac_addr_t dst_mac_addr;
-    port_num_t egress_spec;
-    InterfaceType dst_iface_type;
+    mac_addr_t      dst_mac_addr;
+    port_num_t      egress_spec;
 }
 
 // QoS related metadata
@@ -218,11 +254,12 @@ struct qos_metadata_t {
 // The primary metadata structure.
 struct local_metadata_t {
     Direction direction;
-    
-    teid_t teid; // local Tunnel ID.  F-TEID = TEID + GTP endpoint address
-    seid_t seid; // local Session ID. F-SEID = SEID + GTP endpoint address
 
-    fteid_t fteid;
+    // SEID and F-TEID currently have no use in fast path
+    teid_t teid;    // local Tunnel ID.  F-TEID = TEID + GTP endpoint address
+    // seid_t seid; // local Session ID. F-SEID = SEID + GTP endpoint address
+
+    // fteid_t fteid; 
     fseid_t fseid;
 
     bool needs_gtpu_decap;
@@ -245,6 +282,7 @@ struct local_metadata_t {
     far_metadata_t far;
     qos_metadata_t qos;
     pdr_metadata_t pdr;
+    bar_metadata_t bar;
 }
 
 
@@ -271,7 +309,9 @@ parser ParserImpl (packet_in packet,
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
         transition select(hdr.ipv4.proto) {
-            IpProtocol.UDP: parse_udp;
+            IpProtocol.UDP:  parse_udp;
+            IpProtocol.TCP:  parse_tcp;
+            IpProtocol.ICMP: parse_icmp;
             default: accept;
         }
     }
@@ -287,17 +327,36 @@ parser ParserImpl (packet_in packet,
         }
     }
 
+    state parse_tcp {
+        packet.extract(hdr.tcp);
+        local_meta.l4_sport = hdr.tcp.sport;
+        local_meta.l4_dport = hdr.tcp.dport;
+        transition accept;
+    }
+
+    state parse_icmp {
+        packet.extract(hdr.icmp);
+        transition accept;
+    }
+
     state parse_gtpu {
         packet.extract(hdr.gtpu);
         local_meta.teid = hdr.gtpu.teid;
-        // eventually need to add conditional parsing, in the case of non-ip payloads
+        // Eventually need to add conditional parsing, in the case of non-ip payloads.
+        // Also need to add conditional GTP-U extension headers. They are variable length, so will be tricky.
         transition parse_inner_ipv4;
     }
+
+    //-----------------
+    // Inner packet
+    //-----------------
 
     state parse_inner_ipv4 {
         packet.extract(hdr.inner_ipv4);
         transition select(hdr.ipv4.proto) {
-            IpProtocol.UDP: parse_inner_udp;
+            IpProtocol.UDP:  parse_inner_udp;
+            IpProtocol.TCP:  parse_inner_tcp;
+            IpProtocol.ICMP: parse_inner_icmp;
             default: accept;
         }
     }
@@ -306,6 +365,18 @@ parser ParserImpl (packet_in packet,
         packet.extract(hdr.inner_udp);
         local_meta.l4_sport = hdr.inner_udp.sport;
         local_meta.l4_dport = hdr.inner_udp.dport;
+        transition accept;
+    }
+
+    state parse_inner_tcp {
+        packet.extract(hdr.inner_tcp);
+        local_meta.l4_sport = hdr.inner_tcp.sport;
+        local_meta.l4_dport = hdr.inner_tcp.dport;
+        transition accept;
+    }
+
+    state parse_inner_icmp {
+        packet.extract(hdr.inner_icmp);
         transition accept;
     }
 }
@@ -331,7 +402,8 @@ control execute_far (inout parsed_headers_t    hdr,
                      inout standard_metadata_t std_meta) {
 
     @hidden
-    action gtpu_encap(ipv4_addr_t src_addr, ipv4_addr_t dst_addr, teid_t teid) {
+    action gtpu_encap(ipv4_addr_t src_addr, ipv4_addr_t dst_addr, 
+                      l4_port_t udp_dport, teid_t teid) {
         hdr.outer_ipv4.setValid();
         hdr.outer_ipv4.version = IP_VERSION_4;
         hdr.outer_ipv4.ihl = IPV4_MIN_IHL;
@@ -350,7 +422,7 @@ control execute_far (inout parsed_headers_t    hdr,
 
         hdr.outer_udp.setValid();
         hdr.outer_udp.sport = UDP_PORT_GTPU;
-        hdr.outer_udp.dport = UDP_PORT_GTPU;
+        hdr.outer_udp.dport = udp_dport;
         hdr.outer_udp.len = hdr.ipv4.total_len 
                 + (UDP_HDR_SIZE + GTP_HDR_SIZE);
         hdr.outer_udp.checksum = 0; // Updated later
@@ -383,6 +455,7 @@ control execute_far (inout parsed_headers_t    hdr,
     action do_gtpu_tunnel() {
         gtpu_encap(local_meta.far.tunnel_out_src_ipv4_addr, 
                    local_meta.far.tunnel_out_dst_ipv4_addr,
+                   local_meta.far.tunnel_out_udp_dport,
                    local_meta.far.tunnel_out_teid);
         forward(local_meta.far.dst_mac_addr, local_meta.far.egress_spec);
     }
@@ -424,25 +497,37 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 
     counter(MAX_PDRS, CounterType.packets_and_bytes) pre_qos_pdr_counter;
 
-    /* used by many tables */
-    action drop() {
-        mark_to_drop(std_meta);
-    }
-
 
     // TODO: change type to ID / Number ??
     action set_source_iface_type(InterfaceType src_iface_type) {
+        // Interface type can be access, core, n6_lan or vn_internal (see InterfaceType enum)
         local_meta.src_iface_type = src_iface_type;
     }
     table source_iface_lookup {
         key = {
             std_meta.ingress_port : exact;
-            // in practice, will also check vlan ID and destination IP
+            hdr.ipv4.dst_addr     : lpm;
+            // Should also check vlan ID here
         }
         actions = {
             set_source_iface_type;
         }
         const default_action = set_source_iface_type(InterfaceType.UNKNOWN);
+    }
+
+
+    action set_fseid(fseid_t fseid) {
+        local_meta.fseid = fseid;
+    }
+    table fseid_lookup {
+        key = {
+            local_meta.ue_addr : exact;
+            // TODO: what is the other part of the lookup?
+        }
+        actions = {
+            set_fseid;
+        }
+        const default_action = set_fseid(DEFAULT_FSEID);
     }
 
 
@@ -453,17 +538,15 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         hdr.outer_udp.setInvalid();
     }
 
-
-
-    action set_pdr_attributes(pdr_id_t id, 
-                             far_id_t far_id, 
-                             qer_id_t qer_id,
-                             qfi_t qfi,
-                             bit<1> needs_gtpu_decap,
-                             bit<1> needs_udp_decap,
-                             bit<1> needs_vlan_removal,
-                             net_instance_t net_instance,
-                             counter_index_t ctr_id
+    action set_pdr_attributes(pdr_id_t          id, 
+                              far_id_t          far_id, 
+                              qer_id_t          qer_id,
+                              qfi_t             qfi, // TODO: should this come from a gtpu extension?
+                              bit<1>            needs_gtpu_decap,
+                              bit<1>            needs_udp_decap,
+                              bit<1>            needs_vlan_removal,
+                              net_instance_t    net_instance,
+                              counter_index_t   ctr_id
                              // TODO: add more attributes to load. 
                              )
     {
@@ -472,7 +555,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         local_meta.far.id       = far_id;
         local_meta.qos.qer_id   = qer_id;
         local_meta.qos.qfi      = qfi;
-        local_meta.net_instance = net_instance;
+        local_meta.net_instance = net_instance; //TODO: where is this used in the datapath?
         local_meta.needs_gtpu_decap     = (bool)needs_gtpu_decap;
         local_meta.needs_udp_decap      = (bool)needs_udp_decap;
         local_meta.needs_vlan_removal   = (bool)needs_vlan_removal;
@@ -483,6 +566,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         key = {
             local_meta.fseid            : exact     @name("fseid");
             local_meta.src_iface_type   : exact     @name("src_iface_type"); // To differentiate uplink and downlink
+            local_meta.teid             : ternary   @name("teid");
             // 5-Tuple
             local_meta.ue_addr          : ternary   @name("ue_addr"); 
             local_meta.inet_addr        : ternary   @name("inet_addr");
@@ -498,26 +582,34 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         }
     }
 
+
+    // TODO: These actions should set local_meta.dst_iface_type, but would any tables use it?
+    //       Isn't a destination port sufficient information for the fast path?
     action set_far_attributes_forward(port_num_t egress_spec,
                                       mac_addr_t dst_mac) {
         local_meta.far.action_type = ActionType.FORWARD;
         local_meta.far.egress_spec = egress_spec;
         local_meta.far.dst_mac_addr = dst_mac;
     }
-    action set_far_attributes_buffer() {
+    action set_far_attributes_buffer(bar_id_t bar_id) {
         local_meta.far.action_type = ActionType.BUFFER;
+        local_meta.bar.id          = bar_id;
     }
-    action set_far_attributes_tunnel(TunnelType tunnel_type,
-                                ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
-                                teid_t teid, port_num_t egress_spec,
-                                mac_addr_t dst_mac) {
+    action set_far_attributes_tunnel(TunnelType     tunnel_type,
+                                     ipv4_addr_t    src_addr,
+                                     ipv4_addr_t    dst_addr, 
+                                     teid_t         teid, 
+                                     l4_port_t      dport,
+                                     port_num_t     egress_spec,
+                                     mac_addr_t     dst_mac) {
         local_meta.far.action_type              = ActionType.TUNNEL;
         local_meta.far.tunnel_out_type          = tunnel_type;
-        local_meta.far.egress_spec              = egress_spec;
-        local_meta.far.tunnel_out_teid          = teid;
         local_meta.far.tunnel_out_src_ipv4_addr = src_addr;
         local_meta.far.tunnel_out_dst_ipv4_addr = dst_addr;
-        local_meta.far.dst_mac_addr = dst_mac;
+        local_meta.far.tunnel_out_teid          = teid;
+        local_meta.far.tunnel_out_udp_dport     = dport;       
+        local_meta.far.egress_spec              = egress_spec;
+        local_meta.far.dst_mac_addr             = dst_mac;
     } 
     action set_far_attributes_drop() {
         local_meta.far.action_type = ActionType.DROP;
@@ -537,19 +629,6 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 
 
 
-    action set_fseid(fseid_t fseid) {
-        local_meta.fseid = fseid;
-    }
-    table fseid_lookup {
-        key = {
-            local_meta.ue_addr : exact;
-            // TODO: what is the other part of the lookup?
-        }
-        actions = {
-            set_fseid;
-        }
-    }
-
 
     //----------------------------------------
     // INGRESS APPLY BLOCK
@@ -563,8 +642,18 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             hdr.outer_udp = hdr.udp;
             if (hdr.inner_udp.isValid()) {
                 hdr.udp = hdr.inner_udp;
-            } else {
+                hdr.inner_udp.setInvalid();
+            } 
+            else {
                 hdr.udp.setInvalid();
+                if (hdr.inner_tcp.isValid()) {
+                    hdr.tcp = hdr.inner_tcp;
+                    hdr.inner_tcp.setInvalid();
+                }
+                else if (hdr.inner_icmp.isValid()) {
+                    hdr.icmp = hdr.inner_icmp;
+                    hdr.inner_icmp.setInvalid();
+                }
             }
         }
         /*
@@ -572,8 +661,6 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             bypass_ingress();
         }
         */
-
-        // downlink lookup = UE address lookup
 
         source_iface_lookup.apply();
 
@@ -604,15 +691,29 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 
 
 
+        // Look up F-SEID, which is needed as a match key by the PDR table
         fseid_lookup.apply();
+        // Find a matching PDR and load the relevant attributes.
         pdrs.apply();
+        // Count packets at a counter index unique to whichever PDR matched.
         pre_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
 
+        // Perform whatever header removal was the matching PDR required.
         if (local_meta.needs_gtpu_decap) {
             gtpu_decap();
         }
+        /*
+        else if (local_meta.needs_udp_decap) {
+            udp_decap();
+        }
+        else if (local_meta.neds_vlan_removal) {
+            vlan_untag();
+        }
+        */
 
+        // Look up FAR info using the FAR-ID loaded by the PDR table.
         fars.apply();
+        // Execute the loaded FAR
         execute_far.apply(hdr, local_meta, std_meta);
 
     }
@@ -630,7 +731,8 @@ control EgressPipeImpl (inout parsed_headers_t hdr,
     counter(MAX_PDRS, CounterType.packets_and_bytes) post_qos_pdr_counter;
 
     apply {
-
+        // Count packets that made it through QoS and were not dropped,
+        // using the counter index assigned by the PDR that matched in ingress.
         post_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
 
     }
@@ -660,6 +762,7 @@ control ComputeChecksumImpl(inout parsed_headers_t hdr,
             hdr.ipv4.checksum,
             HashAlgorithm.csum16
         );
+        // TODO: UDP and TCP checksums
     }
 }
 
@@ -675,6 +778,8 @@ control DeparserImpl(packet_out packet, in parsed_headers_t hdr) {
         packet.emit(hdr.gtpu);
         packet.emit(hdr.ipv4);
         packet.emit(hdr.udp);
+        packet.emit(hdr.tcp);
+        packet.emit(hdr.icmp);
     }
 }
 

@@ -31,6 +31,7 @@ from base_test import pkt_route, pkt_decrement_ttl, P4RuntimeTest, \
 from ptf.testutils import group
 from ptf import testutils as testutils
 from scapy.contrib import gtp
+from scapy.all import IP, TCP, UDP, ICMP
 from time import sleep
 from enum import Enum
 import random
@@ -192,7 +193,7 @@ class GtpuBaseTest(P4RuntimeTest):
             ))
 
     def add_far_tunnel(self, far_id, session_id, teid, src_addr, dst_addr, egress_port, dst_mac,
-                       tunnel_type="GTPU"):
+                       dport=2152, tunnel_type="GTPU"):
         _tunnel_type = self.helper.get_enum_member_val("TunnelType", tunnel_type)
         self.insert(
             self.helper.build_table_entry(
@@ -207,6 +208,7 @@ class GtpuBaseTest(P4RuntimeTest):
                     "src_addr": src_addr,
                     "dst_addr": dst_addr,
                     "teid": teid,
+                    "dport": dport,
                     "egress_spec": egress_port,
                     "dst_mac": dst_mac,
                 },
@@ -267,7 +269,6 @@ class GtpuBaseTest(P4RuntimeTest):
         )
 
         if (action == Action.FORWARD):
-
             self.add_far_forward(
                 far_id=far_id,
                 session_id=session_id,
@@ -353,7 +354,7 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
 
     def runTest(self):
         # Test with different type of packets.
-        for pkt_type in ["udp"]:
+        for pkt_type in ["tcp", "udp", "icmp"]:
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
             pkt = self.gtpu_encap(pkt)
@@ -414,7 +415,7 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
 
     def runTest(self):
         # Test with different type of packets.
-        for pkt_type in ["udp"]:
+        for pkt_type in ["tcp", "udp", "icmp"]:
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
             self.testPacket(pkt)
@@ -474,7 +475,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
 
     def runTest(self):
         # Test with different type of packets.
-        for pkt_type in ["udp"]:
+        for pkt_type in ["tcp", "udp", "icmp"]:
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
             pkt = self.gtpu_encap(pkt)
@@ -508,7 +509,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         uplink_pkt_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
         uplink_byte_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
 
-        # send packet and verify it is decapsulated and routed
+        # send packet and verify it is dropped
         testutils.send_packet(self, self.port1, str(pkt))
         testutils.verify_no_other_packets(self)
 
@@ -521,7 +522,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         self.assertEqual(uplink_pkt_count_new, uplink_pkt_count + 1)
         self.assertEqual(uplink_byte_count_new, uplink_byte_count + len(pkt))
 
-        # Make sure post-QoS packet and byte counters shouldnt be incremented in Post Qos. 
+        # Make sure post-QoS packet and byte counters weren't incremented.
         uplink_pkt_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
         uplink_byte_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
         self.assertEqual(uplink_pkt_count2_new, uplink_pkt_count)
@@ -534,7 +535,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
 
     def runTest(self):
         # Test with different type of packets.
-        for pkt_type in ["udp"]:
+        for pkt_type in ["tcp", "udp", "icmp"]:
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
             self.testPacket(pkt)
@@ -569,7 +570,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         downlink_pkt_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
         downlink_byte_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
 
-        # send packet and verify it is decapsulated and routed
+        # send packet and verify it is dropped
         testutils.send_packet(self, self.port1, str(pkt))
         testutils.verify_no_other_packets(self)
 
@@ -582,7 +583,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         self.assertEqual(downlink_pkt_count_new, downlink_pkt_count + 1)
         self.assertEqual(downlink_byte_count_new, downlink_byte_count + len(pkt))
 
-        # Make sure post-QoS packet and byte counters shouldnt be incremented in Post Qos. 
+        # Make sure post-QoS packet and byte counters weren't incremented.
         downlink_pkt_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
         downlink_byte_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
         self.assertEqual(downlink_pkt_count2_new, downlink_pkt_count)
