@@ -31,12 +31,16 @@ from base_test import pkt_route, pkt_decrement_ttl, P4RuntimeTest, \
 from ptf.testutils import group
 from ptf import testutils as testutils
 from scapy.contrib import gtp
+from scapy.all import IP, TCP, UDP, ICMP
 from time import sleep
 from enum import Enum
 import random
 random.seed(123456)  # for reproducible PTF tests
 
 UDP_GTP_PORT = 2152
+
+PKT_TYPES = ["udp", "tcp", "icmp"]
+#PKT_TYPES = ["udp"]
 
 class Action(Enum):
     DROP    = 1
@@ -93,22 +97,45 @@ class GtpuBaseTest(P4RuntimeTest):
         else:
             return self.helper.read_byte_count(counter_name, index)
 
-    def add_interface(self, iface_type, port_nums):
-        """ Binds a 3GPP interface to a set of ports.
+
+    def add_device_mac(self, mac_addr):
+        self.insert(
+            self.helper.build_table_entry(
+                table_name="IngressPipeImpl.my_station",
+                match_fields={
+                    "dst_mac" : mac_addr
+                },
+                action_name="NoAction",
+                action_params={}
+            ))
+
+    def add_routing_entry(self, ip_prefix, dst_mac, egress_port):
+        self.insert(self.helper.build_table_entry(
+            table_name="IngressPipeImpl.Routing.routes_v4",
+            match_fields= {
+                "dst_prefix" : ip_prefix
+            },
+            action_name = "IngressPipeImpl.Routing.route",
+            action_params = {"dst_mac" : dst_mac,
+                             "egress_port" : egress_port}
+            ))
+
+    def add_interface(self, ip_prefix, iface_type, direction):
+        """ Binds a destination prefix 3GPP interface.
         """
         _iface_type = self.helper.get_enum_member_val("InterfaceType", iface_type)
+        _direction = self.helper.get_enum_member_val("Direction", direction)
 
-        for port_num in port_nums:
-            self.insert(
-                self.helper.build_table_entry(
-                    table_name="IngressPipeImpl.source_iface_lookup",
-                    match_fields={
-                        # Exact match.
-                        "std_meta.ingress_port": port_num
-                    },
-                    action_name="IngressPipeImpl.set_source_iface_type",
-                    action_params={"src_iface_type": _iface_type},
-                ))
+        self.insert(
+            self.helper.build_table_entry(
+                table_name="IngressPipeImpl.source_iface_lookup",
+                match_fields={
+                    "ipv4_dst_prefix" : ip_prefix
+                },
+                action_name="IngressPipeImpl.set_source_iface",
+                action_params={"src_iface": _iface_type,
+                               "direction":_direction},
+            ))
 
     def add_session(self, session_id, ue_addr):
         """ Associates the given session_id with the given UE address.
@@ -124,6 +151,36 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params={"fseid": session_id},
             ))
 
+    def add_default_entries(self,
+                            default_pdr_id = 0,
+                            default_far_id = 0,
+                            default_qer_id = 0,
+                            default_qfi = 0,
+                            default_net_instance = 0,
+                            default_ctr_id = 0):
+        return
+
+        # Default PDR entry
+        self.insert(
+            self.helper.build_table_entry(
+                table_name="IngressPipeImpl.pdrs",
+                default_action=True,
+                action_name="IngressPipeImpl.set_pdr_attributes",
+                action_params={
+                    "id": default_pdr_id,
+                    "far_id": default_far_id,
+                    "qer_id": default_qer_id,
+                    "qfi": qfi,
+                    "needs_gtpu_decap": False,
+                    "needs_udp_decap": False,
+                    "needs_vlan_removal": False,
+                    "net_instance": default_net_instance,
+                    "ctr_id": default_ctr_id,
+                }
+            ))
+        # Default FAR entry
+
+
     def add_pdr(self, pdr_id, far_id, session_id, src_iface, ctr_id, ue_addr=None, ue_mask=None,
                 inet_addr=None, inet_mask=None, ue_l4_port=None, ue_l4_port_hi=None,
                 inet_l4_port=None, inet_l4_port_hi=None, ip_proto=None, ip_proto_mask=None,
@@ -134,7 +191,7 @@ class GtpuBaseTest(P4RuntimeTest):
         ALL_ONES_8 = (1 << 8) - 1
 
         _src_iface = self.helper.get_enum_member_val("InterfaceType", src_iface)
-        match_fields = {"fseid": session_id, "src_iface_type": _src_iface}
+        match_fields = {"fseid": session_id, "src_iface": _src_iface}
         if ue_addr is not None:
             match_fields["ue_addr"] = (ue_addr, ue_mask or ALL_ONES_32)
         if inet_addr is not None:
@@ -165,7 +222,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 priority=priority,
             ))
 
-    def add_far_forward(self, far_id, session_id, egress_port, dst_mac):
+    def add_far_forward(self, far_id, session_id, dst_ip):
         self.insert(
             self.helper.build_table_entry(
                 table_name="IngressPipeImpl.fars",
@@ -175,8 +232,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 },
                 action_name="IngressPipeImpl.set_far_attributes_forward",
                 action_params={
-                    "egress_spec": egress_port,
-                    "dst_mac": dst_mac,
+                    "next_hop_ip" : dst_ip
                 },
             ))
 
@@ -191,8 +247,8 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_name="IngressPipeImpl.set_far_attributes_drop",
             ))
 
-    def add_far_tunnel(self, far_id, session_id, teid, src_addr, dst_addr, egress_port, dst_mac,
-                       tunnel_type="GTPU"):
+    def add_far_tunnel(self, far_id, session_id, teid, src_addr, dst_addr,
+                       dport=2152, tunnel_type="GTPU"):
         _tunnel_type = self.helper.get_enum_member_val("TunnelType", tunnel_type)
         self.insert(
             self.helper.build_table_entry(
@@ -207,8 +263,7 @@ class GtpuBaseTest(P4RuntimeTest):
                     "src_addr": src_addr,
                     "dst_addr": dst_addr,
                     "teid": teid,
-                    "egress_spec": egress_port,
-                    "dst_mac": dst_mac,
+                    "dport": dport
                 },
             ))
 
@@ -247,8 +302,10 @@ class GtpuBaseTest(P4RuntimeTest):
             ue_l4_port = inner_pkt.sport
             net_l4_port = inner_pkt.dport
 
-        self.add_interface(iface_type="ACCESS", port_nums=[inport])
-        self.add_interface(iface_type="CORE", port_nums=[outport])
+        self.add_device_mac(pkt[Ether].dst)
+
+        self.add_interface(ip_prefix=pkt[IP].dst + '/32',
+                            iface_type="ACCESS",  direction="UPLINK")
 
         self.add_session(session_id=session_id, ue_addr=inner_pkt[IP].src)
 
@@ -267,17 +324,19 @@ class GtpuBaseTest(P4RuntimeTest):
         )
 
         if (action == Action.FORWARD):
-
             self.add_far_forward(
                 far_id=far_id,
                 session_id=session_id,
-                egress_port=outport,
-                dst_mac=exp_pkt[Ether].dst,
+                dst_ip=exp_pkt[IP].dst
             )
+            self.add_routing_entry(ip_prefix = exp_pkt[IP].dst + '/32',
+                                   dst_mac = exp_pkt[Ether].dst,
+                                   egress_port = outport)
         elif (action == Action.DROP):
             self.add_far_drop(far_id=far_id, session_id=session_id)
         else:
             raise AssertionError("Action Not handled")
+
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, action, session_id=None):
         """ Add all table entries required for the given downlink packet to flow through the UPF
@@ -302,8 +361,10 @@ class GtpuBaseTest(P4RuntimeTest):
             ue_l4_port = pkt.dport
             inet_l4_port = pkt.sport
 
-        self.add_interface(iface_type="CORE", port_nums=[inport])
-        self.add_interface(iface_type="ACCESS", port_nums=[outport])
+        self.add_device_mac(pkt[Ether].dst)
+
+        self.add_interface(ip_prefix=pkt[IP].dst + '/32',
+                            iface_type="CORE", direction="DOWNLINK")
 
         self.add_session(session_id=session_id, ue_addr=pkt[IP].dst)
 
@@ -327,14 +388,16 @@ class GtpuBaseTest(P4RuntimeTest):
                 session_id=session_id,
                 teid=exp_pkt[gtp.GTP_U_Header].teid,
                 src_addr=exp_pkt[IP].src,
-                dst_addr=exp_pkt[IP].dst,
-                egress_port=outport,
-                dst_mac=exp_pkt[Ether].dst,
+                dst_addr=exp_pkt[IP].dst
             )
+            self.add_routing_entry(ip_prefix = exp_pkt[IP].dst + '/32',
+                                   dst_mac = exp_pkt[Ether].dst,
+                                   egress_port = outport)
         elif (action == Action.DROP):
             self.add_far_drop(far_id=far_id, session_id=session_id)
         else:
             raise AssertionError("FAR Action Not handled %d",action);
+
 
     def random_mac_addr(self):
         octets = [random.randint(0, 0xff) for _ in range(6)]
@@ -353,7 +416,7 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
 
     def runTest(self):
         # Test with different type of packets.
-        for pkt_type in ["udp"]:
+        for pkt_type in PKT_TYPES:
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
             pkt = self.gtpu_encap(pkt)
@@ -414,7 +477,7 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
 
     def runTest(self):
         # Test with different type of packets.
-        for pkt_type in ["udp"]:
+        for pkt_type in PKT_TYPES:
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
             self.testPacket(pkt)
@@ -474,7 +537,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
 
     def runTest(self):
         # Test with different type of packets.
-        for pkt_type in ["udp"]:
+        for pkt_type in PKT_TYPES:
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
             pkt = self.gtpu_encap(pkt)
@@ -508,7 +571,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         uplink_pkt_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
         uplink_byte_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
 
-        # send packet and verify it is decapsulated and routed
+        # send packet and verify it is dropped
         testutils.send_packet(self, self.port1, str(pkt))
         testutils.verify_no_other_packets(self)
 
@@ -521,7 +584,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         self.assertEqual(uplink_pkt_count_new, uplink_pkt_count + 1)
         self.assertEqual(uplink_byte_count_new, uplink_byte_count + len(pkt))
 
-        # Make sure post-QoS packet and byte counters shouldnt be incremented in Post Qos. 
+        # Make sure post-QoS packet and byte counters weren't incremented.
         uplink_pkt_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
         uplink_byte_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
         self.assertEqual(uplink_pkt_count2_new, uplink_pkt_count)
@@ -534,7 +597,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
 
     def runTest(self):
         # Test with different type of packets.
-        for pkt_type in ["udp"]:
+        for pkt_type in PKT_TYPES:
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
             self.testPacket(pkt)
@@ -569,7 +632,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         downlink_pkt_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
         downlink_byte_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
 
-        # send packet and verify it is decapsulated and routed
+        # send packet and verify it is dropped
         testutils.send_packet(self, self.port1, str(pkt))
         testutils.verify_no_other_packets(self)
 
@@ -582,7 +645,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         self.assertEqual(downlink_pkt_count_new, downlink_pkt_count + 1)
         self.assertEqual(downlink_byte_count_new, downlink_byte_count + len(pkt))
 
-        # Make sure post-QoS packet and byte counters shouldnt be incremented in Post Qos. 
+        # Make sure post-QoS packet and byte counters weren't incremented.
         downlink_pkt_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
         downlink_byte_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
         self.assertEqual(downlink_pkt_count2_new, downlink_pkt_count)
