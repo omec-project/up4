@@ -400,7 +400,6 @@ control VerifyChecksumImpl(inout parsed_headers_t hdr,
 
 //------------------------------------------------------------------------------
 // ACL BLOCK
-//   From https://github.com/opennetworkinglab/tassen/blob/master/p4src/bng.p4
 //------------------------------------------------------------------------------
 control Acl(
     inout parsed_headers_t hdr,
@@ -456,8 +455,6 @@ control Acl(
 
 //------------------------------------------------------------------------------
 // ROUTING BLOCK
-//   Partially from 
-//   https://github.com/opennetworkinglab/tassen/blob/master/p4src/bng.p4
 //------------------------------------------------------------------------------
 control Routing(inout parsed_headers_t    hdr,
                 inout local_metadata_t    local_meta,
@@ -756,9 +753,9 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         // N4-u (from SMF) - ?
         if (my_station.apply().hit) {
             // only look up an interface if the packet is destined for our MAC addr
-            source_iface_lookup.apply();
+            if (!source_iface_lookup.apply().hit) { return; }
         } else {
-            // If packet wasn't destined for our MAC addr, this pipeline does not apply
+            // If packet wasn't destined for our MAC addr or one of our interfaces, this pipeline does not apply
             return;
         }
         // Interface lookup happens before normalization of headers,
