@@ -238,6 +238,9 @@ class P4InfoHelper(object):
             exact = p4runtime_match.exact
             exact.value = encode(value, bitwidth)
         elif match_type == p4info_pb2.MatchField.LPM:
+            if type(value) is str and '/' in value:
+                value = value.split('/')
+                value[1] = int(value[1])
             lpm = p4runtime_match.lpm
             lpm.value = encode(value[0], bitwidth)
             lpm.prefix_len = value[1]
