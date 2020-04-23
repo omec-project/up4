@@ -14,16 +14,16 @@
 #
 
 # ------------------------------------------------------------------------------
-# IPV4 ROUTING TESTS
+# SPGWU TESTS
 #
 # To run all tests:
-#     make check TEST=routing
+#     make check TEST=spgw
 #
 # To run a specific test case:
-#     make check TEST=routing.<TEST CLASS NAME>
+#     make check TEST=spgw.<TEST CLASS NAME>
 #
 # For example:
-#     make check TEST=routing.IPv4RoutingTest
+#     make check TEST=spgw.GtpuEncapDownlinkTest
 # ------------------------------------------------------------------------------
 
 from base_test import pkt_route, pkt_decrement_ttl, P4RuntimeTest, \
@@ -31,7 +31,7 @@ from base_test import pkt_route, pkt_decrement_ttl, P4RuntimeTest, \
 from ptf.testutils import group
 from ptf import testutils as testutils
 from scapy.contrib import gtp
-from scapy.all import IP, TCP, UDP, ICMP
+from scapy.all import IP, IPv6, TCP, UDP, ICMP
 from time import sleep
 from enum import Enum
 import random
@@ -40,7 +40,6 @@ random.seed(123456)  # for reproducible PTF tests
 UDP_GTP_PORT = 2152
 
 PKT_TYPES = ["udp", "tcp", "icmp"]
-#PKT_TYPES = ["udp"]
 
 class Action(Enum):
     DROP    = 1
@@ -109,16 +108,39 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params={}
             ))
 
-    def add_routing_entry(self, ip_prefix, dst_mac, egress_port):
+
+    _next_ecmp_group_id = 1
+    def add_routing_ecmp_group(self, ip_prefix, mac_port_pairs):
+
+        group_id = self._next_ecmp_group_id
+        self._next_ecmp_group_id += 1
+
+        self.insert(self.helper.build_act_prof_group(
+            act_prof_name="hashed_selector",
+            group_id = group_id,
+            actions = [
+                (
+                    "IngressPipeImpl.Routing.route",
+                    {
+                        "dst_mac"     : pair[0],
+                        "egress_port" : pair[1]
+                    }
+                ) for pair in mac_port_pairs
+            ]
+            ))
+
         self.insert(self.helper.build_table_entry(
             table_name="IngressPipeImpl.Routing.routes_v4",
             match_fields= {
                 "dst_prefix" : ip_prefix
             },
-            action_name = "IngressPipeImpl.Routing.route",
-            action_params = {"dst_mac" : dst_mac,
-                             "egress_port" : egress_port}
+            group_id=group_id
             ))
+
+
+    def add_routing_entry(self, ip_prefix, dst_mac, egress_port):
+        return self.add_routing_ecmp_group(ip_prefix, [(dst_mac,egress_port)])
+
 
     def add_interface(self, ip_prefix, iface_type, direction):
         """ Binds a destination prefix 3GPP interface.

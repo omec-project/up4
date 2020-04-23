@@ -29,6 +29,7 @@
 #define CPU_CLONE_SESSION_ID 99
 
 #define MAX_PDRS 1024
+#define MAX_ROUTES 1024
 
 
 #define ETH_HDR_SIZE 14
@@ -475,17 +476,19 @@ control Routing(inout parsed_headers_t    hdr,
     table routes_v4 {
         key = {
             local_meta.next_hop_ip   : lpm @name("dst_prefix");
-            // TODO: implement ECMP
-            //hdr.ipv4.src_addr      : selector;
-            //local_meta.ip_proto    : selector;
-            //local_meta.l4_sport    : selector;
-            //local_meta.l4_dport    : selector;
+            hdr.ipv4.src_addr      : selector;
+            hdr.ipv4.proto         : selector;
+            local_meta.l4_sport    : selector;
+            local_meta.l4_dport    : selector;
         }
         actions = {
             route;
+            @defaultonly NoAction;
         }
-        //implementation = action_selector(HashAlgorithm.crc16, 32w1024, 32w16);
-        //size = MAX_LINES;
+        @name("hashed_selector")
+        implementation = action_selector(HashAlgorithm.crc16, 32w1024, 32w16);
+        const default_action = NoAction();
+        size = MAX_ROUTES;
     }
 
     apply {
