@@ -392,9 +392,45 @@ parser ParserImpl (packet_in packet,
 control VerifyChecksumImpl(inout parsed_headers_t hdr,
                            inout local_metadata_t meta)
 {
-    // TODO: verify checksum. For now we assume all packets have valid checksum,
-    //  if not, we let the end hosts detect errors.
-    apply { /* EMPTY */ }
+    apply {
+        verify_checksum(hdr.ipv4.isValid(),
+            {
+                hdr.ipv4.version,
+                hdr.ipv4.ihl,
+                hdr.ipv4.dscp,
+                hdr.ipv4.ecn,
+                hdr.ipv4.total_len,
+                hdr.ipv4.identification,
+                hdr.ipv4.flags,
+                hdr.ipv4.frag_offset,
+                hdr.ipv4.ttl,
+                hdr.ipv4.proto,
+                hdr.ipv4.src_addr,
+                hdr.ipv4.dst_addr
+            },
+            hdr.ipv4.checksum,
+            HashAlgorithm.csum16
+        );
+        verify_checksum(hdr.outer_ipv4.isValid(),
+            {
+                hdr.outer_ipv4.version,
+                hdr.outer_ipv4.ihl,
+                hdr.outer_ipv4.dscp,
+                hdr.outer_ipv4.ecn,
+                hdr.outer_ipv4.total_len,
+                hdr.outer_ipv4.identification,
+                hdr.outer_ipv4.flags,
+                hdr.outer_ipv4.frag_offset,
+                hdr.outer_ipv4.ttl,
+                hdr.outer_ipv4.proto,
+                hdr.outer_ipv4.src_addr,
+                hdr.outer_ipv4.dst_addr
+            },
+            hdr.outer_ipv4.checksum,
+            HashAlgorithm.csum16
+        );
+        // TODO: add checksum verification for gtpu (if possible), inner_udp, inner_tcp
+    }
 }
 
 
@@ -566,7 +602,7 @@ control ExecuteFar (inout parsed_headers_t    hdr,
     
 
     action do_forward() {
-        hdr.ipv4.dst_addr = local_meta.far.next_hop_ip;
+        // Currently a no-op due to forwarding being logically separated
     }
 
 
@@ -577,6 +613,7 @@ control ExecuteFar (inout parsed_headers_t    hdr,
 
     action do_drop() {
         mark_to_drop(std_meta);
+        exit;
     }
 
     apply {
@@ -705,9 +742,8 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
 
     // TODO: These actions should set local_meta.dst_iface, but would any tables use it?
     //       Isn't a destination port sufficient information for the fast path?
-    action set_far_attributes_forward(ipv4_addr_t next_hop_ip) {
+    action set_far_attributes_forward() {
         local_meta.far.action_type = ActionType.FORWARD;
-        local_meta.far.next_hop_ip = next_hop_ip;
     }
     action set_far_attributes_buffer(bar_id_t bar_id) {
         local_meta.far.action_type = ActionType.BUFFER;
@@ -871,6 +907,29 @@ control ComputeChecksumImpl(inout parsed_headers_t hdr,
                             inout local_metadata_t local_meta)
 {
     apply {
+        // Compute Outer IPv4 checksum
+        update_checksum(hdr.outer_ipv4.isValid(),{
+                hdr.outer_ipv4.version,
+                hdr.outer_ipv4.ihl,
+                hdr.outer_ipv4.dscp,
+                hdr.outer_ipv4.ecn,
+                hdr.outer_ipv4.total_len,
+                hdr.outer_ipv4.identification,
+                hdr.outer_ipv4.flags,
+                hdr.outer_ipv4.frag_offset,
+                hdr.outer_ipv4.ttl,
+                hdr.outer_ipv4.proto,
+                hdr.outer_ipv4.src_addr,
+                hdr.outer_ipv4.dst_addr
+            },
+            hdr.outer_ipv4.checksum,
+            HashAlgorithm.csum16
+        );
+        
+        // Outer UDP checksum currently remains 0, 
+        // which is legal for IPv4
+
+        // Compute IPv4 checksum
         update_checksum(hdr.ipv4.isValid(),{
                 hdr.ipv4.version,
                 hdr.ipv4.ihl,
@@ -888,7 +947,6 @@ control ComputeChecksumImpl(inout parsed_headers_t hdr,
             hdr.ipv4.checksum,
             HashAlgorithm.csum16
         );
-        // TODO: UDP and TCP checksums
     }
 }
 

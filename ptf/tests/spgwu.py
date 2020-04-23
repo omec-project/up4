@@ -67,7 +67,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
         # TODO: compute checksums correctly in switch and remove the need zeroing checksums
         return Ether(src=pkt[Ether].src, dst=pkt[Ether].dst) / \
-               IPHeader(src=ip_src, dst=ip_dst, chksum=0, id=5395) / \
+               IPHeader(src=ip_src, dst=ip_dst, id=5395) / \
                UDP(sport=UDP_GTP_PORT, dport=UDP_GTP_PORT, chksum=0) / \
                gtp.GTP_U_Header(gtp_type=255, teid=teid) / \
                ether_payload
@@ -109,11 +109,9 @@ class GtpuBaseTest(P4RuntimeTest):
             ))
 
 
-    _next_ecmp_group_id = 1
     def add_routing_ecmp_group(self, ip_prefix, mac_port_pairs):
 
-        group_id = self._next_ecmp_group_id
-        self._next_ecmp_group_id += 1
+        group_id = self.helper.get_next_grp_id()
 
         self.insert(self.helper.build_act_prof_group(
             act_prof_name="hashed_selector",
@@ -244,7 +242,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 priority=priority,
             ))
 
-    def add_far_forward(self, far_id, session_id, dst_ip):
+    def add_far_forward(self, far_id, session_id):
         self.insert(
             self.helper.build_table_entry(
                 table_name="IngressPipeImpl.fars",
@@ -252,10 +250,7 @@ class GtpuBaseTest(P4RuntimeTest):
                     "far_id": far_id,
                     "session_id": session_id,
                 },
-                action_name="IngressPipeImpl.set_far_attributes_forward",
-                action_params={
-                    "next_hop_ip" : dst_ip
-                },
+                action_name="IngressPipeImpl.set_far_attributes_forward"
             ))
 
     def add_far_drop(self, far_id, session_id):
@@ -348,8 +343,7 @@ class GtpuBaseTest(P4RuntimeTest):
         if (action == Action.FORWARD):
             self.add_far_forward(
                 far_id=far_id,
-                session_id=session_id,
-                dst_ip=exp_pkt[IP].dst
+                session_id=session_id
             )
             self.add_routing_entry(ip_prefix = exp_pkt[IP].dst + '/32',
                                    dst_mac = exp_pkt[Ether].dst,
@@ -514,8 +508,6 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         # limit (TTL).
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
-        # force recomputation of checksum after routing/ttl decrement
-        del pkt[IP].chksum
 
         # Should be encapped too obv.
         exp_pkt = self.gtpu_encap(exp_pkt)
