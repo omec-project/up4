@@ -512,22 +512,6 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         # Should be encapped too obv.
         exp_pkt = self.gtpu_encap(exp_pkt)
 
-        # Force recomputation of checksums after routing/ttl decrement
-        del exp_pkt[IP].chksum
-        inner_pkt = exp_pkt[gtp.GTP_U_Header].payload
-        del inner_pkt[IP].chksum
-        for l4_type in [UDP, TCP]:
-            if l4_type in inner_pkt:
-                del inner_pkt[l4_type].chksum
-
-        #exp_pkt = Ether(raw(exp_pkt))
-        #pkt = Ether(raw(pkt))
-        #if TCP in inner_pkt:
-        #    inner_udp_chksum = exp_pkt[IP].payload[IP].payload[TCP].chksum
-        #
-        #    print_inline("ORIGINAL TCP CHECKSUM IS %s\n" % str(pkt[TCP].chksum))
-        #    print_inline("EXPECTED TCP CHECKSUM IS %s\n" % str(inner_udp_chksum))
-
         # PDR counter ID
         ctr_id = random.randint(0, 1023)
 
