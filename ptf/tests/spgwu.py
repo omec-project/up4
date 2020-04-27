@@ -27,7 +27,7 @@
 # ------------------------------------------------------------------------------
 
 from base_test import pkt_route, pkt_decrement_ttl, P4RuntimeTest, \
-                      autocleanup, print_inline
+    autocleanup, print_inline
 from ptf.testutils import group
 from ptf import testutils as testutils
 from scapy.contrib import gtp
@@ -69,10 +69,10 @@ class GtpuBaseTest(P4RuntimeTest):
 
         # TODO: compute checksums correctly in switch and remove the need zeroing checksums
         return Ether(src=pkt[Ether].src, dst=pkt[Ether].dst) / \
-               IPHeader(src=ip_src, dst=ip_dst, id=5395) / \
-               UDP(sport=UDP_GTP_PORT, dport=UDP_GTP_PORT, chksum=0) / \
-               gtp.GTP_U_Header(gtp_type=255, teid=teid) / \
-               ether_payload
+            IPHeader(src=ip_src, dst=ip_dst, id=5395) / \
+            UDP(sport=UDP_GTP_PORT, dport=UDP_GTP_PORT, chksum=0) / \
+            gtp.GTP_U_Header(gtp_type=255, teid=teid) / \
+            ether_payload
 
     def gtpu_decap(self, pkt):
         """ Strips out the outer IP, UDP, and GTP-U headers from the given packet.
@@ -141,20 +141,6 @@ class GtpuBaseTest(P4RuntimeTest):
                 },
             ))
 
-    def add_session(self, session_id, ue_addr):
-        """ Associates the given session_id with the given UE address.
-        """
-        self.insert(
-            self.helper.build_table_entry(
-                table_name="IngressPipeImpl.fseid_lookup",
-                match_fields={
-                    # Exact match.
-                    "local_meta.ue_addr": ue_addr
-                },
-                action_name="IngressPipeImpl.set_fseid",
-                action_params={"fseid": session_id},
-            ))
-
     def add_default_entries(self, default_pdr_id=0, default_far_id=0, default_qer_id=0,
                             default_qfi=0, default_net_instance=0, default_ctr_id=0):
         return
@@ -186,7 +172,7 @@ class GtpuBaseTest(P4RuntimeTest):
         ALL_ONES_8 = (1 << 8) - 1
 
         _src_iface = self.helper.get_enum_member_val("InterfaceType", src_iface)
-        match_fields = {"fseid": session_id, "src_iface": _src_iface}
+        match_fields = {"src_iface": _src_iface}
         if ue_addr is not None:
             match_fields["ue_addr"] = (ue_addr, ue_mask or ALL_ONES_32)
         if inet_addr is not None:
@@ -204,6 +190,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 match_fields=match_fields,
                 action_name="IngressPipeImpl.set_pdr_attributes",
                 action_params={
+                    "fseid": session_id,
                     "id": pdr_id,
                     "far_id": far_id,
                     "qer_id": qer_id,
@@ -296,8 +283,6 @@ class GtpuBaseTest(P4RuntimeTest):
 
         self.add_interface(ip_prefix=pkt[IP].dst + '/32', iface_type="ACCESS", direction="UPLINK")
 
-        self.add_session(session_id=session_id, ue_addr=inner_pkt[IP].src)
-
         self.add_pdr(
             pdr_id=pdr_id,
             far_id=far_id,
@@ -348,8 +333,6 @@ class GtpuBaseTest(P4RuntimeTest):
         self.add_device_mac(pkt[Ether].dst)
 
         self.add_interface(ip_prefix=pkt[IP].dst + '/32', iface_type="CORE", direction="DOWNLINK")
-
-        self.add_session(session_id=session_id, ue_addr=pkt[IP].dst)
 
         self.add_pdr(
             pdr_id=pdr_id,

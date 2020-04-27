@@ -68,7 +68,7 @@ typedef bit<64> seid_t;
 typedef bit<64> fteid_t;
 // F-SEID = 8-byte SEID + UPF IP(v4/v6) address
 typedef bit<96> fseid_t;
-// TODO: Do we really need fteid and fseid widths to be the sum of the 
+// TODO: Do we really need fteid and fseid widths to be the sum of the
 //       two field widths? They're huge
 
 
@@ -259,7 +259,7 @@ struct local_metadata_t {
     teid_t teid;    // local Tunnel ID.  F-TEID = TEID + GTP endpoint address
     // seid_t seid; // local Session ID. F-SEID = SEID + GTP endpoint address
 
-    // fteid_t fteid; 
+    // fteid_t fteid;
     fseid_t fseid;
 
     ipv4_addr_t next_hop_ip;
@@ -319,7 +319,7 @@ parser ParserImpl (packet_in packet,
     }
 
     // Eventualy add VLAN header parsing
-    
+
     state parse_udp {
         packet.extract(hdr.udp);
         // note: this eventually wont work
@@ -546,7 +546,7 @@ control Routing(inout parsed_headers_t    hdr,
 
 }
 
-        
+
 
 //------------------------------------------------------------------------------
 // FAR EXECUTION CONTROL BLOCK
@@ -556,7 +556,7 @@ control ExecuteFar (inout parsed_headers_t    hdr,
                      inout standard_metadata_t std_meta) {
 
     @hidden
-    action gtpu_encap(ipv4_addr_t src_addr, ipv4_addr_t dst_addr, 
+    action gtpu_encap(ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
                       l4_port_t udp_dport, teid_t teid) {
         hdr.outer_ipv4.setValid();
         hdr.outer_ipv4.version = IP_VERSION_4;
@@ -577,7 +577,7 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         hdr.outer_udp.setValid();
         hdr.outer_udp.sport = UDP_PORT_GTPU;
         hdr.outer_udp.dport = udp_dport;
-        hdr.outer_udp.len = hdr.ipv4.total_len 
+        hdr.outer_udp.len = hdr.ipv4.total_len
                 + (UDP_HDR_SIZE + GTP_HDR_MIN_SIZE);
         hdr.outer_udp.checksum = 0; // Updated later
 
@@ -589,17 +589,17 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         hdr.gtpu.seq_flag = 0;
         hdr.gtpu.npdu_flag = 0;
         hdr.gtpu.msgtype = GTPUMessageType.GPDU;
-        hdr.gtpu.msglen = hdr.ipv4.total_len; 
-        hdr.gtpu.teid = teid; 
+        hdr.gtpu.msglen = hdr.ipv4.total_len;
+        hdr.gtpu.teid = teid;
     }
 
     action do_gtpu_tunnel() {
-        gtpu_encap(local_meta.far.tunnel_out_src_ipv4_addr, 
+        gtpu_encap(local_meta.far.tunnel_out_src_ipv4_addr,
                    local_meta.far.tunnel_out_dst_ipv4_addr,
                    local_meta.far.tunnel_out_udp_dport,
                    local_meta.far.tunnel_out_teid);
     }
-    
+
 
     action do_forward() {
         // Currently a no-op due to forwarding being logically separated
@@ -671,22 +671,6 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         const default_action = set_source_iface(InterfaceType.UNKNOWN, Direction.UNKNOWN);
     }
 
-
-    action set_fseid(fseid_t fseid) {
-        local_meta.fseid = fseid;
-    }
-    table fseid_lookup {
-        key = {
-            local_meta.ue_addr : exact;
-            // TODO: what is the other part of the lookup?
-        }
-        actions = {
-            set_fseid;
-        }
-        const default_action = set_fseid(DEFAULT_FSEID);
-    }
-
-
     @hidden
     action gtpu_decap() {
         hdr.gtpu.setInvalid();
@@ -694,8 +678,9 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         hdr.outer_udp.setInvalid();
     }
 
-    action set_pdr_attributes(pdr_id_t          id, 
-                              far_id_t          far_id, 
+    action set_pdr_attributes(fseid_t           fseid,
+                              pdr_id_t          id,
+                              far_id_t          far_id,
                               qer_id_t          qer_id,
                               qfi_t             qfi, // TODO: should this come from a gtpu extension?
                               bit<1>            needs_gtpu_decap,
@@ -703,9 +688,10 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
                               bit<1>            needs_vlan_removal,
                               net_instance_t    net_instance,
                               counter_index_t   ctr_id
-                             // TODO: add more attributes to load. 
+                             // TODO: add more attributes to load.
                              )
     {
+        local_meta.fseid        = fseid;
         local_meta.pdr.id       = id;
         local_meta.pdr.ctr_idx  = ctr_id;
         local_meta.far.id       = far_id;
@@ -720,11 +706,10 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
     // Contains PDRs for both the Uplink and Downlink Direction
     table pdrs {
         key = {
-            local_meta.fseid            : exact     @name("fseid");
             local_meta.src_iface        : exact     @name("src_iface"); // To differentiate uplink and downlink
             local_meta.teid             : ternary   @name("teid");
             // 5-Tuple
-            local_meta.ue_addr          : ternary   @name("ue_addr"); 
+            local_meta.ue_addr          : ternary   @name("ue_addr");
             local_meta.inet_addr        : ternary   @name("inet_addr");
             local_meta.ue_l4_port       : range     @name("ue_l4_port");
             local_meta.inet_l4_port     : range     @name("inet_l4_port");
@@ -734,7 +719,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             // The 5-tuple fields *should* be optional, but optional is not currently supported by targets
         }
         actions = {
-            set_pdr_attributes; 
+            set_pdr_attributes;
             @defaultonly NoAction;
         }
     }
@@ -751,16 +736,16 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
     }
     action set_far_attributes_tunnel(TunnelType     tunnel_type,
                                      ipv4_addr_t    src_addr,
-                                     ipv4_addr_t    dst_addr, 
-                                     teid_t         teid, 
+                                     ipv4_addr_t    dst_addr,
+                                     teid_t         teid,
                                      l4_port_t      dport) {
         local_meta.far.action_type              = ActionType.TUNNEL;
         local_meta.far.tunnel_out_type          = tunnel_type;
         local_meta.far.tunnel_out_src_ipv4_addr = src_addr;
         local_meta.far.tunnel_out_dst_ipv4_addr = dst_addr;
         local_meta.far.tunnel_out_teid          = teid;
-        local_meta.far.tunnel_out_udp_dport     = dport;       
-    } 
+        local_meta.far.tunnel_out_udp_dport     = dport;
+    }
     action set_far_attributes_drop() {
         local_meta.far.action_type = ActionType.DROP;
     }
@@ -809,7 +794,7 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
             if (hdr.inner_udp.isValid()) {
                 hdr.udp = hdr.inner_udp;
                 hdr.inner_udp.setInvalid();
-            } 
+            }
             else {
                 hdr.udp.setInvalid();
                 if (hdr.inner_tcp.isValid()) {
@@ -847,8 +832,6 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         }
 
 
-        // Look up F-SEID, which is needed as a match key by the PDR table
-        fseid_lookup.apply();
         // Find a matching PDR and load the relevant attributes.
         pdrs.apply();
         // Count packets at a counter index unique to whichever PDR matched.
@@ -872,10 +855,10 @@ control IngressPipeImpl (inout parsed_headers_t    hdr,
         // Execute the loaded FAR
         ExecuteFar.apply(hdr, local_meta, std_meta);
 
-        // FAR only set the destination IP. 
+        // FAR only set the destination IP.
         // Now we need to choose a destination MAC egress port.
         Routing.apply(hdr, local_meta, std_meta);
-        
+
         // Administrative override ACL is standard in network devices
         Acl.apply(hdr, local_meta, std_meta);
     }
@@ -925,8 +908,8 @@ control ComputeChecksumImpl(inout parsed_headers_t hdr,
             hdr.outer_ipv4.checksum,
             HashAlgorithm.csum16
         );
-        
-        // Outer UDP checksum currently remains 0, 
+
+        // Outer UDP checksum currently remains 0,
         // which is legal for IPv4
 
         // Compute IPv4 checksum
