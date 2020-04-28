@@ -47,12 +47,15 @@ parser ParserImpl (packet_in packet,
             IpProtocol.UDP:  parse_udp;
             IpProtocol.TCP:  parse_tcp;
             IpProtocol.ICMP: parse_icmp;
+#ifdef DISAGG_UPF
             IpProtocol.BUFFER_TUNNEL: parse_buffer_tunnel;
             IpProtocol.QOS_TUNNEL:    parse_qos_tunnel;
+#endif // DISAGG_UPF
             default: accept;
         }
     }
 
+#ifdef DISAGG_UPF
     state parse_buffer_tunnel {
         packet.extract(hdr.buffer_tunnel);
         transition select(hdr.buffer_tunnel.next_header) {
@@ -62,7 +65,6 @@ parser ParserImpl (packet_in packet,
             default: accept;
         }
     }
-
     state parse_qos_tunnel {
         packet.extract(hdr.qos_tunnel);
         transition select(hdr.qos_tunnel.next_header) {
@@ -72,6 +74,8 @@ parser ParserImpl (packet_in packet,
             default: accept;
         }
     }
+#endif // DISAGG_UPF
+
     // Eventualy add VLAN header parsing
     
     state parse_udp {
@@ -80,7 +84,7 @@ parser ParserImpl (packet_in packet,
         local_meta.l4_sport = hdr.udp.sport;
         local_meta.l4_dport = hdr.udp.dport;
         transition select(hdr.udp.dport) {
-            UDP_PORT_GTPU: parse_gtpu;
+            L4Port.GTP_GPDU: parse_gtpu;
             default: accept;
         }
     }

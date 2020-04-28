@@ -33,11 +33,14 @@
 // Locations of off-switch functions
 #define BUFFER_DEVICE_PORT 3
 #define QOS_DEVICE_PORT    4
+#define BUFFER_DEVICE_MAC 0x230000000001
+#define QOS_DEVICE_MAC    0x230000000002
+
 
 // Some sizes
 #define ETH_HDR_SIZE 14
 #define IPV4_HDR_SIZE 20
-#define IPV4_MIN_IHL = 5;
+#define IPV4_MIN_IHL 5
 #define UDP_HDR_SIZE 8
 #define GTP_HDR_MIN_SIZE 8
 // Some field values that would be excessive as enums
@@ -99,8 +102,11 @@ enum bit<8> IpProtocol {
     ICMP    = 1,
     TCP     = 6,
     UDP     = 17,
+#ifdef DISAGG_UPF
     BUFFER_TUNNEL  = 0xFD,
-    QOS_TUNNEL     = 0xFE
+    QOS_TUNNEL     = 0xFE,
+#endif // DISAGG_UPF
+    CRAP = 0xFF
 }
 
 enum bit<16> L4Port {

@@ -87,9 +87,9 @@ class GtpuBaseTest(P4RuntimeTest):
             If pre_qos=True, reads the pre-QoS counter. Else  reads the post-QoS counter
             If pkts=True, returns packet count for the selected counter. Else returns byte count.
         """
-        counter_name = "IngressPipeImpl.pre_qos_pdr_counter"
+        counter_name = "PreQosPipe.pre_qos_pdr_counter"
         if not pre_qos:
-            counter_name = "EgressPipeImpl.post_qos_pdr_counter"
+            counter_name = "PostQosPipe.post_qos_pdr_counter"
 
         if pkts:
             return self.helper.read_pkt_count(counter_name, index)
@@ -100,7 +100,7 @@ class GtpuBaseTest(P4RuntimeTest):
     def add_device_mac(self, mac_addr):
         self.insert(
             self.helper.build_table_entry(
-                table_name="IngressPipeImpl.my_station",
+                table_name="PreQosPipe.my_station",
                 match_fields={
                     "dst_mac" : mac_addr
                 },
@@ -118,7 +118,7 @@ class GtpuBaseTest(P4RuntimeTest):
             group_id = group_id,
             actions = [
                 (
-                    "IngressPipeImpl.Routing.route",
+                    "PreQosPipe.Routing.route",
                     {
                         "dst_mac"     : pair[0],
                         "egress_port" : pair[1]
@@ -128,7 +128,7 @@ class GtpuBaseTest(P4RuntimeTest):
             ))
 
         self.insert(self.helper.build_table_entry(
-            table_name="IngressPipeImpl.Routing.routes_v4",
+            table_name="PreQosPipe.Routing.routes_v4",
             match_fields= {
                 "dst_prefix" : ip_prefix
             },
@@ -148,11 +148,11 @@ class GtpuBaseTest(P4RuntimeTest):
 
         self.insert(
             self.helper.build_table_entry(
-                table_name="IngressPipeImpl.source_iface_lookup",
+                table_name="PreQosPipe.source_iface_lookup",
                 match_fields={
                     "ipv4_dst_prefix" : ip_prefix
                 },
-                action_name="IngressPipeImpl.set_source_iface",
+                action_name="PreQosPipe.set_source_iface",
                 action_params={"src_iface": _iface_type,
                                "direction":_direction},
             ))
@@ -162,12 +162,12 @@ class GtpuBaseTest(P4RuntimeTest):
         """
         self.insert(
             self.helper.build_table_entry(
-                table_name="IngressPipeImpl.fseid_lookup",
+                table_name="PreQosPipe.fseid_lookup",
                 match_fields={
                     # Exact match.
                     "local_meta.ue_addr": ue_addr
                 },
-                action_name="IngressPipeImpl.set_fseid",
+                action_name="PreQosPipe.set_fseid",
                 action_params={"fseid": session_id},
             ))
 
@@ -183,9 +183,9 @@ class GtpuBaseTest(P4RuntimeTest):
         # Default PDR entry
         self.insert(
             self.helper.build_table_entry(
-                table_name="IngressPipeImpl.pdrs",
+                table_name="PreQosPipe.pdrs",
                 default_action=True,
-                action_name="IngressPipeImpl.set_pdr_attributes",
+                action_name="PreQosPipe.set_pdr_attributes",
                 action_params={
                     "id": default_pdr_id,
                     "far_id": default_far_id,
@@ -225,9 +225,9 @@ class GtpuBaseTest(P4RuntimeTest):
 
         self.insert(
             self.helper.build_table_entry(
-                table_name="IngressPipeImpl.pdrs",
+                table_name="PreQosPipe.pdrs",
                 match_fields=match_fields,
-                action_name="IngressPipeImpl.set_pdr_attributes",
+                action_name="PreQosPipe.set_pdr_attributes",
                 action_params={
                     "id": pdr_id,
                     "far_id": far_id,
@@ -245,23 +245,23 @@ class GtpuBaseTest(P4RuntimeTest):
     def add_far_forward(self, far_id, session_id):
         self.insert(
             self.helper.build_table_entry(
-                table_name="IngressPipeImpl.fars",
+                table_name="PreQosPipe.fars",
                 match_fields={
                     "far_id": far_id,
                     "session_id": session_id,
                 },
-                action_name="IngressPipeImpl.set_far_attributes_forward"
+                action_name="PreQosPipe.set_far_attributes_forward"
             ))
 
     def add_far_drop(self, far_id, session_id):
         self.insert(
             self.helper.build_table_entry(
-                table_name="IngressPipeImpl.fars",
+                table_name="PreQosPipe.fars",
                 match_fields={
                     "far_id": far_id,
                     "session_id": session_id,
                 },
-                action_name="IngressPipeImpl.set_far_attributes_drop",
+                action_name="PreQosPipe.set_far_attributes_drop",
             ))
 
     def add_far_tunnel(self, far_id, session_id, teid, src_addr, dst_addr,
@@ -269,12 +269,12 @@ class GtpuBaseTest(P4RuntimeTest):
         _tunnel_type = self.helper.get_enum_member_val("TunnelType", tunnel_type)
         self.insert(
             self.helper.build_table_entry(
-                table_name="IngressPipeImpl.fars",
+                table_name="PreQosPipe.fars",
                 match_fields={
                     "far_id": far_id,
                     "session_id": session_id,
                 },
-                action_name="IngressPipeImpl.set_far_attributes_tunnel",
+                action_name="PreQosPipe.set_far_attributes_tunnel",
                 action_params={
                     "tunnel_type": _tunnel_type,
                     "src_addr": src_addr,

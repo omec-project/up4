@@ -4,3 +4,4 @@ ptf/*.log
 ptf/*.pcap
 **/*.pyc
 .yapf/
+*.swp
