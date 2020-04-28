@@ -15,6 +15,8 @@
  */
 
 
+//#define DISAGG_UPF
+
 
 #include <core.p4>
 #include <v1model.p4>
@@ -23,6 +25,7 @@
 #include "include/header.p4"
 #include "include/parser.p4"
 #include "include/checksum.p4"
+
 
 
 //------------------------------------------------------------------------------
@@ -473,41 +476,50 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     }
 }
 
+//------------------------------------------------------------------------------
+// INGRESS PIPELINE 
+// Wrapper pipeline for multi-device / disaggregated UPF setup
+//------------------------------------------------------------------------------
+#ifdef DISAGG_UPF
 control MultiDeviceIngressPipe(inout parsed_headers_t hdr,
-                            inout local_metadata_t local_meta,
-                            inout standard_metadata_t std_meta) {
+                               inout local_metadata_t local_meta,
+                               inout standard_metadata_t std_meta) {
 
     @hidden
-    action encap_for_buffering() {
+    action encap_and_forward_to_buffer() {
         // Slide the header in there
         hdr.buffer_tunnel.setValid();
         hdr.buffer_tunnel.next_header = hdr.ipv4.proto;
         hdr.ipv4.proto = IpProtocol.BUFFER_TUNNEL;
         // Reroute the packet to the buffering device
         std_meta.egress_spec = BUFFER_DEVICE_PORT;
+        hdr.ethernet.src_addr = hdr.ethernet.dst_addr;
+        hdr.ethernet.dst_addr = BUFFER_DEVICE_MAC;
+
         // Metadata consumed by buffering device
         hdr.buffer_tunnel.bar_id = local_meta.bar.id;
     }
 
     @hidden
-    action decap_from_buffering() {
+    action decap_from_buffer() {
         // Slide the tunnel header back out
         hdr.ipv4.proto = hdr.buffer_tunnel.next_header;
         hdr.buffer_tunnel.setInvalid();
 
         // No rerouting or bridged metadata because the packet goes
-        // goes through the pre-QoS pipeline again.
+        // through the pre-QoS pipeline again.
     }
 
     @hidden
-    action encap_for_qos() {
+    action encap_and_forward_to_qos() {
         // Slide the header in there
         hdr.qos_tunnel.setValid();
         hdr.qos_tunnel.next_header = hdr.ipv4.proto;
         hdr.ipv4.proto = IpProtocol.QOS_TUNNEL;
         // Reroute the packet to the QoS Device
-        hdr.qos_tunnel.original_dst_mac     = hdr.ethernet.dst_addr;
+        hdr.qos_tunnel.original_dst_mac = hdr.ethernet.dst_addr;
         hdr.qos_tunnel.original_egress_spec = std_meta.egress_spec;
+        hdr.ethernet.dst_addr = QOS_DEVICE_MAC;
         std_meta.egress_spec = QOS_DEVICE_PORT;
         // Metadata consumed by QoS device
         hdr.qos_tunnel.qer_id = local_meta.qos.qer_id;
@@ -533,22 +545,27 @@ control MultiDeviceIngressPipe(inout parsed_headers_t hdr,
     apply {
         if (hdr.qos_tunnel.isValid()) {
             decap_from_qos();
-            exit; // skip the rest of ingress
+            // If the packet came from the QoS device, then it must've
+            // already been ingress processed, so we skip ingress processing
+            exit;
         }
-        if (hdr.buffer_tunnel.isValid()) {
-            decap_from_buffering();
+        else if (hdr.buffer_tunnel.isValid()) {
+            decap_from_buffer();
         }
-        PreQosPipe.apply();
+
+        // Main ingress pipeline
+        PreQosPipe.apply(hdr, local_meta, std_meta);
 
 
         if (local_meta.bar.needs_buffering) {
-            encap_for_buffering();
-            std_meta.egress_spec = BUFFER_PORT
+            encap_and_forward_to_buffer();
         }
-
-        encap_for_qos();
+        else {
+            encap_and_forward_to_qos();
+        }
     }
 }
+#endif // DISAGG_UPF
 
 
 //------------------------------------------------------------------------------
@@ -574,8 +591,12 @@ control PostQosPipe (inout parsed_headers_t hdr,
 V1Switch(
     ParserImpl(),
     VerifyChecksumImpl(),
-    IngressPipeImpl(),
-    EgressPipeImpl(),
+#ifdef DISAGG_UPF
+    MultiDeviceIngressPipe(),
+#else
+    PreQosPipe(),
+#endif
+    PostQosPipe(),
     ComputeChecksumImpl(),
     DeparserImpl()
 ) main;
