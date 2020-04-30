@@ -48,8 +48,8 @@ header buffer_tunnel_t {
     bar_id_t        bar_id; // Buffering Action Rule ID
     // This header should contain all metadata that is needed
     // to be accurately re-processed by the P4 UPF
+    bit<7> _pad; // to get the port number to 16 bits
     port_num_t      original_ingress_port; // may not be needed
-    bit<7> _pad;
 }
 
 header qos_tunnel_t {
@@ -60,8 +60,8 @@ header qos_tunnel_t {
     // by the egress i.e. all bridged metadata
     counter_index_t ctr_idx;
     mac_addr_t original_dst_mac;
+    bit<7> _pad; // to get the port number to 16 bits
     port_num_t original_egress_spec;
-    bit<7> _pad;
 }
 #endif // DISAGG_UPF
 

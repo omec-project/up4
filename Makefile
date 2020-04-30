@@ -2,6 +2,7 @@ mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 curr_dir := $(patsubst %/,%,$(dir $(mkfile_path)))
 
 main_file := p4src/main.p4
+multi_dev_prof := -D DISAGG_UPF
 
 include util/docker/Makefile.vars
 
@@ -24,15 +25,25 @@ clean:
 	-rm -rf ptf/*.log
 	-rm -rf ptf/*.pcap
 
+
+_set_disagg:
+	$(eval P4C_FLAGS := -D DISAGG_UPF)
+	$(eval PTF_TEST_PARAMS := --extra-test-params="disagg=True")
+
+build-disagg: ${main-file} _set_disagg build
+
+check-disagg: _set_disagg check
+
 build: ${main_file}
 	$(info *** Building P4 program...)
 	@mkdir -p p4src/build
 	docker run --rm -v ${curr_dir}:/workdir -w /workdir ${P4C_IMG} \
-		p4c-bm2-ss --arch v1model -o p4src/build/bmv2.json \
+		p4c-bm2-ss ${P4C_FLAGS} --arch v1model -o p4src/build/bmv2.json \
 		--p4runtime-files p4src/build/p4info.txt,p4src/build/p4info.bin \
 		--Wdisable=unsupported \
 		${main_file}
 	@echo "*** P4 program compiled successfully! Output files are in p4src/build"
+
 
 graph: ${main_file}
 	$(info *** Generating P4 program graphs...)
@@ -46,7 +57,7 @@ graph: ${main_file}
 	@echo "*** Done! Graph files are in p4src/build/graphs"
 
 check:
-	@cd ptf && PTF_DOCKER_IMG=$(PTF_IMG) ./run_tests $(TEST)
+	@cd ptf && PTF_DOCKER_IMG=$(PTF_IMG) ./run_tests ${PTF_TEST_PARAMS} $(TEST)
 
 .yapf:
 	rm -rf ./yapf
