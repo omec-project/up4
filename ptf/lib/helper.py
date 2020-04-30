@@ -80,6 +80,9 @@ class P4InfoHelper(object):
                 return entity.counter_entry
         return None
 
+    def clear_counters(self):
+        pass
+
     def read_request(self, req):
         entities = []
         grpc_addr = testutils.test_param_get("grpcaddr")

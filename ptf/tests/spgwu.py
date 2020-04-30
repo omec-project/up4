@@ -36,6 +36,8 @@ from time import sleep
 
 from spgwu_base import GtpuBaseTest, Action
 
+COUNTER_WAIT_TIME = 0.1
+
 @group("gtpu")
 class GtpuDecapUplinkTest(GtpuBaseTest):
     """ Tests that a packet received from a UE gets decapsulated and routed.
@@ -64,37 +66,23 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
         pkt_decrement_ttl(exp_pkt)
 
         # PDR counter ID
-        ctr_id = self.unique_rule_id()
+        ctr_id = self.new_counter_id()
 
         # program all the tables
         self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, Action.FORWARD)
 
-        # read pre-QoS packet and byte counters
-        uplink_pkt_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
-        uplink_byte_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=False)
-
-        # read post-QoS packet and byte counters
-        uplink_pkt_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
-        uplink_byte_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
+        # read pre and post-QoS packet and byte counters
+        self.read_pdr_counters(ctr_id)
 
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, str(pkt))
         testutils.verify_packet(self, exp_pkt, self.port2)
 
         # wait for counters to update
-        sleep(0.1)
+        sleep(COUNTER_WAIT_TIME)
 
-        # Check if pre-QoS packet and byte counters incremented
-        uplink_pkt_count_new = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
-        uplink_byte_count_new = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=False)
-        self.assertEqual(uplink_pkt_count_new, uplink_pkt_count + 1)
-        self.assertEqual(uplink_byte_count_new, uplink_byte_count + len(pkt))
-
-        # Check if post-QoS packet and byte counters incremented
-        uplink_pkt_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
-        uplink_byte_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
-        self.assertEqual(uplink_pkt_count2_new, uplink_pkt_count + 1)
-        self.assertEqual(uplink_byte_count2_new, uplink_byte_count + len(pkt))
+        # Check if pre and post-QoS packet and byte counters incremented
+        self.verify_counters_increased(ctr_id, 1, len(pkt), 1, len(pkt))
 
 
 @group("gtpu")
@@ -124,37 +112,24 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         exp_pkt = self.gtpu_encap(exp_pkt)
 
         # PDR counter ID
-        ctr_id = self.unique_rule_id()
+        ctr_id = self.new_counter_id()
 
         # program all the tables
         self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, Action.TUNNEL)
 
-        # read pre-QoS packet and byte counters
-        downlink_pkt_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
-        downlink_byte_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=False)
-
-        # read post-QoS packet and byte counters
-        downlink_pkt_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
-        downlink_byte_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
+        # read pre and post-QoS packet and byte counters
+        self.read_pdr_counters(ctr_id)
 
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, str(pkt))
         testutils.verify_packet(self, exp_pkt, self.port2)
 
         # wait for counters to update
-        sleep(0.1)
+        sleep(COUNTER_WAIT_TIME)
 
-        # Check if pre-QoS packet and byte counters incremented
-        downlink_pkt_count_new = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
-        downlink_byte_count_new = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=False)
-        self.assertEqual(downlink_pkt_count_new, downlink_pkt_count + 1)
-        self.assertEqual(downlink_byte_count_new, downlink_byte_count + len(pkt))
+        # Check if pre and post-QoS packet and byte counters incremented
+        self.verify_counters_increased(ctr_id, 1, len(pkt), 1, len(pkt))
 
-        # Check if post-QoS packet and byte counters incremented
-        downlink_pkt_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
-        downlink_byte_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
-        self.assertEqual(downlink_pkt_count2_new, downlink_pkt_count + 1)
-        self.assertEqual(downlink_byte_count2_new, downlink_byte_count + len(pkt))
 
 class GtpuDropUplinkTest(GtpuBaseTest):
     """ Tests that a packet received from a UE gets decapsulated and dropped because of FAR rule.
@@ -183,37 +158,24 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         pkt_decrement_ttl(exp_pkt)
 
         # PDR counter ID
-        ctr_id = self.unique_rule_id()
+        ctr_id = self.new_counter_id()
 
         # program all the tables
         self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, Action.DROP)
 
-        # read pre-QoS packet and byte counters
-        uplink_pkt_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
-        uplink_byte_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=False)
-
-        # read post-QoS packet and byte counters
-        uplink_pkt_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
-        uplink_byte_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
+        # read pre and post-QoS packet and byte counters
+        self.read_pdr_counters(ctr_id)
 
         # send packet and verify it is dropped
         testutils.send_packet(self, self.port1, str(pkt))
         testutils.verify_no_other_packets(self)
 
         # wait for counters to update
-        sleep(0.1)
+        sleep(COUNTER_WAIT_TIME)
 
-        # Check if pre-QoS packet and byte counters incremented
-        uplink_pkt_count_new = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
-        uplink_byte_count_new = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=False)
-        self.assertEqual(uplink_pkt_count_new, uplink_pkt_count + 1)
-        self.assertEqual(uplink_byte_count_new, uplink_byte_count + len(pkt))
-
-        # Make sure post-QoS packet and byte counters weren't incremented.
-        uplink_pkt_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
-        uplink_byte_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
-        self.assertEqual(uplink_pkt_count2_new, uplink_pkt_count)
-        self.assertEqual(uplink_byte_count2_new, uplink_byte_count)
+        # Check if pre-QoS packet and byte counters incremented,
+        # and verify the post-QoS counters did not increment
+        self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
 
 @group("gtpu")
 class GtpuDropDownlinkTest(GtpuBaseTest):
@@ -244,36 +206,23 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         exp_pkt = self.gtpu_encap(exp_pkt)
 
         # PDR counter ID
-        ctr_id = self.unique_rule_id()
+        ctr_id = self.new_counter_id()
 
         # program all the tables
         self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, Action.DROP)
 
-        # read pre-QoS packet and byte counters
-        downlink_pkt_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
-        downlink_byte_count = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=False)
-
-        # read post-QoS packet and byte counters
-        downlink_pkt_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
-        downlink_byte_count2 = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
+        # read pre and post-QoS packet and byte counters
+        self.read_pdr_counters(ctr_id)
 
         # send packet and verify it is dropped
         testutils.send_packet(self, self.port1, str(pkt))
         testutils.verify_no_other_packets(self)
 
         # wait for counters to update
-        sleep(0.1)
+        sleep(COUNTER_WAIT_TIME)
 
-        # Check if pre-QoS packet and byte counters incremented
-        downlink_pkt_count_new = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=True)
-        downlink_byte_count_new = self.read_pdr_counter(ctr_id, pre_qos=True, pkts=False)
-        self.assertEqual(downlink_pkt_count_new, downlink_pkt_count + 1)
-        self.assertEqual(downlink_byte_count_new, downlink_byte_count + len(pkt))
-
-        # Make sure post-QoS packet and byte counters weren't incremented.
-        downlink_pkt_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=True)
-        downlink_byte_count2_new = self.read_pdr_counter(ctr_id, pre_qos=False, pkts=False)
-        self.assertEqual(downlink_pkt_count2_new, downlink_pkt_count)
-        self.assertEqual(downlink_byte_count2_new, downlink_byte_count)
+        # Check if pre-QoS packet and byte counters incremented,
+        # and verify the post-QoS counters did not increment
+        self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
 
 
