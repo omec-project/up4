@@ -28,7 +28,7 @@ clean:
 
 _set_disagg:
 	$(eval P4C_FLAGS := -D DISAGG_UPF)
-	$(eval PTF_TEST_PARAMS := --extra-test-params="disagg=True")
+	$(eval PTF_TEST_PARAMS := --extra-test-params='{"disagg":"True"}')
 
 build-disagg: ${main-file} _set_disagg build
 

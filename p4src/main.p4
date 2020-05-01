@@ -477,8 +477,27 @@ control PreQosPipe (inout parsed_headers_t    hdr,
 }
 
 //------------------------------------------------------------------------------
-// INGRESS PIPELINE 
-// Wrapper pipeline for multi-device / disaggregated UPF setup
+// EGRESS PIPELINE
+//------------------------------------------------------------------------------
+control PostQosPipe (inout parsed_headers_t hdr,
+                        inout local_metadata_t local_meta,
+                        inout standard_metadata_t std_meta) {
+
+
+    counter(MAX_PDRS, CounterType.packets_and_bytes) post_qos_pdr_counter;
+
+    apply {
+        // Count packets that made it through QoS and were not dropped,
+        // using the counter index assigned by the PDR that matched in ingress.
+        post_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
+
+    }
+}
+@name("Egress")
+
+//------------------------------------------------------------------------------
+// WRAPPER PIPELINES 
+// For multi-device / disaggregated UPF setup
 //------------------------------------------------------------------------------
 #ifdef DISAGG_UPF
 control MultiDeviceIngressPipe(inout parsed_headers_t hdr,
@@ -560,31 +579,21 @@ control MultiDeviceIngressPipe(inout parsed_headers_t hdr,
         if (local_meta.bar.needs_buffering) {
             encap_and_forward_to_buffer();
         }
-        else {
+        else if (local_meta.direction == Direction.DOWNLINK) {
             encap_and_forward_to_qos();
         }
     }
 }
-#endif // DISAGG_UPF
-
-
-//------------------------------------------------------------------------------
-// EGRESS PIPELINE
-//------------------------------------------------------------------------------
-control PostQosPipe (inout parsed_headers_t hdr,
-                        inout local_metadata_t local_meta,
-                        inout standard_metadata_t std_meta) {
-
-
-    counter(MAX_PDRS, CounterType.packets_and_bytes) post_qos_pdr_counter;
-
+control MultiDeviceEgressPipe(inout parsed_headers_t hdr,
+                               inout local_metadata_t local_meta,
+                               inout standard_metadata_t std_meta) {
     apply {
-        // Count packets that made it through QoS and were not dropped,
-        // using the counter index assigned by the PDR that matched in ingress.
-        post_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
-
+        if (!(hdr.qos_tunnel.isValid() || hdr.buffer_tunnel.isValid())) {
+            PostQosPipe.apply(hdr, local_meta, std_meta);
+        }
     }
 }
+#endif // DISAGG_UPF
 
 
 
@@ -593,10 +602,11 @@ V1Switch(
     VerifyChecksumImpl(),
 #ifdef DISAGG_UPF
     MultiDeviceIngressPipe(),
+    MultiDeviceEgressPipe(),
 #else
     PreQosPipe(),
-#endif
     PostQosPipe(),
+#endif
     ComputeChecksumImpl(),
     DeparserImpl()
 ) main;

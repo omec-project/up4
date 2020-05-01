@@ -34,10 +34,18 @@ from lib import disagg_headers as disaggh
 
 UDP_GTP_PORT = 2152
 
+
+BUFFER_DEVICE_PORT = 3
+QOS_DEVICE_PORT = 4
+BUFFER_DEVICE_MAC = "32:00:00:00:00:01"
+QOS_DEVICE_MAC = "32:00:00:00:00:01"
+
+
 class Action(Enum):
     DROP    = 1
     FORWARD = 2
     TUNNEL  = 3
+    BUFFER  = 4
 
 
 
@@ -65,6 +73,12 @@ class GtpuBaseTest(P4RuntimeTest):
         """ Stupider helper method for generating unique counter ID
         """
         return self.unique_rule_id()
+
+    def randint(self, limit):
+        """ Method exists here so we can de-randomize quickly for debugging,
+            and so other files use this file's seed.
+        """
+        return random.randint(0, limit-1)
 
     def gtpu_encap(self, pkt, ip_ver=4, ip_src=None, ip_dst=None, teid=None):
         """ Adds IP, UDP, and GTP-U headers to the packet situated after the ethernet header.
@@ -288,6 +302,17 @@ class GtpuBaseTest(P4RuntimeTest):
                 priority=priority,
             ))
 
+    def remove_far(self, far_id, session_id):
+        self.delete(
+            self.helper.build_table_entry(
+                table_name="PreQosPipe.fars",
+                match_fields={
+                    "far_id": far_id,
+                    "session_id": session_id,
+                }
+            ))
+
+
     def add_far_forward(self, far_id, session_id):
         self.insert(
             self.helper.build_table_entry(
@@ -340,7 +365,7 @@ class GtpuBaseTest(P4RuntimeTest):
         return funcs[far_type](**kwargs)
 
 
-    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, action, session_id=None):
+    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, action, session_id=None, pdr_id = None, far_id=None, qer_id=None):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -349,8 +374,12 @@ class GtpuBaseTest(P4RuntimeTest):
 
         inner_pkt = pkt[gtp.GTP_U_Header].payload
 
-        pdr_id = self.unique_rule_id()
-        far_id = self.unique_rule_id()
+        if pdr_id is None:
+            pdr_id = self.unique_rule_id()
+        if far_id is None:
+            far_id = self.unique_rule_id()
+        if qer_id is None:
+            qer_id = self.unique_rule_id()
 
         ue_l4_port = None
         inet_l4_port = None
@@ -376,6 +405,7 @@ class GtpuBaseTest(P4RuntimeTest):
             ue_l4_port=ue_l4_port,
             inet_l4_port=inet_l4_port,
             ip_proto=inner_pkt[IP].proto,
+            qer_id=qer_id,
             needs_gtpu_decap=True,
         )
 
@@ -393,7 +423,7 @@ class GtpuBaseTest(P4RuntimeTest):
             raise AssertionError("Action Not handled")
 
 
-    def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, action, session_id=None):
+    def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, action, session_id=None, pdr_id=None, far_id=None, qer_id=None):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -407,8 +437,12 @@ class GtpuBaseTest(P4RuntimeTest):
             raise AssertionError(
                 "Expected output packet provided for downlink test is not encapsulated!")
 
-        pdr_id = self.unique_rule_id()
-        far_id = self.unique_rule_id()
+        if pdr_id is None:
+            pdr_id = self.unique_rule_id()
+        if far_id is None:
+            far_id = self.unique_rule_id()
+        if qer_id is None:
+            qer_id = self.unique_rule_id()
 
         ue_l4_port = None
         inet_l4_port = None
@@ -487,6 +521,7 @@ class UpfDisaggBaseTest(GtpuBaseTest):
 
 
 
+
     def qos_encap(self, pkt, qer_id, ctr_idx, ingress_port, device_id=0):
         tunnel_header = disaggh.QosTunnel(next_header = pkt[IP].proto,
                           device_id = device_id,
@@ -494,16 +529,19 @@ class UpfDisaggBaseTest(GtpuBaseTest):
                           ctr_idx = ctr_idx,
                           original_ingress_port = ingress_port)
 
-        return self._insert_tunnel_header(self, pkt, tunnel_header)
+        return self._insert_tunnel_header(pkt, tunnel_header)
 
 
-    def buffer_encap(self, pkt):
+    def buffer_encap(self, pkt, bar_id, ingress_port, device_id=0):
         tunnel_header = disaggh.QosTunnel(next_header = pkt[IP].proto,
                           device_id = device_id,
                           bar_id = bar_id,
                           original_ingress_port = ingress_port)
 
-        return self._insert_tunnel_header(self, pkt, tunnel_header)
+        return self._insert_tunnel_header(pkt, tunnel_header)
+
+    def swap_macs(self, pkt):
+        pkt[Ether].src, pkt[Ether].dst = pkt[Ether].dst, pkt[Ether].src
 
 
 

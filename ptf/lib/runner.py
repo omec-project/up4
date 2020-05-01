@@ -252,8 +252,6 @@ def main():
 
     try:
         extra_test_params = json.loads(args.extra_test_params)
-        for key in extra_test_params:
-            assert(type(key) == str)
     except:
         error("Invalid JSON string passed as extra PTF test params: {}".format(args.extra_test_params))
         sys.exit(1)

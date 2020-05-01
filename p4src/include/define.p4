@@ -33,8 +33,8 @@
 // Locations of off-switch functions
 #define BUFFER_DEVICE_PORT 3
 #define QOS_DEVICE_PORT    4
-#define BUFFER_DEVICE_MAC 0x230000000001
-#define QOS_DEVICE_MAC    0x230000000002
+#define BUFFER_DEVICE_MAC 0x320000000001
+#define QOS_DEVICE_MAC    0x320000000002
 
 
 // Some sizes

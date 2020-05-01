@@ -35,10 +35,14 @@ from scapy.all import IP, IPv6, TCP, UDP, ICMP
 from time import sleep
 
 from spgwu_base import GtpuBaseTest, Action
+from unittest import skipIf
 
 COUNTER_WAIT_TIME = 0.1
 
+switchIsDisaggregated = testutils.test_param_get("disagg", False)
+
 @group("gtpu")
+@skipIf(switchIsDisaggregated, "Test doesn't apply in disaggregated setting.")
 class GtpuDecapUplinkTest(GtpuBaseTest):
     """ Tests that a packet received from a UE gets decapsulated and routed.
     """
@@ -86,6 +90,7 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
 
 
 @group("gtpu")
+@skipIf(switchIsDisaggregated, "Test doesn't apply in disaggregated setting.")
 class GtpuEncapDownlinkTest(GtpuBaseTest):
     """ Tests that a packet received from the internet/core gets encapsulated and forwarded.
     """
@@ -131,6 +136,8 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         self.verify_counters_increased(ctr_id, 1, len(pkt), 1, len(pkt))
 
 
+@group("gtpu")
+@skipIf(switchIsDisaggregated, "Test doesn't apply in disaggregated setting.")
 class GtpuDropUplinkTest(GtpuBaseTest):
     """ Tests that a packet received from a UE gets decapsulated and dropped because of FAR rule.
     """
@@ -178,6 +185,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
 
 @group("gtpu")
+@skipIf(switchIsDisaggregated, "Test doesn't apply in disaggregated setting.")
 class GtpuDropDownlinkTest(GtpuBaseTest):
     """ Tests that a packet received from the internet/core gets dropped because of FAR rule.
     """
