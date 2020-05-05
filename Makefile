@@ -2,7 +2,6 @@ mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 curr_dir := $(patsubst %/,%,$(dir $(mkfile_path)))
 
 main_file := p4src/main.p4
-multi_dev_prof := -D DISAGG_UPF
 
 include util/docker/Makefile.vars
 
@@ -25,14 +24,6 @@ clean:
 	-rm -rf ptf/*.log
 	-rm -rf ptf/*.pcap
 
-
-_set_disagg:
-	$(eval P4C_FLAGS := -D DISAGG_UPF)
-	$(eval PTF_TEST_PARAMS := --extra-test-params='{"disagg":"True"}')
-
-build-disagg: ${main-file} _set_disagg build
-
-check-disagg: _set_disagg check
 
 build: ${main_file}
 	$(info *** Building P4 program...)

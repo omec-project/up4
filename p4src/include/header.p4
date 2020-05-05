@@ -41,30 +41,6 @@ header ipv4_t {
     ipv4_addr_t     dst_addr;
 }
 
-#ifdef DISAGG_UPF 
-header buffer_tunnel_t {
-    IpProtocol      next_header;
-    bit<32>         device_id; // id of the source P4 switch
-    bar_id_t        bar_id; // Buffering Action Rule ID
-    // This header should contain all metadata that is needed
-    // to be accurately re-processed by the P4 UPF
-    bit<7> _pad; // to get the port number to 16 bits
-    port_num_t      original_ingress_port; // may not be needed
-}
-
-header qos_tunnel_t {
-    IpProtocol      next_header;
-    bit<32>         device_id; // id of the source P4 switch
-    qer_id_t        qer_id; // Quality Enforcement Rule ID
-    // This header should contain all metadata that is needed
-    // by the egress i.e. all bridged metadata
-    counter_index_t ctr_idx;
-    mac_addr_t original_dst_mac;
-    bit<7> _pad; // to get the port number to 16 bits
-    port_num_t original_egress_spec;
-}
-#endif // DISAGG_UPF
-
 header tcp_t {
     L4Port  sport;
     L4Port  dport;
@@ -115,10 +91,6 @@ struct parsed_headers_t {
     udp_t outer_udp;
     gtpu_t gtpu;
     ipv4_t ipv4;
-#ifdef DISAGG_UPF
-    buffer_tunnel_t buffer_tunnel;
-    qos_tunnel_t qos_tunnel;
-#endif // DISAGG_UPF
     udp_t udp;
     tcp_t tcp;
     icmp_t icmp;

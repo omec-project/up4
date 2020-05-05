@@ -47,34 +47,9 @@ parser ParserImpl (packet_in packet,
             IpProtocol.UDP:  parse_udp;
             IpProtocol.TCP:  parse_tcp;
             IpProtocol.ICMP: parse_icmp;
-#ifdef DISAGG_UPF
-            IpProtocol.BUFFER_TUNNEL: parse_buffer_tunnel;
-            IpProtocol.QOS_TUNNEL:    parse_qos_tunnel;
-#endif // DISAGG_UPF
             default: accept;
         }
     }
-
-#ifdef DISAGG_UPF
-    state parse_buffer_tunnel {
-        packet.extract(hdr.buffer_tunnel);
-        transition select(hdr.buffer_tunnel.next_header) {
-            IpProtocol.UDP:  parse_udp;
-            IpProtocol.TCP:  parse_tcp;
-            IpProtocol.ICMP: parse_icmp;
-            default: accept;
-        }
-    }
-    state parse_qos_tunnel {
-        packet.extract(hdr.qos_tunnel);
-        transition select(hdr.qos_tunnel.next_header) {
-            IpProtocol.UDP:  parse_udp;
-            IpProtocol.TCP:  parse_tcp;
-            IpProtocol.ICMP: parse_icmp;
-            default: accept;
-        }
-    }
-#endif // DISAGG_UPF
 
     // Eventualy add VLAN header parsing
     

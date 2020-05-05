@@ -101,12 +101,7 @@ enum bit<16> EtherType {
 enum bit<8> IpProtocol {
     ICMP    = 1,
     TCP     = 6,
-    UDP     = 17,
-#ifdef DISAGG_UPF
-    BUFFER_TUNNEL  = 0xFD,
-    QOS_TUNNEL     = 0xFE,
-#endif // DISAGG_UPF
-    CRAP = 0xFF
+    UDP     = 17
 }
 
 enum bit<16> L4Port {
