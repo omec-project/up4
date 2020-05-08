@@ -102,7 +102,8 @@ class GtpuBaseTest(P4RuntimeTest):
         return ether_header / pkt[gtp.GTP_U_Header].payload
 
     _last_read_counter_values = {}
-    def read_pdr_counters(self, index):
+    def read_pdr_counters(self, index, wait_time=0.1):
+        sleep(wait_time)
         self._last_read_counter_values[index] = [
                     self.read_pdr_counter(index, pre_qos=True, pkts=True),
                     self.read_pdr_counter(index, pre_qos=True, pkts=False),
@@ -112,7 +113,7 @@ class GtpuBaseTest(P4RuntimeTest):
         return self._last_read_counter_values[index]
 
     def verify_counters_increased(self, index, prePktsInc, preBytesInc,
-                                postPktsInc, postBytesInc):
+                                postPktsInc, postBytesInc, wait_time=0.1):
         """ Verify that both the Pre- and Post-QoS counters increased:
             - Pre-Qos pkt count increased by prePktsInc
             - Pre-Qos byte count increased by preBytesInc
@@ -120,7 +121,7 @@ class GtpuBaseTest(P4RuntimeTest):
             - Post-Qos byte count increased by postBytesInc
         """
         old_vals = self._last_read_counter_values.get(index, [0,0,0,0])
-        new_vals = self.read_pdr_counters(index)
+        new_vals = self.read_pdr_counters(index, wait_time=wait_time)
         if new_vals[0] - old_vals[0] != prePktsInc:
             self.fail("Pre-QoS pkt counter did not increase by %d!" % prePktsInc)
         if new_vals[1] - old_vals[1] != preBytesInc:
@@ -213,9 +214,12 @@ class GtpuBaseTest(P4RuntimeTest):
                             default_far_id = 0,
                             default_qer_id = 0,
                             default_ctr_id = 0,
+                            n4_ip = None,
                             smf_ip = "192.168.1.52",
                             smf_mac = "0a:0b:0c:0d:0e:0f",
-                            smf_port = None):
+                            smf_port = None,
+                            miss_pdr_ctr_id=None,
+                            dhcp_req_ctr_id=None):
 
         if smf_port is None:
             smf_port = self.port4
@@ -227,11 +231,11 @@ class GtpuBaseTest(P4RuntimeTest):
         # Default PDR drops
         drop_far_id = self.unique_rule_id()
         miss_pdr_id = self.unique_rule_id()
-        self.miss_pdr_ctr_id = self.new_counter_id()
-        self.insert(
+        self.miss_pdr_ctr_id = miss_pdr_ctr_id or self.new_counter_id()
+        self.modify(
             self.helper.build_table_entry(
                 table_name="PreQosPipe.pdrs",
-                default=True,
+                default_action=True,
                 action_name="PreQosPipe.set_pdr_attributes",
                 action_params={
                     "id": miss_pdr_id,
@@ -249,15 +253,15 @@ class GtpuBaseTest(P4RuntimeTest):
 
         # Redirect DHCP messages from UEs to the SMF via N4
         dhcp_req_pdr_id = self.unique_rule_id()
-        self.dhcp_req_ctr_id = self.new_counter_id()
+        self.dhcp_req_ctr_id = dhcp_req_ctr_id or self.new_counter_id()
 
         towards_smf_far_id = self.unique_rule_id()
 
         self.add_pdr(pdr_id=dhcp_req_pdr_id,
                      far_id=towards_smf_far_id,
                      session_id=global_session_id,
-                     iface_type="ACCESS",
-                     ctr_id=dhcp_req_ctr_id,
+                     src_iface="ACCESS",
+                     ctr_id=self.dhcp_req_ctr_id,
                      inet_l4_port=DHCP_SERVER_PORT,
                      needs_gtpu_decap=True)
 
@@ -265,6 +269,7 @@ class GtpuBaseTest(P4RuntimeTest):
                      session_id=global_session_id,
                      tunnel=True,
                      teid=n4_teid,
+                     src_addr=n4_ip,
                      dst_addr=smf_ip)
 
         self.add_routing_entry(ip_prefix=smf_ip + '/32',
@@ -348,6 +353,10 @@ class GtpuBaseTest(P4RuntimeTest):
             ))
 
         if tunnel:
+            if (None in [src_addr, dst_addr, dport]):
+                raise Exception("src_addr, dst_addr, and dport cannot be None for a tunnel FAR")
+            if tunnel_type == "GTPU" and teid is None:
+                raise Exception("TEID cannot be None for GTPU tunnel")
             _tunnel_type = self.helper.get_enum_member_val("TunnelType", tunnel_type)
             self.insert(
                 self.helper.build_table_entry(
