@@ -30,12 +30,6 @@
 #define MAX_PDRS 1024
 #define MAX_ROUTES 1024
 
-// Locations of off-switch functions
-#define BUFFER_DEVICE_PORT 3
-#define QOS_DEVICE_PORT    4
-#define BUFFER_DEVICE_MAC 0x320000000001
-#define QOS_DEVICE_MAC    0x320000000002
-
 
 // Some sizes
 #define ETH_HDR_SIZE 14
@@ -57,7 +51,7 @@ const bit<3> GTPU_VERSION = 0x1;
 const bit<1> GTP_PROTOCOL_TYPE_GTP = 0x1;
 const bit<8> GTP_MESSAGE_TYPE_UPDU = 0xff;
 
-
+typedef bit<32> far_info_id_t;
 typedef bit<32> pdr_id_t;
 typedef bit<32> far_id_t;
 typedef bit<32> qer_id_t;
@@ -95,7 +89,7 @@ enum bit<8> GTPUMessageType {
 
 enum bit<16> EtherType {
     IPV4 = 0x0800,
-    IPV6 = 0x86dd
+    IPV6 = 0x86dd // unused
 }
 
 enum bit<8> IpProtocol {
@@ -107,7 +101,8 @@ enum bit<8> IpProtocol {
 enum bit<16> L4Port {
     DHCP_SERV       = 67, // naming this DHCP_SERVER causes a syntax error..
     DHCP_CLIENT     = 68,
-    GTP_GPDU        = 2152
+    GTP_GPDU        = 2152,
+    IPV4_IN_UDP     = 9875 // placeholder. port has not yet been assigned by IANA
 }
 
 enum bit<8> Direction {
@@ -118,26 +113,18 @@ enum bit<8> Direction {
 };
 
 enum bit<8> InterfaceType {
-    UNKNOWN     = 0x0,
-    ACCESS      = 0x1,
-    CORE        = 0x2,
-    N6_LAN      = 0x3,
-    VN_INTERNAL = 0x4
+    UNKNOWN       = 0x0,
+    ACCESS        = 0x1,
+    CORE          = 0x2,
+    N6_LAN        = 0x3, // unused
+    VN_INTERNAL   = 0x4, // unused
+    CONTROL_PLANE = 0x5 // N4 and N4-u
 }
-
-enum bit<8> ActionType {
-    NONE        = 0x0,
-    FORWARD     = 0x1,
-    BUFFER      = 0x2,
-    TUNNEL      = 0x3,
-    DROP        = 0x4
-}
-
 
 enum bit<8> TunnelType {
     UNKNOWN = 0x0,
-    IP      = 0x1,
-    UDP     = 0x2,
+    IP      = 0x1, // unused
+    UDP     = 0x2, // unused
     GTPU    = 0x3
 }
 

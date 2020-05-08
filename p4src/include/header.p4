@@ -84,8 +84,23 @@ header gtpu_t {
 }
 
 
+@controller_header("packet_out")
+header packet_out_t {
+    port_num_t  egress_port;
+    bit<7>      _pad;
+}
+
+@controller_header("packet_in")
+header packet_in_t {
+    port_num_t  ingress_port;
+    bit<7>      _pad;
+}
+
+
 
 struct parsed_headers_t {
+    packet_out_t  packet_out;
+    packet_in_t   packet_in;
     ethernet_t ethernet;
     ipv4_t outer_ipv4;
     udp_t outer_udp;
@@ -112,15 +127,21 @@ struct pdr_metadata_t {
 
 // Data assocaited with a BAR entry
 struct bar_metadata_t {
-    bar_id_t id;
-    bool needs_buffering;
+    bar_id_t id; // unused
 }
 
 
 // Data associated with a FAR entry. Loaded by a FAR (except ID which is loaded by a PDR)
 struct far_metadata_t {
     far_id_t    id;
-    ActionType  action_type;
+
+    // Buffering, dropping, and tunneling are not mutually exclusive. 
+    // Hence, they should be flags and not different action types.
+    bool needs_buffering;
+    bool needs_dropping;
+    bool needs_tunneling;
+    bool needs_duplication;
+    bool notify_cp;
 
     TunnelType  tunnel_out_type;
     ipv4_addr_t tunnel_out_src_ipv4_addr;
@@ -133,8 +154,8 @@ struct far_metadata_t {
 
 // QoS related metadata
 struct qos_metadata_t {
-    qer_id_t qer_id;
-    qfi_t    qfi;
+    qer_id_t qer_id; // unused
+    qfi_t    qfi;    // unused
 }
 
 // The primary metadata structure.
@@ -151,11 +172,11 @@ struct local_metadata_t {
     ipv4_addr_t next_hop_ip;
 
     bool needs_gtpu_decap;
-    bool needs_udp_decap;
-    bool needs_vlan_removal;
+    bool needs_udp_decap; // unused
+    bool needs_vlan_removal; // unused
 
     InterfaceType src_iface;
-    InterfaceType dst_iface;
+    InterfaceType dst_iface; // unused
 
     ipv4_addr_t ue_addr;
     ipv4_addr_t inet_addr;

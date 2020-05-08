@@ -34,7 +34,7 @@ from scapy.contrib import gtp
 from scapy.all import IP, IPv6, TCP, UDP, ICMP
 from time import sleep
 
-from spgwu_base import GtpuBaseTest, Action
+from spgwu_base import GtpuBaseTest
 from unittest import skipIf
 
 COUNTER_WAIT_TIME = 0.1
@@ -73,7 +73,7 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, Action.FORWARD)
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False)
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)
@@ -120,7 +120,7 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, Action.TUNNEL)
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False)
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)
@@ -168,7 +168,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, Action.DROP)
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=True)
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)
@@ -217,7 +217,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, Action.DROP)
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=True)
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)

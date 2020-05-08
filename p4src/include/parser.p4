@@ -29,7 +29,18 @@ parser ParserImpl (packet_in packet,
                    inout local_metadata_t local_meta,
                    inout standard_metadata_t std_meta)
 {
+
+    // We assume the first header will always be the Ethernet one, unless the
+    // the packet is a packet-out coming from the CPU_PORT.
     state start {
+        transition select(std_meta.ingress_port) {
+            CPU_PORT: parse_packet_out;
+            default: parse_ethernet;
+        }
+    }
+
+    state parse_packet_out {
+        packet.extract(hdr.packet_out);
         transition parse_ethernet;
     }
 
@@ -52,13 +63,14 @@ parser ParserImpl (packet_in packet,
     }
 
     // Eventualy add VLAN header parsing
-    
+
     state parse_udp {
         packet.extract(hdr.udp);
         // note: this eventually wont work
         local_meta.l4_sport = hdr.udp.sport;
         local_meta.l4_dport = hdr.udp.dport;
         transition select(hdr.udp.dport) {
+            L4Port.IPV4_IN_UDP: parse_inner_ipv4;
             L4Port.GTP_GPDU: parse_gtpu;
             default: accept;
         }

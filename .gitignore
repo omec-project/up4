@@ -5,3 +5,4 @@ ptf/*.pcap
 **/*.pyc
 .yapf/
 *.swp
+*.code-workspace
