@@ -135,12 +135,10 @@ struct bar_metadata_t {
 struct far_metadata_t {
     far_id_t    id;
 
-    // Buffering, dropping, and tunneling are not mutually exclusive. 
+    // Buffering, dropping, tunneling etc. are not mutually exclusive.
     // Hence, they should be flags and not different action types.
-    bool needs_buffering;
     bool needs_dropping;
     bool needs_tunneling;
-    bool needs_duplication;
     bool notify_cp;
 
     TunnelType  tunnel_out_type;
@@ -166,7 +164,7 @@ struct local_metadata_t {
     teid_t teid;    // local Tunnel ID.  F-TEID = TEID + GTP endpoint address
     // seid_t seid; // local Session ID. F-SEID = SEID + GTP endpoint address
 
-    // fteid_t fteid; 
+    // fteid_t fteid;
     fseid_t fseid;
 
     ipv4_addr_t next_hop_ip;

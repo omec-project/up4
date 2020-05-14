@@ -122,14 +122,15 @@ class GtpuBaseTest(P4RuntimeTest):
         """
         old_vals = self._last_read_counter_values.get(index, [0,0,0,0])
         new_vals = self.read_pdr_counters(index, wait_time=wait_time)
-        if new_vals[0] - old_vals[0] != prePktsInc:
-            self.fail("Pre-QoS pkt counter did not increase by %d!" % prePktsInc)
-        if new_vals[1] - old_vals[1] != preBytesInc:
-            self.fail("Pre-QoS byte counter did not increase by %d!" % preBytesInc)
-        if new_vals[2] - old_vals[2] != postPktsInc:
-            self.fail("Post-QoS pkt counter did not increase by %d!" % postPktsInc)
-        if new_vals[3] - old_vals[3] != postBytesInc:
-            self.fail("Post-QoS byte counter did not increase by %d!" % postBytesInc)
+        increases = [new_vals[i] - old_vals[i] for i in range(4)]
+        if increases[0] != prePktsInc:
+            self.fail("Pre-QoS pkt counter increased by %d, not %d!" % (increases[0], prePktsInc))
+        if increases[1] != preBytesInc:
+            self.fail("Pre-QoS byte counter increased by %d, not %d!" % (increases[1], preBytesInc))
+        if increases[2] != postPktsInc:
+            self.fail("Post-QoS pkt counter increased by %d, not %d!" % (increases[2], postPktsInc))
+        if increases[3] != postBytesInc:
+            self.fail("Post-QoS byte counter increased by %d, not %d!" % (increases[3], postBytesInc))
 
     def read_pdr_counter(self, index, pre_qos=True, pkts=True):
         """ Reads the per-PDR counter.
@@ -212,7 +213,6 @@ class GtpuBaseTest(P4RuntimeTest):
                             n4_teid = 1025,
                             default_pdr_id = 0,
                             default_far_id = 0,
-                            default_qer_id = 0,
                             default_ctr_id = 0,
                             n4_ip = None,
                             smf_ip = "192.168.1.52",
@@ -242,7 +242,6 @@ class GtpuBaseTest(P4RuntimeTest):
                     "ctr_id": self.miss_pdr_ctr_id,
                     "fseid": global_session_id,
                     "far_id": drop_far_id,
-                    "qer_id": 0,
                     "needs_gtpu_decap": False,
                     "needs_udp_decap": False,
                 }
@@ -278,11 +277,10 @@ class GtpuBaseTest(P4RuntimeTest):
 
 
     def add_pdr(self, pdr_id, far_id, session_id, src_iface, ctr_id, ue_addr=None, ue_mask=None,
-                teid = None,
+                teid = None, tunnel_dst_ip = None,
                 inet_addr=None, inet_mask=None, ue_l4_port=None, ue_l4_port_hi=None,
                 inet_l4_port=None, inet_l4_port_hi=None, ip_proto=None, ip_proto_mask=None,
-                qer_id=0, qfi=0, needs_gtpu_decap=False, needs_udp_decap=False,
-                needs_vlan_removal=False, net_instance=0, priority=10):
+                needs_gtpu_decap=False, priority=10):
 
         ALL_ONES_32 = (1 << 32) - 1
         ALL_ONES_8 = (1 << 8) - 1
@@ -299,12 +297,10 @@ class GtpuBaseTest(P4RuntimeTest):
             match_fields["inet_l4_port"] = (inet_l4_port, inet_l4_port_hi or inet_l4_port)
         if ip_proto is not None:
             match_fields["ip_proto"] = (ip_proto, ip_proto_mask or ALL_ONES_8)
-        if qfi is not None:
-            match_fields["qfi"] = (qfi, ALL_ONES_32)
         if teid is not None:
             match_fields["teid"] = (teid, ALL_ONES_32)
-        if net_instance is not None:
-            match_fields["net_instance"] = (net_instance, ALL_ONES_32)
+        if tunnel_dst_ip is not None:
+            match_fields["tunnel_ipv4_dst"] = (tunnel_dst_ip, ALL_ONES_32)
 
         self.insert(
             self.helper.build_table_entry(
@@ -315,9 +311,7 @@ class GtpuBaseTest(P4RuntimeTest):
                     "id": pdr_id,
                     "fseid": session_id,
                     "far_id": far_id,
-                    "qer_id": qer_id,
                     "needs_gtpu_decap": needs_gtpu_decap,
-                    "needs_udp_decap": needs_udp_decap,
                     "ctr_id": ctr_id,
                 },
                 priority=priority,
@@ -334,23 +328,9 @@ class GtpuBaseTest(P4RuntimeTest):
             ))
 
 
-    def add_far(self, far_id, session_id, drop=False, buffer=False, duplicate=False,
-                 notify_cp = False, bar_id = 0, tunnel=False,
-                 teid=None, src_addr=None, dst_addr=None, dport=2152, tunnel_type="GTPU"):
-        self.insert(
-            self.helper.build_table_entry(
-                table_name="PreQosPipe.LoadFar.general_attributes",
-                match_fields={
-                    "far_id": far_id,
-                    "session_id": session_id,
-                },
-                action_name="PreQosPipe.LoadFar.load_far_general_attributes",
-                action_params={"needs_dropping":drop,
-                              "needs_buffering":buffer,
-                              "needs_duplication" : duplicate,
-                              "notify_cp" : notify_cp,
-                              "bar_id": bar_id}
-            ))
+    def add_far(self, far_id, session_id, drop=False,
+                 notify_cp = False, tunnel=False, tunnel_type="GTPU",
+                 teid=None, src_addr=None, dst_addr=None, dport=2152):
 
         if tunnel:
             if (None in [src_addr, dst_addr, dport]):
@@ -358,25 +338,37 @@ class GtpuBaseTest(P4RuntimeTest):
             if tunnel_type == "GTPU" and teid is None:
                 raise Exception("TEID cannot be None for GTPU tunnel")
             _tunnel_type = self.helper.get_enum_member_val("TunnelType", tunnel_type)
-            self.insert(
-                self.helper.build_table_entry(
-                    table_name="PreQosPipe.LoadFar.tunnel_attributes",
-                    match_fields={
-                        "far_id": far_id,
-                        "session_id": session_id,
-                    },
-                    action_name="PreQosPipe.LoadFar.load_far_tunnel_attributes",
-                    action_params={
-                        "tunnel_type": _tunnel_type,
-                        "src_addr": src_addr,
-                        "dst_addr": dst_addr,
-                        "teid": teid,
-                        "dport": dport
-                    },
-                ))
+
+            action_params = {
+                "needs_dropping":drop,
+                "notify_cp" : notify_cp,
+                "tunnel_type" : _tunnel_type,
+                "src_addr" :  src_addr,
+                "dst_addr" : dst_addr,
+                "teid" : teid,
+                "dport" : dport
+            }
+            action_name = "PreQosPipe.load_tunnel_far_attributes"
+        else:
+            action_params = {
+                "needs_dropping":drop,
+                "notify_cp" : notify_cp
+            }
+            action_name = "PreQosPipe.load_normal_far_attributes"
+
+        self.insert(
+            self.helper.build_table_entry(
+                table_name="PreQosPipe.load_far_attributes",
+                match_fields={
+                    "far_id": far_id,
+                    "session_id": session_id,
+                },
+                action_name = action_name,
+                action_params = action_params
+            ))
 
 
-    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False, session_id=None, pdr_id = None, far_id=None, qer_id=None):
+    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False, session_id=None, pdr_id = None, far_id=None):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -389,8 +381,6 @@ class GtpuBaseTest(P4RuntimeTest):
             pdr_id = self.unique_rule_id()
         if far_id is None:
             far_id = self.unique_rule_id()
-        if qer_id is None:
-            qer_id = self.unique_rule_id()
 
         ue_l4_port = None
         inet_l4_port = None
@@ -416,7 +406,6 @@ class GtpuBaseTest(P4RuntimeTest):
             ue_l4_port=ue_l4_port,
             inet_l4_port=inet_l4_port,
             ip_proto=inner_pkt[IP].proto,
-            qer_id=qer_id,
             needs_gtpu_decap=True,
         )
 
@@ -427,7 +416,7 @@ class GtpuBaseTest(P4RuntimeTest):
                                    egress_port = outport)
 
 
-    def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False, session_id=None, pdr_id=None, far_id=None, qer_id=None):
+    def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False, session_id=None, pdr_id=None, far_id=None):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -445,8 +434,6 @@ class GtpuBaseTest(P4RuntimeTest):
             pdr_id = self.unique_rule_id()
         if far_id is None:
             far_id = self.unique_rule_id()
-        if qer_id is None:
-            qer_id = self.unique_rule_id()
 
         ue_l4_port = None
         inet_l4_port = None
