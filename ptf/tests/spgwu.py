@@ -37,6 +37,11 @@ from time import sleep
 from spgwu_base import GtpuBaseTest
 from unittest import skip
 
+from extra_headers import CpuHeader
+
+
+CPU_CLONE_SESSION_ID = 99
+
 
 @group("gtpu")
 class GtpuDecapUplinkTest(GtpuBaseTest):
@@ -213,6 +218,30 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         # Check if pre-QoS packet and byte counters incremented,
         # and verify the post-QoS counters did not increment
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
+
+
+@skip("Not yet complete")
+class AclPuntTest(GtpuBaseTest):
+    """ Test that the ACL table punts a packet to the CPU
+    """
+    def runTest(self):
+        # Test with different type of packets.
+        for pkt_type in self.supported_l4:
+            print_inline("%s ... " % pkt_type)
+            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
+            self.testPacket(pkt)
+
+    @autocleanup
+    def testPacket(self, pkt):
+        exp_pkt = CpuHeader(port_num=self.port1) / pkt
+        self.add_cpu_clone_session()
+        self.add_acl_entry(clone_to_cpu=True,
+                           ipv4_src=pkt[IP].src,
+                           ipv4_dst=pkt[IP].dst,
+                           ipv4_proto=pkt[IP].proto)
+
+        testutils.send_packet(self, self.port1, str(pkt))
+        testutils.verify_packet(self, exp_pkt, self.cpu_port)
 
 
 @group("gtpu")

@@ -276,6 +276,78 @@ class GtpuBaseTest(P4RuntimeTest):
                                egress_port=smf_port)
 
 
+    def add_cpu_clone_session(self, cpu_clone_session_id=99):
+        self.insert_pre_clone_session(cpu_clone_session_id, [self.cpu_port])
+
+    # yapf: disable
+    def add_acl_entry(self,
+                      punt=False, clone_to_cpu=False, set_port=False, drop=False,
+                      inport = None, inport_mask = None,
+                      src_iface = None, src_iface_mask = None,
+                      eth_src  = None, eth_src_mask = None,
+                      eth_dst  = None, eth_dst_mask = None,
+                      eth_type = None, eth_type_mask = None,
+                      ipv4_src = None, ipv4_src_mask = None,
+                      ipv4_dst = None, ipv4_dst_mask = None,
+                      ipv4_proto = None, ipv4_proto_mask = None,
+                      l4_sport = None, l4_sport_mask = None,
+                      l4_dport = None, l4_dport_mask = None,
+                      priority = 10, outport = None
+                      ):
+        ALL_ONES_48 = (1 << 48) - 1
+        ALL_ONES_32 = (1 << 32) - 1
+        ALL_ONES_16 = (1 << 16) - 1
+        ALL_ONES_9  = (1 << 9) - 1
+        ALL_ONES_8  = (1 << 8) - 1
+
+        match_keys = {}
+        if inport is not None:
+            match_keys["inport"] = (inport, inport_mask or ALL_ONES_9)
+        if src_iface is not None:
+            match_keys["src_iface"] = (src_iface, src_iface_mask or ALL_ONES_8)
+        if eth_src is not None:
+            match_keys["eth_src"] = (eth_src, eth_src_mask or ALL_ONES_48)
+        if eth_dst is not None:
+            match_keys["eth_dst"] = (eth_dst, eth_dst_mask or ALL_ONES_48)
+        if eth_type is not None:
+            match_keys["eth_type"] = (eth_type, eth_type_mask or ALL_ONES_16)
+        if ipv4_src is not None:
+            match_keys["ipv4_src"] = (ipv4_src, ipv4_src_mask or ALL_ONES_32)
+        if ipv4_dst is not None:
+            match_keys["ipv4_dst"] = (ipv4_dst, ipv4_dst_mask or ALL_ONES_32)
+        if ipv4_proto is not None:
+            match_keys["ipv4_proto"] = (ipv4_proto, ipv4_proto_mask or ALL_ONES_8)
+        if l4_sport is not None:
+            match_keys["l4_sport"] = (l4_sport, l4_sport_mask or ALL_ONES_16)
+        if l4_dport is not None:
+            match_keys["l4_dport"] = (l4_dport, l4_dport_mask or ALL_ONES_16)
+
+        if sum([punt, clone_to_cpu, set_port, drop]) != 1:
+            raise Exception("add_acl_entry did not receive exactly 1 action.")
+        action_name = None
+        action_params = {}
+        if punt:
+            action_name = "PreQosPipe.Acl.punt"
+        elif clone_to_cpu:
+            action_name = "PreQosPipe.Acl.clone_to_cpu"
+        elif set_port:
+            action_name = "PreQosPipe.Acl.set_port"
+            action_params = {"port":outport}
+        elif drop:
+            action_name = "PreQosPipe.Acl.drop"
+
+        self.insert(
+            self.helper.build_table_entry(
+                table_name = "PreQosPipe.Acl.acls",
+                match_fields = match_keys,
+                action_name = action_name,
+                action_params = action_params,
+                priority=priority
+            ))
+
+        # yapf: enable
+
+
     def add_pdr(self, pdr_id, far_id, session_id, src_iface, ctr_id, ue_addr=None, ue_mask=None,
                 teid = None, tunnel_dst_ip = None,
                 inet_addr=None, inet_mask=None, ue_l4_port=None, ue_l4_port_hi=None,
