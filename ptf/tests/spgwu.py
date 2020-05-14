@@ -220,28 +220,36 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
 
 
-@skip("Not yet complete")
 class AclPuntTest(GtpuBaseTest):
     """ Test that the ACL table punts a packet to the CPU
     """
     def runTest(self):
         # Test with different type of packets.
-        for pkt_type in self.supported_l4:
+        for pkt_type in self.supported_l4[:1]:
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
             self.testPacket(pkt)
 
     @autocleanup
     def testPacket(self, pkt):
-        exp_pkt = CpuHeader(port_num=self.port1) / pkt
+        # exp_pkt = CpuHeader(port_num=self.port1) / pkt
+        exp_pkt = pkt
+        exp_pkt_in_msg = self.helper.build_packet_in(str(exp_pkt), metadata={"ingress_port":self.port1, "_pad":0})
+
+
+        self.add_device_mac(pkt[Ether].dst)
+
         self.add_cpu_clone_session()
         self.add_acl_entry(clone_to_cpu=True,
+                           eth_type=pkt[Ether].type,
                            ipv4_src=pkt[IP].src,
                            ipv4_dst=pkt[IP].dst,
                            ipv4_proto=pkt[IP].proto)
 
         testutils.send_packet(self, self.port1, str(pkt))
-        testutils.verify_packet(self, exp_pkt, self.cpu_port)
+
+        self.verify_packet_in(exp_pkt_in_msg)
+
 
 
 @group("gtpu")

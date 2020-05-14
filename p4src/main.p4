@@ -380,10 +380,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         // N6 (from internet) - no GTPU - match on IP header dst
         // N9 (from another UPF) - GTPU - match on outer IP dst
         // N4-u (from SMF) - GTPU - match on outer IP dst
-        // If a packet isn't destined for one of these interfaces, then do not process it.
-        if (!source_iface_lookup.apply().hit) {
-            return;
-        }
+        source_iface_lookup.apply();
         // Interface lookup happens before normalization of headers,
         // because the lookup uses the outermost IP header in all cases
 

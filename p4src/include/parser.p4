@@ -135,6 +135,7 @@ parser ParserImpl (packet_in packet,
 //------------------------------------------------------------------------------
 control DeparserImpl(packet_out packet, in parsed_headers_t hdr) {
     apply {
+        packet.emit(hdr.packet_in);
         packet.emit(hdr.ethernet);
         packet.emit(hdr.outer_ipv4);
         packet.emit(hdr.outer_udp);
