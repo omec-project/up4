@@ -53,5 +53,5 @@ stratum_bmv2 \
     --write_req_log_file=p4rt_write.log \
     --initial_pipeline=/root/dummy.json \
     --bmv2_log_level=trace \
-    --cpu_port 255 \
+    --cpu_port ${CPU_PORT} \
     > stratum_bmv2.log 2>&1

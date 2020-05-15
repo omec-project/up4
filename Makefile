@@ -1,6 +1,8 @@
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 curr_dir := $(patsubst %/,%,$(dir $(mkfile_path)))
 
+main_file := p4src/main.p4
+
 include util/docker/Makefile.vars
 
 default: build check
@@ -22,21 +24,23 @@ clean:
 	-rm -rf ptf/*.log
 	-rm -rf ptf/*.pcap
 
-build: p4src/main.p4
+
+build: ${main_file}
 	$(info *** Building P4 program...)
 	@mkdir -p p4src/build
 	docker run --rm -v ${curr_dir}:/workdir -w /workdir ${P4C_IMG} \
-		p4c-bm2-ss --arch v1model -o p4src/build/bmv2.json \
+		p4c-bm2-ss ${P4C_FLAGS} --arch v1model -o p4src/build/bmv2.json \
 		--p4runtime-files p4src/build/p4info.txt,p4src/build/p4info.bin \
 		--Wdisable=unsupported \
-		p4src/main.p4
+		${main_file}
 	@echo "*** P4 program compiled successfully! Output files are in p4src/build"
 
-graph: p4src/main.p4
+
+graph: ${main_file}
 	$(info *** Generating P4 program graphs...)
 	@mkdir -p p4src/build/graphs
 	docker run --rm -v ${curr_dir}:/workdir -w /workdir ${P4C_IMG} \
-		p4c-graphs --graphs-dir p4src/build/graphs p4src/main.p4
+		p4c-graphs --graphs-dir p4src/build/graphs ${main_file}
 	for f in p4src/build/graphs/*.dot; do \
 		docker run --rm -v ${curr_dir}:/workdir -w /workdir ${P4C_IMG} \
 			dot -Tpdf $${f} > $${f}.pdf; rm -f $${f}; \
@@ -44,7 +48,7 @@ graph: p4src/main.p4
 	@echo "*** Done! Graph files are in p4src/build/graphs"
 
 check:
-	@cd ptf && PTF_DOCKER_IMG=$(PTF_IMG) ./run_tests $(TEST)
+	@cd ptf && PTF_DOCKER_IMG=$(PTF_IMG) ./run_tests ${PTF_TEST_PARAMS} $(TEST)
 
 .yapf:
 	rm -rf ./yapf

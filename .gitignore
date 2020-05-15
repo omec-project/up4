@@ -4,3 +4,5 @@ ptf/*.log
 ptf/*.pcap
 **/*.pyc
 .yapf/
+*.swp
+*.code-workspace
