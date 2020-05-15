@@ -284,9 +284,14 @@ class GtpuUplinkDhcpTest(GtpuBaseTest):
         self.add_device_mac(pkt[Ether].dst)
         self.add_interface(ip_prefix=pkt[IP].dst + '/32', iface_type="ACCESS", direction="UPLINK")
 
-        self.add_global_session(n4_ip=exp_pkt[IP].src, smf_ip=exp_pkt[IP].dst,
-                                smf_mac=exp_pkt[Ether].dst, smf_port=self.port2,
-                                n4_teid=exp_pkt[gtp.GTP_U_Header].teid, dhcp_req_ctr_id=ctr_id,)
+        self.add_global_session(
+            n4_ip=exp_pkt[IP].src,
+            smf_ip=exp_pkt[IP].dst,
+            smf_mac=exp_pkt[Ether].dst,
+            smf_port=self.port2,
+            n4_teid=exp_pkt[gtp.GTP_U_Header].teid,
+            dhcp_req_ctr_id=ctr_id,
+        )
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)
