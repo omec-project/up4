@@ -51,6 +51,7 @@ class GtpuBaseTest(P4RuntimeTest):
         return '.'.join([str(octet) for octet in octets])
 
     _last_used_rule_id = -1
+
     def unique_rule_id(self):
         """ Stupid helper method for generating unique ruleIDs.
         """
@@ -66,7 +67,7 @@ class GtpuBaseTest(P4RuntimeTest):
         """ Method exists here so we can de-randomize quickly for debugging,
             and so other files use this file's seed.
         """
-        return random.randint(0, limit-1)
+        return random.randint(0, limit - 1)
 
     def gtpu_encap(self, pkt, ip_ver=4, ip_src=None, ip_dst=None, teid=None):
         """ Adds IP, UDP, and GTP-U headers to the packet situated after the ethernet header.
@@ -102,25 +103,26 @@ class GtpuBaseTest(P4RuntimeTest):
         return ether_header / pkt[gtp.GTP_U_Header].payload
 
     _last_read_counter_values = {}
+
     def read_pdr_counters(self, index, wait_time=0.1):
         sleep(wait_time)
         self._last_read_counter_values[index] = [
-                    self.read_pdr_counter(index, pre_qos=True, pkts=True),
-                    self.read_pdr_counter(index, pre_qos=True, pkts=False),
-                    self.read_pdr_counter(index, pre_qos=False, pkts=True),
-                    self.read_pdr_counter(index, pre_qos=False, pkts=False)
-                ]
+            self.read_pdr_counter(index, pre_qos=True, pkts=True),
+            self.read_pdr_counter(index, pre_qos=True, pkts=False),
+            self.read_pdr_counter(index, pre_qos=False, pkts=True),
+            self.read_pdr_counter(index, pre_qos=False, pkts=False)
+        ]
         return self._last_read_counter_values[index]
 
-    def verify_counters_increased(self, index, prePktsInc, preBytesInc,
-                                postPktsInc, postBytesInc, wait_time=0.1):
+    def verify_counters_increased(self, index, prePktsInc, preBytesInc, postPktsInc, postBytesInc,
+                                  wait_time=0.1):
         """ Verify that both the Pre- and Post-QoS counters increased:
             - Pre-Qos pkt count increased by prePktsInc
             - Pre-Qos byte count increased by preBytesInc
             - Post-Qos pkt count increased by postPktsInc
             - Post-Qos byte count increased by postBytesInc
         """
-        old_vals = self._last_read_counter_values.get(index, [0,0,0,0])
+        old_vals = self._last_read_counter_values.get(index, [0, 0, 0, 0])
         new_vals = self.read_pdr_counters(index, wait_time=wait_time)
         increases = [new_vals[i] - old_vals[i] for i in range(4)]
         if increases[0] != prePktsInc:
@@ -130,7 +132,8 @@ class GtpuBaseTest(P4RuntimeTest):
         if increases[2] != postPktsInc:
             self.fail("Post-QoS pkt counter increased by %d, not %d!" % (increases[2], postPktsInc))
         if increases[3] != postBytesInc:
-            self.fail("Post-QoS byte counter increased by %d, not %d!" % (increases[3], postBytesInc))
+            self.fail("Post-QoS byte counter increased by %d, not %d!" %
+                      (increases[3], postBytesInc))
 
     def read_pdr_counter(self, index, pre_qos=True, pkts=True):
         """ Reads the per-PDR counter.
@@ -146,49 +149,31 @@ class GtpuBaseTest(P4RuntimeTest):
         else:
             return self.helper.read_byte_count(counter_name, index)
 
-
     def add_device_mac(self, mac_addr):
         self.insert(
-            self.helper.build_table_entry(
-                table_name="PreQosPipe.my_station",
-                match_fields={
-                    "dst_mac" : mac_addr
-                },
-                action_name="NoAction",
-                action_params={}
-            ))
-
+            self.helper.build_table_entry(table_name="PreQosPipe.my_station",
+                                          match_fields={"dst_mac": mac_addr},
+                                          action_name="NoAction", action_params={}))
 
     def add_routing_ecmp_group(self, ip_prefix, mac_port_pairs):
 
         group_id = self.helper.get_next_grp_id()
 
-        self.insert(self.helper.build_act_prof_group(
-            act_prof_name="hashed_selector",
-            group_id = group_id,
-            actions = [
-                (
-                    "PreQosPipe.Routing.route",
-                    {
-                        "dst_mac"     : pair[0],
-                        "egress_port" : pair[1]
-                    }
-                ) for pair in mac_port_pairs
-            ]
-            ))
+        self.insert(
+            self.helper.build_act_prof_group(
+                act_prof_name="hashed_selector", group_id=group_id,
+                actions=[("PreQosPipe.Routing.route", {
+                    "dst_mac": pair[0],
+                    "egress_port": pair[1]
+                }) for pair in mac_port_pairs]))
 
-        self.insert(self.helper.build_table_entry(
-            table_name="PreQosPipe.Routing.routes_v4",
-            match_fields= {
-                "dst_prefix" : ip_prefix
-            },
-            group_id=group_id
-            ))
-
+        self.insert(
+            self.helper.build_table_entry(table_name="PreQosPipe.Routing.routes_v4",
+                                          match_fields={"dst_prefix": ip_prefix},
+                                          group_id=group_id))
 
     def add_routing_entry(self, ip_prefix, dst_mac, egress_port):
-        return self.add_routing_ecmp_group(ip_prefix, [(dst_mac,egress_port)])
-
+        return self.add_routing_ecmp_group(ip_prefix, [(dst_mac, egress_port)])
 
     def add_interface(self, ip_prefix, iface_type, direction):
         """ Binds a destination prefix 3GPP interface.
@@ -199,27 +184,18 @@ class GtpuBaseTest(P4RuntimeTest):
         self.insert(
             self.helper.build_table_entry(
                 table_name="PreQosPipe.source_iface_lookup",
-                match_fields={
-                    "ipv4_dst_prefix" : ip_prefix
-                },
+                match_fields={"ipv4_dst_prefix": ip_prefix},
                 action_name="PreQosPipe.set_source_iface",
-                action_params={"src_iface": _iface_type,
-                               "direction":_direction},
+                action_params={
+                    "src_iface": _iface_type,
+                    "direction": _direction
+                },
             ))
 
-
-    def add_global_session(self,
-                            global_session_id = 1025,
-                            n4_teid = 1025,
-                            default_pdr_id = 0,
-                            default_far_id = 0,
-                            default_ctr_id = 0,
-                            n4_ip = None,
-                            smf_ip = "192.168.1.52",
-                            smf_mac = "0a:0b:0c:0d:0e:0f",
-                            smf_port = None,
-                            miss_pdr_ctr_id=None,
-                            dhcp_req_ctr_id=None):
+    def add_global_session(self, global_session_id=1025, n4_teid=1025, default_pdr_id=0,
+                           default_far_id=0, default_ctr_id=0, n4_ip=None, smf_ip="192.168.1.52",
+                           smf_mac="0a:0b:0c:0d:0e:0f", smf_port=None, miss_pdr_ctr_id=None,
+                           dhcp_req_ctr_id=None):
 
         if smf_port is None:
             smf_port = self.port4
@@ -234,21 +210,16 @@ class GtpuBaseTest(P4RuntimeTest):
         self.miss_pdr_ctr_id = miss_pdr_ctr_id or self.new_counter_id()
         self.modify(
             self.helper.build_table_entry(
-                table_name="PreQosPipe.pdrs",
-                default_action=True,
-                action_name="PreQosPipe.set_pdr_attributes",
-                action_params={
+                table_name="PreQosPipe.pdrs", default_action=True,
+                action_name="PreQosPipe.set_pdr_attributes", action_params={
                     "id": miss_pdr_id,
                     "ctr_id": self.miss_pdr_ctr_id,
                     "fseid": global_session_id,
                     "far_id": drop_far_id,
                     "needs_gtpu_decap": False,
                     "needs_udp_decap": False,
-                }
-            ))
-        self.add_far(far_id=drop_far_id,
-                     session_id=global_session_id,
-                     drop=True)
+                }))
+        self.add_far(far_id=drop_far_id, session_id=global_session_id, drop=True)
 
         # Redirect DHCP messages from UEs to the SMF via N4
         dhcp_req_pdr_id = self.unique_rule_id()
@@ -256,25 +227,14 @@ class GtpuBaseTest(P4RuntimeTest):
 
         towards_smf_far_id = self.unique_rule_id()
 
-        self.add_pdr(pdr_id=dhcp_req_pdr_id,
-                     far_id=towards_smf_far_id,
-                     session_id=global_session_id,
-                     src_iface="ACCESS",
-                     ctr_id=self.dhcp_req_ctr_id,
-                     inet_l4_port=DHCP_SERVER_PORT,
-                     needs_gtpu_decap=True)
+        self.add_pdr(pdr_id=dhcp_req_pdr_id, far_id=towards_smf_far_id,
+                     session_id=global_session_id, src_iface="ACCESS", ctr_id=self.dhcp_req_ctr_id,
+                     inet_l4_port=DHCP_SERVER_PORT, needs_gtpu_decap=True)
 
-        self.add_far(far_id=towards_smf_far_id,
-                     session_id=global_session_id,
-                     tunnel=True,
-                     teid=n4_teid,
-                     src_addr=n4_ip,
-                     dst_addr=smf_ip)
+        self.add_far(far_id=towards_smf_far_id, session_id=global_session_id, tunnel=True,
+                     teid=n4_teid, src_addr=n4_ip, dst_addr=smf_ip)
 
-        self.add_routing_entry(ip_prefix=smf_ip + '/32',
-                               dst_mac=smf_mac,
-                               egress_port=smf_port)
-
+        self.add_routing_entry(ip_prefix=smf_ip + '/32', dst_mac=smf_mac, egress_port=smf_port)
 
     def add_cpu_clone_session(self, cpu_clone_session_id=99):
         self.insert_pre_clone_session(cpu_clone_session_id, [self.cpu_port])
@@ -332,7 +292,7 @@ class GtpuBaseTest(P4RuntimeTest):
             action_name = "PreQosPipe.Acl.clone_to_cpu"
         elif set_port:
             action_name = "PreQosPipe.Acl.set_port"
-            action_params = {"port":outport}
+            action_params = {"port": outport}
         elif drop:
             action_name = "PreQosPipe.Acl.drop"
 
@@ -347,12 +307,10 @@ class GtpuBaseTest(P4RuntimeTest):
 
         # yapf: enable
 
-
     def add_pdr(self, pdr_id, far_id, session_id, src_iface, ctr_id, ue_addr=None, ue_mask=None,
-                teid = None, tunnel_dst_ip = None,
-                inet_addr=None, inet_mask=None, ue_l4_port=None, ue_l4_port_hi=None,
-                inet_l4_port=None, inet_l4_port_hi=None, ip_proto=None, ip_proto_mask=None,
-                needs_gtpu_decap=False, priority=10):
+                teid=None, tunnel_dst_ip=None, inet_addr=None, inet_mask=None, ue_l4_port=None,
+                ue_l4_port_hi=None, inet_l4_port=None, inet_l4_port_hi=None, ip_proto=None,
+                ip_proto_mask=None, needs_gtpu_decap=False, priority=10):
 
         ALL_ONES_32 = (1 << 32) - 1
         ALL_ONES_8 = (1 << 8) - 1
@@ -392,17 +350,13 @@ class GtpuBaseTest(P4RuntimeTest):
     def remove_far(self, far_id, session_id):
         self.delete(
             self.helper.build_table_entry(
-                table_name="PreQosPipe.fars",
-                match_fields={
+                table_name="PreQosPipe.fars", match_fields={
                     "far_id": far_id,
                     "session_id": session_id,
-                }
-            ))
+                }))
 
-
-    def add_far(self, far_id, session_id, drop=False,
-                 notify_cp = False, tunnel=False, tunnel_type="GTPU",
-                 teid=None, src_addr=None, dst_addr=None, dport=2152):
+    def add_far(self, far_id, session_id, drop=False, notify_cp=False, tunnel=False,
+                tunnel_type="GTPU", teid=None, src_addr=None, dst_addr=None, dport=2152):
 
         if tunnel:
             if (None in [src_addr, dst_addr, dport]):
@@ -412,35 +366,28 @@ class GtpuBaseTest(P4RuntimeTest):
             _tunnel_type = self.helper.get_enum_member_val("TunnelType", tunnel_type)
 
             action_params = {
-                "needs_dropping":drop,
-                "notify_cp" : notify_cp,
-                "tunnel_type" : _tunnel_type,
-                "src_addr" :  src_addr,
-                "dst_addr" : dst_addr,
-                "teid" : teid,
-                "dport" : dport
+                "needs_dropping": drop,
+                "notify_cp": notify_cp,
+                "tunnel_type": _tunnel_type,
+                "src_addr": src_addr,
+                "dst_addr": dst_addr,
+                "teid": teid,
+                "dport": dport
             }
             action_name = "PreQosPipe.load_tunnel_far_attributes"
         else:
-            action_params = {
-                "needs_dropping":drop,
-                "notify_cp" : notify_cp
-            }
+            action_params = {"needs_dropping": drop, "notify_cp": notify_cp}
             action_name = "PreQosPipe.load_normal_far_attributes"
 
         self.insert(
             self.helper.build_table_entry(
-                table_name="PreQosPipe.load_far_attributes",
-                match_fields={
+                table_name="PreQosPipe.load_far_attributes", match_fields={
                     "far_id": far_id,
                     "session_id": session_id,
-                },
-                action_name = action_name,
-                action_params = action_params
-            ))
+                }, action_name=action_name, action_params=action_params))
 
-
-    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False, session_id=None, pdr_id = None, far_id=None):
+    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
+                                   session_id=None, pdr_id=None, far_id=None):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -462,8 +409,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
         self.add_device_mac(pkt[Ether].dst)
 
-        self.add_interface(ip_prefix=pkt[IP].dst + '/32',
-                            iface_type="ACCESS",  direction="UPLINK")
+        self.add_interface(ip_prefix=pkt[IP].dst + '/32', iface_type="ACCESS", direction="UPLINK")
 
         #self.add_session(session_id=session_id, ue_addr=inner_pkt[IP].src)
 
@@ -483,12 +429,11 @@ class GtpuBaseTest(P4RuntimeTest):
 
         self.add_far(far_id=far_id, session_id=session_id, drop=drop)
         if not drop:
-            self.add_routing_entry(ip_prefix = exp_pkt[IP].dst + '/32',
-                                   dst_mac = exp_pkt[Ether].dst,
-                                   egress_port = outport)
+            self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', dst_mac=exp_pkt[Ether].dst,
+                                   egress_port=outport)
 
-
-    def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False, session_id=None, pdr_id=None, far_id=None):
+    def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
+                                     session_id=None, pdr_id=None, far_id=None):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -515,8 +460,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
         self.add_device_mac(pkt[Ether].dst)
 
-        self.add_interface(ip_prefix=pkt[IP].dst + '/32',
-                            iface_type="CORE", direction="DOWNLINK")
+        self.add_interface(ip_prefix=pkt[IP].dst + '/32', iface_type="CORE", direction="DOWNLINK")
 
         #self.add_session(session_id=session_id, ue_addr=pkt[IP].dst)
 
@@ -534,18 +478,9 @@ class GtpuBaseTest(P4RuntimeTest):
             needs_gtpu_decap=False,
         )
 
-        self.add_far(
-            far_id=far_id,
-            session_id=session_id,
-            drop=drop,
-            tunnel=True,
-            teid=exp_pkt[gtp.GTP_U_Header].teid,
-            src_addr=exp_pkt[IP].src,
-            dst_addr=exp_pkt[IP].dst
-        )
+        self.add_far(far_id=far_id, session_id=session_id, drop=drop, tunnel=True,
+                     teid=exp_pkt[gtp.GTP_U_Header].teid, src_addr=exp_pkt[IP].src,
+                     dst_addr=exp_pkt[IP].dst)
         if not drop:
-            self.add_routing_entry(ip_prefix = exp_pkt[IP].dst + '/32',
-                                   dst_mac = exp_pkt[Ether].dst,
-                                   egress_port = outport)
-
-
+            self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', dst_mac=exp_pkt[Ether].dst,
+                                   egress_port=outport)
