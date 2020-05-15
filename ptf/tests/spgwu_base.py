@@ -153,7 +153,7 @@ class GtpuBaseTest(P4RuntimeTest):
         self.insert(
             self.helper.build_table_entry(table_name="PreQosPipe.my_station",
                                           match_fields={"dst_mac": mac_addr},
-                                          action_name="NoAction", action_params={}))
+                                          action_name="NoAction", action_params={},))
 
     def add_routing_ecmp_group(self, ip_prefix, mac_port_pairs):
 
