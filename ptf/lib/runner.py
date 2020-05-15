@@ -153,7 +153,8 @@ def update_config(p4info_path, bmv2_json_path, grpc_addr, device_id):
         stream_recv_thread.join()
 
 
-def run_test(p4info_path, grpc_addr, device_id, cpu_port, ptfdir, port_map_path, extra_test_params={},extra_args=()):
+def run_test(p4info_path, grpc_addr, device_id, cpu_port, ptfdir, port_map_path,
+             extra_test_params={}, extra_args=()):
     """
     Runs PTF tests included in provided directory.
     Device must be running and configfured with appropriate P4 program.
@@ -190,7 +191,7 @@ def run_test(p4info_path, grpc_addr, device_id, cpu_port, ptfdir, port_map_path,
     test_params += ';grpcaddr=\'{}\''.format(grpc_addr)
     test_params += ';device_id=\'{}\''.format(device_id)
     test_params += ';cpu_port=\'{}\''.format(cpu_port)
-    for arg,val in extra_test_params.items():
+    for arg, val in extra_test_params.items():
         test_params += ";{}={}".format(arg, val)
     cmd.append('--test-params={}'.format(test_params))
     cmd.extend(extra_args)
@@ -233,7 +234,9 @@ def main():
                         required=True)
     parser.add_argument('--ptf-dir', help='Directory containing PTF tests', type=str, required=True)
     parser.add_argument('--port-map', help='Path to JSON port mapping', type=str, required=True)
-    parser.add_argument('--extra-test-params', help="JSON string of additional test parameters to pass to PTF", type=str, default="{}")
+    parser.add_argument('--extra-test-params',
+                        help="JSON string of additional test parameters to pass to PTF", type=str,
+                        default="{}")
     args, unknown_args = parser.parse_known_args()
 
     if not check_ptf():
@@ -253,9 +256,9 @@ def main():
     try:
         extra_test_params = json.loads(args.extra_test_params)
     except:
-        error("Invalid JSON string passed as extra PTF test params: {}".format(args.extra_test_params))
+        error("Invalid JSON string passed as extra PTF test params: {}".format(
+            args.extra_test_params))
         sys.exit(1)
-
 
     try:
         success = update_config(

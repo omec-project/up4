@@ -39,7 +39,6 @@ from unittest import skip
 
 from extra_headers import CpuHeader
 
-
 CPU_CLONE_SESSION_ID = 99
 
 
@@ -174,6 +173,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         # and verify the post-QoS counters did not increment
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
 
+
 @group("gtpu")
 class GtpuDropDownlinkTest(GtpuBaseTest):
     """ Tests that a packet received from the internet/core gets dropped because of FAR rule.
@@ -223,6 +223,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
 class AclPuntTest(GtpuBaseTest):
     """ Test that the ACL table punts a packet to the CPU
     """
+
     def runTest(self):
         # Test with different type of packets.
         for pkt_type in self.supported_l4[:1]:
@@ -234,22 +235,21 @@ class AclPuntTest(GtpuBaseTest):
     def testPacket(self, pkt):
         # exp_pkt = CpuHeader(port_num=self.port1) / pkt
         exp_pkt = pkt
-        exp_pkt_in_msg = self.helper.build_packet_in(str(exp_pkt), metadata={"ingress_port":self.port1, "_pad":0})
-
+        exp_pkt_in_msg = self.helper.build_packet_in(
+            str(exp_pkt), metadata={
+                "ingress_port": self.port1,
+                "_pad": 0
+            })
 
         self.add_device_mac(pkt[Ether].dst)
 
         self.add_cpu_clone_session()
-        self.add_acl_entry(clone_to_cpu=True,
-                           eth_type=pkt[Ether].type,
-                           ipv4_src=pkt[IP].src,
-                           ipv4_dst=pkt[IP].dst,
-                           ipv4_proto=pkt[IP].proto)
+        self.add_acl_entry(clone_to_cpu=True, eth_type=pkt[Ether].type, ipv4_src=pkt[IP].src,
+                           ipv4_dst=pkt[IP].dst, ipv4_proto=pkt[IP].proto)
 
         testutils.send_packet(self, self.port1, str(pkt))
 
         self.verify_packet_in(exp_pkt_in_msg)
-
 
 
 @group("gtpu")
@@ -284,13 +284,9 @@ class GtpuUplinkDhcpTest(GtpuBaseTest):
         self.add_device_mac(pkt[Ether].dst)
         self.add_interface(ip_prefix=pkt[IP].dst + '/32', iface_type="ACCESS", direction="UPLINK")
 
-        self.add_global_session(n4_ip = exp_pkt[IP].src,
-                                smf_ip = exp_pkt[IP].dst,
-                                smf_mac = exp_pkt[Ether].dst,
-                                smf_port = self.port2,
-                                n4_teid = exp_pkt[gtp.GTP_U_Header].teid,
-                                dhcp_req_ctr_id = ctr_id)
-
+        self.add_global_session(n4_ip=exp_pkt[IP].src, smf_ip=exp_pkt[IP].dst,
+                                smf_mac=exp_pkt[Ether].dst, smf_port=self.port2,
+                                n4_teid=exp_pkt[gtp.GTP_U_Header].teid, dhcp_req_ctr_id=ctr_id,)
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)
@@ -298,7 +294,6 @@ class GtpuUplinkDhcpTest(GtpuBaseTest):
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, str(pkt))
         testutils.verify_packet(self, exp_pkt, self.port2)
-
 
         # Check if pre and post-QoS packet and byte counters incremented
         self.verify_counters_increased(ctr_id, 1, len(pkt), 1, len(pkt))
