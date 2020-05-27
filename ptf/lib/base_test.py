@@ -447,6 +447,21 @@ class P4RuntimeTest(BaseTest):
             self.reqs.append(req)
         return rep
 
+    def modify(self, entity):
+        if isinstance(entity, list) or isinstance(entity, tuple):
+            for e in entity:
+                self.insert(e)
+            return
+        req = self.get_new_write_request()
+        update = req.updates.add()
+        update.type = p4runtime_pb2.Update.MODIFY
+        if isinstance(entity, p4runtime_pb2.TableEntry):
+            msg_entity = update.entity.table_entry
+        else:
+            self.fail("Entity %s not supported" % entity.__name__)
+        msg_entity.CopyFrom(entity)
+        self.write_request(req)
+
     def insert(self, entity):
         if isinstance(entity, list) or isinstance(entity, tuple):
             for e in entity:
@@ -461,6 +476,21 @@ class P4RuntimeTest(BaseTest):
             msg_entity = update.entity.action_profile_group
         elif isinstance(entity, p4runtime_pb2.ActionProfileMember):
             msg_entity = update.entity.action_profile_member
+        else:
+            self.fail("Entity %s not supported" % entity.__name__)
+        msg_entity.CopyFrom(entity)
+        self.write_request(req)
+
+    def delete(self, entity):
+        if isinstance(entity, list) or isinstance(entity, tuple):
+            for e in entity:
+                self.remove(e)
+            return
+        req = self.get_new_write_request()
+        update = req.updates.add()
+        update.type = p4runtime_pb2.Update.DELETE
+        if isinstance(entity, p4runtime_pb2.TableEntry):
+            msg_entity = update.entity.table_entry
         else:
             self.fail("Entity %s not supported" % entity.__name__)
         msg_entity.CopyFrom(entity)
