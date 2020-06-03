@@ -38,19 +38,28 @@ public interface SomeInterface {
         POST_QOS_PDR,
     }
 
+    /**
+     * Direction of user data flow. Maybe will be used for PDR-related method.
+     */
     enum Direction {
         UNKNOWN,
         UPLINK,
         DOWNLINK,
+        /**
+         * For flexible PDRs that do not care about direction
+         */
         BOTH,
     }
 
+    /**
+     * Type of UPF/SPGW interface. Currently unused
+     */
     enum InterfaceType {
         UNKNOWN         (0),
         ACCESS          (1),
         CORE            (2),
-        N6_LAN          (3),  // unused
-        VN_INTERNAL     (4),  // unused
+        N6_LAN          (3),
+        VN_INTERNAL     (4),
         CONTROL_PLANE   (5);  // N4 and N4-u
 
         public final int value;
@@ -60,6 +69,9 @@ public interface SomeInterface {
         }
     }
 
+    /**
+     *
+     */
     public class RuleId {
         SessionId   sessionID;  // Session associated with this RuleID
         int         localID;    // Session-local Rule ID
@@ -82,18 +94,29 @@ public interface SomeInterface {
         }
     }
 
+    public class TunnelDesc {
+        Ip4Address src;
+        Ip4Address dst;
+        int teid;
+
+        public TunnelDesc(Ip4Address src, Ip4Address dst, int teid) {
+            this.src = src;
+            this.dst = dst;
+            this.teid = teid;
+        }
+    }
+
 
     void someMethod();
 
-    void addPdr(DeviceId deviceId, int ctrId, RuleId farId,
+    void addPdr(DeviceId deviceId, int sessionId, int ctrId, int farId, Ip4Address ueAddr);
+
+    void addPdr(DeviceId deviceId, int sessionId, int ctrId, int farId,
                         Ip4Address ueAddr, int teid, Ip4Address tunnelDst);
 
-    void addPdr(DeviceId deviceId, int ctrId, RuleId farId, Ip4Address ueAddr);
+    void addFar(DeviceId deviceId, int sessionId, int farId, boolean drop, boolean notifyCp, TunnelDesc desc);
 
-
-    void addFar(DeviceId deviceId, RuleId farID, boolean drop, boolean notifyCp, Ip4Address tunnelSrc, Ip4Address tunnelDst, int teid);
-
-    void addFar(DeviceId deviceId, RuleId farID, boolean drop, boolean notifyCp);
+    void addFar(DeviceId deviceId, int sessionId, int farId, boolean drop, boolean notifyCp);
 
     void addUePool(DeviceId deviceId, Ip4Prefix poolPrefix);
 

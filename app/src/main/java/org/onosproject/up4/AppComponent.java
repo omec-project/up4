@@ -27,6 +27,8 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+
 import org.onosproject.net.DeviceId;
 
 import org.onosproject.net.flow.FlowRule;
@@ -48,8 +50,13 @@ import java.util.Dictionary;
 import java.util.Properties;
 import java.util.Arrays;
 
-
 import static org.onlab.util.Tools.get;
+
+import org.apache.commons.lang3.tuple.Pair;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
@@ -80,18 +87,29 @@ public class AppComponent implements SomeInterface {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowRuleService flowRuleService;
 
+    // TODO: Use EventuallyConsistentMap instead
+    // TODO: Store PDR IDs for the flow rules somehow,
+    // since they arent actually part of the flow rules but need to be read
+    private BiMap<Pair<Integer, Integer>, Integer> farIds;
+
+    private AtomicInteger lastGlobalFarId;
 
     @Activate
     protected void activate() {
         appId = coreService.registerApplication(UPF_APP,
                                                 () -> log.info("Periscope down."));
         cfgService.registerProperties(getClass());
+
+        farIds = HashBiMap.create();
+
         log.info("Started");
     }
 
     @Deactivate
     protected void deactivate() {
         cfgService.unregisterProperties(getClass(), false);
+
+        farIds = null;
         log.info("Stopped");
     }
 
@@ -109,12 +127,22 @@ public class AppComponent implements SomeInterface {
         log.info("Invoked");
     }
 
-    private void addPdr(DeviceId deviceId, int ctrID, RuleId farID, PiCriterion match, PiTableId tableID) {
+
+    private int getGlobalFarId(int sessionId, int farId) {
+        return farIds.computeIfAbsent(
+            Pair.of(sessionId, farId),
+            k -> lastGlobalFarId.incrementAndGet()
+        );
+    }
+
+
+    private void addPdr(DeviceId deviceId, int sessionId, int ctrId, int farId, PiCriterion match, PiTableId tableID) {
+        int globalFarId = getGlobalFarId(sessionId, farId);
         PiAction action = PiAction.builder()
                 .withId(PiActionId.of("spgw_ingress.set_pdr_attributes"))
                 .withParameters(Arrays.asList(
-                    new PiActionParam(PiActionParamId.of("ctr_id"), ctrID),
-                    new PiActionParam(PiActionParamId.of("far_id"), farID.globalID)
+                    new PiActionParam(PiActionParamId.of("ctr_id"), ctrId),
+                    new PiActionParam(PiActionParamId.of("far_id"), globalFarId)
                 ))
                 .build();
 
@@ -126,10 +154,11 @@ public class AppComponent implements SomeInterface {
                 .build();
 
         flowRuleService.applyFlowRules(pdrEntry);
+        log.info("Added PDR table entry with flowID {}", pdrEntry.id().value());
     }
 
     @Override
-    public void addPdr(DeviceId deviceId, int ctrId, RuleId farId,
+    public void addPdr(DeviceId deviceId, int sessionId, int ctrId, int farId,
                         Ip4Address ueAddr, int teid, Ip4Address tunnelDst) {
         log.info("Adding uplink PDR");
         PiCriterion match = PiCriterion.builder()
@@ -137,24 +166,25 @@ public class AppComponent implements SomeInterface {
             .matchExact(PiMatchFieldId.of("teid"), teid)
             .matchExact(PiMatchFieldId.of("tunnel_ipv4_dst"), tunnelDst.toInt())
             .build();
-        this.addPdr(deviceId, ctrId, farId, match, PiTableId.of("spgw_ingress.uplink_pdr_lookup"));
+        this.addPdr(deviceId, sessionId, ctrId, farId, match, PiTableId.of("spgw_ingress.uplink_pdr_lookup"));
     }
 
     @Override
-    public void addPdr(DeviceId deviceId, int ctrId, RuleId farId, Ip4Address ueAddr) {
+    public void addPdr(DeviceId deviceId, int sessionId, int ctrId, int farId, Ip4Address ueAddr) {
         log.info("Adding downlink PDR");
-
         PiCriterion match = PiCriterion.builder()
             .matchExact(PiMatchFieldId.of("ue_addr"), ueAddr.toInt())
             .build();
 
-        this.addPdr(deviceId, ctrId, farId, match, PiTableId.of("spgw_ingress.downlink_pdr_lookup"));
+        this.addPdr(deviceId, sessionId, ctrId, farId, match, PiTableId.of("spgw_ingress.downlink_pdr_lookup"));
     }
 
 
-    private void addFar(DeviceId deviceId, RuleId farID, PiAction action) {
+    private void addFar(DeviceId deviceId, int sessionId, int farId, PiAction action) {
+        int globalFarId = getGlobalFarId(sessionId, farId);
+
         PiCriterion match = PiCriterion.builder()
-            .matchExact(PiMatchFieldId.of("far_id"), farID.globalID)
+            .matchExact(PiMatchFieldId.of("far_id"), globalFarId)
             .build();
         FlowRule farEntry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
@@ -163,26 +193,28 @@ public class AppComponent implements SomeInterface {
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .build();
         flowRuleService.applyFlowRules(farEntry);
+        log.info("Added FAR table entry with flowID {}", farEntry.id().value());
     }
 
     @Override
-    public void addFar(DeviceId deviceId, RuleId farID, boolean drop, boolean notifyCp, Ip4Address tunnelSrc, Ip4Address tunnelDst, int teid) {
+    public void addFar(DeviceId deviceId, int sessionId, int farId, boolean drop, boolean notifyCp, TunnelDesc tunnelDesc) {
         log.info("Adding simple downlink FAR entry");
+
         PiAction action = PiAction.builder()
                 .withId(PiActionId.of("spgw_ingress.load_tunnel_far_attributes"))
                 .withParameters(Arrays.asList(
                     new PiActionParam(PiActionParamId.of("drop"), drop ? 1 : 0),
                     new PiActionParam(PiActionParamId.of("notify_cp"), notifyCp ? 1 : 0),
-                    new PiActionParam(PiActionParamId.of("teid"), teid),
-                    new PiActionParam(PiActionParamId.of("tunnel_src_addr"), tunnelSrc.toInt()),
-                    new PiActionParam(PiActionParamId.of("tunnel_dst_addr"), tunnelDst.toInt())
+                    new PiActionParam(PiActionParamId.of("teid"), tunnelDesc.teid),
+                    new PiActionParam(PiActionParamId.of("tunnel_src_addr"), tunnelDesc.src.toInt()),
+                    new PiActionParam(PiActionParamId.of("tunnel_dst_addr"), tunnelDesc.dst.toInt())
                 ))
                 .build();
-        this.addFar(deviceId, farID, action);
+        this.addFar(deviceId, sessionId, farId, action);
     }
 
     @Override
-    public void addFar(DeviceId deviceId, RuleId farID, boolean drop, boolean notifyCp) {
+    public void addFar(DeviceId deviceId, int sessionId, int farId, boolean drop, boolean notifyCp) {
         log.info("Adding simple uplink FAR entry");
         PiAction action = PiAction.builder()
                 .withId(PiActionId.of("spgw_ingress.load_normal_far_attributes"))
@@ -191,7 +223,7 @@ public class AppComponent implements SomeInterface {
                     new PiActionParam(PiActionParamId.of("notify_cp"), notifyCp ? 1 : 0)
                 ))
                 .build();
-        this.addFar(deviceId, farID, action);
+        this.addFar(deviceId, sessionId, farId, action);
     }
 
     @Override
@@ -210,6 +242,7 @@ public class AppComponent implements SomeInterface {
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .build();
         flowRuleService.applyFlowRules(s1uEntry);
+        log.info("Added S1U entry with flowID {}", s1uEntry.id().value());
     }
 
     @Override
@@ -221,17 +254,18 @@ public class AppComponent implements SomeInterface {
         PiAction action = PiAction.builder()
                 .withId(PiActionId.of("nop"))
                 .build();
-        FlowRule s1uEntry = DefaultFlowRule.builder()
+        FlowRule uePoolEntry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
                 .forTable(PiTableId.of("spgw_ingress.downlink_filter_table"))
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .build();
-        flowRuleService.applyFlowRules(s1uEntry);
+        flowRuleService.applyFlowRules(uePoolEntry);
+        log.info("Added UE IPv4 pool entry with flowID {}", uePoolEntry.id().value());
     }
 
     public void readPdrCounter() {
-        log.info("");
+        log.info("readPdrCounter called. Currently does nothing.");
     }
 
 
