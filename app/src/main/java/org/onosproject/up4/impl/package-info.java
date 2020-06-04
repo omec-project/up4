@@ -17,4 +17,4 @@
 /**
  * The up4-app application.
  */
-package org.onosproject.up4;
+package org.onosproject.up4.impl;

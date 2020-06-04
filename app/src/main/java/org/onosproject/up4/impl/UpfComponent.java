@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.onosproject.up4;
+package org.onosproject.up4.impl;
 
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.packet.Ip4Address;
@@ -67,7 +67,7 @@ import java.util.concurrent.atomic.AtomicInteger;
            property = {
                "someProperty=Some Default String Value",
            })
-public class AppComponent implements SomeInterface {
+public class UpfComponent implements SomeInterface {
     public static final String UPF_APP = "org.onosproject.up4";
 
 
