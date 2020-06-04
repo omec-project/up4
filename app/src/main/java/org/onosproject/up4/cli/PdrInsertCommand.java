@@ -20,24 +20,18 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.onlab.packet.Ip4Address;
-import org.onlab.packet.Ip6Address;
-import org.onlab.packet.IpAddress;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
-
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.onosproject.up4.impl.UpfComponent;
+import org.onosproject.up4.Up4Service;
 
 /**
  * UPF PDR Insert Command
  */
 @Service
-@Command(scope = "onos", name = "pdr-insert",
+@Command(scope = "up4", name = "pdr-insert",
          description = "Insert a packet detection rule into the UPF dataplane")
 public class PdrInsertCommand extends AbstractShellCommand {
 
@@ -48,23 +42,23 @@ public class PdrInsertCommand extends AbstractShellCommand {
 
     @Argument(index = 1, name = "session-id",
             description = "Session ID for this PDR",
-            required = true, multiValued = true)
+            required = true, multiValued = false)
     int sessionId = 0;
 
     @Argument(index = 2, name = "ue-ipv4-addr",
             description = "Address of the UE for which this PDR applies",
-            required = true, multiValued = true)
+            required = true, multiValued = false)
     String ueAddr = null;
 
     @Argument(index = 3, name = "far-id",
             description = "ID of the FAR that should apply if this PDR matches",
-            required = true, multiValued = true)
+            required = true, multiValued = false)
     int farId = 0;
 
     @Override
     protected void doExecute() {
         DeviceService deviceService = get(DeviceService.class);
-        UpfComponent app = get(UpfComponent.class);
+        Up4Service app = get(Up4Service.class);
 
         Device device = deviceService.getDevice(DeviceId.deviceId(uri));
         if (device == null) {

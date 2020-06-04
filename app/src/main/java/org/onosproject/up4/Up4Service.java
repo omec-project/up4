@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.onosproject.up4.impl;
+package org.onosproject.up4;
 
 
 import org.onlab.packet.Ip4Prefix;
@@ -21,7 +21,7 @@ import org.onlab.packet.Ip4Address;
 import org.onosproject.net.DeviceId;
 
 
-public interface SomeInterface {
+public interface Up4Service {
 
 
     /**
@@ -69,30 +69,6 @@ public interface SomeInterface {
         }
     }
 
-    /**
-     *
-     */
-    public class RuleId {
-        SessionId   sessionID;  // Session associated with this RuleID
-        int         localID;    // Session-local Rule ID
-        int         globalID;   // Globally unique Rule ID
-
-        public RuleId(SessionId sessionID, int localID, int globalID) {
-            this.sessionID = sessionID;
-            this.localID = localID;
-            this.globalID = globalID;
-        }
-    }
-
-    public class SessionId {
-        Ip4Address  endpoint;
-        int         localID;
-
-        public SessionId(Ip4Address endpoint, int localID) {
-            this.endpoint = endpoint;
-            this.localID = localID;
-        }
-    }
 
     public class TunnelDesc {
         Ip4Address src;

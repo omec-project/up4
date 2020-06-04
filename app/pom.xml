@@ -32,13 +32,13 @@
     <url>http://onosproject.org</url>
 
     <properties>
-        <onos.app.name>org.onosproject.upf</onos.app.name>
-        <onos.app.title>UPF App</onos.app.title>
+        <onos.app.name>org.onosproject.up4</onos.app.name>
+        <onos.app.title>UP4 Control App</onos.app.title>
         <onos.app.origin>Open Networking Foundation</onos.app.origin>
         <onos.app.category>Traffic Steering</onos.app.category>
         <onos.app.url>http://onosproject.org</onos.app.url>
         <onos.app.readme>
-            UPF app for controlling the UPF component of the Trellis dataplane.
+            App for controlling the UP4 component of fabric.p4.
         </onos.app.readme>
     </properties>
 
@@ -93,7 +93,15 @@
                 <groupId>org.onosproject</groupId>
                 <artifactId>onos-maven-plugin</artifactId>
             </plugin>
+            <plugin>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <configuration>
+                    <instructions>
+                        <Karaf-Commands>org.onosproject.up4.cli</Karaf-Commands>
+                    </instructions>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
-
 </project>

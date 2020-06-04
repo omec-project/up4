@@ -20,26 +20,20 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.onlab.packet.Ip4Address;
-import org.onlab.packet.Ip6Address;
-import org.onlab.packet.IpAddress;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.onosproject.up4.impl.SomeInterface;
-import org.onosproject.up4.impl.SomeInterface.TunnelDesc;
-import org.onosproject.up4.impl.UpfComponent;
+import org.onosproject.up4.Up4Service;
+import org.onosproject.up4.Up4Service.TunnelDesc;
 
 /**
  * UPF Far Insert Command
  */
 @Service
-@Command(scope = "onos", name = "far-insert",
+@Command(scope = "up4", name = "far-insert",
         description = "Insert a forwarding action rule into the UPF dataplane")
 public class FarInsertCommand extends AbstractShellCommand {
 
@@ -76,7 +70,7 @@ public class FarInsertCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() {
         DeviceService deviceService = get(DeviceService.class);
-        UpfComponent app = get(UpfComponent.class);
+        Up4Service app = get(Up4Service.class);
 
         Device device = deviceService.getDevice(DeviceId.deviceId(uri));
         if (device == null) {

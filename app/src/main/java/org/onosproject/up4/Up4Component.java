@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.onosproject.up4.impl;
+package org.onosproject.up4;
 
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.packet.Ip4Address;
@@ -60,15 +60,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
- * Draft UPF ONOS application component.
+ * Draft UP4 ONOS application component.
  */
 @Component(immediate = true,
-           service = {SomeInterface.class},
+           service = {Up4Service.class},
            property = {
                "someProperty=Some Default String Value",
            })
-public class UpfComponent implements SomeInterface {
-    public static final String UPF_APP = "org.onosproject.up4";
+public class Up4Component implements Up4Service {
+    public static final String UP4_APP = "org.onosproject.up4";
 
 
     /** Some configurable property. */
@@ -93,14 +93,16 @@ public class UpfComponent implements SomeInterface {
     private BiMap<Pair<Integer, Integer>, Integer> farIds;
 
     private AtomicInteger lastGlobalFarId;
+    private static final int DEFAULT_PRIORITY = 128;
 
     @Activate
     protected void activate() {
-        appId = coreService.registerApplication(UPF_APP,
+        appId = coreService.registerApplication(UP4_APP,
                                                 () -> log.info("Periscope down."));
         cfgService.registerProperties(getClass());
 
         farIds = HashBiMap.create();
+        lastGlobalFarId = new AtomicInteger(0);
 
         log.info("Started");
     }
@@ -151,6 +153,7 @@ public class UpfComponent implements SomeInterface {
                 .forTable(tableID)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
+                .withPriority(DEFAULT_PRIORITY)
                 .build();
 
         flowRuleService.applyFlowRules(pdrEntry);
@@ -191,6 +194,7 @@ public class UpfComponent implements SomeInterface {
                 .forTable(PiTableId.of("spgw_ingress.far_lookup"))
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
+                .withPriority(DEFAULT_PRIORITY)
                 .build();
         flowRuleService.applyFlowRules(farEntry);
         log.info("Added FAR table entry with flowID {}", farEntry.id().value());
@@ -240,6 +244,7 @@ public class UpfComponent implements SomeInterface {
                 .forTable(PiTableId.of("spgw_ingress.uplink_filter_table"))
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
+                .withPriority(DEFAULT_PRIORITY)
                 .build();
         flowRuleService.applyFlowRules(s1uEntry);
         log.info("Added S1U entry with flowID {}", s1uEntry.id().value());
@@ -259,6 +264,7 @@ public class UpfComponent implements SomeInterface {
                 .forTable(PiTableId.of("spgw_ingress.downlink_filter_table"))
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
+                .withPriority(DEFAULT_PRIORITY)
                 .build();
         flowRuleService.applyFlowRules(uePoolEntry);
         log.info("Added UE IPv4 pool entry with flowID {}", uePoolEntry.id().value());

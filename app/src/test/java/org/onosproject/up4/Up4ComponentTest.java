@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.onosproject.up4.impl;
+package org.onosproject.up4;
 
 import org.junit.After;
 import org.junit.Before;
@@ -21,17 +21,18 @@ import org.junit.Test;
 import org.onosproject.cfg.ComponentConfigAdapter;
 import org.onosproject.core.CoreServiceAdapter;
 import org.onosproject.net.flow.FlowRuleServiceAdapter;
+import org.onosproject.up4.Up4Component;
 
 /**
  * Set of tests of the ONOS application component.
  */
-public class UpfComponentTest {
+public class Up4ComponentTest {
 
-    private UpfComponent component;
+    private Up4Component component;
 
     @Before
     public void setUp() {
-        component = new UpfComponent();
+        component = new Up4Component();
         component.cfgService = new ComponentConfigAdapter();
         component.coreService = new CoreServiceAdapter();
         component.flowRuleService = new FlowRuleServiceAdapter();
