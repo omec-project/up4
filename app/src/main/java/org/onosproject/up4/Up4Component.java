@@ -141,7 +141,7 @@ public class Up4Component implements Up4Service {
     private void addPdr(DeviceId deviceId, int sessionId, int ctrId, int farId, PiCriterion match, PiTableId tableID) {
         int globalFarId = getGlobalFarId(sessionId, farId);
         PiAction action = PiAction.builder()
-                .withId(PiActionId.of("spgw_ingress.set_pdr_attributes"))
+                .withId(PiActionId.of("FabricIngress.spgw_ingress.set_pdr_attributes"))
                 .withParameters(Arrays.asList(
                     new PiActionParam(PiActionParamId.of("ctr_id"), ctrId),
                     new PiActionParam(PiActionParamId.of("far_id"), globalFarId)
@@ -169,7 +169,8 @@ public class Up4Component implements Up4Service {
             .matchExact(PiMatchFieldId.of("teid"), teid)
             .matchExact(PiMatchFieldId.of("tunnel_ipv4_dst"), tunnelDst.toInt())
             .build();
-        this.addPdr(deviceId, sessionId, ctrId, farId, match, PiTableId.of("spgw_ingress.uplink_pdr_lookup"));
+        this.addPdr(deviceId, sessionId, ctrId, farId, match,
+                PiTableId.of("FabricIngress.spgw_ingress.uplink_pdr_lookup"));
     }
 
     @Override
@@ -179,7 +180,8 @@ public class Up4Component implements Up4Service {
             .matchExact(PiMatchFieldId.of("ue_addr"), ueAddr.toInt())
             .build();
 
-        this.addPdr(deviceId, sessionId, ctrId, farId, match, PiTableId.of("spgw_ingress.downlink_pdr_lookup"));
+        this.addPdr(deviceId, sessionId, ctrId, farId, match,
+                PiTableId.of("FabricIngress.spgw_ingress.downlink_pdr_lookup"));
     }
 
 
@@ -191,7 +193,7 @@ public class Up4Component implements Up4Service {
             .build();
         FlowRule farEntry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(PiTableId.of("spgw_ingress.far_lookup"))
+                .forTable(PiTableId.of("FabricIngress.spgw_ingress.far_lookup"))
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(DEFAULT_PRIORITY)
@@ -205,7 +207,7 @@ public class Up4Component implements Up4Service {
         log.info("Adding simple downlink FAR entry");
 
         PiAction action = PiAction.builder()
-                .withId(PiActionId.of("spgw_ingress.load_tunnel_far_attributes"))
+                .withId(PiActionId.of("FabricIngress.spgw_ingress.load_tunnel_far_attributes"))
                 .withParameters(Arrays.asList(
                     new PiActionParam(PiActionParamId.of("drop"), drop ? 1 : 0),
                     new PiActionParam(PiActionParamId.of("notify_cp"), notifyCp ? 1 : 0),
@@ -221,7 +223,7 @@ public class Up4Component implements Up4Service {
     public void addFar(DeviceId deviceId, int sessionId, int farId, boolean drop, boolean notifyCp) {
         log.info("Adding simple uplink FAR entry");
         PiAction action = PiAction.builder()
-                .withId(PiActionId.of("spgw_ingress.load_normal_far_attributes"))
+                .withId(PiActionId.of("FabricIngress.spgw_ingress.load_normal_far_attributes"))
                 .withParameters(Arrays.asList(
                     new PiActionParam(PiActionParamId.of("drop"), drop ? 1 : 0),
                     new PiActionParam(PiActionParamId.of("notify_cp"), notifyCp ? 1 : 0)
@@ -241,7 +243,7 @@ public class Up4Component implements Up4Service {
                 .build();
         FlowRule s1uEntry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(PiTableId.of("spgw_ingress.uplink_filter_table"))
+                .forTable(PiTableId.of("FabricIngress.spgw_ingress.uplink_filter_table"))
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(DEFAULT_PRIORITY)
@@ -261,7 +263,7 @@ public class Up4Component implements Up4Service {
                 .build();
         FlowRule uePoolEntry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(PiTableId.of("spgw_ingress.downlink_filter_table"))
+                .forTable(PiTableId.of("FabricIngress.spgw_ingress.downlink_filter_table"))
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(DEFAULT_PRIORITY)

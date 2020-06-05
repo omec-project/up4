@@ -4,7 +4,7 @@
       "basic": {
         "managementAddress": "grpc://host.docker.internal:50001?device_id=1",
         "driver": "stratum-bmv2",
-        "pipeconf": "org.onosproject.pipelines.fabric"
+        "pipeconf": "org.onosproject.pipelines.fabric-spgw"
       }
     }
   }

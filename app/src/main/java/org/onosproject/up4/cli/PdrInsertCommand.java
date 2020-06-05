@@ -55,6 +55,16 @@ public class PdrInsertCommand extends AbstractShellCommand {
             required = true, multiValued = false)
     int farId = 0;
 
+    @Argument(index = 4, name = "teid",
+            description = "Tunnel ID of the tunnel to/from the base station",
+            required = false, multiValued = false)
+    int teid = -1;
+
+    @Argument(index = 5, name = "s1u-ip",
+            description = "IP address of the S1U interface (endpoint of the tunnel to the base station)",
+            required = false, multiValued = false)
+    String s1uAddr = null;
+
     @Override
     protected void doExecute() {
         DeviceService deviceService = get(DeviceService.class);
@@ -68,8 +78,25 @@ public class PdrInsertCommand extends AbstractShellCommand {
 
         Ip4Address ueAddr = Ip4Address.valueOf(this.ueAddr);
 
-        print("Installing PDR on device %s", uri);
-        app.addPdr(device.id(), sessionId, 1, farId, ueAddr);
+        if (teid != -1 || s1uAddr != null) {
+            if (teid == -1) {
+                print("TEID must be provided with the S1U IP address");
+                return;
+            }
+            if (s1uAddr == null) {
+                print("S1U IP address must be provided with the TEID.");
+                return;
+            }
+            Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
+            print("Installing *Uplink* PDR on device %s", uri);
+            app.addPdr(device.id(), sessionId, 1, farId, ueAddr, teid, s1uAddr);
+        }
+        else {
+            print("Installing *Downlink* PDR on device %s", uri);
+            app.addPdr(device.id(), sessionId, 1, farId, ueAddr);
+        }
+
+
     }
 
 }
