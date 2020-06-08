@@ -9,6 +9,7 @@ ptf/*.pcap
 *.iml
 tmp/
 target/
+onos-tools/
 
 *.class
 *.DS_Store
