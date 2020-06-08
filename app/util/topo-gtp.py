@@ -81,12 +81,12 @@ class TutorialTopo(Topo):
 
         # IPv4 hosts attached to leaf 1
         enodeb = self.addHost('enodeb', cls=IPv4Host, mac='00:00:00:00:00:10',
-                              ip='10.0.100.1/24', gw='10.0.100.254')
+                              ip='140.0.100.1/24', gw='140.0.100.254')
         self.addLink(enodeb, leaf1)  # port 3
 
         # IPv4 hosts attached to leaf 2
         pdn = self.addHost('pdn', cls=IPv4Host, mac='00:00:00:00:00:20',
-                           ip='10.0.200.1/24', gw='10.0.200.254')
+                           ip='140.0.200.1/24', gw='140.0.200.254')
         self.addLink(pdn, leaf2)  # port 3
 
 

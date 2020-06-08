@@ -8,15 +8,15 @@ Push the netcfg
 Run the ONOS CLI, activate three apps, and install routes  
     make onos-cli  
     onos> app activate fabric segmentrouting netcfghostprovider  
-    onos> route-add 17.0.0.0/24 10.0.100.1  
+    onos> route-add 17.0.0.0/24 140.0.100.1  
 Load our app  
     make app-load
 Install table entries  
 1. Uplink  
-    up4:s1u-insert device:leaf1 10.0.100.254  
-    up4:pdr-insert device:leaf1 1 17.0.0.1 1 255 10.0.100.254  
+    up4:s1u-insert device:leaf1 140.0.100.254  
+    up4:pdr-insert device:leaf1 1 17.0.0.1 1 255 140.0.100.254  
     up4:far-insert device:leaf1 1 1   
 1. Downlink  
     up4:ue-pool-insert device:leaf1 17.0.0.0/24  
     up4:pdr-insert device:leaf1 1 17.0.0.1 2  
-    up4:far-insert device:leaf1 1 2 255 10.0.100.254 10.0.100.1  
+    up4:far-insert device:leaf1 1 2 255 140.0.100.254 140.0.100.1  
