@@ -1,27 +1,39 @@
 # up4-app
-ONOS Application for managing the hardware implementation of the abstract UP4 pipeline
-
+ONOS Application for managing the hardware implementation of the abstract UP4 pipeline  
+## Testing Instructions
 Start mininet and ONOS:
 
-    make start  
+    $ make start  
 Push the netcfg  
 
-    make netcfg  
+    $ make netcfg  
 Run the ONOS CLI, activate three apps, and install routes 
  
-    make onos-cli  
+    $ make onos-cli  
     onos> app activate fabric segmentrouting netcfghostprovider  
     onos> route-add 17.0.0.0/24 140.0.100.1  
-Load our app  
+Build and load the UP4 app
 
-    make app-load
-Install table entries for the uplink:
+    $ make build
+    $ make app-load
+Using the ONOS CLI, install table entries for uplink packets:
 
-    up4:s1u-insert device:leaf1 140.0.100.254  
-    up4:pdr-insert device:leaf1 1 17.0.0.1 1 255 140.0.100.254  
-    up4:far-insert device:leaf1 1 1     
-Install table entries for the downlink:
+    onos> up4:s1u-insert device:leaf1 140.0.100.254  
+    onos> up4:pdr-insert device:leaf1 1 17.0.0.1 1 255 140.0.100.254  
+    onos> up4:far-insert device:leaf1 1 1     
+And for downlink:
 
-    up4:ue-pool-insert device:leaf1 17.0.0.0/24  
-    up4:pdr-insert device:leaf1 1 17.0.0.1 2  
-    up4:far-insert device:leaf1 1 2 255 140.0.100.254 140.0.100.1  
+    onos> up4:ue-pool-insert device:leaf1 17.0.0.0/24  
+    onos> up4:pdr-insert device:leaf1 1 17.0.0.1 2  
+    onos> up4:far-insert device:leaf1 1 2 255 140.0.100.254 140.0.100.1 
+Verify uplink packets transmit:
+    
+    terminal1$ util/mn-cmd enodeb /util/traffic.py send-gtp
+    
+    terminal2$ util/mn-cmd pdn /util/traffic.py recv
+    
+Verify downlink packets transmit:
+    
+    terminal1$ util/mn-cmd pdn /util/traffic.py send-udp
+    
+    terminal2$ util/mn-cmd enodeb /util/traffic.py recv
