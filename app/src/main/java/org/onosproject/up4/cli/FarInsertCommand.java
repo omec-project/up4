@@ -96,11 +96,8 @@ public class FarInsertCommand extends AbstractShellCommand {
         }
         else {
             print("Installing *Uplink* FAR on device %s", uri);
+            app.addFar(device.id(), sessionId, farId, false, false);
         }
-
-
-
-        app.addFar(device.id(), sessionId, farId, false, false);
     }
 
 }

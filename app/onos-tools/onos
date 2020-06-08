@@ -1,0 +1,29 @@
+#!/bin/bash
+# -----------------------------------------------------------------------------
+# ONOS remote command-line client.
+# -----------------------------------------------------------------------------
+
+function _usage () {
+cat << _EOF_
+usage: $(basename $0) [node [command]]
+
+ONOS remote command-line client.
+
+Parameters:
+  - node          ip or hostname of cluster node to attach to
+  - command       command to be executed
+
+If node is unspecified, the value of \$OCI environment variable is used.
+_EOF_
+}
+
+[ "$1" = "-h" -o "$1" = '-?' ] && _usage && exit 0
+[ "$1" = "-w" ] && echo "-w option is deprecated" && shift   # Deprecated
+[ "$1" = "-f" ] && echo "-f option is deprecated" && shift   # Deprecated
+
+[ -f $(dirname $0)/find-node.sh ] && . $(dirname $0)/find-node.sh
+[ -f $(dirname $0)/_find-node ] && . $(dirname $0)/_find-node
+
+[ -n "$1" ] && OCI=$(find_node $1) && shift
+
+ssh -q -p 8101 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $OCI "$@"

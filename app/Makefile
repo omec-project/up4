@@ -1,4 +1,6 @@
-# Commands are listed roughly in the order in which they should be executed
+onos_url := http://localhost:8181/onos
+onos_curl := curl --fail -sSL --user onos:rocks --noproxy localhost
+
 
 get-onos-tools:
 	curl -sS --fail https://repo1.maven.org/maven2/org/onosproject/onos-releases/2.2.2/onos-admin-2.2.2.tar.gz \
@@ -10,11 +12,36 @@ get-onos-tools:
 build:
 	mvn package
 
+start:
+	$(info *** Starting ONOS and Mininet (topo-gtp.py)... )
+	$(info *** Remember to activate fabric, segmentrouting, and netcfghostprovider)
+	@mkdir -p tmp/onos
+	@NGSDN_TOPO_PY=topo-gtp.py docker-compose up -d
+
+stop:
+	$(info *** Stopping ONOS and Mininet...)
+	@NGSDN_TOPO_PY=foo docker-compose down -t0
+
+reset: stop
+	-$(NGSDN_TUTORIAL_SUDO) rm -rf ./tmp
+
+
 mn-start:
 	docker run --privileged --rm -it \
 	  -v /tmp/mn-stratum:/tmp \
 	  -p 50001-50030:50001-50030 \
 	  opennetworking/mn-stratum
+
+mn-cli:
+	$(info *** Attaching to Mininet CLI...)
+	$(info *** To detach press Ctrl-D (Mininet will keep running))
+	-@docker attach --detach-keys "ctrl-d" $(shell docker-compose ps -q mininet) || echo "*** Detached from Mininet CLI"
+
+mn-log:
+	docker logs -f mininet
+	
+onos-log:
+	docker-compose logs -f onos
 
 onos-start:
 	docker run -it --rm \
@@ -28,8 +55,12 @@ app-load:
 app-reload:
 	./onos-tools/onos-app localhost reinstall! target/up4-app-0.1.oar
 
-push-netcfg:
-	./onos-tools/onos-netcfg localhost netcfg.json
+
+netcfg:
+	$(info *** Pushing ./util/netcfg.json to ONOS...)
+	${onos_curl} -X POST -H 'Content-Type:application/json' \
+		${onos_url}/v1/network/configuration -d@./util/netcfg.json
+	@echo
 
 onos-cli:
 	echo "Password: rocks"

@@ -1,0 +1,47 @@
+#!/bin/bash
+# -----------------------------------------------------------------------------
+# Tool to create an application from scratch using ONOS Maven archetypes.
+# -----------------------------------------------------------------------------
+
+# If ONOS_HOME is set, respect its value.
+# If ONOS_HOME is not set (e.g. in the init or service environment),
+# set it based on this script's path.
+ONOS_HOME=${ONOS_HOME:-$(cd $(dirname $0)/.. >/dev/null 2>&1 && pwd)}
+
+type=${1:-bundle}
+
+[ $type = app ] && archetype=bundle || archetype=$type
+
+if [ "$1" = "-?" -o "$1" = "-h" -o "$1" = "--help" ]; then
+    echo "usage: $(basename $0) {app|bundle|ui|ui2|uitab|uitopo|cli|api} groupId artifactId version package mvn-options"
+    echo "        All arguments are optional"
+    exit 1
+fi
+
+otherOptions=""
+[ -n "$1" ] && shift
+[ -n "$1" ] && otherOptions="$otherOptions -DgroupId=$1" && shift
+[ -n "$1" ] && otherOptions="$otherOptions -DartifactId=$1" && dir=$1 && shift
+[ -n "$1" ] && otherOptions="$otherOptions -Dversion=$1" && shift
+[ -n "$1" ] && otherOptions="$otherOptions -Dpackage=$1" && shift
+
+set -e
+
+mvn archetype:generate -DarchetypeCatalog=local,remote \
+    -DarchetypeGroupId=org.onosproject \
+    -DarchetypeArtifactId=onos-$archetype-archetype \
+    -DarchetypeVersion=$ONOS_POM_VERSION $otherOptions "$@"
+
+# Patch the pom.xml file to make this an app.
+if [ $type = app ]; then
+    # We need to add a few lines to the pom.xml to make this an app
+    if [ -n "$dir" ] && [ -d $dir ]; then
+        egrep -v "        (<!--|-->)" $dir/pom.xml > $dir/pom.app.xml
+        mv $dir/pom.app.xml $dir/pom.xml
+    else
+        echo
+        echo "IMPORTANT:"
+        echo "To build the application, you need to uncomment the 'onos.app.name' and 'onos.app.origin' properties in the pom.xml"
+        echo
+    fi
+fi

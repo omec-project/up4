@@ -6,6 +6,9 @@ ptf/*.pcap
 .yapf/
 *.swp
 *.code-workspace
+*.iml
+tmp/
+target/
 
 *.class
 *.DS_Store

@@ -18,6 +18,7 @@ package org.onosproject.up4;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cfg.ComponentConfigService;
+import org.onosproject.net.Device;
 import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
