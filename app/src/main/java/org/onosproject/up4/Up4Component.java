@@ -69,8 +69,6 @@ import java.util.concurrent.atomic.AtomicInteger;
                "someProperty=Some Default String Value",
            })
 public class Up4Component implements Up4Service {
-    public static final String UP4_APP = "org.onosproject.up4";
-
 
     /** Some configurable property. */
     // Leaving in for now as a reference
@@ -98,22 +96,33 @@ public class Up4Component implements Up4Service {
 
     @Activate
     protected void activate() {
-        appId = coreService.registerApplication(UP4_APP,
+        appId = coreService.registerApplication(AppConstants.APP_NAME,
                                                 () -> log.info("Periscope down."));
         cfgService.registerProperties(getClass());
-
-        farIds = HashBiMap.create();
-        lastGlobalFarId = new AtomicInteger(0);
-
+        start();
         log.info("Started");
     }
 
     @Deactivate
     protected void deactivate() {
         cfgService.unregisterProperties(getClass(), false);
-
-        farIds = null;
+        stop();
         log.info("Stopped");
+    }
+
+    /**
+     * Init whatever data structures or objects.
+     */
+    protected void start() {
+        farIds = HashBiMap.create();
+        lastGlobalFarId = new AtomicInteger(0);
+    }
+
+    /**
+     * Delete data structures or objects.
+     */
+    protected void stop() {
+        farIds = null;
     }
 
     @Modified

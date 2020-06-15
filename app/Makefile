@@ -18,6 +18,11 @@ start:
 	@mkdir -p tmp/onos
 	@NGSDN_TOPO_PY=topo-gtp.py docker-compose up -d
 
+p4rt-shell:
+    docker run -ti p4lang/p4runtime-sh \
+      --grpc-addr localhost:51001 \
+      --device-id 0 --election-id 0,1
+
 stop:
 	$(info *** Stopping ONOS and Mininet...)
 	@NGSDN_TOPO_PY=foo docker-compose down -t0
