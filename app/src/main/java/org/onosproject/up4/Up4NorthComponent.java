@@ -37,6 +37,7 @@ import org.osgi.service.component.annotations.*;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.netty.NettyServerBuilder;
 
 import java.io.IOException;
 
@@ -67,21 +68,11 @@ import org.onosproject.codec.CodecService;
 
 import static org.onosproject.up4.AppConstants.PIPECONF_ID;
 
-@Component(immediate = true,
-        property = {
-                "grpcPort=51001",
-                "up4InfoFile=/p4info.txt"
-        })
+@Component(immediate = true)
 public class Up4NorthComponent {
-    public static final String UP4_NORTH_APP = "org.onosproject.up4north";
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-    /** gRPC port on which this component will listen for UP4 messages. */
-    private int grpcPort;
     private Server server;
-    /** Path to the UP4 p4info.txt file */
-    private String up4InfoFile;
-
     private ApplicationId appId;
     private P4InfoOuterClass.P4Info p4Info;
     private long pipeconfCookie = 0xbeefbeef;
@@ -105,7 +96,7 @@ public class Up4NorthComponent {
     @Activate
     protected void activate() {
         appId = coreService.getAppId(AppConstants.APP_NAME);
-        cfgService.registerProperties(getClass());
+        //cfgService.registerProperties(getClass());
         start();
         log.info("UP4 Northbound component activated.");
     }
@@ -130,11 +121,11 @@ public class Up4NorthComponent {
 
         // Start Server
         try {
-            server = ServerBuilder.forPort(grpcPort)
+            server = NettyServerBuilder.forPort(AppConstants.GRPC_SERVER_PORT)
                     .addService(new Up4NorthService())
                     .build()
                     .start();
-            log.info("UP4 gRPC server started on port {}", grpcPort);
+            log.info("UP4 gRPC server started on port {}", AppConstants.GRPC_SERVER_PORT);
         } catch (IOException e) {
             log.error("Unable to start gRPC server", e);
             throw new IllegalStateException("Unable to start gRPC server", e);
@@ -160,7 +151,9 @@ public class Up4NorthComponent {
 
     private PiPipeconf buildPipeconf() throws P4InfoParserException {
 
-        final URL p4InfoUrl = Up4NorthComponent.class.getResource(up4InfoFile);
+        log.info("Looking for p4info file named {}", AppConstants.P4INFO_PATH);
+        final URL p4InfoUrl = Up4NorthComponent.class.getResource(AppConstants.P4INFO_PATH);
+        log.info("Reading p4info file from path {}", p4InfoUrl);
         final PiPipelineModel pipelineModel = P4InfoParser.parse(p4InfoUrl);
 
         return DefaultPiPipeconf.builder()

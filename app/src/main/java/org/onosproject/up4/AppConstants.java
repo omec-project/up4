@@ -21,4 +21,6 @@ import org.onosproject.net.pi.model.PiPipeconfId;
 public class AppConstants {
     public static final String APP_NAME = "org.onosproject.up4";
     public static final PiPipeconfId PIPECONF_ID = new PiPipeconfId("org.onosproject.up4");
+    public static final int GRPC_SERVER_PORT = 51001;
+    public static final String P4INFO_PATH = "/p4info.txt";
 }

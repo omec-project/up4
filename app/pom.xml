@@ -170,9 +170,11 @@
             <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
+                <extensions>true</extensions>
                 <configuration>
                     <instructions>
                         <Karaf-Commands>org.onosproject.up4.cli</Karaf-Commands>
+                        <Import-Package>com.google.protobuf;version=2.2.3,*</Import-Package>
                     </instructions>
                 </configuration>
             </plugin>
