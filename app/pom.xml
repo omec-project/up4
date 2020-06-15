@@ -41,6 +41,9 @@
         <onos.app.readme>
             App for controlling the UP4 component of fabric.p4.
         </onos.app.readme>
+        <onos.app.requires>
+            org.onosproject.protocols.grpc
+        </onos.app.requires>
     </properties>
 
     <dependencies>

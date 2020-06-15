@@ -18,6 +18,10 @@ start:
 	@mkdir -p tmp/onos
 	@NGSDN_TOPO_PY=topo-gtp.py docker-compose up -d
 
+clean:
+	rm -rf target/
+	rm -rf tmp/
+
 p4rt-shell:
     docker run -ti p4lang/p4runtime-sh \
       --grpc-addr localhost:51001 \

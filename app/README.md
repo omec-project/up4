@@ -7,10 +7,10 @@ Start mininet and ONOS:
 Push the netcfg  
 
     $ make netcfg  
-Run the ONOS CLI, activate three apps, and install routes 
+Run the ONOS CLI, activate four apps, and install routes 
  
     $ make onos-cli  
-    onos> app activate fabric segmentrouting netcfghostprovider  
+    onos> app activate fabric segmentrouting netcfghostprovider org.onosproject.protocols.grpc
     onos> route-add 17.0.0.0/24 140.0.100.1  
 Build and load the UP4 app
 
