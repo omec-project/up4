@@ -99,7 +99,7 @@ public class Up4NorthComponent {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected CoreService coreService;
 
-    //@Reference(cardinality = ReferenceCardinality.MANDATORY)
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Service up4Service;
 
     @Activate
