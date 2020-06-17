@@ -23,9 +23,11 @@ clean:
 	rm -rf tmp/
 
 p4rt-shell:
-    docker run -ti p4lang/p4runtime-sh \
-      --grpc-addr localhost:51001 \
-      --device-id 0 --election-id 0,1
+	docker exec -it $(shell docker-compose ps -q p4rtsh)  \
+		/p4runtime-sh/docker_entry_point.sh \
+		-v --grpc-addr onos:51001 \
+		--device-id 0 --election-id 0,1
+
 
 stop:
 	$(info *** Stopping ONOS and Mininet...)
@@ -34,12 +36,6 @@ stop:
 reset: stop
 	-$(NGSDN_TUTORIAL_SUDO) rm -rf ./tmp
 
-
-mn-start:
-	docker run --privileged --rm -it \
-	  -v /tmp/mn-stratum:/tmp \
-	  -p 50001-50030:50001-50030 \
-	  opennetworking/mn-stratum
 
 mn-cli:
 	$(info *** Attaching to Mininet CLI...)
@@ -52,11 +48,6 @@ mn-log:
 onos-log:
 	docker-compose logs -f onos
 
-onos-start:
-	docker run -it --rm \
-	  -e ONOS_APPS=gui2,drivers.bmv2,pipelines.fabric,lldpprovider,hostprovider,fwd \
-	  -p 8101:8101 -p 8181:8181 \
-	  onosproject/onos:2.2-latest
 
 app-load:
 	./onos-tools/onos-app localhost install! target/up4-app-0.1.oar

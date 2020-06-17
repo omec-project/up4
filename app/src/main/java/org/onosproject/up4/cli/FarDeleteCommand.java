@@ -25,25 +25,32 @@ import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
+
 import org.onosproject.up4.Up4Service;
+import org.onosproject.up4.Up4Service.TunnelDesc;
 
 /**
- * UPF PDR Insert Command
+ * UPF Far Insert Command
  */
 @Service
-@Command(scope = "up4", name = "s1u-insert",
-        description = "Insert a S1U interface address into the UPF dataplane")
-public class InterfaceInsertCommand extends AbstractShellCommand {
+@Command(scope = "up4", name = "far-delete",
+        description = "Delete a forwarding action rule from the UPF dataplane")
+public class FarDeleteCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "uri", description = "Device ID",
             required = true)
     @Completion(DeviceIdCompleter.class)
     String uri = null;
 
-    @Argument(index = 1, name = "s1u-addr",
-            description = "Address of the S1U interface",
+    @Argument(index = 1, name = "session-id",
+            description = "Session ID for this PDR",
             required = true)
-    String s1uAddr = null;
+    int sessionId = 0;
+
+    @Argument(index = 2, name = "far-id",
+            description = "ID of the FAR",
+            required = true)
+    int farId = 0;
 
     @Override
     protected void doExecute() {
@@ -56,13 +63,8 @@ public class InterfaceInsertCommand extends AbstractShellCommand {
             return;
         }
 
-        Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
-
-        print("Adding S1U interface address to device %s", uri);
-        app.addS1uInterface(device.id(), s1uAddr);
-
-
+        print("Deleting a FAR from device %s", uri);
+        app.removeFar(device.id(), sessionId, farId);
     }
 
 }
-

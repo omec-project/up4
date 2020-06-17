@@ -82,8 +82,41 @@ public interface Up4Service {
         }
     }
 
+    public class PdrStats {
+        public int pdrId;
+        public long ingressPkts;
+        public long ingressBytes;
+        public long egressPkts;
+        public long egressBytes;
 
-    void someMethod();
+        public String toString() {
+            return String.format("PDR-Stats:{ Ctr-ID: %d, Ingress:(%dpkts,%dbytes), Egress:(%dpkts,%dbytes) }",
+                    pdrId, ingressPkts, ingressBytes, egressPkts, egressBytes);
+        }
+
+        public PdrStats setIngress(long pkts, long bytes) {
+            ingressPkts = pkts;
+            ingressBytes = bytes;
+            return this;
+        }
+
+        public PdrStats setEgress(long pkts, long bytes) {
+            egressPkts = pkts;
+            egressBytes = bytes;
+            return this;
+        }
+
+        public PdrStats(int pdrId) {
+            this.pdrId = pdrId;
+        }
+
+        public static PdrStats of(int pdrId) {
+            return new PdrStats(pdrId);
+        }
+
+    }
+
+    PdrStats readCounter(DeviceId deviceId, int cellId);
 
     void addPdr(DeviceId deviceId, int sessionId, int ctrId, int farId, Ip4Address ueAddr);
 
@@ -97,5 +130,17 @@ public interface Up4Service {
     void addUePool(DeviceId deviceId, Ip4Prefix poolPrefix);
 
     void addS1uInterface(DeviceId deviceId, Ip4Address s1uAddr);
+
+    void removePdr(DeviceId deviceId, Ip4Address ueAddr, int teid, Ip4Address tunnelDst);
+
+    void removePdr(DeviceId deviceId, Ip4Address ueAddr);
+
+    void removeFar(DeviceId deviceId, int sessionId, int farId);
+
+    void removeUePool(DeviceId deviceId, Ip4Prefix poolPrefix);
+
+    void removeS1uInterface(DeviceId deviceId, Ip4Address s1uAddr);
+
+    void removeUnknownInterface(DeviceId deviceId, Ip4Prefix ifacePrefix);
 
 }

@@ -19,6 +19,11 @@ import org.onlab.packet.Ip4Prefix;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.net.Device;
+import org.onosproject.net.flow.*;
+import org.onosproject.net.pi.service.PiPipeconfService;
+import org.onosproject.p4runtime.api.P4RuntimeController;
+import org.onosproject.p4runtime.api.P4RuntimeClient;
+import org.onosproject.p4runtime.api.P4RuntimeReadClient;
 import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
@@ -29,11 +34,17 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.stream.Collectors;
+
+
+import org.onosproject.net.pi.model.PiCounterId;
+import org.onosproject.net.pi.runtime.PiCounterCell;
+import org.onosproject.net.pi.runtime.PiCounterCellHandle;
+import org.onosproject.net.pi.runtime.PiCounterCellId;
+
 
 import org.onosproject.net.DeviceId;
 
-import org.onosproject.net.flow.FlowRule;
-import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.criteria.PiCriterion;
 import org.onosproject.net.pi.model.PiTableId;
 import org.onosproject.net.pi.runtime.PiAction;
@@ -41,15 +52,11 @@ import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.model.PiActionParamId;
 import org.onosproject.net.pi.model.PiActionId;
 import org.onosproject.net.pi.model.PiMatchFieldId;
+import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.core.CoreService;
-import org.onosproject.net.flow.DefaultFlowRule;
-import org.onosproject.net.flow.DefaultTrafficSelector;
-import org.onosproject.net.flow.DefaultTrafficTreatment;
 import org.onosproject.core.ApplicationId;
 
-import java.util.Dictionary;
-import java.util.Properties;
-import java.util.Arrays;
+import java.util.*;
 
 import static org.onlab.util.Tools.get;
 
@@ -58,6 +65,8 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.onosproject.net.pi.model.PiCounterType.INDIRECT;
 
 
 /**
@@ -69,6 +78,11 @@ import java.util.concurrent.atomic.AtomicInteger;
                "someProperty=Some Default String Value",
            })
 public class Up4Component implements Up4Service {
+
+
+    private static final long DEFAULT_P4_DEVICE_ID = 1;
+    private static final PiCounterId INGRESS_COUNTER_ID = PiCounterId.of("FabricIngress.spgw_ingress.pdr_counter");
+    private static final PiCounterId EGRESS_COUNTER_ID = PiCounterId.of("FabricEgress.spgw_egress.pdr_counter");
 
     /** Some configurable property. */
     // Leaving in for now as a reference
@@ -85,6 +99,15 @@ public class Up4Component implements Up4Service {
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowRuleService flowRuleService;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected FlowRuleStore store;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected P4RuntimeController controller;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected PiPipeconfService piPipeconfService;
 
     // TODO: Use EventuallyConsistentMap instead
     // TODO: Store PDR IDs for the flow rules somehow,
@@ -134,11 +157,6 @@ public class Up4Component implements Up4Service {
         log.info("Reconfigured");
     }
 
-    @Override
-    public void someMethod() {
-        log.info("Invoked");
-    }
-
 
     private int getGlobalFarId(int sessionId, int farId) {
         return farIds.computeIfAbsent(
@@ -147,8 +165,58 @@ public class Up4Component implements Up4Service {
         );
     }
 
+    @Override
+    public Up4Service.PdrStats readCounter(DeviceId deviceId, int cellId) {
+        Up4Service.PdrStats stats = Up4Service.PdrStats.of(cellId);
 
-    private void addPdr(DeviceId deviceId, int sessionId, int ctrId, int farId, PiCriterion match, PiTableId tableID) {
+        // Get client and pipeconf.
+        P4RuntimeClient client = controller.get(deviceId);
+        if (client == null) {
+            log.warn("Unable to find client for {}, aborting operation", deviceId);
+            return stats;
+        }
+        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
+        if (optPipeconf.isEmpty()) {
+            log.warn("Unable to load piPipeconf for {}, aborting operation", deviceId);
+            return stats;
+        }
+        PiPipeconf pipeconf = optPipeconf.get();
+
+
+        // Make list of cell handles we want to read.
+        List<PiCounterCellHandle> counterCellHandles = List.of(
+                PiCounterCellHandle.of(deviceId, PiCounterCellId.ofIndirect(INGRESS_COUNTER_ID, cellId)),
+                PiCounterCellHandle.of(deviceId, PiCounterCellId.ofIndirect(EGRESS_COUNTER_ID, cellId)));
+
+        // Query the device.
+        Collection<PiCounterCell> counterEntryResponse = client.read(
+                DEFAULT_P4_DEVICE_ID, pipeconf)
+                .handles(counterCellHandles).submitSync()
+                .all(PiCounterCell.class);
+
+        // Process response.
+        counterEntryResponse.forEach(counterCell -> {
+            if (counterCell.cellId().counterType() != INDIRECT) {
+                log.warn("Invalid counter data type {}, skipping", counterCell.cellId().counterType());
+                return;
+            }
+            if (cellId != counterCell.cellId().index()) {
+                log.warn("Unrecognized counter index {}, skipping", counterCell);
+                return;
+            }
+            if (counterCell.cellId().counterId().equals(INGRESS_COUNTER_ID)) {
+                stats.setIngress(counterCell.data().packets(), counterCell.data().bytes());
+            } else if (counterCell.cellId().counterId().equals(EGRESS_COUNTER_ID)) {
+                stats.setEgress(counterCell.data().packets(), counterCell.data().bytes());
+            } else {
+                log.warn("Unrecognized counter ID {}, skipping", counterCell);
+            }
+        });
+        return stats;
+    }
+
+
+    private void addPdr(DeviceId deviceId, int sessionId, int ctrId, int farId, PiCriterion match, PiTableId tableId) {
         int globalFarId = getGlobalFarId(sessionId, farId);
         PiAction action = PiAction.builder()
                 .withId(PiActionId.of("FabricIngress.spgw_ingress.set_pdr_attributes"))
@@ -160,7 +228,7 @@ public class Up4Component implements Up4Service {
 
         FlowRule pdrEntry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(tableID)
+                .forTable(tableId)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(DEFAULT_PRIORITY)
@@ -193,6 +261,7 @@ public class Up4Component implements Up4Service {
         this.addPdr(deviceId, sessionId, ctrId, farId, match,
                 PiTableId.of("FabricIngress.spgw_ingress.downlink_pdr_lookup"));
     }
+
 
 
     private void addFar(DeviceId deviceId, int sessionId, int farId, PiAction action) {
@@ -282,9 +351,97 @@ public class Up4Component implements Up4Service {
         log.info("Added UE IPv4 pool entry with flowID {}", uePoolEntry.id().value());
     }
 
-    public void readPdrCounter() {
-        log.info("readPdrCounter called. Currently does nothing.");
+
+    private void removeEntry(DeviceId deviceId, PiCriterion match, String tableName, boolean failSilent) {
+        FlowRule entry = DefaultFlowRule.builder()
+                .forDevice(deviceId).fromApp(appId).makePermanent()
+                .forTable(PiTableId.of(tableName))
+                .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
+                .withPriority(DEFAULT_PRIORITY)
+                .build();
+
+        /*
+         *  FIXME: Stupid stupid slow hack, needed because removeFlowRules expects FlowRule objects
+         *   with correct and complete actions and parameters, but P4Runtime deletion requests
+         *   will not have those.
+         */
+        for (FlowEntry installedEntry : flowRuleService.getFlowEntriesById(appId)) {
+            if (installedEntry.selector().equals(entry.selector())) {
+                log.info("Found matching entry to remove, it has FlowID {}", installedEntry.id());
+                flowRuleService.removeFlowRules(installedEntry);
+                return;
+            }
+        }
+        if (!failSilent) {
+            log.error("Did not find a flow rule with the given match conditions! Deleting nothing.");
+        }
+
+
     }
 
+    @Override
+    public void removePdr(DeviceId deviceId, Ip4Address ueAddr) {
+        log.info("Removing downlink PDR");
+        PiCriterion match = PiCriterion.builder()
+                .matchExact(PiMatchFieldId.of("ue_addr"), ueAddr.toInt())
+                .build();
 
+        removeEntry(deviceId, match, "FabricIngress.spgw_ingress.downlink_pdr_lookup", false);
+    }
+
+    @Override
+    public void removePdr(DeviceId deviceId, Ip4Address ueAddr, int teid, Ip4Address tunnelDst) {
+        log.info("Removing uplink PDR");
+        PiCriterion match = PiCriterion.builder()
+                .matchExact(PiMatchFieldId.of("ue_addr"), ueAddr.toInt())
+                .matchExact(PiMatchFieldId.of("teid"), teid)
+                .matchExact(PiMatchFieldId.of("tunnel_ipv4_dst"), tunnelDst.toInt())
+                .build();
+        removeEntry(deviceId, match, "FabricIngress.spgw_ingress.uplink_pdr_lookup", false);
+    }
+
+    @Override
+    public void removeFar(DeviceId deviceId, int sessionId, int farId) {
+        log.info("Removing FAR");
+        int globalFarId = getGlobalFarId(sessionId, farId);
+
+        PiCriterion match = PiCriterion.builder()
+                .matchExact(PiMatchFieldId.of("far_id"), globalFarId)
+                .build();
+
+        removeEntry(deviceId, match, "FabricIngress.spgw_ingress.far_lookup", false);
+    }
+
+    @Override
+    public void removeUePool(DeviceId deviceId, Ip4Prefix poolPrefix) {
+        log.info("Removing S1U interface table entry");
+        PiCriterion match = PiCriterion.builder()
+                .matchLpm(PiMatchFieldId.of("ipv4_prefix"), poolPrefix.address().toInt(), poolPrefix.prefixLength())
+                .build();
+        removeEntry(deviceId, match, "FabricIngress.spgw_ingress.downlink_filter_table", false);
+    }
+
+    @Override
+    public void removeS1uInterface(DeviceId deviceId, Ip4Address s1uAddr) {
+        log.info("Removing S1U interface table entry");
+        PiCriterion match = PiCriterion.builder()
+                .matchExact(PiMatchFieldId.of("gtp_ipv4_dst"), s1uAddr.toInt())
+                .build();
+        removeEntry(deviceId, match, "FabricIngress.spgw_ingress.uplink_filter_table", false);
+    }
+
+    @Override
+    public void removeUnknownInterface(DeviceId deviceId, Ip4Prefix ifacePrefix) {
+        // For when you don't know if its a uePool or s1uInterface table entry
+        PiCriterion match1 = PiCriterion.builder()
+                .matchExact(PiMatchFieldId.of("gtp_ipv4_dst"), ifacePrefix.address().toInt())
+                .build();
+        removeEntry(deviceId, match1, "FabricIngress.spgw_ingress.uplink_filter_table", true);
+
+        PiCriterion match2 = PiCriterion.builder()
+                .matchLpm(PiMatchFieldId.of("ipv4_prefix"), ifacePrefix.address().toInt(), ifacePrefix.prefixLength())
+                .build();
+        removeEntry(deviceId, match2, "FabricIngress.spgw_ingress.downlink_filter_table", true);
+
+    }
 }

@@ -66,11 +66,16 @@ import org.onosproject.codec.impl.PiTableModelCodec;
 import org.onosproject.codec.CodecService;
 
 
+
 import static org.onosproject.up4.AppConstants.PIPECONF_ID;
 
 @Component(immediate = true)
 public class Up4NorthComponent {
     private final Logger log = LoggerFactory.getLogger(getClass());
+
+    private static final PiCounterId INGRESS_COUNTER_ID = PiCounterId.of("PreQosPipe.pre_qos_pdr_counter");
+    private static final PiCounterId EGRESS_COUNTER_ID = PiCounterId.of("PostQosPipe.post_qos_pdr_counter");
+
 
     private Server server;
     private ApplicationId appId;
@@ -189,8 +194,11 @@ public class Up4NorthComponent {
     }
 
     private ImmutableByteSequence getParamIdValue(PiTableEntry entry, int paramId) {
+        // paramId is 1-indexed to match the p4info format
         PiAction action = (PiAction)entry.action();
-        return ((ImmutableByteSequence[])action.parameters().toArray())[paramId-1];
+
+        PiActionParam param = (PiActionParam)action.parameters().toArray()[paramId-1];
+        return param.value();
     }
 
     private Ip4Prefix getFieldPrefix(PiTableEntry entry, String fieldName) {
@@ -226,6 +234,38 @@ public class Up4NorthComponent {
             result = (result << 8) + (int)b;
         }
         return result;
+    }
+
+    private void translateAndDelete(PiTableEntry entry) {
+        log.info("Translating UP4 deletion request to fabric entry deletion.");
+        PiTableId tableId = entry.table();
+        if (tableId.equals(PiTableId.of("PreQosPipe.source_iface_lookup"))) {
+            Ip4Prefix prefix = getFieldPrefix(entry, "ipv4_dst_prefix");
+            up4Service.removeUnknownInterface(deviceId, prefix);
+        }
+        else if (tableId.equals(PiTableId.of("PreQosPipe.pdrs"))) {
+            Ip4Address ueAddr = getFieldAddress(entry, "ue_addr");
+            if (!fieldMaskIsZero(entry, "teid")) {
+                // uplink will have a non-ignored teid
+                int teid = byteSeqToInt(getFieldVal(entry, "teid"));
+                Ip4Address tunnelDst = getFieldAddress(entry, "tunnel_ipv4_dst");
+                up4Service.removePdr(deviceId, ueAddr, teid, tunnelDst);
+            }
+            else {
+                // downlink
+                up4Service.removePdr(deviceId,  ueAddr);
+            }
+        }
+        else if (tableId.equals(PiTableId.of("PreQosPipe.load_far_attributes"))) {
+            int farId = byteSeqToInt(getFieldVal(entry, "far_id"));
+            int sessionId = byteSeqToInt(getFieldVal(entry, "session_id"));
+            up4Service.removeFar(deviceId, sessionId, farId);
+        }
+        else {
+            log.error("Attempting to translate table entry of unknown table! {}", tableId.toString());
+            return;
+        }
+        log.info("Translation of UP4 deletion request successful.");
     }
 
     private void translateAndInsert(PiTableEntry entry) {
@@ -306,11 +346,13 @@ public class Up4NorthComponent {
         @Override
         public StreamObserver<P4RuntimeOuterClass.StreamMessageRequest> streamChannel(StreamObserver<P4RuntimeOuterClass.StreamMessageResponse> responseObserver) {
             // streamChannel handles packet I/O and master arbitration. It persists as long as the controller is active.
+            log.info("streamChannel opened.");
             return new StreamObserver<P4RuntimeOuterClass.StreamMessageRequest>() {
                 @Override
                 public void onNext(P4RuntimeOuterClass.StreamMessageRequest value) {
+                    log.info("Received streamChannel message.");
                     if (value.hasArbitration()) {
-                        log.info("Received arbitration messaged.");
+                        log.info("Stream message was arbitration request. Blindly telling requester they are new master.");
                         // This response should tell every requester that it is now the master controller,
                         // due to the OK status.
                         responseObserver.onNext(P4RuntimeOuterClass.StreamMessageResponse.newBuilder()
@@ -324,7 +366,7 @@ public class Up4NorthComponent {
                         );
                     }
                     else {
-                        log.warn("Received non-arbitration message from streamChannel.");
+                        log.warn("streamChannel message was not an  arbitration message.");
                         // We currently only respond to arbitration requests. Anything else gets a default response.
                         responseObserver.onNext(P4RuntimeOuterClass.StreamMessageResponse.getDefaultInstance());
                     }
@@ -353,6 +395,10 @@ public class Up4NorthComponent {
             P4InfoOuterClass.P4Info otherP4Info = request.getConfig().getP4Info();
             if (!otherP4Info.equals(p4Info)) {
                 log.error("Someone attempted to write a p4info file that doesn't match our hardcoded one! What a jerk");
+            }
+            else {
+                log.info("Received p4info correctly matches hardcoded p4info. Saving cookie.");
+                pipeconfCookie = request.getConfig().getCookie().getCookie();
             }
 
             // Response is currently defined to be empty per p4runtime.proto
@@ -421,6 +467,62 @@ public class Up4NorthComponent {
             responseObserver.onCompleted();
         }
 
+        @Override
+        public void read(P4RuntimeOuterClass.ReadRequest request, StreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver) {
+            log.info("Received read request.");
+            for (P4RuntimeOuterClass.Entity entity : request.getEntitiesList()) {
+                PiEntity piEntity;
+                try {
+                    piEntity = Codecs.CODECS.entity().decode(entity, null, pipeconf);
+                }
+                catch (CodecException e) {
+                    log.error("Unable to decode p4runtime read request entity", e);
+                    continue;
+                }
+                if (piEntity.piEntityType() != PiEntityType.COUNTER_CELL) {
+                    log.error("Received read request for an entity we don't yet support. Skipping");
+                    continue;
+                }
+                PiCounterCell cellEntity = (PiCounterCell) piEntity;
+
+                int counterIndex = (int)cellEntity.cellId().index();
+
+                Up4Service.PdrStats ctrValues = up4Service.readCounter(deviceId, counterIndex);
+
+                PiCounterId piCounterId = cellEntity.cellId().counterId();
+
+                long pkts;
+                long bytes;
+                if (piCounterId.equals(INGRESS_COUNTER_ID)) {
+                    pkts = ctrValues.ingressPkts;
+                    bytes = ctrValues.ingressBytes;
+                }
+                else if (piCounterId.equals(EGRESS_COUNTER_ID)) {
+                    pkts = ctrValues.egressPkts;
+                    bytes = ctrValues.egressBytes;
+                }
+                else {
+                    log.error("Received read request for unknown counter {}. Skipping.", piCounterId);
+                    continue;
+                }
+
+                responseObserver.onNext(P4RuntimeOuterClass.ReadResponse.newBuilder()
+                    .addEntities(P4RuntimeOuterClass.Entity.newBuilder()
+                        .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder()
+                            .setCounterId(entity.getCounterEntry().getCounterId())
+                            .setData(P4RuntimeOuterClass.CounterData.newBuilder()
+                                .setByteCount(bytes)
+                                .setPacketCount(pkts)
+                                .build())
+                            .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(counterIndex))
+                            .build())
+                        .build())
+                    .build());
+                log.info("We were able to handle a counter read request :D");
+            }
+
+            responseObserver.onCompleted();
+        }
     }
 
 }

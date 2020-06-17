@@ -31,18 +31,28 @@ import org.onosproject.up4.Up4Service;
  * UPF PDR Insert Command
  */
 @Service
-@Command(scope = "up4", name = "s1u-insert",
-        description = "Insert a S1U interface address into the UPF dataplane")
-public class InterfaceInsertCommand extends AbstractShellCommand {
+@Command(scope = "up4", name = "pdr-delete",
+         description = "Delete a packet detection rule from the UPF dataplane")
+public class PdrDeleteCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "uri", description = "Device ID",
-            required = true)
+              required = true, multiValued = false)
     @Completion(DeviceIdCompleter.class)
     String uri = null;
 
-    @Argument(index = 1, name = "s1u-addr",
-            description = "Address of the S1U interface",
-            required = true)
+    @Argument(index = 1, name = "ue-ipv4-addr",
+            description = "Address of the UE for which this PDR applies",
+            required = true, multiValued = false)
+    String ueAddr = null;
+
+    @Argument(index = 2, name = "teid",
+            description = "Tunnel ID of the tunnel to/from the base station",
+            required = false, multiValued = false)
+    int teid = -1;
+
+    @Argument(index = 3, name = "s1u-ip",
+            description = "IP address of the S1U interface (endpoint of the tunnel to the base station)",
+            required = false, multiValued = false)
     String s1uAddr = null;
 
     @Override
@@ -56,13 +66,27 @@ public class InterfaceInsertCommand extends AbstractShellCommand {
             return;
         }
 
-        Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
+        Ip4Address ueAddr = Ip4Address.valueOf(this.ueAddr);
 
-        print("Adding S1U interface address to device %s", uri);
-        app.addS1uInterface(device.id(), s1uAddr);
+        if (teid != -1 || s1uAddr != null) {
+            if (teid == -1) {
+                print("TEID must be provided with the S1U IP address");
+                return;
+            }
+            if (s1uAddr == null) {
+                print("S1U IP address must be provided with the TEID.");
+                return;
+            }
+            Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
+            print("Removing *Uplink* PDR from device %s", uri);
+            app.removePdr(device.id(), ueAddr, teid, s1uAddr);
+        }
+        else {
+            print("Removing *Downlink* PDR from device %s", uri);
+            app.removePdr(device.id(), ueAddr);
+        }
 
 
     }
 
 }
-

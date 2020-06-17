@@ -32,7 +32,7 @@ import org.onosproject.up4.Up4Service;
  */
 @Service
 @Command(scope = "up4", name = "ue-pool-insert",
-        description = "Insert a packet detection rule into the UPF dataplane")
+        description = "Insert an IPv4 pool prefix into the UPF dataplane")
 public class UePoolInsertCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "uri", description = "Device ID",
