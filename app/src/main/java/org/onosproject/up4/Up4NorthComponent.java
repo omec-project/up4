@@ -33,7 +33,11 @@ import org.onosproject.net.pi.model.*;
 import org.onosproject.net.pi.runtime.*;
 import org.onosproject.p4runtime.ctl.codec.CodecException;
 import org.onosproject.p4runtime.ctl.utils.PipeconfHelper;
+import org.onosproject.routeservice.Route;
+import org.onosproject.routeservice.RouteStore;
 import org.osgi.service.component.annotations.*;
+
+
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -65,7 +69,13 @@ import org.onosproject.codec.impl.PiTableModelCodec;
 
 import org.onosproject.codec.CodecService;
 
+import org.onosproject.net.flowobjective.ForwardingObjective;
+import org.onosproject.net.flowobjective.DefaultForwardingObjective;
+import org.onosproject.net.flowobjective.Objective;
+import org.onosproject.net.flowobjective.FlowObjectiveService;
 
+import org.onosproject.routeservice.RouteService;
+import org.onosproject.routeservice.RouteAdminService;
 
 import static org.onosproject.up4.AppConstants.PIPECONF_ID;
 
@@ -97,6 +107,7 @@ public class Up4NorthComponent {
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Service up4Service;
+
 
     @Activate
     protected void activate() {
@@ -282,12 +293,12 @@ public class Up4NorthComponent {
             if (actionId.equals(PiActionId.of("PreQosPipe.set_source_iface"))) {
                 // key: dst_prefix, args: direction, src_iface
                 Ip4Prefix prefix = getFieldPrefix(entry, "ipv4_dst_prefix");
-                if (getFieldVal(entry, "direction").equals(ImmutableByteSequence.copyFrom(1))) {
-                    // 1 is uplink
+                if (getParamIdValue(entry, 2).equals(ImmutableByteSequence.copyFrom(1))) {
+                    // Param2 is Direction. Value 1 is uplink
                     up4Service.addS1uInterface(deviceId, prefix.address());
                 }
                 else {
-                    // 2 is downlink. Assume 2 if not 1 for now.
+                    // Value 2 is downlink. Assume 2 if not 1 for now.
                     up4Service.addUePool(deviceId, prefix);
                 }
             }
@@ -453,10 +464,12 @@ public class Up4NorthComponent {
                 }
                 if (update.getType() == P4RuntimeOuterClass.Update.Type.INSERT
                         || update.getType() == P4RuntimeOuterClass.Update.Type.MODIFY) {
+                    log.info("Update type is insert or modify.");
                     translateAndInsert(entry);
                 }
                 else if (update.getType() == P4RuntimeOuterClass.Update.Type.DELETE){
-                    log.error("Unsupported delete update received. Ignoring.");
+                    log.info("Update type is delete");
+                    translateAndDelete(entry);
                 }
                 else {
                     throw new UnsupportedOperationException("Unsupported update type.");
@@ -491,13 +504,16 @@ public class Up4NorthComponent {
 
                 PiCounterId piCounterId = cellEntity.cellId().counterId();
 
+                String gress;
                 long pkts;
                 long bytes;
                 if (piCounterId.equals(INGRESS_COUNTER_ID)) {
+                    gress = "ingress";
                     pkts = ctrValues.ingressPkts;
                     bytes = ctrValues.ingressBytes;
                 }
                 else if (piCounterId.equals(EGRESS_COUNTER_ID)) {
+                    gress = "egress";
                     pkts = ctrValues.egressPkts;
                     bytes = ctrValues.egressBytes;
                 }
@@ -518,7 +534,7 @@ public class Up4NorthComponent {
                             .build())
                         .build())
                     .build());
-                log.info("We were able to handle a counter read request :D");
+                log.info("Responded to {} counter read request for counter ID {}.", gress, counterIndex);
             }
 
             responseObserver.onCompleted();

@@ -146,6 +146,13 @@
         </dependency>
 
         <dependency>
+            <groupId>org.onosproject</groupId>
+            <artifactId>onos-apps-route-service-api</artifactId>
+            <version>${onos.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.karaf.shell</groupId>
             <artifactId>org.apache.karaf.shell.console</artifactId>
             <scope>provided</scope>
@@ -158,6 +165,8 @@
             <scope>test</scope>
             <classifier>tests</classifier>
         </dependency>
+
+
 
     </dependencies>
 
