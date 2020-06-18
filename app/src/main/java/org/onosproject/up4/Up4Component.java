@@ -216,6 +216,7 @@ public class Up4Component implements Up4Service {
     }
 
 
+
     private void addPdr(DeviceId deviceId, int sessionId, int ctrId, int farId, PiCriterion match, PiTableId tableId) {
         int globalFarId = getGlobalFarId(sessionId, farId);
         PiAction action = PiAction.builder()
@@ -352,7 +353,7 @@ public class Up4Component implements Up4Service {
     }
 
 
-    private void removeEntry(DeviceId deviceId, PiCriterion match, String tableName, boolean failSilent) {
+    private boolean removeEntry(DeviceId deviceId, PiCriterion match, String tableName, boolean failSilent) {
         FlowRule entry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
                 .forTable(PiTableId.of(tableName))
@@ -369,12 +370,13 @@ public class Up4Component implements Up4Service {
             if (installedEntry.selector().equals(entry.selector())) {
                 log.info("Found matching entry to remove, it has FlowID {}", installedEntry.id());
                 flowRuleService.removeFlowRules(installedEntry);
-                return;
+                return true;
             }
         }
         if (!failSilent) {
             log.error("Did not find a flow rule with the given match conditions! Deleting nothing.");
         }
+        return false;
 
 
     }
@@ -436,12 +438,16 @@ public class Up4Component implements Up4Service {
         PiCriterion match1 = PiCriterion.builder()
                 .matchExact(PiMatchFieldId.of("gtp_ipv4_dst"), ifacePrefix.address().toInt())
                 .build();
-        removeEntry(deviceId, match1, "FabricIngress.spgw_ingress.uplink_filter_table", true);
+        if (removeEntry(deviceId, match1, "FabricIngress.spgw_ingress.uplink_filter_table", true)) {
+            return;
+        }
 
         PiCriterion match2 = PiCriterion.builder()
                 .matchLpm(PiMatchFieldId.of("ipv4_prefix"), ifacePrefix.address().toInt(), ifacePrefix.prefixLength())
                 .build();
-        removeEntry(deviceId, match2, "FabricIngress.spgw_ingress.downlink_filter_table", true);
+        if (!removeEntry(deviceId, match2, "FabricIngress.spgw_ingress.downlink_filter_table", true)) {
+            log.error("Could not remove interface! No matching entry found!");
+        }
 
     }
 }

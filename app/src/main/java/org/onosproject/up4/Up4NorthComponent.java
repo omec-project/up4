@@ -204,12 +204,18 @@ public class Up4NorthComponent {
         }
     }
 
-    private ImmutableByteSequence getParamIdValue(PiTableEntry entry, int paramId) {
-        // paramId is 1-indexed to match the p4info format
+    private ImmutableByteSequence getParamValue(PiTableEntry entry, String paramName) {
         PiAction action = (PiAction)entry.action();
 
-        PiActionParam param = (PiActionParam)action.parameters().toArray()[paramId-1];
-        return param.value();
+        PiActionParamId soughtId = PiActionParamId.of(paramName);
+
+        for (PiActionParam param : action.parameters()) {
+            if (param.id().equals(soughtId)) {
+                return param.value();
+            }
+        }
+        log.error("Unable to find ParamId {} in table entry!", paramName);
+        return ImmutableByteSequence.ofZeros(1);
     }
 
     private Ip4Prefix getFieldPrefix(PiTableEntry entry, String fieldName) {
@@ -242,7 +248,7 @@ public class Up4NorthComponent {
     private int byteSeqToInt(ImmutableByteSequence sequence) {
         int result = 0;
         for (byte b : sequence.asArray()) {
-            result = (result << 8) + (int)b;
+            result = (result << 8) + ((int)b & 0xff);
         }
         return result;
     }
@@ -291,24 +297,28 @@ public class Up4NorthComponent {
         PiActionId actionId = action.id();
         if (tableId.equals(PiTableId.of("PreQosPipe.source_iface_lookup"))) {
             if (actionId.equals(PiActionId.of("PreQosPipe.set_source_iface"))) {
-                // key: dst_prefix, args: direction, src_iface
                 Ip4Prefix prefix = getFieldPrefix(entry, "ipv4_dst_prefix");
-                if (getParamIdValue(entry, 2).equals(ImmutableByteSequence.copyFrom(1))) {
-                    // Param2 is Direction. Value 1 is uplink
+                int direction = byteSeqToInt(getParamValue(entry, "direction"));
+                if (direction == 1) {
+                    // Param#2 is Direction. Value 1 is uplink
                     up4Service.addS1uInterface(deviceId, prefix.address());
                 }
-                else {
-                    // Value 2 is downlink. Assume 2 if not 1 for now.
+                else if (direction == 2){
+                    // Value 2 is downlink
                     up4Service.addUePool(deviceId, prefix);
+                }
+                else {
+                    log.error("Received an interface lookup entry with unknown direction {}!", direction);
                 }
             }
             else {actionUnknown = true;}
         }
         else if (tableId.equals(PiTableId.of("PreQosPipe.pdrs"))) {
             if (actionId.equals(PiActionId.of("PreQosPipe.set_pdr_attributes"))) {
-                int sessionId = byteSeqToInt(getParamIdValue(entry, 2));
-                int ctrId = byteSeqToInt(getParamIdValue(entry, 3));
-                int farId = byteSeqToInt(getParamIdValue(entry, 4));
+                // 1:pdr-id, 2:session-id, 3:ctr-id, 4:far-id, 5:needs-gtpu-decap
+                int sessionId = byteSeqToInt(getParamValue(entry, "fseid"));
+                int ctrId = byteSeqToInt(getParamValue(entry, "ctr_id"));
+                int farId = byteSeqToInt(getParamValue(entry, "far_id"));
                 Ip4Address ueAddr = getFieldAddress(entry, "ue_addr");
                 if (!fieldMaskIsZero(entry, "teid")) {
                     // uplink will have a non-ignored teid
@@ -326,15 +336,15 @@ public class Up4NorthComponent {
         else if (tableId.equals(PiTableId.of("PreQosPipe.load_far_attributes"))) {
             int farId = byteSeqToInt(getFieldVal(entry, "far_id"));
             int sessionId = byteSeqToInt(getFieldVal(entry, "session_id"));
-            boolean needsDropping = byteSeqToInt(getParamIdValue(entry, 1)) > 0;
-            boolean notifyCp = byteSeqToInt(getParamIdValue(entry, 2)) > 0;
+            boolean needsDropping = byteSeqToInt(getParamValue(entry, "needs_dropping")) > 0;
+            boolean notifyCp = byteSeqToInt(getParamValue(entry, "notify_cp")) > 0;
             if (actionId.equals(PiActionId.of("PreQosPipe.load_normal_far_attributes"))) {
                 up4Service.addFar(deviceId, sessionId, farId, needsDropping, notifyCp);
             }
             else if (actionId.equals(PiActionId.of("PreQosPipe.load_tunnel_far_attributes"))) {
-                Ip4Address tunnelSrc = Ip4Address.valueOf(getParamIdValue(entry, 4).asArray());
-                Ip4Address tunnelDst = Ip4Address.valueOf(getParamIdValue(entry, 5).asArray());
-                int teid = byteSeqToInt(getParamIdValue(entry, 6));
+                Ip4Address tunnelSrc = Ip4Address.valueOf(getParamValue(entry, "src_addr").asArray());
+                Ip4Address tunnelDst = Ip4Address.valueOf(getParamValue(entry, "dst_addr").asArray());
+                int teid = byteSeqToInt(getParamValue(entry, "teid"));
                 Up4Service.TunnelDesc tunnel = new Up4Service.TunnelDesc(tunnelSrc, tunnelDst, teid);
                 up4Service.addFar(deviceId, sessionId, farId, needsDropping, notifyCp, tunnel);
             }
@@ -449,6 +459,7 @@ public class Up4NorthComponent {
                     continue;
                 }
                 PiTableEntry entry;
+
                 try {
                     PiEntity entity = Codecs.CODECS.entity().decode(update.getEntity(), null, pipeconf);
                     if (entity.piEntityType() == PiEntityType.TABLE_ENTRY) {

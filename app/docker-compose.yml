@@ -9,6 +9,8 @@ services:
     stdin_open: true
     volumes:
       - ./tmp:/tmp
+      - ../p4src/build/:/p4c-out/
+      - ./p4rtsh-scripts:/scripts/
     links:
       - onos
     entrypoint: "/bin/bash"

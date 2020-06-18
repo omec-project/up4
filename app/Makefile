@@ -30,6 +30,16 @@ p4rt-shell:
 		-v --grpc-addr onos:51001 \
 		--device-id 0 --election-id 0,1
 
+p4rtsh-program:
+	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh program
+
+p4rtsh-clear:
+	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh clear
+
+
+p4rtsh-bash:
+	docker exec -it $(shell docker-compose ps -q p4rtsh) /bin/bash
+
 
 stop:
 	$(info *** Stopping ONOS and Mininet...)
@@ -50,6 +60,18 @@ mn-log:
 onos-log:
 	docker-compose logs -f onos
 
+onos-config:
+	util/onos-cmd app activate segmentrouting
+	util/onos-cmd app activate pipelines.fabric
+	util/onos-cmd app activate netcfghostprovider
+	util/onos-cmd app activate org.onosproject.protocols.grpc
+	sleep 1
+	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1
+	sleep 1
+	${onos_curl} -X POST -H 'Content-Type:application/json' \
+		${onos_url}/v1/network/configuration -d@./util/netcfg.json
+	sleep 3
+	onos-tools/onos-app localhost install! ./target/up4-app-0.1.oar
 
 app-load:
 	./onos-tools/onos-app localhost install! target/up4-app-0.1.oar
