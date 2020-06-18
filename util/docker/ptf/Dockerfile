@@ -27,8 +27,8 @@ RUN install_packages $BUILD_DEPS
 RUN mkdir -p /ouput
 
 ENV PIP_DEPS \
-    scapy==2.4.3 \
-    git+https://github.com/p4lang/ptf.git \
+    git+https://github.com/secdev/scapy.git@31bf7cea2bb44f9dc52708db7e989a525757f288 \
+    git+https://github.com/p4lang/ptf.git@10a2d4b7d704a430218adc8accf8115376a356eb \
     googleapis-common-protos==1.6.0 \
     ipaddress
 RUN pip install --no-cache-dir --root /output $PIP_DEPS
