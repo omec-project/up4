@@ -57,7 +57,7 @@ mn-cli:
 mn-log:
 	docker logs -f mininet
 	
-onos-log:
+onos-logs:
 	docker-compose logs -f onos
 
 onos-config:
@@ -68,8 +68,7 @@ onos-config:
 	sleep 1
 	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1
 	sleep 1
-	${onos_curl} -X POST -H 'Content-Type:application/json' \
-		${onos_url}/v1/network/configuration -d@./util/netcfg.json
+	make netcfg
 	sleep 3
 	onos-tools/onos-app localhost install! ./target/up4-app-0.1.oar
 
@@ -104,8 +103,7 @@ test-onos-config:
 	sleep 1
 	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1
 	sleep 1
-	${onos_curl} -X POST -H 'Content-Type:application/json' \
-    	${onos_url}/v1/network/configuration -d@./util/ptf-netcfg.json
+	make test-onos-netcfg
 	sleep 3
 	onos-tools/onos-app localhost install! ./target/up4-app-0.1.oar
 

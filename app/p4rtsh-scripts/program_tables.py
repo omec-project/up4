@@ -20,7 +20,10 @@ if programOrClear not in ["program", "clear"]:
 
 FALSE = '0'
 
-PDR_ID = '1'
+PDR_ID_UPLINK = '1'
+PDR_ID_DOWNLINK = '2'
+CTR_ID_UPLINK = '1'
+CTR_ID_DOWNLINK = '2'
 SESSION_ID = '1'
 TEID = '255'
 TUNNEL_DPORT = '2152'
@@ -102,9 +105,9 @@ def main():
     uplinkPdr.match['teid'] = TEID
     uplinkPdr.match['tunnel_ipv4_dst'] = S1U_IPV4
     # Action params
-    uplinkPdr.action['id'] = PDR_ID
+    uplinkPdr.action['id'] = PDR_ID_UPLINK
     uplinkPdr.action['fseid'] = SESSION_ID
-    uplinkPdr.action['ctr_id'] = PDR_ID
+    uplinkPdr.action['ctr_id'] = CTR_ID_UPLINK
     uplinkPdr.action['far_id'] = FAR_UPLINK
     addEntry(uplinkPdr)
 
@@ -113,9 +116,9 @@ def main():
     # Match fields
     downlinkPdr.match['ue_addr'] = UE_IPV4
     # Action params
-    downlinkPdr.action['id'] = PDR_ID
+    downlinkPdr.action['id'] = PDR_ID_DOWNLINK
     downlinkPdr.action['fseid'] = SESSION_ID
-    downlinkPdr.action['ctr_id'] = PDR_ID
+    downlinkPdr.action['ctr_id'] = CTR_ID_DOWNLINK
     downlinkPdr.action['far_id'] = FAR_DOWNLINK
     addEntry(downlinkPdr)
 
