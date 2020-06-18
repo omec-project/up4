@@ -155,8 +155,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils, "simple_%s_packet" % pkt_type)(
                 eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
-                ip_src=UE_IPV4, ip_dst=PDN_IPV4,
-                pktlen=MIN_PKT_LEN
+                ip_src=UE_IPV4, ip_dst=PDN_IPV4
             )
             pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
 
