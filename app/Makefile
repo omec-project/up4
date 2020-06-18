@@ -95,17 +95,17 @@ test-onos-netcfg:
 	${onos_curl} -X POST -H 'Content-Type:application/json' \
     	${onos_url}/v1/network/configuration -d@./util/ptf-netcfg.json
 
-test-onos-setup:
+test-onos-config:
 	util/onos-cmd app deactivate lldpprovider # the packet injects ruin tests
 	util/onos-cmd app activate segmentrouting
 	util/onos-cmd app activate pipelines.fabric
 	util/onos-cmd app activate netcfghostprovider
 	util/onos-cmd app activate org.onosproject.protocols.grpc
 	sleep 1
-	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1 # CHANGE THIS ROUTE
-	# ALSO CHANGE THE PTF ADDRESSES TO MATCH FABRIC.p4
+	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1
 	sleep 1
-	test-onos-netcfg
+	${onos_curl} -X POST -H 'Content-Type:application/json' \
+    	${onos_url}/v1/network/configuration -d@./util/ptf-netcfg.json
 	sleep 3
 	onos-tools/onos-app localhost install! ./target/up4-app-0.1.oar
 
