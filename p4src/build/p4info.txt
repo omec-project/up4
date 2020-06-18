@@ -3,8 +3,8 @@ pkg_info {
 }
 tables {
   preamble {
-    id: 34968493
-    name: "IngressPipeImpl.Routing.routes_v4"
+    id: 39015874
+    name: "PreQosPipe.Routing.routes_v4"
     alias: "routes_v4"
   }
   match_fields {
@@ -14,21 +14,20 @@ tables {
     match_type: LPM
   }
   action_refs {
-    id: 22249062
+    id: 23965128
   }
   action_refs {
     id: 21257015
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
   }
-  const_default_action_id: 21257015
   implementation_id: 297808402
   size: 1024
 }
 tables {
   preamble {
-    id: 49168105
-    name: "IngressPipeImpl.Acl.acls"
+    id: 47204971
+    name: "PreQosPipe.Acl.acls"
     alias: "Acl.acls"
   }
   match_fields {
@@ -92,13 +91,16 @@ tables {
     match_type: TERNARY
   }
   action_refs {
-    id: 17725092
+    id: 30494847
   }
   action_refs {
-    id: 21790408
+    id: 26495283
   }
   action_refs {
-    id: 29464863
+    id: 21596798
+  }
+  action_refs {
+    id: 18812293
   }
   action_refs {
     id: 21257015
@@ -109,8 +111,8 @@ tables {
 }
 tables {
   preamble {
-    id: 39617486
-    name: "IngressPipeImpl.my_station"
+    id: 40931612
+    name: "PreQosPipe.my_station"
     alias: "my_station"
   }
   match_fields {
@@ -126,8 +128,8 @@ tables {
 }
 tables {
   preamble {
-    id: 38522685
-    name: "IngressPipeImpl.source_iface_lookup"
+    id: 41020214
+    name: "PreQosPipe.source_iface_lookup"
     alias: "source_iface_lookup"
   }
   match_fields {
@@ -137,46 +139,28 @@ tables {
     match_type: LPM
   }
   action_refs {
-    id: 16896618
+    id: 26090030
   }
-  const_default_action_id: 16896618
+  const_default_action_id: 26090030
   size: 1024
 }
 tables {
   preamble {
-    id: 37010071
-    name: "IngressPipeImpl.fseid_lookup"
-    alias: "fseid_lookup"
-  }
-  match_fields {
-    id: 1
-    name: "local_meta.ue_addr"
-    bitwidth: 32
-    match_type: EXACT
-  }
-  action_refs {
-    id: 26022217
-  }
-  const_default_action_id: 26022217
-  size: 1024
-}
-tables {
-  preamble {
-    id: 39229726
-    name: "IngressPipeImpl.pdrs"
+    id: 38006553
+    name: "PreQosPipe.pdrs"
     alias: "pdrs"
   }
   match_fields {
     id: 1
-    name: "fseid"
-    bitwidth: 96
+    name: "src_iface"
+    bitwidth: 8
     match_type: EXACT
   }
   match_fields {
     id: 2
-    name: "src_iface"
-    bitwidth: 8
-    match_type: EXACT
+    name: "tunnel_ipv4_dst"
+    bitwidth: 32
+    match_type: TERNARY
   }
   match_fields {
     id: 3
@@ -215,7 +199,7 @@ tables {
     match_type: TERNARY
   }
   action_refs {
-    id: 25537182
+    id: 31939583
   }
   action_refs {
     id: 21257015
@@ -226,9 +210,9 @@ tables {
 }
 tables {
   preamble {
-    id: 40365214
-    name: "IngressPipeImpl.fars"
-    alias: "fars"
+    id: 40930771
+    name: "PreQosPipe.load_far_attributes"
+    alias: "load_far_attributes"
   }
   match_fields {
     id: 1
@@ -243,16 +227,10 @@ tables {
     match_type: EXACT
   }
   action_refs {
-    id: 18543972
+    id: 25716083
   }
   action_refs {
-    id: 17008540
-  }
-  action_refs {
-    id: 26789180
-  }
-  action_refs {
-    id: 21728971
+    id: 20110435
   }
   action_refs {
     id: 21257015
@@ -271,43 +249,43 @@ actions {
 }
 actions {
   preamble {
-    id: 26889842
-    name: "IngressPipeImpl.ExecuteFar.do_gtpu_tunnel"
+    id: 23646333
+    name: "PreQosPipe.ExecuteFar.do_gtpu_tunnel"
     alias: "do_gtpu_tunnel"
   }
 }
 actions {
   preamble {
-    id: 26020195
-    name: "IngressPipeImpl.ExecuteFar.do_forward"
+    id: 30425873
+    name: "PreQosPipe.ExecuteFar.do_forward"
     alias: "do_forward"
   }
 }
 actions {
   preamble {
-    id: 33288228
-    name: "IngressPipeImpl.ExecuteFar.do_buffer"
-    alias: "do_buffer"
-  }
-}
-actions {
-  preamble {
-    id: 29865525
-    name: "IngressPipeImpl.ExecuteFar.do_drop"
+    id: 26909570
+    name: "PreQosPipe.ExecuteFar.do_drop"
     alias: "do_drop"
   }
 }
 actions {
   preamble {
-    id: 19880042
-    name: "IngressPipeImpl.Routing.drop"
+    id: 21639584
+    name: "PreQosPipe.ExecuteFar.do_notify_cp"
+    alias: "do_notify_cp"
+  }
+}
+actions {
+  preamble {
+    id: 31448256
+    name: "PreQosPipe.Routing.drop"
     alias: "Routing.drop"
   }
 }
 actions {
   preamble {
-    id: 22249062
-    name: "IngressPipeImpl.Routing.route"
+    id: 23965128
+    name: "PreQosPipe.Routing.route"
     alias: "route"
   }
   params {
@@ -323,8 +301,8 @@ actions {
 }
 actions {
   preamble {
-    id: 17725092
-    name: "IngressPipeImpl.Acl.set_port"
+    id: 30494847
+    name: "PreQosPipe.Acl.set_port"
     alias: "set_port"
   }
   params {
@@ -335,22 +313,29 @@ actions {
 }
 actions {
   preamble {
-    id: 21790408
-    name: "IngressPipeImpl.Acl.punt"
+    id: 26495283
+    name: "PreQosPipe.Acl.punt"
     alias: "punt"
   }
 }
 actions {
   preamble {
-    id: 29464863
-    name: "IngressPipeImpl.Acl.drop"
+    id: 21596798
+    name: "PreQosPipe.Acl.clone_to_cpu"
+    alias: "clone_to_cpu"
+  }
+}
+actions {
+  preamble {
+    id: 18812293
+    name: "PreQosPipe.Acl.drop"
     alias: "Acl.drop"
   }
 }
 actions {
   preamble {
-    id: 16896618
-    name: "IngressPipeImpl.set_source_iface"
+    id: 26090030
+    name: "PreQosPipe.set_source_iface"
     alias: "set_source_iface"
   }
   params {
@@ -366,20 +351,8 @@ actions {
 }
 actions {
   preamble {
-    id: 26022217
-    name: "IngressPipeImpl.set_fseid"
-    alias: "set_fseid"
-  }
-  params {
-    id: 1
-    name: "fseid"
-    bitwidth: 96
-  }
-}
-actions {
-  preamble {
-    id: 25537182
-    name: "IngressPipeImpl.set_pdr_attributes"
+    id: 31939583
+    name: "PreQosPipe.set_pdr_attributes"
     alias: "set_pdr_attributes"
   }
   params {
@@ -389,17 +362,17 @@ actions {
   }
   params {
     id: 2
-    name: "far_id"
-    bitwidth: 32
+    name: "fseid"
+    bitwidth: 96
   }
   params {
     id: 3
-    name: "qer_id"
+    name: "ctr_id"
     bitwidth: 32
   }
   params {
     id: 4
-    name: "qfi"
+    name: "far_id"
     bitwidth: 32
   }
   params {
@@ -407,83 +380,64 @@ actions {
     name: "needs_gtpu_decap"
     bitwidth: 1
   }
-  params {
-    id: 6
-    name: "needs_udp_decap"
-    bitwidth: 1
-  }
-  params {
-    id: 7
-    name: "needs_vlan_removal"
-    bitwidth: 1
-  }
-  params {
-    id: 8
-    name: "net_instance"
-    bitwidth: 32
-  }
-  params {
-    id: 9
-    name: "ctr_id"
-    bitwidth: 32
-  }
 }
 actions {
   preamble {
-    id: 18543972
-    name: "IngressPipeImpl.set_far_attributes_forward"
-    alias: "set_far_attributes_forward"
-  }
-}
-actions {
-  preamble {
-    id: 17008540
-    name: "IngressPipeImpl.set_far_attributes_buffer"
-    alias: "set_far_attributes_buffer"
+    id: 25716083
+    name: "PreQosPipe.load_normal_far_attributes"
+    alias: "load_normal_far_attributes"
   }
   params {
     id: 1
-    name: "bar_id"
-    bitwidth: 32
+    name: "needs_dropping"
+    bitwidth: 1
+  }
+  params {
+    id: 2
+    name: "notify_cp"
+    bitwidth: 1
   }
 }
 actions {
   preamble {
-    id: 26789180
-    name: "IngressPipeImpl.set_far_attributes_tunnel"
-    alias: "set_far_attributes_tunnel"
+    id: 20110435
+    name: "PreQosPipe.load_tunnel_far_attributes"
+    alias: "load_tunnel_far_attributes"
   }
   params {
     id: 1
+    name: "needs_dropping"
+    bitwidth: 1
+  }
+  params {
+    id: 2
+    name: "notify_cp"
+    bitwidth: 1
+  }
+  params {
+    id: 3
     name: "tunnel_type"
     bitwidth: 8
   }
   params {
-    id: 2
+    id: 4
     name: "src_addr"
     bitwidth: 32
   }
   params {
-    id: 3
+    id: 5
     name: "dst_addr"
     bitwidth: 32
   }
   params {
-    id: 4
+    id: 6
     name: "teid"
     bitwidth: 32
   }
   params {
-    id: 5
+    id: 7
     name: "dport"
     bitwidth: 16
-  }
-}
-actions {
-  preamble {
-    id: 21728971
-    name: "IngressPipeImpl.set_far_attributes_drop"
-    alias: "set_far_attributes_drop"
   }
 }
 action_profiles {
@@ -492,14 +446,14 @@ action_profiles {
     name: "hashed_selector"
     alias: "hashed_selector"
   }
-  table_ids: 34968493
+  table_ids: 39015874
   with_selector: true
   size: 1024
 }
 counters {
   preamble {
-    id: 313475289
-    name: "IngressPipeImpl.pre_qos_pdr_counter"
+    id: 318101068
+    name: "PreQosPipe.pre_qos_pdr_counter"
     alias: "pre_qos_pdr_counter"
   }
   spec {
@@ -509,8 +463,8 @@ counters {
 }
 counters {
   preamble {
-    id: 317317763
-    name: "EgressPipeImpl.post_qos_pdr_counter"
+    id: 311239454
+    name: "PostQosPipe.post_qos_pdr_counter"
     alias: "post_qos_pdr_counter"
   }
   spec {
@@ -527,7 +481,43 @@ direct_counters {
   spec {
     unit: BOTH
   }
-  direct_table_id: 49168105
+  direct_table_id: 47204971
+}
+controller_packet_metadata {
+  preamble {
+    id: 75327753
+    name: "packet_out"
+    alias: "packet_out"
+    annotations: "@controller_header(\"packet_out\")"
+  }
+  metadata {
+    id: 1
+    name: "egress_port"
+    bitwidth: 9
+  }
+  metadata {
+    id: 2
+    name: "_pad"
+    bitwidth: 7
+  }
+}
+controller_packet_metadata {
+  preamble {
+    id: 80671331
+    name: "packet_in"
+    alias: "packet_in"
+    annotations: "@controller_header(\"packet_in\")"
+  }
+  metadata {
+    id: 1
+    name: "ingress_port"
+    bitwidth: 9
+  }
+  metadata {
+    id: 2
+    name: "_pad"
+    bitwidth: 7
+  }
 }
 type_info {
   serializable_enums {
@@ -596,6 +586,10 @@ type_info {
         name: "VN_INTERNAL"
         value: "\004"
       }
+      members {
+        name: "CONTROL_PLANE"
+        value: "\005"
+      }
     }
   }
   serializable_enums {
@@ -615,6 +609,30 @@ type_info {
       members {
         name: "UDP"
         value: "\021"
+      }
+    }
+  }
+  serializable_enums {
+    key: "L4Port"
+    value {
+      underlying_type {
+        bitwidth: 16
+      }
+      members {
+        name: "DHCP_SERV"
+        value: "\000C"
+      }
+      members {
+        name: "DHCP_CLIENT"
+        value: "\000D"
+      }
+      members {
+        name: "GTP_GPDU"
+        value: "\010h"
+      }
+      members {
+        name: "IPV4_IN_UDP"
+        value: "&\223"
       }
     }
   }
