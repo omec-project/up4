@@ -4,6 +4,9 @@ onos_url := http://localhost:8181/onos
 onos_curl := curl --fail -sSL --user onos:rocks --noproxy localhost
 
 
+onos-ui:
+	open ${onos_url}/ui
+
 get-onos-tools:
 	curl -sS --fail https://repo1.maven.org/maven2/org/onosproject/onos-releases/2.2.2/onos-admin-2.2.2.tar.gz \
   > tools.tar.gz

@@ -301,10 +301,12 @@ public class Up4NorthComponent {
                 int direction = byteSeqToInt(getParamValue(entry, "direction"));
                 if (direction == 1) {
                     // Param#2 is Direction. Value 1 is uplink
+                    log.info("Interpreted write req as Uplink Interface with S1U address {}", prefix.address());
                     up4Service.addS1uInterface(deviceId, prefix.address());
                 }
                 else if (direction == 2){
                     // Value 2 is downlink
+                    log.info("Interpreted write req as Downlink Interface with UE Pool prefix {}", prefix);
                     up4Service.addUePool(deviceId, prefix);
                 }
                 else {
@@ -324,10 +326,14 @@ public class Up4NorthComponent {
                     // uplink will have a non-ignored teid
                     int teid = byteSeqToInt(getFieldVal(entry, "teid"));
                     Ip4Address tunnelDst = getFieldAddress(entry, "tunnel_ipv4_dst");
+                    log.info("Interpreted write req as Uplink PDR with UE-ADDR:{}, TEID:{}, S1UAddr:{}, SessionID:{}, CTR-ID:{}, FAR-ID:{}",
+                            ueAddr, teid, tunnelDst, sessionId, ctrId, farId);
                     up4Service.addPdr(deviceId, sessionId, ctrId, farId, ueAddr, teid, tunnelDst);
                 }
                 else {
                     // downlink
+                    log.info("Interpreted write req as Downlink PDR with UE-ADDR:{}, SessionID:{}, CTR-ID:{}, FAR-ID:{}",
+                            ueAddr, sessionId, ctrId, farId);
                     up4Service.addPdr(deviceId, sessionId, ctrId, farId, ueAddr);
                 }
             }
@@ -339,6 +345,8 @@ public class Up4NorthComponent {
             boolean needsDropping = byteSeqToInt(getParamValue(entry, "needs_dropping")) > 0;
             boolean notifyCp = byteSeqToInt(getParamValue(entry, "notify_cp")) > 0;
             if (actionId.equals(PiActionId.of("PreQosPipe.load_normal_far_attributes"))) {
+                log.info("Interpreted write req as Uplink FAR with FAR-ID:{}, SessionID:{}, Drop:{}, Notify:{}",
+                        farId, sessionId, needsDropping, notifyCp);
                 up4Service.addFar(deviceId, sessionId, farId, needsDropping, notifyCp);
             }
             else if (actionId.equals(PiActionId.of("PreQosPipe.load_tunnel_far_attributes"))) {
@@ -346,6 +354,8 @@ public class Up4NorthComponent {
                 Ip4Address tunnelDst = Ip4Address.valueOf(getParamValue(entry, "dst_addr").asArray());
                 int teid = byteSeqToInt(getParamValue(entry, "teid"));
                 Up4Service.TunnelDesc tunnel = new Up4Service.TunnelDesc(tunnelSrc, tunnelDst, teid);
+                log.info("Interpreted write req as Downlink FAR with FAR-ID:{}, SessionID:{}, Drop:{}, Notify:{}, TunnelSrc:{}, TunnelDst:{}, TEID:{}",
+                        farId, sessionId, needsDropping, notifyCp, tunnelSrc, tunnelDst, teid);
                 up4Service.addFar(deviceId, sessionId, farId, needsDropping, notifyCp, tunnel);
             }
             else {actionUnknown = true;}
