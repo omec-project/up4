@@ -7,10 +7,11 @@ jobs:
       - checkout
       - run: make deps build check
   app-build-and-test:
-    image: circleci/openjdk:11
+    docker:
+      - image: circleci/openjdk:11
     steps:
       - checkout
-      - run: cd app && mvn install 
+      - run: cd app && mvn install
 
 workflows:
   main:
