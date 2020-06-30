@@ -1,13 +1,19 @@
 version: 2.1
 
 jobs:
-  build-and-test:
+  p4-build-and-test:
     machine: true
     steps:
       - checkout
       - run: make deps build check
+  app-build-and-test:
+    image: circleci/openjdk:11
+    steps:
+      - checkout
+      - run: cd app && mvn install
 
 workflows:
   main:
     jobs:
-      - build-and-test
+      - p4-build-and-test
+      - app-build-and-test
