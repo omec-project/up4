@@ -247,6 +247,7 @@ public class Up4NorthComponent {
     }
 
     private int byteSeqToInt(ImmutableByteSequence sequence) {
+        // FIXME: use sequence.asReadOnlyBuffer().getInt() instead, which will require ensuring sequence length == 4
         int result = 0;
         for (byte b : sequence.asArray()) {
             result = (result << 8) + ((int) b & 0xff);
@@ -254,6 +255,10 @@ public class Up4NorthComponent {
         return result;
     }
 
+    /**
+     * Translate the given logical pipeline table entry to a Up4Service entry deletion call.
+     * @param entry The logical table entry to be deleted
+     */
     private void translateAndDelete(PiTableEntry entry) {
         log.info("Translating UP4 deletion request to fabric entry deletion.");
         PiTableId tableId = entry.table();
@@ -262,14 +267,18 @@ public class Up4NorthComponent {
             up4Service.removeUnknownInterface(deviceId, prefix);
         } else if (tableId.equals(NorthConstants.PDR_TBL)) {
             Ip4Address ueAddr = getFieldAddress(entry, NorthConstants.UE_ADDR_KEY);
-            if (!fieldMaskIsZero(entry, NorthConstants.TEID_KEY)) {
+            int srcInterface = getFieldInt(entry, NorthConstants.SRC_IFACE_KEY);
+            if (srcInterface == NorthConstants.IFACE_ACCESS) {
                 // uplink will have a non-ignored teid
                 int teid = getFieldInt(entry, NorthConstants.TEID_KEY);
                 Ip4Address tunnelDst = getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY);
                 up4Service.removePdr(deviceId, ueAddr, teid, tunnelDst);
-            } else {
+            } else if (srcInterface == NorthConstants.IFACE_CORE) {
                 // downlink
                 up4Service.removePdr(deviceId,  ueAddr);
+            } else {
+                log.error("Removing a PDR that does not match on an access or core src_iface " +
+                        "is currently unsupported. Ignoring");
             }
         } else if (tableId.equals(NorthConstants.FAR_TBL)) {
             int farId = byteSeqToInt(getFieldValue(entry, NorthConstants.FAR_ID_KEY));
@@ -282,6 +291,10 @@ public class Up4NorthComponent {
         log.info("Translation of UP4 deletion request successful.");
     }
 
+    /**
+     * Translate the given logical pipeline table entry to a Up4Service entry insertion call.
+     * @param entry The logical table entry to be inserted
+     */
     private void translateAndInsert(PiTableEntry entry) {
         log.info("Translating UP4 write request to fabric entry.");
         PiTableId tableId = entry.table();
@@ -369,8 +382,19 @@ public class Up4NorthComponent {
 
     }
 
-
+    /**
+     * The P4Runtime server service.
+     */
     public class Up4NorthService extends P4RuntimeGrpc.P4RuntimeImplBase {
+
+        /**
+         * A streamChannel represents a P4Runtime session. This session should persist for the lifetime of a connected
+         * controller. The streamChannel is used for master/slave arbitration. Currently this implementation does not
+         * track a master, and blindly tells every controller that they are the master as soon as they send an
+         * arbitration request. We also do not yet handle anything except arbitration requests.
+         * @param responseObserver The thing that is fed responses to arbitration requests.
+         * @return
+         */
         @Override
         public StreamObserver<P4RuntimeOuterClass.StreamMessageRequest>
         streamChannel(StreamObserver<P4RuntimeOuterClass.StreamMessageResponse> responseObserver) {
@@ -416,6 +440,13 @@ public class Up4NorthComponent {
             };
         }
 
+        /**
+         * Receives a pipeline config from a client. Discards all but the p4info file and cookie, and compares the
+         * received p4info to the already present hardcoded p4info. If the two match, the cookie is stored and a
+         * success response is sent. If they do not, the cookie is disarded and an error is reported.
+         * @param request A request containing a p4info and cookie
+         * @param responseObserver The thing that is fed a response to the config request.
+         */
         @Override
         public void setForwardingPipelineConfig(P4RuntimeOuterClass.SetForwardingPipelineConfigRequest request,
                                                 StreamObserver<P4RuntimeOuterClass.SetForwardingPipelineConfigResponse>
@@ -435,6 +466,11 @@ public class Up4NorthComponent {
             responseObserver.onCompleted();
         }
 
+        /**
+         * Returns the UP4 logical switch p4info and cookie.
+         * @param request A request for a forwarding pipeline config
+         * @param responseObserver The thing that is fed the pipeline config response.
+         */
         @Override
         public void getForwardingPipelineConfig(P4RuntimeOuterClass.GetForwardingPipelineConfigRequest request,
                                                 StreamObserver<P4RuntimeOuterClass.GetForwardingPipelineConfigResponse>
@@ -450,6 +486,11 @@ public class Up4NorthComponent {
             responseObserver.onCompleted();
         }
 
+        /**
+         * Writes entities to the logical UP4 switch. Currently only supports direct table entries.
+         * @param request A request containing entities to be written
+         * @param responseObserver The thing that is fed a response once writing has concluded.
+         */
         @Override
         public void write(P4RuntimeOuterClass.WriteRequest request,
                           StreamObserver<P4RuntimeOuterClass.WriteResponse> responseObserver) {
@@ -498,6 +539,11 @@ public class Up4NorthComponent {
             responseObserver.onCompleted();
         }
 
+        /**
+         * Reads entities from the logical UP4 switch. Currently only supports counter reads.
+         * @param request A request containing one or more entities to be read.
+         * @param responseObserver Thing that will be fed descriptions of the requested entities.
+         */
         @Override
         public void read(P4RuntimeOuterClass.ReadRequest request,
                          StreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver) {

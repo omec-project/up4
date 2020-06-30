@@ -133,6 +133,7 @@ public class Up4Component implements Up4Service {
 
     }
 
+    @Override
     public List<Device> getAvailableDevices() {
         ArrayList<Device> foundDevices = new ArrayList<>();
         for (Device device : deviceService.getAvailableDevices()) {
