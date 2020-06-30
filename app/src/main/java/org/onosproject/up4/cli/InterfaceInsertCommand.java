@@ -28,7 +28,7 @@ import org.onosproject.net.device.DeviceService;
 import org.onosproject.up4.Up4Service;
 
 /**
- * UPF PDR Insert Command
+ * UPF S1U Interface insertion command.
  */
 @Service
 @Command(scope = "up4", name = "s1u-insert",

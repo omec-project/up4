@@ -28,7 +28,7 @@ import org.onosproject.net.device.DeviceService;
 import org.onosproject.up4.Up4Service;
 
 /**
- * UPF PDR Insert Command
+ * UPF PDR insertion command.
  */
 @Service
 @Command(scope = "up4", name = "pdr-insert",
@@ -90,8 +90,7 @@ public class PdrInsertCommand extends AbstractShellCommand {
             Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
             print("Installing *Uplink* PDR on device %s", uri);
             app.addPdr(device.id(), sessionId, 1, farId, ueAddr, teid, s1uAddr);
-        }
-        else {
+        } else {
             print("Installing *Downlink* PDR on device %s", uri);
             app.addPdr(device.id(), sessionId, 1, farId, ueAddr);
         }

@@ -23,7 +23,6 @@ import org.onosproject.core.CoreServiceAdapter;
 import org.onosproject.net.device.DeviceServiceAdapter;
 import org.onosproject.net.flow.FlowRuleServiceAdapter;
 import org.onosproject.net.pi.PiPipeconfServiceAdapter;
-import org.onosproject.up4.Up4Component;
 
 /**
  * Set of tests of the ONOS application component.

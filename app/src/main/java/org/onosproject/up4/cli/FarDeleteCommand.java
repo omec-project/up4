@@ -19,7 +19,6 @@ import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
@@ -27,10 +26,9 @@ import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
 
 import org.onosproject.up4.Up4Service;
-import org.onosproject.up4.Up4Service.TunnelDesc;
 
 /**
- * UPF Far Insert Command
+ * UPF FAR deletion command.
  */
 @Service
 @Command(scope = "up4", name = "far-delete",

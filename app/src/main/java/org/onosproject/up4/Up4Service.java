@@ -49,21 +49,21 @@ public interface Up4Service {
         UPLINK,
         DOWNLINK,
         /**
-         * For flexible PDRs that do not care about direction
+         * For flexible PDRs that do not care about direction.
          */
         BOTH,
     }
 
     /**
-     * Type of UPF/SPGW interface. Currently unused
+     * Type of UPF/SPGW interface. Currently unused.
      */
     enum InterfaceType {
-        UNKNOWN         (0),
-        ACCESS          (1),
-        CORE            (2),
-        N6_LAN          (3),
-        VN_INTERNAL     (4),
-        CONTROL_PLANE   (5);  // N4 and N4-u
+        UNKNOWN(0),
+        ACCESS(1),
+        CORE(2),
+        N6_LAN(3),
+        VN_INTERNAL(4),
+        CONTROL_PLANE(5);  // N4 and N4-u
 
         public final int value;
 

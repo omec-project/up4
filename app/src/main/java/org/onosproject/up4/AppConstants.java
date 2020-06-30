@@ -18,7 +18,10 @@ package org.onosproject.up4;
 
 import org.onosproject.net.pi.model.PiPipeconfId;
 
-public class AppConstants {
+public final class AppConstants {
+    // hide default constructor
+    private AppConstants() {
+    }
     public static final String APP_NAME = "org.onosproject.up4";
     public static final PiPipeconfId PIPECONF_ID = new PiPipeconfId("org.onosproject.up4");
     public static final int GRPC_SERVER_PORT = 51001;

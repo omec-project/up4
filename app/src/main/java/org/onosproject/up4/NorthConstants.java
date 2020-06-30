@@ -1,14 +1,11 @@
 package org.onosproject.up4;
 import org.onosproject.net.pi.model.PiActionId;
 import org.onosproject.net.pi.model.PiActionParamId;
-import org.onosproject.net.pi.model.PiActionProfileId;
-import org.onosproject.net.pi.model.PiMeterId;
-import org.onosproject.net.pi.model.PiPacketMetadataId;
 import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiMatchFieldId;
 import org.onosproject.net.pi.model.PiTableId;
 
-public class NorthConstants {
+public final class NorthConstants {
     // hide default constructor
     private NorthConstants() {
     }

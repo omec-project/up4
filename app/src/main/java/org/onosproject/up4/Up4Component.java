@@ -15,16 +15,35 @@
  */
 package org.onosproject.up4;
 
-import org.onlab.packet.Ip4Prefix;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+import org.apache.commons.lang3.tuple.Pair;
 import org.onlab.packet.Ip4Address;
+import org.onlab.packet.Ip4Prefix;
 import org.onosproject.cfg.ComponentConfigService;
+import org.onosproject.core.ApplicationId;
+import org.onosproject.core.CoreService;
 import org.onosproject.net.Device;
+import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
-import org.onosproject.net.flow.*;
+import org.onosproject.net.flow.DefaultFlowRule;
+import org.onosproject.net.flow.DefaultTrafficSelector;
+import org.onosproject.net.flow.DefaultTrafficTreatment;
+import org.onosproject.net.flow.FlowEntry;
+import org.onosproject.net.flow.FlowRule;
+import org.onosproject.net.flow.FlowRuleService;
+import org.onosproject.net.flow.FlowRuleStore;
+import org.onosproject.net.flow.criteria.PiCriterion;
+import org.onosproject.net.pi.model.PiPipeconf;
+import org.onosproject.net.pi.model.PiTableId;
+import org.onosproject.net.pi.runtime.PiAction;
+import org.onosproject.net.pi.runtime.PiActionParam;
+import org.onosproject.net.pi.runtime.PiCounterCell;
+import org.onosproject.net.pi.runtime.PiCounterCellHandle;
+import org.onosproject.net.pi.runtime.PiCounterCellId;
 import org.onosproject.net.pi.service.PiPipeconfService;
-import org.onosproject.p4runtime.api.P4RuntimeController;
 import org.onosproject.p4runtime.api.P4RuntimeClient;
-import org.onosproject.p4runtime.api.P4RuntimeReadClient;
+import org.onosproject.p4runtime.api.P4RuntimeController;
 import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
@@ -35,38 +54,16 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.stream.Collectors;
-
-
-import org.onosproject.net.pi.model.PiCounterId;
-import org.onosproject.net.pi.runtime.PiCounterCell;
-import org.onosproject.net.pi.runtime.PiCounterCellHandle;
-import org.onosproject.net.pi.runtime.PiCounterCellId;
-
-
-import org.onosproject.net.DeviceId;
-
-import org.onosproject.net.flow.criteria.PiCriterion;
-import org.onosproject.net.pi.model.PiTableId;
-import org.onosproject.net.pi.runtime.PiAction;
-import org.onosproject.net.pi.runtime.PiActionParam;
-import org.onosproject.net.pi.model.PiActionParamId;
-import org.onosproject.net.pi.model.PiActionId;
-import org.onosproject.net.pi.model.PiMatchFieldId;
-import org.onosproject.net.pi.model.PiPipeconf;
-import org.onosproject.core.CoreService;
-import org.onosproject.core.ApplicationId;
-
-import java.util.*;
-
-import static org.onlab.util.Tools.get;
-
-import org.apache.commons.lang3.tuple.Pair;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
-
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Dictionary;
+import java.util.List;
+import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.onlab.util.Tools.get;
 import static org.onosproject.net.pi.model.PiCounterType.INDIRECT;
 
 
@@ -245,7 +242,7 @@ public class Up4Component implements Up4Service {
     private void addPdr(DeviceId deviceId, int sessionId, int ctrId, int farId, PiCriterion match, PiTableId tableId) {
         int globalFarId = getGlobalFarId(sessionId, farId);
         PiAction action = PiAction.builder()
-                .withId(PiActionId.of("FabricIngress.spgw_ingress.set_pdr_attributes"))
+                .withId(SouthConstants.LOAD_PDR)
                 .withParameters(Arrays.asList(
                     new PiActionParam(SouthConstants.CTR_ID, ctrId),
                     new PiActionParam(SouthConstants.FAR_ID_PARAM, globalFarId)
@@ -308,7 +305,8 @@ public class Up4Component implements Up4Service {
     }
 
     @Override
-    public void addFar(DeviceId deviceId, int sessionId, int farId, boolean drop, boolean notifyCp, TunnelDesc tunnelDesc) {
+    public void addFar(DeviceId deviceId, int sessionId, int farId, boolean drop, boolean notifyCp,
+                       TunnelDesc tunnelDesc) {
         log.info("Adding simple downlink FAR entry");
 
         PiAction action = PiAction.builder()

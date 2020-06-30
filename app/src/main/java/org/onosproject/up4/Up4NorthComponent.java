@@ -17,8 +17,8 @@ package org.onosproject.up4;
 
 import com.google.rpc.Code;
 import com.google.rpc.Status;
-//import io.grpc.Status;
-//import io.grpc.Status.Code;
+import io.grpc.Server;
+import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
@@ -29,38 +29,49 @@ import org.onosproject.core.CoreService;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
-import org.onosproject.net.pi.model.*;
-import org.onosproject.net.pi.runtime.*;
+import org.onosproject.net.pi.model.DefaultPiPipeconf;
+import org.onosproject.net.pi.model.PiActionId;
+import org.onosproject.net.pi.model.PiActionParamId;
+import org.onosproject.net.pi.model.PiCounterId;
+import org.onosproject.net.pi.model.PiMatchFieldId;
+import org.onosproject.net.pi.model.PiMatchType;
+import org.onosproject.net.pi.model.PiPipeconf;
+import org.onosproject.net.pi.model.PiPipelineModel;
+import org.onosproject.net.pi.model.PiTableId;
+import org.onosproject.net.pi.runtime.PiAction;
+import org.onosproject.net.pi.runtime.PiActionParam;
+import org.onosproject.net.pi.runtime.PiCounterCell;
+import org.onosproject.net.pi.runtime.PiEntity;
+import org.onosproject.net.pi.runtime.PiEntityType;
+import org.onosproject.net.pi.runtime.PiExactFieldMatch;
+import org.onosproject.net.pi.runtime.PiFieldMatch;
+import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
+import org.onosproject.net.pi.runtime.PiRangeFieldMatch;
+import org.onosproject.net.pi.runtime.PiTableAction;
+import org.onosproject.net.pi.runtime.PiTableEntry;
+import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 import org.onosproject.p4runtime.ctl.codec.CodecException;
+import org.onosproject.p4runtime.ctl.codec.Codecs;
 import org.onosproject.p4runtime.ctl.utils.PipeconfHelper;
-import org.osgi.service.component.annotations.*;
-
-
-
-import io.grpc.Server;
-import io.grpc.netty.NettyServerBuilder;
-
-import java.io.IOException;
-
+import org.onosproject.p4runtime.model.P4InfoParser;
+import org.onosproject.p4runtime.model.P4InfoParserException;
+import org.osgi.service.component.annotations.Activate;
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Deactivate;
+import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import p4.config.v1.P4InfoOuterClass;
 import p4.v1.P4RuntimeGrpc;
 import p4.v1.P4RuntimeOuterClass;
 
-import org.onosproject.p4runtime.model.P4InfoParser;
-import org.onosproject.p4runtime.model.P4InfoParserException;
-
-import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
-
+import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.Optional;
 
-import org.onosproject.net.pi.model.PiPipeconf;
-
-import org.onosproject.p4runtime.ctl.codec.Codecs;
-
+import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
 import static org.onosproject.up4.AppConstants.PIPECONF_ID;
 
 @Component(immediate = true,
@@ -175,25 +186,21 @@ public class Up4NorthComponent {
         }
         PiFieldMatch field = optField.get();
         if (field.type() == PiMatchType.EXACT) {
-            return ((PiExactFieldMatch)field).value();
-        }
-        else if (field.type() == PiMatchType.LPM) {
-            return ((PiLpmFieldMatch)field).value();
-        }
-        else if (field.type() == PiMatchType.TERNARY) {
-            return ((PiTernaryFieldMatch)field).value();
-        }
-        else if (field.type() == PiMatchType.RANGE) {
-            return ((PiRangeFieldMatch)field).lowValue();
-        }
-        else {
+            return ((PiExactFieldMatch) field).value();
+        } else if (field.type() == PiMatchType.LPM) {
+            return ((PiLpmFieldMatch) field).value();
+        } else if (field.type() == PiMatchType.TERNARY) {
+            return ((PiTernaryFieldMatch) field).value();
+        } else if (field.type() == PiMatchType.RANGE) {
+            return ((PiRangeFieldMatch) field).lowValue();
+        } else {
             log.error("Field has unknown match type!");
             return ZERO_SEQ;
         }
     }
 
     private ImmutableByteSequence getParamValue(PiTableEntry entry, PiActionParamId paramId) {
-        PiAction action = (PiAction)entry.action();
+        PiAction action = (PiAction) entry.action();
 
         for (PiActionParam param : action.parameters()) {
             if (param.id().equals(paramId)) {
@@ -222,7 +229,7 @@ public class Up4NorthComponent {
             log.error("Field {} is not present where expected!", fieldId);
             return null;
         }
-        PiLpmFieldMatch field = (PiLpmFieldMatch)optField.get();
+        PiLpmFieldMatch field = (PiLpmFieldMatch) optField.get();
         Ip4Address address = Ip4Address.valueOf(field.value().asArray());
         return Ip4Prefix.valueOf(address, field.prefixLength());
     }
@@ -242,8 +249,10 @@ public class Up4NorthComponent {
             log.warn("Attempting to check mask for non-ternary field! {}", fieldId);
             return false;
         }
-        for (byte b : ((PiTernaryFieldMatch)field).mask().asArray()) {
-            if (b != (byte)0) { return false; }
+        for (byte b : ((PiTernaryFieldMatch) field).mask().asArray()) {
+            if (b != (byte) 0) {
+                return false;
+            }
         }
         return true;
     }
@@ -251,7 +260,7 @@ public class Up4NorthComponent {
     private int byteSeqToInt(ImmutableByteSequence sequence) {
         int result = 0;
         for (byte b : sequence.asArray()) {
-            result = (result << 8) + ((int)b & 0xff);
+            result = (result << 8) + ((int) b & 0xff);
         }
         return result;
     }
@@ -262,26 +271,22 @@ public class Up4NorthComponent {
         if (tableId.equals(NorthConstants.IFACE_TBL)) {
             Ip4Prefix prefix = getFieldPrefix(entry, NorthConstants.IFACE_DST_PREFIX_KEY);
             up4Service.removeUnknownInterface(deviceId, prefix);
-        }
-        else if (tableId.equals(NorthConstants.PDR_TBL)) {
+        } else if (tableId.equals(NorthConstants.PDR_TBL)) {
             Ip4Address ueAddr = getFieldAddress(entry, NorthConstants.UE_ADDR_KEY);
             if (!fieldMaskIsZero(entry, NorthConstants.TEID_KEY)) {
                 // uplink will have a non-ignored teid
                 int teid = getFieldInt(entry, NorthConstants.TEID_KEY);
                 Ip4Address tunnelDst = getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY);
                 up4Service.removePdr(deviceId, ueAddr, teid, tunnelDst);
-            }
-            else {
+            } else {
                 // downlink
                 up4Service.removePdr(deviceId,  ueAddr);
             }
-        }
-        else if (tableId.equals(NorthConstants.FAR_TBL)) {
+        } else if (tableId.equals(NorthConstants.FAR_TBL)) {
             int farId = byteSeqToInt(getFieldValue(entry, NorthConstants.FAR_ID_KEY));
             int sessionId = byteSeqToInt(getFieldValue(entry, NorthConstants.SESSION_ID_KEY));
             up4Service.removeFar(deviceId, sessionId, farId);
-        }
-        else {
+        } else {
             log.error("Attempting to translate table entry of unknown table! {}", tableId.toString());
             return;
         }
@@ -305,18 +310,16 @@ public class Up4NorthComponent {
                 if (direction == NorthConstants.DIRECTION_UPLINK) {
                     log.info("Interpreted write req as Uplink Interface with S1U address {}", prefix.address());
                     up4Service.addS1uInterface(deviceId, prefix.address());
-                }
-                else if (direction == NorthConstants.DIRECTION_DOWNLINK){
+                } else if (direction == NorthConstants.DIRECTION_DOWNLINK) {
                     log.info("Interpreted write req as Downlink Interface with UE Pool prefix {}", prefix);
                     up4Service.addUePool(deviceId, prefix);
-                }
-                else {
+                } else {
                     log.error("Received an interface lookup entry with unknown direction {}!", direction);
                 }
+            } else {
+                actionUnknown = true;
             }
-            else {actionUnknown = true;}
-        }
-        else if (tableId.equals(NorthConstants.PDR_TBL)) {
+        } else if (tableId.equals(NorthConstants.PDR_TBL)) {
             if (actionId.equals(NorthConstants.LOAD_PDR)) {
                 // 1:pdr-id, 2:session-id, 3:ctr-id, 4:far-id, 5:needs-gtpu-decap
                 int sessionId = getParamInt(entry, NorthConstants.SESSION_ID_PARAM);
@@ -327,23 +330,24 @@ public class Up4NorthComponent {
                 if (srcInterface == NorthConstants.IFACE_ACCESS) {
                     int teid = getFieldInt(entry, NorthConstants.TEID_KEY);
                     Ip4Address tunnelDst = getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY);
-                    log.info("Interpreted write req as Uplink PDR with UE-ADDR:{}, TEID:{}, S1UAddr:{}, SessionID:{}, CTR-ID:{}, FAR-ID:{}",
+                    log.info("Interpreted write req as Uplink PDR with UE-ADDR:{}, TEID:{}, " +
+                                    "S1UAddr:{}, SessionID:{}, CTR-ID:{}, FAR-ID:{}",
                             ueAddr, teid, tunnelDst, sessionId, ctrId, farId);
                     up4Service.addPdr(deviceId, sessionId, ctrId, farId, ueAddr, teid, tunnelDst);
-                }
-                else if (srcInterface == NorthConstants.IFACE_CORE) {
+                } else if (srcInterface == NorthConstants.IFACE_CORE) {
                     // downlink
-                    log.info("Interpreted write req as Downlink PDR with UE-ADDR:{}, SessionID:{}, CTR-ID:{}, FAR-ID:{}",
+                    log.info("Interpreted write req as Downlink PDR with UE-ADDR:{}, " +
+                                    "SessionID:{}, CTR-ID:{}, FAR-ID:{}",
                             ueAddr, sessionId, ctrId, farId);
                     up4Service.addPdr(deviceId, sessionId, ctrId, farId, ueAddr);
+                } else {
+                    log.error("PDR that does not match on an access or core src_iface " +
+                            "is currently unsupported. Ignoring");
                 }
-                else {
-                    log.error("PDR that does not match on an access or core src_iface is currently unsupported. Ignoring");
-                }
+            } else {
+                actionUnknown = true;
             }
-            else {actionUnknown = true;}
-        }
-        else if (tableId.equals(NorthConstants.FAR_TBL)) {
+        } else if (tableId.equals(NorthConstants.FAR_TBL)) {
             int farId = getFieldInt(entry, NorthConstants.FAR_ID_KEY);
             int sessionId = getFieldInt(entry, NorthConstants.SESSION_ID_KEY);
             boolean needsDropping = getParamInt(entry, NorthConstants.DROP_FLAG) > 0;
@@ -352,19 +356,19 @@ public class Up4NorthComponent {
                 log.info("Interpreted write req as Uplink FAR with FAR-ID:{}, SessionID:{}, Drop:{}, Notify:{}",
                         farId, sessionId, needsDropping, notifyCp);
                 up4Service.addFar(deviceId, sessionId, farId, needsDropping, notifyCp);
-            }
-            else if (actionId.equals(NorthConstants.LOAD_FAR_TUNNEL)) {
+            } else if (actionId.equals(NorthConstants.LOAD_FAR_TUNNEL)) {
                 Ip4Address tunnelSrc = getParamAddress(entry, NorthConstants.TUNNEL_SRC_PARAM);
                 Ip4Address tunnelDst = getParamAddress(entry, NorthConstants.TUNNEL_DST_PARAM);
                 int teid = getParamInt(entry, NorthConstants.TEID_PARAM);
                 Up4Service.TunnelDesc tunnel = new Up4Service.TunnelDesc(tunnelSrc, tunnelDst, teid);
-                log.info("Interpreted write req as Downlink FAR with FAR-ID:{}, SessionID:{}, Drop:{}, Notify:{}, TunnelSrc:{}, TunnelDst:{}, TEID:{}",
+                log.info("Interpreted write req as Downlink FAR with FAR-ID:{}, SessionID:{}, Drop:{}," +
+                                " Notify:{}, TunnelSrc:{}, TunnelDst:{}, TEID:{}",
                         farId, sessionId, needsDropping, notifyCp, tunnelSrc, tunnelDst, teid);
                 up4Service.addFar(deviceId, sessionId, farId, needsDropping, notifyCp, tunnel);
+            } else {
+                actionUnknown = true;
             }
-            else {actionUnknown = true;}
-        }
-        else {
+        } else {
             log.error("Attempting to translate table entry of unknown table! {}", tableId.toString());
             return;
         }
@@ -379,7 +383,8 @@ public class Up4NorthComponent {
 
     public class Up4NorthService extends P4RuntimeGrpc.P4RuntimeImplBase {
         @Override
-        public StreamObserver<P4RuntimeOuterClass.StreamMessageRequest> streamChannel(StreamObserver<P4RuntimeOuterClass.StreamMessageResponse> responseObserver) {
+        public StreamObserver<P4RuntimeOuterClass.StreamMessageRequest>
+        streamChannel(StreamObserver<P4RuntimeOuterClass.StreamMessageResponse> responseObserver) {
             // streamChannel handles packet I/O and master arbitration. It persists as long as the controller is active.
             log.info("streamChannel opened.");
             return new StreamObserver<P4RuntimeOuterClass.StreamMessageRequest>() {
@@ -387,7 +392,8 @@ public class Up4NorthComponent {
                 public void onNext(P4RuntimeOuterClass.StreamMessageRequest value) {
                     log.info("Received streamChannel message.");
                     if (value.hasArbitration()) {
-                        log.info("Stream message was arbitration request. Blindly telling requester they are new master.");
+                        log.info("Stream message was arbitration request. " +
+                                "Blindly telling requester they are the new master.");
                         // This response should tell every requester that it is now the master controller,
                         // due to the OK status.
                         responseObserver.onNext(P4RuntimeOuterClass.StreamMessageResponse.newBuilder()
@@ -399,8 +405,7 @@ public class Up4NorthComponent {
                                         .build()
                                 ).build()
                         );
-                    }
-                    else {
+                    } else {
                         log.warn("streamChannel message was not an  arbitration message.");
                         // We currently only respond to arbitration requests. Anything else gets a default response.
                         responseObserver.onNext(P4RuntimeOuterClass.StreamMessageResponse.getDefaultInstance());
@@ -424,14 +429,14 @@ public class Up4NorthComponent {
 
         @Override
         public void setForwardingPipelineConfig(P4RuntimeOuterClass.SetForwardingPipelineConfigRequest request,
-                                                StreamObserver<P4RuntimeOuterClass.SetForwardingPipelineConfigResponse> responseObserver) {
+                                                StreamObserver<P4RuntimeOuterClass.SetForwardingPipelineConfigResponse>
+                                                        responseObserver) {
             // Currently ignoring device_id, role_id, election_id, action
             log.info("Received setForwardingPipelineConfig message.");
             P4InfoOuterClass.P4Info otherP4Info = request.getConfig().getP4Info();
             if (!otherP4Info.equals(p4Info)) {
                 log.error("Someone attempted to write a p4info file that doesn't match our hardcoded one! What a jerk");
-            }
-            else {
+            } else {
                 log.info("Received p4info correctly matches hardcoded p4info. Saving cookie.");
                 pipeconfCookie = request.getConfig().getCookie().getCookie();
             }
@@ -442,11 +447,14 @@ public class Up4NorthComponent {
         }
 
         @Override
-        public void getForwardingPipelineConfig(P4RuntimeOuterClass.GetForwardingPipelineConfigRequest request, StreamObserver<P4RuntimeOuterClass.GetForwardingPipelineConfigResponse> responseObserver) {
+        public void getForwardingPipelineConfig(P4RuntimeOuterClass.GetForwardingPipelineConfigRequest request,
+                                                StreamObserver<P4RuntimeOuterClass.GetForwardingPipelineConfigResponse>
+                                                        responseObserver) {
             responseObserver.onNext(
                 P4RuntimeOuterClass.GetForwardingPipelineConfigResponse.newBuilder()
                     .setConfig(P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
-                        .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder().setCookie(pipeconfCookie))
+                        .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
+                                .setCookie(pipeconfCookie))
                         .setP4Info(p4Info)
                         .build())
                     .build());
@@ -454,7 +462,8 @@ public class Up4NorthComponent {
         }
 
         @Override
-        public void write(P4RuntimeOuterClass.WriteRequest request, StreamObserver<P4RuntimeOuterClass.WriteResponse> responseObserver) {
+        public void write(P4RuntimeOuterClass.WriteRequest request,
+                          StreamObserver<P4RuntimeOuterClass.WriteResponse> responseObserver) {
             log.info("Received write request.");
             if (p4Info == null) {
                 log.error("Write request received before pipeline config set! Ignoring");
@@ -462,12 +471,11 @@ public class Up4NorthComponent {
                 responseObserver.onCompleted();
                 return;
             }
-            for(P4RuntimeOuterClass.Update update : request.getUpdatesList()) {
+            for (P4RuntimeOuterClass.Update update : request.getUpdatesList()) {
                 if (!update.hasEntity()) {
                     log.error("Update message with no entity received. Ignoring");
                     continue;
-                }
-                else if (!update.getEntity().hasTableEntry()) {
+                } else if (!update.getEntity().hasTableEntry()) {
                     log.error("Update message with no table entry received. Ignoring.");
                     continue;
                 }
@@ -477,8 +485,7 @@ public class Up4NorthComponent {
                     PiEntity entity = Codecs.CODECS.entity().decode(update.getEntity(), null, pipeconf);
                     if (entity.piEntityType() == PiEntityType.TABLE_ENTRY) {
                         entry = (PiTableEntry) entity;
-                    }
-                    else {
+                    } else {
                         log.error("Update entity is not a table entry. Ignoring.");
                         continue;
                     }
@@ -490,12 +497,10 @@ public class Up4NorthComponent {
                         || update.getType() == P4RuntimeOuterClass.Update.Type.MODIFY) {
                     log.info("Update type is insert or modify.");
                     translateAndInsert(entry);
-                }
-                else if (update.getType() == P4RuntimeOuterClass.Update.Type.DELETE){
+                } else if (update.getType() == P4RuntimeOuterClass.Update.Type.DELETE) {
                     log.info("Update type is delete");
                     translateAndDelete(entry);
-                }
-                else {
+                } else {
                     throw new UnsupportedOperationException("Unsupported update type.");
                 }
             }
@@ -505,14 +510,14 @@ public class Up4NorthComponent {
         }
 
         @Override
-        public void read(P4RuntimeOuterClass.ReadRequest request, StreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver) {
+        public void read(P4RuntimeOuterClass.ReadRequest request,
+                         StreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver) {
             log.info("Received read request.");
             for (P4RuntimeOuterClass.Entity entity : request.getEntitiesList()) {
                 PiEntity piEntity;
                 try {
                     piEntity = Codecs.CODECS.entity().decode(entity, null, pipeconf);
-                }
-                catch (CodecException e) {
+                } catch (CodecException e) {
                     log.error("Unable to decode p4runtime read request entity", e);
                     continue;
                 }
@@ -522,7 +527,7 @@ public class Up4NorthComponent {
                 }
                 PiCounterCell cellEntity = (PiCounterCell) piEntity;
 
-                int counterIndex = (int)cellEntity.cellId().index();
+                int counterIndex = (int) cellEntity.cellId().index();
 
                 Up4Service.PdrStats ctrValues = up4Service.readCounter(deviceId, counterIndex);
 
@@ -535,13 +540,11 @@ public class Up4NorthComponent {
                     gress = "ingress";
                     pkts = ctrValues.ingressPkts;
                     bytes = ctrValues.ingressBytes;
-                }
-                else if (piCounterId.equals(NorthConstants.EGRESS_COUNTER_ID)) {
+                } else if (piCounterId.equals(NorthConstants.EGRESS_COUNTER_ID)) {
                     gress = "egress";
                     pkts = ctrValues.egressPkts;
                     bytes = ctrValues.egressBytes;
-                }
-                else {
+                } else {
                     log.error("Received read request for unknown counter {}. Skipping.", piCounterId);
                     continue;
                 }

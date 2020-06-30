@@ -28,7 +28,7 @@ import org.onosproject.net.device.DeviceService;
 import org.onosproject.up4.Up4Service;
 
 /**
- * UPF PDR Insert Command
+ * UPF PDR deletion command.
  */
 @Service
 @Command(scope = "up4", name = "pdr-delete",
@@ -80,8 +80,7 @@ public class PdrDeleteCommand extends AbstractShellCommand {
             Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
             print("Removing *Uplink* PDR from device %s", uri);
             app.removePdr(device.id(), ueAddr, teid, s1uAddr);
-        }
-        else {
+        } else {
             print("Removing *Downlink* PDR from device %s", uri);
             app.removePdr(device.id(), ueAddr);
         }

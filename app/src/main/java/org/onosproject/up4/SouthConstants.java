@@ -1,14 +1,11 @@
 package org.onosproject.up4;
 import org.onosproject.net.pi.model.PiActionId;
 import org.onosproject.net.pi.model.PiActionParamId;
-import org.onosproject.net.pi.model.PiActionProfileId;
-import org.onosproject.net.pi.model.PiMeterId;
-import org.onosproject.net.pi.model.PiPacketMetadataId;
 import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiMatchFieldId;
 import org.onosproject.net.pi.model.PiTableId;
 
-public class SouthConstants {
+public final class SouthConstants {
 
     // hide default constructor
     private SouthConstants() {
@@ -33,8 +30,10 @@ public class SouthConstants {
     // Action names
     public static final PiActionId NO_ACTION = PiActionId.of("nop");
     public static final PiActionId LOAD_PDR = PiActionId.of("FabricIngress.spgw_ingress.set_pdr_attributes");
-    public static final PiActionId LOAD_FAR_NORMAL = PiActionId.of("FabricIngress.spgw_ingress.load_normal_far_attributes");
-    public static final PiActionId LOAD_FAR_TUNNEL = PiActionId.of("FabricIngress.spgw_ingress.load_tunnel_far_attributes");
+    public static final PiActionId LOAD_FAR_NORMAL =
+            PiActionId.of("FabricIngress.spgw_ingress.load_normal_far_attributes");
+    public static final PiActionId LOAD_FAR_TUNNEL =
+            PiActionId.of("FabricIngress.spgw_ingress.load_tunnel_far_attributes");
 
 
     // Match key names

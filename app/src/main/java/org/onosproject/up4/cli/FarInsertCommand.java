@@ -30,7 +30,7 @@ import org.onosproject.up4.Up4Service;
 import org.onosproject.up4.Up4Service.TunnelDesc;
 
 /**
- * UPF Far Insert Command
+ * UPF Far insertion command.
  */
 @Service
 @Command(scope = "up4", name = "far-insert",
@@ -93,11 +93,9 @@ public class FarInsertCommand extends AbstractShellCommand {
 
             print("Installing *Downlink* FAR on device %s", uri);
             app.addFar(device.id(), sessionId, farId, false, false, tunnel);
-        }
-        else {
+        } else {
             print("Installing *Uplink* FAR on device %s", uri);
             app.addFar(device.id(), sessionId, farId, false, false);
         }
     }
-
 }
