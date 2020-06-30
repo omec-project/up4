@@ -77,7 +77,7 @@
 
         <dependency>
             <groupId>org.onosproject</groupId>
-            <artifactId>onos-protocols-p4runtime-ctl</artifactId>
+            <artifactId>onos-protocols-p4runtime-utils</artifactId>
             <version>${onos.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -113,6 +113,20 @@
         <dependency>
             <groupId>org.onosproject</groupId>
             <artifactId>io_grpc_grpc_stub</artifactId>
+            <version>${onos.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.onosproject</groupId>
+            <artifactId>io_grpc_grpc_netty</artifactId>
+            <version>${onos.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.onosproject</groupId>
+            <artifactId>io_grpc_grpc_core_internal</artifactId>
             <version>${onos.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -157,6 +171,7 @@
             <artifactId>org.apache.karaf.shell.console</artifactId>
             <scope>provided</scope>
         </dependency>
+
 
         <dependency>
             <groupId>org.onosproject</groupId>

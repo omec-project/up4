@@ -45,7 +45,6 @@ ENODEB_IPV4 = '140.0.100.1'
 TUNNEL_TYPE_GPDU = '3'
 
 
-
 entries = []
 
 def addEntry(entry):
@@ -101,6 +100,7 @@ def main():
     ## Uplink
     uplinkPdr = sh.TableEntry('PreQosPipe.pdrs')(action='PreQosPipe.set_pdr_attributes')
     # Match fields
+    uplinkPdr.match['src_iface'] = IFACE_ACCESS
     uplinkPdr.match['ue_addr'] = UE_IPV4
     uplinkPdr.match['teid'] = TEID
     uplinkPdr.match['tunnel_ipv4_dst'] = S1U_IPV4
@@ -114,6 +114,7 @@ def main():
     ## Downlink
     downlinkPdr = sh.TableEntry('PreQosPipe.pdrs')(action='PreQosPipe.set_pdr_attributes')
     # Match fields
+    downlinkPdr.match['src_iface'] = IFACE_CORE
     downlinkPdr.match['ue_addr'] = UE_IPV4
     # Action params
     downlinkPdr.action['id'] = PDR_ID_DOWNLINK

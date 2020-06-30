@@ -20,7 +20,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.onosproject.cfg.ComponentConfigAdapter;
 import org.onosproject.core.CoreServiceAdapter;
+import org.onosproject.net.device.DeviceServiceAdapter;
 import org.onosproject.net.flow.FlowRuleServiceAdapter;
+import org.onosproject.net.pi.PiPipeconfServiceAdapter;
 import org.onosproject.up4.Up4Component;
 
 /**
@@ -36,6 +38,8 @@ public class Up4ComponentTest {
         component.cfgService = new ComponentConfigAdapter();
         component.coreService = new CoreServiceAdapter();
         component.flowRuleService = new FlowRuleServiceAdapter();
+        component.deviceService = new DeviceServiceAdapter();
+        component.piPipeconfService = new PiPipeconfServiceAdapter();
         component.activate();
     }
 

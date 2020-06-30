@@ -15,15 +15,15 @@
  */
 package org.onosproject.up4;
 
-import com.google.common.collect.Iterators;
 import com.google.rpc.Code;
 import com.google.rpc.Status;
+//import io.grpc.Status;
+//import io.grpc.Status.Code;
 import io.grpc.stub.StreamObserver;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cfg.ComponentConfigService;
-import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.net.Device;
@@ -33,14 +33,11 @@ import org.onosproject.net.pi.model.*;
 import org.onosproject.net.pi.runtime.*;
 import org.onosproject.p4runtime.ctl.codec.CodecException;
 import org.onosproject.p4runtime.ctl.utils.PipeconfHelper;
-import org.onosproject.routeservice.Route;
-import org.onosproject.routeservice.RouteStore;
 import org.osgi.service.component.annotations.*;
 
 
 
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
 import io.grpc.netty.NettyServerBuilder;
 
 import java.io.IOException;
@@ -57,35 +54,24 @@ import org.onosproject.p4runtime.model.P4InfoParserException;
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
 
 import java.net.URL;
-import java.io.File;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 
 import org.onosproject.net.pi.model.PiPipeconf;
 
 import org.onosproject.p4runtime.ctl.codec.Codecs;
 
-import org.onosproject.codec.impl.PiTableModelCodec;
-
-import org.onosproject.codec.CodecService;
-
-import org.onosproject.net.flowobjective.ForwardingObjective;
-import org.onosproject.net.flowobjective.DefaultForwardingObjective;
-import org.onosproject.net.flowobjective.Objective;
-import org.onosproject.net.flowobjective.FlowObjectiveService;
-
-import org.onosproject.routeservice.RouteService;
-import org.onosproject.routeservice.RouteAdminService;
-
 import static org.onosproject.up4.AppConstants.PIPECONF_ID;
 
-@Component(immediate = true)
+@Component(immediate = true,
+        property = {
+                "grpcPort=51001",
+        })
 public class Up4NorthComponent {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-    private static final PiCounterId INGRESS_COUNTER_ID = PiCounterId.of("PreQosPipe.pre_qos_pdr_counter");
-    private static final PiCounterId EGRESS_COUNTER_ID = PiCounterId.of("PostQosPipe.post_qos_pdr_counter");
 
+    private static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
 
     private Server server;
     private ApplicationId appId;
@@ -95,6 +81,9 @@ public class Up4NorthComponent {
     private PiPipelineModel piModel;
     private PiPipeconf pipeconf;
     private DeviceId deviceId;
+
+    /** Port on which the P4runtime server listens. */
+    private int grpcPort;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
@@ -112,7 +101,6 @@ public class Up4NorthComponent {
     @Activate
     protected void activate() {
         appId = coreService.getAppId(AppConstants.APP_NAME);
-        //cfgService.registerProperties(getClass());
         start();
         log.info("UP4 Northbound component activated.");
     }
@@ -134,27 +122,27 @@ public class Up4NorthComponent {
             throw new IllegalStateException("Unable to parse UP4 p4info file.", e);
         }
         p4Info = PipeconfHelper.getP4Info(pipeconf);
-
         // Start Server
         try {
             server = NettyServerBuilder.forPort(AppConstants.GRPC_SERVER_PORT)
                     .addService(new Up4NorthService())
                     .build()
                     .start();
-            log.info("UP4 gRPC server started on port {}", AppConstants.GRPC_SERVER_PORT);
+            log.info("UP4 gRPC server started on port {}", grpcPort);
         } catch (IOException e) {
             log.error("Unable to start gRPC server", e);
             throw new IllegalStateException("Unable to start gRPC server", e);
         }
 
-        // TODO: add an integer deviceId to the netcfg, and use that instead
-        Device device = deviceService.getDevice(DeviceId.deviceId("device:leaf1"));
+        // TODO: add an integer p4runtime deviceId to the netcfg, and use those to identify these devices
+        List<Device> availableDevices = up4Service.getAvailableDevices();
 
-        if (device == null) {
-            log.error("Device \"device:leaf1\" is not found!!");
-            throw new IllegalStateException("Unable to find device leaf1!");
+        if (availableDevices.isEmpty()) {
+            log.error("No available UP4-compliant devices found!");
+            throw new IllegalStateException("No available UP4-compliant devices found!");
         }
-        deviceId = device.id();
+        log.info("{} UP4-compliant device(s) found. Using the first one.", availableDevices.size());
+        deviceId = availableDevices.get(0).id();
 
         log.info("Started");
     }
@@ -179,11 +167,11 @@ public class Up4NorthComponent {
                 .build();
     }
 
-    private ImmutableByteSequence getFieldVal(PiTableEntry entry, String fieldName) {
-        Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(PiMatchFieldId.of(fieldName));
+    private ImmutableByteSequence getFieldValue(PiTableEntry entry, PiMatchFieldId fieldId) {
+        Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(fieldId);
         if (optField.isEmpty()) {
-            log.error("Field {} is not present where expected!", fieldName);
-            return ImmutableByteSequence.ofZeros(1);
+            log.error("Field {} is not present where expected!", fieldId);
+            return ZERO_SEQ;
         }
         PiFieldMatch field = optField.get();
         if (field.type() == PiMatchType.EXACT) {
@@ -200,43 +188,58 @@ public class Up4NorthComponent {
         }
         else {
             log.error("Field has unknown match type!");
-            return ImmutableByteSequence.ofZeros(1);
+            return ZERO_SEQ;
         }
     }
 
-    private ImmutableByteSequence getParamValue(PiTableEntry entry, String paramName) {
+    private ImmutableByteSequence getParamValue(PiTableEntry entry, PiActionParamId paramId) {
         PiAction action = (PiAction)entry.action();
 
-        PiActionParamId soughtId = PiActionParamId.of(paramName);
-
         for (PiActionParam param : action.parameters()) {
-            if (param.id().equals(soughtId)) {
+            if (param.id().equals(paramId)) {
                 return param.value();
             }
         }
-        log.error("Unable to find ParamId {} in table entry!", paramName);
-        return ImmutableByteSequence.ofZeros(1);
+        log.error("Unable to find ParamId {} in table entry!", paramId);
+        return ZERO_SEQ;
     }
 
-    private Ip4Prefix getFieldPrefix(PiTableEntry entry, String fieldName) {
-        PiLpmFieldMatch field = (PiLpmFieldMatch)entry.matchKey().fieldMatch(PiMatchFieldId.of(fieldName)).get();
+    private int getFieldInt(PiTableEntry entry, PiMatchFieldId fieldId) {
+        return byteSeqToInt(getFieldValue(entry, fieldId));
+    }
+
+    private int getParamInt(PiTableEntry entry, PiActionParamId paramId) {
+        return byteSeqToInt(getParamValue(entry, paramId));
+    }
+
+    private Ip4Address getParamAddress(PiTableEntry entry, PiActionParamId paramId) {
+        return Ip4Address.valueOf(getParamValue(entry, paramId).asArray());
+    }
+
+    private Ip4Prefix getFieldPrefix(PiTableEntry entry, PiMatchFieldId fieldId) {
+        Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(fieldId);
+        if (optField.isEmpty()) {
+            log.error("Field {} is not present where expected!", fieldId);
+            return null;
+        }
+        PiLpmFieldMatch field = (PiLpmFieldMatch)optField.get();
         Ip4Address address = Ip4Address.valueOf(field.value().asArray());
         return Ip4Prefix.valueOf(address, field.prefixLength());
     }
 
-    private Ip4Address getFieldAddress(PiTableEntry entry, String fieldName) {
-        return Ip4Address.valueOf(getFieldVal(entry, fieldName).asArray());
+    private Ip4Address getFieldAddress(PiTableEntry entry, PiMatchFieldId fieldId) {
+        return Ip4Address.valueOf(getFieldValue(entry, fieldId).asArray());
     }
 
 
-    private boolean fieldMaskIsZero(PiTableEntry entry, String fieldName) {
-        Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(PiMatchFieldId.of(fieldName));
+    private boolean fieldMaskIsZero(PiTableEntry entry, PiMatchFieldId fieldId) {
+        Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(fieldId);
         if (optField.isEmpty()) {
             return true;
         }
         PiFieldMatch field = optField.get();
         if (field.type() != PiMatchType.TERNARY) {
-            log.warn("Attempting to check mask for non-ternary field! {}", fieldName);
+            log.warn("Attempting to check mask for non-ternary field! {}", fieldId);
             return false;
         }
         for (byte b : ((PiTernaryFieldMatch)field).mask().asArray()) {
@@ -256,16 +259,16 @@ public class Up4NorthComponent {
     private void translateAndDelete(PiTableEntry entry) {
         log.info("Translating UP4 deletion request to fabric entry deletion.");
         PiTableId tableId = entry.table();
-        if (tableId.equals(PiTableId.of("PreQosPipe.source_iface_lookup"))) {
-            Ip4Prefix prefix = getFieldPrefix(entry, "ipv4_dst_prefix");
+        if (tableId.equals(NorthConstants.IFACE_TBL)) {
+            Ip4Prefix prefix = getFieldPrefix(entry, NorthConstants.IFACE_DST_PREFIX_KEY);
             up4Service.removeUnknownInterface(deviceId, prefix);
         }
-        else if (tableId.equals(PiTableId.of("PreQosPipe.pdrs"))) {
-            Ip4Address ueAddr = getFieldAddress(entry, "ue_addr");
-            if (!fieldMaskIsZero(entry, "teid")) {
+        else if (tableId.equals(NorthConstants.PDR_TBL)) {
+            Ip4Address ueAddr = getFieldAddress(entry, NorthConstants.UE_ADDR_KEY);
+            if (!fieldMaskIsZero(entry, NorthConstants.TEID_KEY)) {
                 // uplink will have a non-ignored teid
-                int teid = byteSeqToInt(getFieldVal(entry, "teid"));
-                Ip4Address tunnelDst = getFieldAddress(entry, "tunnel_ipv4_dst");
+                int teid = getFieldInt(entry, NorthConstants.TEID_KEY);
+                Ip4Address tunnelDst = getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY);
                 up4Service.removePdr(deviceId, ueAddr, teid, tunnelDst);
             }
             else {
@@ -273,9 +276,9 @@ public class Up4NorthComponent {
                 up4Service.removePdr(deviceId,  ueAddr);
             }
         }
-        else if (tableId.equals(PiTableId.of("PreQosPipe.load_far_attributes"))) {
-            int farId = byteSeqToInt(getFieldVal(entry, "far_id"));
-            int sessionId = byteSeqToInt(getFieldVal(entry, "session_id"));
+        else if (tableId.equals(NorthConstants.FAR_TBL)) {
+            int farId = byteSeqToInt(getFieldValue(entry, NorthConstants.FAR_ID_KEY));
+            int sessionId = byteSeqToInt(getFieldValue(entry, NorthConstants.SESSION_ID_KEY));
             up4Service.removeFar(deviceId, sessionId, farId);
         }
         else {
@@ -295,17 +298,15 @@ public class Up4NorthComponent {
         boolean actionUnknown = false;
         PiAction action = (PiAction) entry.action();
         PiActionId actionId = action.id();
-        if (tableId.equals(PiTableId.of("PreQosPipe.source_iface_lookup"))) {
-            if (actionId.equals(PiActionId.of("PreQosPipe.set_source_iface"))) {
-                Ip4Prefix prefix = getFieldPrefix(entry, "ipv4_dst_prefix");
-                int direction = byteSeqToInt(getParamValue(entry, "direction"));
-                if (direction == 1) {
-                    // Param#2 is Direction. Value 1 is uplink
+        if (tableId.equals(NorthConstants.IFACE_TBL)) {
+            if (actionId.equals(NorthConstants.LOAD_IFACE)) {
+                Ip4Prefix prefix = getFieldPrefix(entry, NorthConstants.IFACE_DST_PREFIX_KEY);
+                int direction = byteSeqToInt(getParamValue(entry, NorthConstants.DIRECTION));
+                if (direction == NorthConstants.DIRECTION_UPLINK) {
                     log.info("Interpreted write req as Uplink Interface with S1U address {}", prefix.address());
                     up4Service.addS1uInterface(deviceId, prefix.address());
                 }
-                else if (direction == 2){
-                    // Value 2 is downlink
+                else if (direction == NorthConstants.DIRECTION_DOWNLINK){
                     log.info("Interpreted write req as Downlink Interface with UE Pool prefix {}", prefix);
                     up4Service.addUePool(deviceId, prefix);
                 }
@@ -315,44 +316,47 @@ public class Up4NorthComponent {
             }
             else {actionUnknown = true;}
         }
-        else if (tableId.equals(PiTableId.of("PreQosPipe.pdrs"))) {
-            if (actionId.equals(PiActionId.of("PreQosPipe.set_pdr_attributes"))) {
+        else if (tableId.equals(NorthConstants.PDR_TBL)) {
+            if (actionId.equals(NorthConstants.LOAD_PDR)) {
                 // 1:pdr-id, 2:session-id, 3:ctr-id, 4:far-id, 5:needs-gtpu-decap
-                int sessionId = byteSeqToInt(getParamValue(entry, "fseid"));
-                int ctrId = byteSeqToInt(getParamValue(entry, "ctr_id"));
-                int farId = byteSeqToInt(getParamValue(entry, "far_id"));
-                Ip4Address ueAddr = getFieldAddress(entry, "ue_addr");
-                if (!fieldMaskIsZero(entry, "teid")) {
-                    // uplink will have a non-ignored teid
-                    int teid = byteSeqToInt(getFieldVal(entry, "teid"));
-                    Ip4Address tunnelDst = getFieldAddress(entry, "tunnel_ipv4_dst");
+                int sessionId = getParamInt(entry, NorthConstants.SESSION_ID_PARAM);
+                int ctrId = getParamInt(entry, NorthConstants.CTR_ID);
+                int farId = getParamInt(entry, NorthConstants.FAR_ID_PARAM);
+                Ip4Address ueAddr = getFieldAddress(entry, NorthConstants.UE_ADDR_KEY);
+                int srcInterface = getFieldInt(entry, NorthConstants.SRC_IFACE_KEY);
+                if (srcInterface == NorthConstants.IFACE_ACCESS) {
+                    int teid = getFieldInt(entry, NorthConstants.TEID_KEY);
+                    Ip4Address tunnelDst = getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY);
                     log.info("Interpreted write req as Uplink PDR with UE-ADDR:{}, TEID:{}, S1UAddr:{}, SessionID:{}, CTR-ID:{}, FAR-ID:{}",
                             ueAddr, teid, tunnelDst, sessionId, ctrId, farId);
                     up4Service.addPdr(deviceId, sessionId, ctrId, farId, ueAddr, teid, tunnelDst);
                 }
-                else {
+                else if (srcInterface == NorthConstants.IFACE_CORE) {
                     // downlink
                     log.info("Interpreted write req as Downlink PDR with UE-ADDR:{}, SessionID:{}, CTR-ID:{}, FAR-ID:{}",
                             ueAddr, sessionId, ctrId, farId);
                     up4Service.addPdr(deviceId, sessionId, ctrId, farId, ueAddr);
                 }
+                else {
+                    log.error("PDR that does not match on an access or core src_iface is currently unsupported. Ignoring");
+                }
             }
             else {actionUnknown = true;}
         }
-        else if (tableId.equals(PiTableId.of("PreQosPipe.load_far_attributes"))) {
-            int farId = byteSeqToInt(getFieldVal(entry, "far_id"));
-            int sessionId = byteSeqToInt(getFieldVal(entry, "session_id"));
-            boolean needsDropping = byteSeqToInt(getParamValue(entry, "needs_dropping")) > 0;
-            boolean notifyCp = byteSeqToInt(getParamValue(entry, "notify_cp")) > 0;
-            if (actionId.equals(PiActionId.of("PreQosPipe.load_normal_far_attributes"))) {
+        else if (tableId.equals(NorthConstants.FAR_TBL)) {
+            int farId = getFieldInt(entry, NorthConstants.FAR_ID_KEY);
+            int sessionId = getFieldInt(entry, NorthConstants.SESSION_ID_KEY);
+            boolean needsDropping = getParamInt(entry, NorthConstants.DROP_FLAG) > 0;
+            boolean notifyCp = getParamInt(entry, NorthConstants.NOTIFY_FLAG) > 0;
+            if (actionId.equals(NorthConstants.LOAD_FAR_NORMAL)) {
                 log.info("Interpreted write req as Uplink FAR with FAR-ID:{}, SessionID:{}, Drop:{}, Notify:{}",
                         farId, sessionId, needsDropping, notifyCp);
                 up4Service.addFar(deviceId, sessionId, farId, needsDropping, notifyCp);
             }
-            else if (actionId.equals(PiActionId.of("PreQosPipe.load_tunnel_far_attributes"))) {
-                Ip4Address tunnelSrc = Ip4Address.valueOf(getParamValue(entry, "src_addr").asArray());
-                Ip4Address tunnelDst = Ip4Address.valueOf(getParamValue(entry, "dst_addr").asArray());
-                int teid = byteSeqToInt(getParamValue(entry, "teid"));
+            else if (actionId.equals(NorthConstants.LOAD_FAR_TUNNEL)) {
+                Ip4Address tunnelSrc = getParamAddress(entry, NorthConstants.TUNNEL_SRC_PARAM);
+                Ip4Address tunnelDst = getParamAddress(entry, NorthConstants.TUNNEL_DST_PARAM);
+                int teid = getParamInt(entry, NorthConstants.TEID_PARAM);
                 Up4Service.TunnelDesc tunnel = new Up4Service.TunnelDesc(tunnelSrc, tunnelDst, teid);
                 log.info("Interpreted write req as Downlink FAR with FAR-ID:{}, SessionID:{}, Drop:{}, Notify:{}, TunnelSrc:{}, TunnelDst:{}, TEID:{}",
                         farId, sessionId, needsDropping, notifyCp, tunnelSrc, tunnelDst, teid);
@@ -458,7 +462,6 @@ public class Up4NorthComponent {
                 responseObserver.onCompleted();
                 return;
             }
-            //super.write(request, responseObserver);
             for(P4RuntimeOuterClass.Update update : request.getUpdatesList()) {
                 if (!update.hasEntity()) {
                     log.error("Update message with no entity received. Ignoring");
@@ -528,12 +531,12 @@ public class Up4NorthComponent {
                 String gress;
                 long pkts;
                 long bytes;
-                if (piCounterId.equals(INGRESS_COUNTER_ID)) {
+                if (piCounterId.equals(NorthConstants.INGRESS_COUNTER_ID)) {
                     gress = "ingress";
                     pkts = ctrValues.ingressPkts;
                     bytes = ctrValues.ingressBytes;
                 }
-                else if (piCounterId.equals(EGRESS_COUNTER_ID)) {
+                else if (piCounterId.equals(NorthConstants.EGRESS_COUNTER_ID)) {
                     gress = "egress";
                     pkts = ctrValues.egressPkts;
                     bytes = ctrValues.egressBytes;

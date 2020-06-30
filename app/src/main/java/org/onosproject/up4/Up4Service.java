@@ -18,7 +18,10 @@ package org.onosproject.up4;
 
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.packet.Ip4Address;
+import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
+
+import java.util.List;
 
 
 public interface Up4Service {
@@ -117,6 +120,10 @@ public interface Up4Service {
     }
 
     PdrStats readCounter(DeviceId deviceId, int cellId);
+
+    List<Device> getAvailableDevices();
+
+    void clearAllEntries();
 
     void addPdr(DeviceId deviceId, int sessionId, int ctrId, int farId, Ip4Address ueAddr);
 

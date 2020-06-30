@@ -19,6 +19,7 @@ import org.onlab.packet.Ip4Prefix;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.net.Device;
+import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.flow.*;
 import org.onosproject.net.pi.service.PiPipeconfService;
 import org.onosproject.p4runtime.api.P4RuntimeController;
@@ -81,8 +82,7 @@ public class Up4Component implements Up4Service {
 
 
     private static final long DEFAULT_P4_DEVICE_ID = 1;
-    private static final PiCounterId INGRESS_COUNTER_ID = PiCounterId.of("FabricIngress.spgw_ingress.pdr_counter");
-    private static final PiCounterId EGRESS_COUNTER_ID = PiCounterId.of("FabricEgress.spgw_egress.pdr_counter");
+
 
     /** Some configurable property. */
     // Leaving in for now as a reference
@@ -108,6 +108,9 @@ public class Up4Component implements Up4Service {
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PiPipeconfService piPipeconfService;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected DeviceService deviceService;
 
     // TODO: Use EventuallyConsistentMap instead
     // TODO: Store PDR IDs for the flow rules somehow,
@@ -139,6 +142,22 @@ public class Up4Component implements Up4Service {
     protected void start() {
         farIds = HashBiMap.create();
         lastGlobalFarId = new AtomicInteger(0);
+
+
+
+    }
+
+    public List<Device> getAvailableDevices() {
+        ArrayList<Device> foundDevices = new ArrayList<>();
+        for (Device device : deviceService.getAvailableDevices()) {
+            Optional<PiPipeconf> opt = piPipeconfService.getPipeconf(device.id());
+            if (opt.isPresent()) {
+                if (opt.get().id().toString().endsWith(AppConstants.SUPPORTED_PIPECONF_NAME)) {
+                    foundDevices.add(device);
+                }
+            }
+        }
+        return foundDevices;
     }
 
     /**
@@ -166,6 +185,12 @@ public class Up4Component implements Up4Service {
     }
 
     @Override
+    public void clearAllEntries() {
+        log.info("Clearing all UP4-related table entries.");
+        flowRuleService.removeFlowRulesById(appId);
+    }
+
+    @Override
     public Up4Service.PdrStats readCounter(DeviceId deviceId, int cellId) {
         Up4Service.PdrStats stats = Up4Service.PdrStats.of(cellId);
 
@@ -185,8 +210,8 @@ public class Up4Component implements Up4Service {
 
         // Make list of cell handles we want to read.
         List<PiCounterCellHandle> counterCellHandles = List.of(
-                PiCounterCellHandle.of(deviceId, PiCounterCellId.ofIndirect(INGRESS_COUNTER_ID, cellId)),
-                PiCounterCellHandle.of(deviceId, PiCounterCellId.ofIndirect(EGRESS_COUNTER_ID, cellId)));
+                PiCounterCellHandle.of(deviceId, PiCounterCellId.ofIndirect(SouthConstants.INGRESS_COUNTER_ID, cellId)),
+                PiCounterCellHandle.of(deviceId, PiCounterCellId.ofIndirect(SouthConstants.EGRESS_COUNTER_ID, cellId)));
 
         // Query the device.
         Collection<PiCounterCell> counterEntryResponse = client.read(
@@ -204,9 +229,9 @@ public class Up4Component implements Up4Service {
                 log.warn("Unrecognized counter index {}, skipping", counterCell);
                 return;
             }
-            if (counterCell.cellId().counterId().equals(INGRESS_COUNTER_ID)) {
+            if (counterCell.cellId().counterId().equals(SouthConstants.INGRESS_COUNTER_ID)) {
                 stats.setIngress(counterCell.data().packets(), counterCell.data().bytes());
-            } else if (counterCell.cellId().counterId().equals(EGRESS_COUNTER_ID)) {
+            } else if (counterCell.cellId().counterId().equals(SouthConstants.EGRESS_COUNTER_ID)) {
                 stats.setEgress(counterCell.data().packets(), counterCell.data().bytes());
             } else {
                 log.warn("Unrecognized counter ID {}, skipping", counterCell);
@@ -222,8 +247,8 @@ public class Up4Component implements Up4Service {
         PiAction action = PiAction.builder()
                 .withId(PiActionId.of("FabricIngress.spgw_ingress.set_pdr_attributes"))
                 .withParameters(Arrays.asList(
-                    new PiActionParam(PiActionParamId.of("ctr_id"), ctrId),
-                    new PiActionParam(PiActionParamId.of("far_id"), globalFarId)
+                    new PiActionParam(SouthConstants.CTR_ID, ctrId),
+                    new PiActionParam(SouthConstants.FAR_ID_PARAM, globalFarId)
                 ))
                 .build();
 
@@ -244,23 +269,23 @@ public class Up4Component implements Up4Service {
                         Ip4Address ueAddr, int teid, Ip4Address tunnelDst) {
         log.info("Adding uplink PDR");
         PiCriterion match = PiCriterion.builder()
-            .matchExact(PiMatchFieldId.of("ue_addr"), ueAddr.toInt())
-            .matchExact(PiMatchFieldId.of("teid"), teid)
-            .matchExact(PiMatchFieldId.of("tunnel_ipv4_dst"), tunnelDst.toInt())
+            .matchExact(SouthConstants.UE_ADDR_KEY, ueAddr.toInt())
+            .matchExact(SouthConstants.TEID_KEY, teid)
+            .matchExact(SouthConstants.TUNNEL_DST_KEY, tunnelDst.toInt())
             .build();
         this.addPdr(deviceId, sessionId, ctrId, farId, match,
-                PiTableId.of("FabricIngress.spgw_ingress.uplink_pdr_lookup"));
+                SouthConstants.PDR_UPLINK_TBL);
     }
 
     @Override
     public void addPdr(DeviceId deviceId, int sessionId, int ctrId, int farId, Ip4Address ueAddr) {
         log.info("Adding downlink PDR");
         PiCriterion match = PiCriterion.builder()
-            .matchExact(PiMatchFieldId.of("ue_addr"), ueAddr.toInt())
+            .matchExact(SouthConstants.UE_ADDR_KEY, ueAddr.toInt())
             .build();
 
         this.addPdr(deviceId, sessionId, ctrId, farId, match,
-                PiTableId.of("FabricIngress.spgw_ingress.downlink_pdr_lookup"));
+                SouthConstants.PDR_DOWNLINK_TBL);
     }
 
 
@@ -269,11 +294,11 @@ public class Up4Component implements Up4Service {
         int globalFarId = getGlobalFarId(sessionId, farId);
 
         PiCriterion match = PiCriterion.builder()
-            .matchExact(PiMatchFieldId.of("far_id"), globalFarId)
+            .matchExact(SouthConstants.FAR_ID_KEY, globalFarId)
             .build();
         FlowRule farEntry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(PiTableId.of("FabricIngress.spgw_ingress.far_lookup"))
+                .forTable(SouthConstants.FAR_TBL)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(DEFAULT_PRIORITY)
@@ -287,13 +312,13 @@ public class Up4Component implements Up4Service {
         log.info("Adding simple downlink FAR entry");
 
         PiAction action = PiAction.builder()
-                .withId(PiActionId.of("FabricIngress.spgw_ingress.load_tunnel_far_attributes"))
+                .withId(SouthConstants.LOAD_FAR_TUNNEL)
                 .withParameters(Arrays.asList(
-                    new PiActionParam(PiActionParamId.of("drop"), drop ? 1 : 0),
-                    new PiActionParam(PiActionParamId.of("notify_cp"), notifyCp ? 1 : 0),
-                    new PiActionParam(PiActionParamId.of("teid"), tunnelDesc.teid),
-                    new PiActionParam(PiActionParamId.of("tunnel_src_addr"), tunnelDesc.src.toInt()),
-                    new PiActionParam(PiActionParamId.of("tunnel_dst_addr"), tunnelDesc.dst.toInt())
+                    new PiActionParam(SouthConstants.DROP_FLAG, drop ? 1 : 0),
+                    new PiActionParam(SouthConstants.NOTIFY_FLAG, notifyCp ? 1 : 0),
+                    new PiActionParam(SouthConstants.TEID_PARAM, tunnelDesc.teid),
+                    new PiActionParam(SouthConstants.TUNNEL_SRC_PARAM, tunnelDesc.src.toInt()),
+                    new PiActionParam(SouthConstants.TUNNEL_DST_PARAM, tunnelDesc.dst.toInt())
                 ))
                 .build();
         this.addFar(deviceId, sessionId, farId, action);
@@ -303,10 +328,10 @@ public class Up4Component implements Up4Service {
     public void addFar(DeviceId deviceId, int sessionId, int farId, boolean drop, boolean notifyCp) {
         log.info("Adding simple uplink FAR entry");
         PiAction action = PiAction.builder()
-                .withId(PiActionId.of("FabricIngress.spgw_ingress.load_normal_far_attributes"))
+                .withId(SouthConstants.LOAD_FAR_NORMAL)
                 .withParameters(Arrays.asList(
-                    new PiActionParam(PiActionParamId.of("drop"), drop ? 1 : 0),
-                    new PiActionParam(PiActionParamId.of("notify_cp"), notifyCp ? 1 : 0)
+                    new PiActionParam(SouthConstants.DROP_FLAG, drop ? 1 : 0),
+                    new PiActionParam(SouthConstants.NOTIFY_FLAG, notifyCp ? 1 : 0)
                 ))
                 .build();
         this.addFar(deviceId, sessionId, farId, action);
@@ -316,14 +341,14 @@ public class Up4Component implements Up4Service {
     public void addS1uInterface(DeviceId deviceId, Ip4Address s1uAddr) {
         log.info("Adding S1U interface table entry");
         PiCriterion match = PiCriterion.builder()
-            .matchExact(PiMatchFieldId.of("gtp_ipv4_dst"), s1uAddr.toInt())
+            .matchExact(SouthConstants.IFACE_UPLINK_KEY, s1uAddr.toInt())
             .build();
         PiAction action = PiAction.builder()
-                .withId(PiActionId.of("nop"))
+                .withId(SouthConstants.NO_ACTION)
                 .build();
         FlowRule s1uEntry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(PiTableId.of("FabricIngress.spgw_ingress.uplink_filter_table"))
+                .forTable(SouthConstants.IFACE_UPLINK_TBL)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(DEFAULT_PRIORITY)
@@ -336,14 +361,14 @@ public class Up4Component implements Up4Service {
     public void addUePool(DeviceId deviceId, Ip4Prefix poolPrefix) {
         log.info("Adding UE IPv4 Pool prefix");
         PiCriterion match = PiCriterion.builder()
-            .matchLpm(PiMatchFieldId.of("ipv4_prefix"), poolPrefix.address().toInt(), poolPrefix.prefixLength())
+            .matchLpm(SouthConstants.IFACE_DOWNLINK_KEY, poolPrefix.address().toInt(), poolPrefix.prefixLength())
             .build();
         PiAction action = PiAction.builder()
-                .withId(PiActionId.of("nop"))
+                .withId(SouthConstants.NO_ACTION)
                 .build();
         FlowRule uePoolEntry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(PiTableId.of("FabricIngress.spgw_ingress.downlink_filter_table"))
+                .forTable(SouthConstants.IFACE_DOWNLINK_TBL)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(DEFAULT_PRIORITY)
@@ -353,10 +378,10 @@ public class Up4Component implements Up4Service {
     }
 
 
-    private boolean removeEntry(DeviceId deviceId, PiCriterion match, String tableName, boolean failSilent) {
+    private boolean removeEntry(DeviceId deviceId, PiCriterion match, PiTableId tableId, boolean failSilent) {
         FlowRule entry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(PiTableId.of(tableName))
+                .forTable(tableId)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withPriority(DEFAULT_PRIORITY)
                 .build();
@@ -385,21 +410,21 @@ public class Up4Component implements Up4Service {
     public void removePdr(DeviceId deviceId, Ip4Address ueAddr) {
         log.info("Removing downlink PDR");
         PiCriterion match = PiCriterion.builder()
-                .matchExact(PiMatchFieldId.of("ue_addr"), ueAddr.toInt())
+                .matchExact(SouthConstants.UE_ADDR_KEY, ueAddr.toInt())
                 .build();
 
-        removeEntry(deviceId, match, "FabricIngress.spgw_ingress.downlink_pdr_lookup", false);
+        removeEntry(deviceId, match, SouthConstants.PDR_DOWNLINK_TBL, false);
     }
 
     @Override
     public void removePdr(DeviceId deviceId, Ip4Address ueAddr, int teid, Ip4Address tunnelDst) {
         log.info("Removing uplink PDR");
         PiCriterion match = PiCriterion.builder()
-                .matchExact(PiMatchFieldId.of("ue_addr"), ueAddr.toInt())
-                .matchExact(PiMatchFieldId.of("teid"), teid)
-                .matchExact(PiMatchFieldId.of("tunnel_ipv4_dst"), tunnelDst.toInt())
+                .matchExact(SouthConstants.UE_ADDR_KEY, ueAddr.toInt())
+                .matchExact(SouthConstants.TEID_KEY, teid)
+                .matchExact(SouthConstants.TUNNEL_DST_KEY, tunnelDst.toInt())
                 .build();
-        removeEntry(deviceId, match, "FabricIngress.spgw_ingress.uplink_pdr_lookup", false);
+        removeEntry(deviceId, match, SouthConstants.PDR_UPLINK_TBL, false);
     }
 
     @Override
@@ -408,44 +433,44 @@ public class Up4Component implements Up4Service {
         int globalFarId = getGlobalFarId(sessionId, farId);
 
         PiCriterion match = PiCriterion.builder()
-                .matchExact(PiMatchFieldId.of("far_id"), globalFarId)
+                .matchExact(SouthConstants.FAR_ID_KEY, globalFarId)
                 .build();
 
-        removeEntry(deviceId, match, "FabricIngress.spgw_ingress.far_lookup", false);
+        removeEntry(deviceId, match, SouthConstants.FAR_TBL, false);
     }
 
     @Override
     public void removeUePool(DeviceId deviceId, Ip4Prefix poolPrefix) {
         log.info("Removing S1U interface table entry");
         PiCriterion match = PiCriterion.builder()
-                .matchLpm(PiMatchFieldId.of("ipv4_prefix"), poolPrefix.address().toInt(), poolPrefix.prefixLength())
+                .matchLpm(SouthConstants.IFACE_DOWNLINK_KEY, poolPrefix.address().toInt(), poolPrefix.prefixLength())
                 .build();
-        removeEntry(deviceId, match, "FabricIngress.spgw_ingress.downlink_filter_table", false);
+        removeEntry(deviceId, match, SouthConstants.IFACE_DOWNLINK_TBL, false);
     }
 
     @Override
     public void removeS1uInterface(DeviceId deviceId, Ip4Address s1uAddr) {
         log.info("Removing S1U interface table entry");
         PiCriterion match = PiCriterion.builder()
-                .matchExact(PiMatchFieldId.of("gtp_ipv4_dst"), s1uAddr.toInt())
+                .matchExact(SouthConstants.IFACE_UPLINK_KEY, s1uAddr.toInt())
                 .build();
-        removeEntry(deviceId, match, "FabricIngress.spgw_ingress.uplink_filter_table", false);
+        removeEntry(deviceId, match, SouthConstants.IFACE_UPLINK_TBL, false);
     }
 
     @Override
     public void removeUnknownInterface(DeviceId deviceId, Ip4Prefix ifacePrefix) {
         // For when you don't know if its a uePool or s1uInterface table entry
         PiCriterion match1 = PiCriterion.builder()
-                .matchExact(PiMatchFieldId.of("gtp_ipv4_dst"), ifacePrefix.address().toInt())
+                .matchExact(SouthConstants.IFACE_UPLINK_KEY, ifacePrefix.address().toInt())
                 .build();
-        if (removeEntry(deviceId, match1, "FabricIngress.spgw_ingress.uplink_filter_table", true)) {
+        if (removeEntry(deviceId, match1, SouthConstants.IFACE_UPLINK_TBL, true)) {
             return;
         }
 
         PiCriterion match2 = PiCriterion.builder()
-                .matchLpm(PiMatchFieldId.of("ipv4_prefix"), ifacePrefix.address().toInt(), ifacePrefix.prefixLength())
+                .matchLpm(SouthConstants.IFACE_DOWNLINK_KEY, ifacePrefix.address().toInt(), ifacePrefix.prefixLength())
                 .build();
-        if (!removeEntry(deviceId, match2, "FabricIngress.spgw_ingress.downlink_filter_table", true)) {
+        if (!removeEntry(deviceId, match2, SouthConstants.IFACE_DOWNLINK_TBL, true)) {
             log.error("Could not remove interface! No matching entry found!");
         }
 
