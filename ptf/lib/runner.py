@@ -1,3 +1,5 @@
+#!/usr/bin/env python2
+#
 # SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
 # Copyright 2013-present Barefoot Networks, Inc.
 #

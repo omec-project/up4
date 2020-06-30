@@ -19,8 +19,6 @@ from enum import Enum
 import random
 random.seed(123456)  # for reproducible PTF tests
 
-from lib import disagg_headers as disaggh
-
 UDP_GTP_PORT = 2152
 DHCP_SERVER_PORT = 67
 DHCP_CLIENT_PORT = 68
