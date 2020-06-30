@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
+#
+# SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 curr_dir := $(patsubst %/,%,$(dir $(mkfile_path)))
 
