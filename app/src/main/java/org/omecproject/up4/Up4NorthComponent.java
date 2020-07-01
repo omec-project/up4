@@ -242,12 +242,11 @@ public class Up4NorthComponent {
     }
 
     private int byteSeqToInt(ImmutableByteSequence sequence) {
-        // FIXME: use sequence.asReadOnlyBuffer().getInt() instead, which will require ensuring sequence length == 4
-        int result = 0;
-        for (byte b : sequence.asArray()) {
-            result = (result << 8) + ((int) b & 0xff);
+        try {
+            return sequence.fit(32).asReadOnlyBuffer().getInt();
+        } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
+            throw new IllegalArgumentException("Attempted to convert a >4 byte wide sequence to an integer!");
         }
-        return result;
     }
 
     /**
