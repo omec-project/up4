@@ -161,6 +161,12 @@
             <scope>provided</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.google.api.grpc</groupId>
+            <artifactId>proto-google-common-protos</artifactId>
+            <version>[1.12.0,)</version>
+            <scope>provided</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.onosproject</groupId>
@@ -187,6 +193,8 @@
                 <configuration>
                     <instructions>
                         <Karaf-Commands>org.onosproject.up4.cli</Karaf-Commands>
+                        <!-- The hardcoded import version number can be changed to ${onos.version} once this app
+                         ~ moves to an X.Y.Z onos version (instead of a X.Y.Z.SNAPSHOT version) -->
                         <Import-Package>com.google.protobuf;version=2.2.3,*</Import-Package>
                     </instructions>
                 </configuration>
