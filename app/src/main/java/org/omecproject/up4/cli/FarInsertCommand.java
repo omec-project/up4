@@ -2,21 +2,19 @@
  SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
-package org.onosproject.up4.cli;
+package org.omecproject.up4.cli;
 
 import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
+import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
-
-import org.onosproject.up4.Up4Service;
-import org.onosproject.up4.Up4Service.TunnelDesc;
 
 /**
  * UPF Far insertion command.
@@ -78,7 +76,7 @@ public class FarInsertCommand extends AbstractShellCommand {
             }
             Ip4Address tunnelDst = Ip4Address.valueOf(this.tunnelDst);
             Ip4Address tunnelSrc = Ip4Address.valueOf(this.tunnelSrc);
-            TunnelDesc tunnel = new TunnelDesc(tunnelSrc, tunnelDst, teid);
+            Up4Service.TunnelDesc tunnel = new Up4Service.TunnelDesc(tunnelSrc, tunnelDst, teid);
 
             print("Installing *Downlink* FAR on device %s", uri);
             app.addFar(device.id(), sessionId, farId, false, false, tunnel);

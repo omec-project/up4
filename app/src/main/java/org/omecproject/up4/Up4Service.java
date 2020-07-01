@@ -2,7 +2,7 @@
  SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
-package org.onosproject.up4;
+package org.omecproject.up4;
 
 
 import org.onlab.packet.Ip4Prefix;
@@ -12,10 +12,10 @@ import org.onosproject.net.DeviceId;
 
 import java.util.List;
 
-
+/**
+ * Presents a high-level way to install dataplane table entries into the UPF extension of the fabric pipeline.
+ */
 public interface Up4Service {
-
-
     /**
      * A structure representing a GTP tunnel.
      */
@@ -47,26 +47,50 @@ public interface Up4Service {
                     cellId, ingressPkts, ingressBytes, egressPkts, egressBytes);
         }
 
-        public PdrStats setIngress(long pkts, long bytes) {
-            ingressPkts = pkts;
-            ingressBytes = bytes;
-            return this;
-        }
-
-        public PdrStats setEgress(long pkts, long bytes) {
-            egressPkts = pkts;
-            egressBytes = bytes;
-            return this;
-        }
-
-        public PdrStats(int cellId) {
+        public PdrStats(int cellId, long ingressPkts, long ingressBytes,
+                        long egressPkts, long egressBytes) {
             this.cellId = cellId;
+            this.ingressPkts = ingressPkts;
+            this.ingressBytes = ingressBytes;
+            this.egressPkts = egressPkts;
+            this.egressBytes = egressBytes;
         }
 
-        public static PdrStats of(int cellId) {
-            return new PdrStats(cellId);
+        public static Builder builder(int cellId) {
+            return new Builder(cellId);
         }
 
+
+        public static class Builder {
+            public int cellId;
+            public long ingressPkts;
+            public long ingressBytes;
+            public long egressPkts;
+            public long egressBytes;
+            public Builder(int cellId) {
+                this.cellId = cellId;
+                this.ingressPkts = 0;
+                this.ingressBytes = 0;
+                this.egressPkts = 0;
+                this.egressBytes = 0;
+            }
+
+            public Builder setIngress(long ingressPkts, long ingressBytes) {
+                this.ingressPkts = ingressPkts;
+                this.ingressBytes = ingressBytes;
+                return this;
+            }
+
+            public Builder setEgress(long egressPkts, long egressBytes) {
+                this.egressPkts = egressPkts;
+                this.egressBytes = egressBytes;
+                return this;
+            }
+
+            public PdrStats build() {
+                return new PdrStats(cellId, ingressPkts, ingressBytes, egressPkts, egressBytes);
+            }
+        }
     }
 
     /**

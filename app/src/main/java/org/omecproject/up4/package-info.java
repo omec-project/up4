@@ -6,4 +6,4 @@
 /**
  * UP4 application.
  */
-package org.onosproject.up4;
+package org.omecproject.up4;

@@ -2,7 +2,7 @@
  SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
-package org.onosproject.up4.cli;
+package org.omecproject.up4.cli;
 
 import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
@@ -14,15 +14,15 @@ import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
-import org.onosproject.up4.Up4Service;
+import org.omecproject.up4.Up4Service;
 
 /**
- * UPF S1U interface deletion command.
+ * UPF S1U Interface insertion command.
  */
 @Service
-@Command(scope = "up4", name = "s1u-delete",
-        description = "Delete a S1U interface address from the UPF dataplane")
-public class InterfaceDeleteCommand extends AbstractShellCommand {
+@Command(scope = "up4", name = "s1u-insert",
+        description = "Insert a S1U interface address into the UPF dataplane")
+public class InterfaceInsertCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "uri", description = "Device ID",
             required = true)
@@ -47,8 +47,8 @@ public class InterfaceDeleteCommand extends AbstractShellCommand {
 
         Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
 
-        print("Removing S1U interface address from device %s", uri);
-        app.removeS1uInterface(device.id(), s1uAddr);
+        print("Adding S1U interface address to device %s", uri);
+        app.addS1uInterface(device.id(), s1uAddr);
 
 
     }

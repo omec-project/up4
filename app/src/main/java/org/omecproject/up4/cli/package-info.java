@@ -6,4 +6,4 @@
 /**
  * UP4 Application CLI commands.
  */
-package org.onosproject.up4.cli;
+package org.omecproject.up4.cli;

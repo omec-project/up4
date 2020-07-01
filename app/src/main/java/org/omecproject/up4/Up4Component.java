@@ -2,7 +2,7 @@
  SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
-package org.onosproject.up4;
+package org.omecproject.up4;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -179,18 +179,18 @@ public class Up4Component implements Up4Service {
 
     @Override
     public Up4Service.PdrStats readCounter(DeviceId deviceId, int cellId) {
-        Up4Service.PdrStats stats = Up4Service.PdrStats.of(cellId);
+        Up4Service.PdrStats.Builder stats = Up4Service.PdrStats.builder(cellId);
 
         // Get client and pipeconf.
         P4RuntimeClient client = controller.get(deviceId);
         if (client == null) {
             log.warn("Unable to find client for {}, aborting operation", deviceId);
-            return stats;
+            return stats.build();
         }
         Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
         if (optPipeconf.isEmpty()) {
             log.warn("Unable to load piPipeconf for {}, aborting operation", deviceId);
-            return stats;
+            return stats.build();
         }
         PiPipeconf pipeconf = optPipeconf.get();
 
@@ -224,7 +224,7 @@ public class Up4Component implements Up4Service {
                 log.warn("Unrecognized counter ID {}, skipping", counterCell);
             }
         });
-        return stats;
+        return stats.build();
     }
 
 

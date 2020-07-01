@@ -2,7 +2,7 @@
  SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
-package org.onosproject.up4;
+package org.omecproject.up4;
 
 import com.google.rpc.Code;
 import com.google.rpc.Status;
@@ -61,12 +61,9 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
-import static org.onosproject.up4.AppConstants.PIPECONF_ID;
+import static org.omecproject.up4.AppConstants.PIPECONF_ID;
 
-@Component(immediate = true,
-        property = {
-                "grpcPort=51001",
-        })
+@Component(immediate = true)
 public class Up4NorthComponent {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -82,8 +79,6 @@ public class Up4NorthComponent {
     private PiPipeconf pipeconf;
     private DeviceId deviceId;
 
-    /** Port on which the P4runtime server listens. */
-    private int grpcPort;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
@@ -128,7 +123,7 @@ public class Up4NorthComponent {
                     .addService(new Up4NorthService())
                     .build()
                     .start();
-            log.info("UP4 gRPC server started on port {}", grpcPort);
+            log.info("UP4 gRPC server started on port {}", AppConstants.GRPC_SERVER_PORT);
         } catch (IOException e) {
             log.error("Unable to start gRPC server", e);
             throw new IllegalStateException("Unable to start gRPC server", e);
@@ -393,14 +388,14 @@ public class Up4NorthComponent {
          * track a master, and blindly tells every controller that they are the master as soon as they send an
          * arbitration request. We also do not yet handle anything except arbitration requests.
          * @param responseObserver The thing that is fed responses to arbitration requests.
-         * @return
+         * @return A thing that will be fed arbitration requests.
          */
         @Override
         public StreamObserver<P4RuntimeOuterClass.StreamMessageRequest>
         streamChannel(StreamObserver<P4RuntimeOuterClass.StreamMessageResponse> responseObserver) {
             // streamChannel handles packet I/O and master arbitration. It persists as long as the controller is active.
             log.info("streamChannel opened.");
-            return new StreamObserver<P4RuntimeOuterClass.StreamMessageRequest>() {
+            return new StreamObserver<>() {
                 @Override
                 public void onNext(P4RuntimeOuterClass.StreamMessageRequest value) {
                     log.info("Received streamChannel message.");

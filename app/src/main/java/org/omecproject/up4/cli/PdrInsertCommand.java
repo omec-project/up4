@@ -2,44 +2,54 @@
  SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
-package org.onosproject.up4.cli;
+package org.omecproject.up4.cli;
 
 import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
+import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
-import org.onosproject.up4.Up4Service;
 
 /**
- * UPF PDR deletion command.
+ * UPF PDR insertion command.
  */
 @Service
-@Command(scope = "up4", name = "pdr-delete",
-         description = "Delete a packet detection rule from the UPF dataplane")
-public class PdrDeleteCommand extends AbstractShellCommand {
+@Command(scope = "up4", name = "pdr-insert",
+         description = "Insert a packet detection rule into the UPF dataplane")
+public class PdrInsertCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "uri", description = "Device ID",
               required = true, multiValued = false)
     @Completion(DeviceIdCompleter.class)
     String uri = null;
 
-    @Argument(index = 1, name = "ue-ipv4-addr",
+    @Argument(index = 1, name = "session-id",
+            description = "Session ID for this PDR",
+            required = true, multiValued = false)
+    int sessionId = 0;
+
+    @Argument(index = 2, name = "ue-ipv4-addr",
             description = "Address of the UE for which this PDR applies",
             required = true, multiValued = false)
     String ueAddr = null;
 
-    @Argument(index = 2, name = "teid",
+    @Argument(index = 3, name = "far-id",
+            description = "ID of the FAR that should apply if this PDR matches",
+            required = true, multiValued = false)
+    int farId = 0;
+
+    @Argument(index = 4, name = "teid",
             description = "Tunnel ID of the tunnel to/from the base station",
             required = false, multiValued = false)
     int teid = -1;
 
-    @Argument(index = 3, name = "s1u-ip",
+    @Argument(index = 5, name = "s1u-ip",
             description = "IP address of the S1U interface (endpoint of the tunnel to the base station)",
             required = false, multiValued = false)
     String s1uAddr = null;
@@ -67,11 +77,11 @@ public class PdrDeleteCommand extends AbstractShellCommand {
                 return;
             }
             Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
-            print("Removing *Uplink* PDR from device %s", uri);
-            app.removePdr(device.id(), ueAddr, teid, s1uAddr);
+            print("Installing *Uplink* PDR on device %s", uri);
+            app.addPdr(device.id(), sessionId, 1, farId, ueAddr, teid, s1uAddr);
         } else {
-            print("Removing *Downlink* PDR from device %s", uri);
-            app.removePdr(device.id(), ueAddr);
+            print("Installing *Downlink* PDR on device %s", uri);
+            app.addPdr(device.id(), sessionId, 1, farId, ueAddr);
         }
 
 

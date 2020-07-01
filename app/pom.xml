@@ -12,7 +12,7 @@
         <version>2.2.3-SNAPSHOT</version>
     </parent>
 
-    <groupId>org.onosproject</groupId>
+    <groupId>org.omecproject</groupId>
     <artifactId>up4-app</artifactId>
     <version>0.1</version>
     <packaging>bundle</packaging>
@@ -22,7 +22,7 @@
 
 
     <properties>
-        <onos.app.name>org.onosproject.up4</onos.app.name>
+        <onos.app.name>org.omecproject.up4</onos.app.name>
         <onos.app.title>UP4 Control App</onos.app.title>
         <onos.app.origin>Open Networking Foundation</onos.app.origin>
         <onos.app.category>Traffic Steering</onos.app.category>
@@ -187,7 +187,7 @@
                 <configuration>
                     <instructions>
                         <Karaf-Commands>org.onosproject.up4.cli</Karaf-Commands>
-                        <Import-Package>com.google.protobuf;version=${onos.version},*</Import-Package>
+                        <Import-Package>com.google.protobuf;version=2.2.3,*</Import-Package>
                     </instructions>
                 </configuration>
             </plugin>
