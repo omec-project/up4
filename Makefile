@@ -29,6 +29,11 @@ clean:
 	-rm -rf ptf/*.pcap
 
 
+app-build:
+	cp p4src/build/p4info.txt app/src/main/resources/
+	cd app && mvn clean install
+
+
 build: ${main_file}
 	$(info *** Building P4 program...)
 	@mkdir -p p4src/build
