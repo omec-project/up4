@@ -1,6 +1,8 @@
 # UP4
 
-This project provides a reference P4 implementation of the mobile core user plane. The initial focus is 4G, but eventually, the same P4 program will evolve to support 5G.
+This project provides a reference P4 implementation of the mobile core user plane forwarding model. The initial focus is the 4G SPGW-u, but eventually, the same P4 program will evolve to support the 5G UPF.
+The project also provides testing for the reference P4 implementation, and an ONOS app for abstracting supported physical devices as the reference implementation.
+
 
 ## Requirements
 
@@ -9,6 +11,7 @@ installed on your machine:
 
 * Docker
 * make
+* maven (if building the app)
 
 Docker is used to run the necessary without worrying about additional
 dependencies. Before starting, make sure to fetch all the required Docker
@@ -30,6 +33,18 @@ To build the P4 program:
 To generate the pipeline graphs (in PDF format):
 
     make graph
+    
+### ONOS App
+
+The directory `app` contains an ONOS app which abstracts physical TOST devices as the P4 program defined in `p4src`.
+P4runtime clients may connect to the app and send entity read and write requests for said P4 program, and the app will translate those
+requests into stratum-p4runtime calls on physical TOST switches.
+
+To build the app:
+
+    make app-build
+
+The `app` directory has further instructions for loading and testing.
 
 ### Packet-based Unit Tests
 
