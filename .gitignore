@@ -9,6 +9,7 @@ ptf/*.pcap
 tmp/
 target/
 onos-tools/
+app/src/main/resources/p4info.txt
 
 *.class
 *.DS_Store
