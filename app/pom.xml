@@ -192,7 +192,7 @@
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
-                        <Karaf-Commands>org.onosproject.up4.cli</Karaf-Commands>
+                        <Karaf-Commands>org.omecproject.up4.cli</Karaf-Commands>
                         <!-- The hardcoded import version number can be changed to ${onos.version} once this app
                          ~ moves to an X.Y.Z onos version (instead of a X.Y.Z.SNAPSHOT version) -->
                         <Import-Package>com.google.protobuf;version=2.2.3,*</Import-Package>
