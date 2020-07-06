@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
+#
+# SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 curr_dir := $(patsubst %/,%,$(dir $(mkfile_path)))
 
@@ -23,6 +27,11 @@ clean:
 	-rm -rf p4src/build
 	-rm -rf ptf/*.log
 	-rm -rf ptf/*.pcap
+
+
+app-build:
+	cp p4src/build/p4info.txt app/src/main/resources/
+	cd app && mvn clean install
 
 
 build: ${main_file}

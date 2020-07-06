@@ -1,17 +1,5 @@
-# Copyright 2020-present Open Networking Foundation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+# SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
 
 # ------------------------------------------------------------------------------
 # SPGWU TESTS
@@ -40,6 +28,15 @@ from unittest import skip
 from extra_headers import CpuHeader
 
 CPU_CLONE_SESSION_ID = 99
+UE_IPV4     = "17.0.0.1"
+ENODEB_IPV4 = "140.0.100.1"
+S1U_IPV4    = "140.0.100.2"
+SGW_IPV4    = "140.0.200.2"
+PDN_IPV4    = "140.0.200.1"
+SWITCH_MAC  = "00:AA:00:00:00:01"
+
+ENODEB_MAC = "00:00:00:00:00:10"
+PDN_MAC    = "00:00:00:00:00:20"
 
 
 @group("gtpu")
@@ -51,8 +48,11 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
         # Test with different type of packets.
         for pkt_type in self.supported_l4:
             print_inline("%s ... " % pkt_type)
-            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
-            pkt = self.gtpu_encap(pkt)
+            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)(
+                eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
+                ip_src=UE_IPV4, ip_dst=PDN_IPV4
+            )
+            pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
 
             self.testPacket(pkt)
 
@@ -63,7 +63,7 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
             raise AssertionError("Packet given to decap test is not encapsulated!")
         # build the expected decapsulated packet
         exp_pkt = self.gtpu_decap(pkt)
-        dst_mac = self.random_mac_addr()
+        dst_mac = PDN_MAC
         # Expected pkt should have routed MAC addresses and decremented hop
         # limit (TTL).
         pkt_route(exp_pkt, dst_mac)
@@ -95,7 +95,10 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         # Test with different type of packets.
         for pkt_type in self.supported_l4:
             print_inline("%s ... " % pkt_type)
-            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
+            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)(
+                eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
+                ip_src=PDN_IPV4, ip_dst=UE_IPV4
+            )
             self.testPacket(pkt)
 
     @autocleanup
@@ -103,14 +106,14 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
 
         # build the expected encapsulated packet
         exp_pkt = pkt.copy()
-        dst_mac = self.random_mac_addr()
+        dst_mac = ENODEB_MAC
         # Expected pkt should have routed MAC addresses and decremented hop
         # limit (TTL).
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
 
         # Should be encapped too obv.
-        exp_pkt = self.gtpu_encap(exp_pkt)
+        exp_pkt = self.gtpu_encap(exp_pkt, ip_src=S1U_IPV4, ip_dst=ENODEB_IPV4)
 
         # PDR counter ID
         ctr_id = self.new_counter_id()
@@ -138,8 +141,11 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         # Test with different type of packets.
         for pkt_type in self.supported_l4:
             print_inline("%s ... " % pkt_type)
-            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
-            pkt = self.gtpu_encap(pkt)
+            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)(
+                eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
+                ip_src=UE_IPV4, ip_dst=PDN_IPV4
+            )
+            pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
 
             self.testPacket(pkt)
 
@@ -183,7 +189,10 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         # Test with different type of packets.
         for pkt_type in self.supported_l4:
             print_inline("%s ... " % pkt_type)
-            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)()
+            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)(
+                eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
+                ip_src=PDN_IPV4, ip_dst=UE_IPV4
+            )
             self.testPacket(pkt)
 
     @autocleanup
@@ -191,7 +200,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
 
         # build the expected encapsulated packet
         exp_pkt = pkt.copy()
-        dst_mac = self.random_mac_addr()
+        dst_mac = ENODEB_MAC
         # Expected pkt should have routed MAC addresses and decremented hop
         # limit (TTL).
         pkt_route(exp_pkt, dst_mac)
@@ -220,6 +229,8 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
 
 
+@group("gtpu")
+@skip("ACL punting not yet robust")
 class AclPuntTest(GtpuBaseTest):
     """ Test that the ACL table punts a packet to the CPU
     """

@@ -5,3 +5,11 @@ ptf/*.pcap
 .yapf/
 *.swp
 *.code-workspace
+*.iml
+tmp/
+target/
+onos-tools/
+app/src/main/resources/p4info.txt
+
+*.class
+*.DS_Store
