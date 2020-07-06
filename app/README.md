@@ -1,5 +1,12 @@
 # up4-app
-ONOS Application for managing the hardware implementation of the abstract UP4 pipeline  
+ONOS Application for managing the hardware implementation of the abstract UP4 pipeline.
+
+There are currently two ways to test the app. To test the app without using the northbound component, 
+use the section titled "Setting up a test using CLI commands". This lets you access the southbound directly
+via ONOS CLI commands. To test the entire app including the northbound component, use the section titled 
+"Setting up a test using UP4 P4Runtime calls". After you have set up the testbed by following the instructions,
+verify uplink and downlink packets transmit by following the final section.
+
 ## Setting up a test using CLI commands
 Start mininet and ONOS:
 
