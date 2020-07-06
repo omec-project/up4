@@ -18,8 +18,7 @@ class IPv4Host(Host):
     """Host that can be configured with an IPv4 gateway (default route).
     """
 
-    def config(self, mac=None, ip=None, defaultRoute=None, lo='up', gw=None,
-               **_params):
+    def config(self, mac=None, ip=None, defaultRoute=None, lo='up', gw=None, **_params):
         super(IPv4Host, self).config(mac, ip, defaultRoute, lo, **_params)
         self.cmd('ip -4 addr flush dev %s' % self.defaultIntf())
         self.cmd('ip -6 addr flush dev %s' % self.defaultIntf())
@@ -30,8 +29,7 @@ class IPv4Host(Host):
             self.cmd('ip -4 route add default via %s' % gw)
         # Disable offload
         for attr in ["rx", "tx", "sg"]:
-            cmd = "/sbin/ethtool --offload %s %s off" % (
-                self.defaultIntf(), attr)
+            cmd = "/sbin/ethtool --offload %s %s off" % (self.defaultIntf(), attr)
             self.cmd(cmd)
 
         def updateIP():
@@ -50,8 +48,7 @@ class TutorialTopo(Topo):
 
         # Leaves
         # gRPC port 50001
-        leaf1 = self.addSwitch('leaf1', cls=StratumBmv2Switch, cpuport=CPU_PORT,
-                loglevel="trace")
+        leaf1 = self.addSwitch('leaf1', cls=StratumBmv2Switch, cpuport=CPU_PORT, loglevel="trace")
         # gRPC port 50002
         leaf2 = self.addSwitch('leaf2', cls=StratumBmv2Switch, cpuport=CPU_PORT)
 
@@ -68,13 +65,13 @@ class TutorialTopo(Topo):
         self.addLink(spine2, leaf2)
 
         # IPv4 hosts attached to leaf 1
-        enodeb = self.addHost('enodeb', cls=IPv4Host, mac='00:00:00:00:00:10',
-                              ip='140.0.100.1/24', gw='140.0.100.254')
+        enodeb = self.addHost('enodeb', cls=IPv4Host, mac='00:00:00:00:00:10', ip='140.0.100.1/24',
+                              gw='140.0.100.254')
         self.addLink(enodeb, leaf1)  # port 3
 
         # IPv4 hosts attached to leaf 2
-        pdn = self.addHost('pdn', cls=IPv4Host, mac='00:00:00:00:00:20',
-                           ip='140.0.200.1/24', gw='140.0.200.254')
+        pdn = self.addHost('pdn', cls=IPv4Host, mac='00:00:00:00:00:20', ip='140.0.200.1/24',
+                           gw='140.0.200.254')
         self.addLink(pdn, leaf2)  # port 3
 
 

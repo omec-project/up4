@@ -17,7 +17,7 @@ UE_PORT = 400
 PDN_PORT = 80
 GPDU_PORT = 2152
 
-TEID=255
+TEID = 255
 
 pkt_count = 0
 
@@ -53,20 +53,17 @@ def handle_pkt(pkt):
           % (pkt_count, len(pkt), pkt[IP].src, pkt[IP].dst,
              is_gtp_encap, pkt.summary()))
 
+
 def sniff_stuff():
     print("Will print a line for each UDP packet received...")
-    sniff(count=0, store=False, filter="udp",
-          prn=lambda x: handle_pkt(x))
+    sniff(count=0, store=False, filter="udp", prn=lambda x: handle_pkt(x))
 
 
 if __name__ == "__main__":
 
-    funcs = {"send-gtp" : send_gtp,
-             "send-udp" : send_udp,
-             "recv"     : sniff_stuff}
+    funcs = {"send-gtp": send_gtp, "send-udp": send_udp, "recv": sniff_stuff}
 
     usage = "usage: %s <%s>" % (sys.argv[0], '|'.join(funcs.keys()))
-
 
     command = sys.argv[1] if len(sys.argv) > 1 else None
 
@@ -75,5 +72,3 @@ if __name__ == "__main__":
         exit(1)
 
     funcs[command]()
-
-
