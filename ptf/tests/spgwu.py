@@ -28,15 +28,15 @@ from unittest import skip
 from extra_headers import CpuHeader
 
 CPU_CLONE_SESSION_ID = 99
-UE_IPV4     = "17.0.0.1"
+UE_IPV4 = "17.0.0.1"
 ENODEB_IPV4 = "140.0.100.1"
-S1U_IPV4    = "140.0.100.2"
-SGW_IPV4    = "140.0.200.2"
-PDN_IPV4    = "140.0.200.1"
-SWITCH_MAC  = "00:AA:00:00:00:01"
+S1U_IPV4 = "140.0.100.2"
+SGW_IPV4 = "140.0.200.2"
+PDN_IPV4 = "140.0.200.1"
+SWITCH_MAC = "00:AA:00:00:00:01"
 
 ENODEB_MAC = "00:00:00:00:00:10"
-PDN_MAC    = "00:00:00:00:00:20"
+PDN_MAC = "00:00:00:00:00:20"
 
 
 @group("gtpu")
@@ -48,10 +48,9 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
         # Test with different type of packets.
         for pkt_type in self.supported_l4:
             print_inline("%s ... " % pkt_type)
-            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)(
-                eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
-                ip_src=UE_IPV4, ip_dst=PDN_IPV4
-            )
+            pkt = getattr(testutils,
+                          "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
+                                                         ip_src=UE_IPV4, ip_dst=PDN_IPV4)
             pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
 
             self.testPacket(pkt)
@@ -95,10 +94,9 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         # Test with different type of packets.
         for pkt_type in self.supported_l4:
             print_inline("%s ... " % pkt_type)
-            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)(
-                eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
-                ip_src=PDN_IPV4, ip_dst=UE_IPV4
-            )
+            pkt = getattr(testutils,
+                          "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
+                                                         ip_src=PDN_IPV4, ip_dst=UE_IPV4)
             self.testPacket(pkt)
 
     @autocleanup
@@ -141,10 +139,9 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         # Test with different type of packets.
         for pkt_type in self.supported_l4:
             print_inline("%s ... " % pkt_type)
-            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)(
-                eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
-                ip_src=UE_IPV4, ip_dst=PDN_IPV4
-            )
+            pkt = getattr(testutils,
+                          "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
+                                                         ip_src=UE_IPV4, ip_dst=PDN_IPV4)
             pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
 
             self.testPacket(pkt)
@@ -189,10 +186,9 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         # Test with different type of packets.
         for pkt_type in self.supported_l4:
             print_inline("%s ... " % pkt_type)
-            pkt = getattr(testutils, "simple_%s_packet" % pkt_type)(
-                eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
-                ip_src=PDN_IPV4, ip_dst=UE_IPV4
-            )
+            pkt = getattr(testutils,
+                          "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
+                                                         ip_src=PDN_IPV4, ip_dst=UE_IPV4)
             self.testPacket(pkt)
 
     @autocleanup
