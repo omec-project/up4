@@ -20,7 +20,6 @@ build:
 
 start:
 	$(info *** Starting ONOS and Mininet (topo-gtp.py)... )
-	$(info *** Remember to activate fabric, segmentrouting, and netcfghostprovider)
 	@mkdir -p tmp/onos
 	@NGSDN_TOPO_PY=topo-gtp.py docker-compose up -d
 
@@ -40,10 +39,17 @@ p4rtsh-program:
 p4rtsh-clear:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh clear
 
-
 p4rtsh-bash:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /bin/bash
 
+iface-clear:
+	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh filter
+
+pdr-clear:
+	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh pdr
+
+far-clear:
+	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh far
 
 stop:
 	$(info *** Stopping ONOS and Mininet...)
@@ -65,16 +71,11 @@ onos-logs:
 	docker-compose logs -f onos
 
 onos-config:
-	util/onos-cmd app activate segmentrouting
-	util/onos-cmd app activate pipelines.fabric
-	util/onos-cmd app activate netcfghostprovider
-	util/onos-cmd app activate org.onosproject.protocols.grpc
-	sleep 1
 	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1
 	sleep 1
 	make netcfg
 	sleep 3
-	onos-tools/onos-app localhost install! ./target/up4-app-0.1.oar
+	make app-load
 
 app-load:
 	./onos-tools/onos-app localhost install! target/up4-app-0.1.oar

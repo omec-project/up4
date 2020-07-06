@@ -49,6 +49,6 @@ services:
       - ./tmp/onos:/root/onos/apache-karaf-4.2.8/data/tmp
       - ./tmp/pcaps:/pcaps
     environment:
-      - ONOS_APPS=gui2,drivers.bmv2,lldpprovider,hostprovider,fabric,segmentrouting,netcfghostprovider
+      - ONOS_APPS=gui2,drivers.bmv2lldpprovider,hostprovider,pipelines.fabric,segmentrouting,netcfghostprovider,protocols.grpc
     links:
       - mininet
