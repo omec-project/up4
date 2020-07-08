@@ -71,7 +71,7 @@ far-clear:
 
 stop:
 	$(info *** Stopping ONOS and Mininet...)
-	@NGSDN_TOPO_PY=foo docker-compose down -t0
+	@NGSDN_TOPO_PY=foo docker-compose down
 
 reset: stop
 	-$(NGSDN_TUTORIAL_SUDO) rm -rf ./tmp
