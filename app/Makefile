@@ -5,6 +5,19 @@
 onos_url := http://localhost:8181/onos
 onos_curl := curl --fail -sSL --user onos:rocks --noproxy localhost
 
+include ../util/docker/Makefile.vars
+
+
+_docker_pull_all:
+	docker pull ${P4RT_SH_IMG}@${P4RT_SH_SHA}
+	docker tag ${P4RT_SH_IMG}@${P4RT_SH_SHA} ${P4RT_SH_IMG}
+	docker pull ${MN_TUTORIAL_IMG}@${MN_TUTORIAL_SHA}
+	docker tag ${MN_TUTORIAL_IMG}@${MN_TUTORIAL_SHA} ${MN_TUTORIAL_IMG}
+	docker pull ${ONOS_IMG}@${ONOS_SHA}
+	docker tag ${ONOS_IMG}@${ONOS_SHA} ${ONOS_IMG}
+
+deps: _docker_pull_all
+
 onos-ui:
 	open ${onos_url}/ui
 
