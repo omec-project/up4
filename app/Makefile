@@ -109,10 +109,10 @@ check:
 	sleep 1
 	@echo "*** Sending downlink..."
 	make send-downlink
-	sleep 5
+	sleep 10
 	@echo "*** Sending uplink..."
 	make send-uplink
-	sleep 5
+	sleep 10
 	make stop
 
 send-downlink:
