@@ -8,6 +8,10 @@ via ONOS CLI commands. To test the entire app including the northbound component
 verify uplink and downlink packets transmit by following the final section.
 
 ## Setting up a test using CLI commands
+Download ONOS admin tools. This only needs to be done once:
+
+    $ make fetch-onos-tools
+    
 Start mininet and ONOS:
 
     $ make start  
@@ -41,6 +45,10 @@ And for downlink:
     onos> up4:far-insert device:leaf1 1 2 255 140.0.100.254 140.0.100.1 
     
 ## Setting up a test using UP4 P4Runtime calls
+Download ONOS admin tools. This only needs to be done once:
+
+    $ make fetch-onos-tools
+    
 Start mininet and ONOS:
 
     $ make start  

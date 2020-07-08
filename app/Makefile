@@ -16,7 +16,9 @@ get-onos-tools:
 	rm tools.tar.gz
 
 build:
-	mvn package
+	mkdir -p src/main/resources
+	cp ../p4src/build/p4info.txt src/main/resources/
+	mvn install
 
 start:
 	$(info *** Starting ONOS and Mininet (topo-gtp.py)... )
@@ -83,6 +85,26 @@ app-load:
 app-reload:
 	./onos-tools/onos-app localhost reinstall! target/up4-app-0.1.oar
 
+check:
+	make build
+	make start
+	@echo "*** Giving ONOS time to warm up..."
+	sleep 45
+	make onos-config
+	sleep 3
+	make p4rtsh-program
+	sleep 1
+	# util/mn-cmd requires a TTY because it uses docker -it option
+	# hence we use screen for putting it in the background
+	@echo "*** Sending downlink..."
+	screen -d -m util/mn-cmd pdn /util/traffic.py send-udp -e
+	util/mn-cmd enodeb /util/traffic.py recv-gtp -e
+	sleep 10
+	@echo "*** Sending uplink..."
+	screen -d -m util/mn-cmd enodeb /util/traffic.py send-gtp -e
+	util/mn-cmd pdn /util/traffic.py recv-udp -e
+	make stop
+
 
 netcfg:
 	$(info *** Pushing ./util/netcfg.json to ONOS...)
@@ -100,12 +122,12 @@ test-onos-netcfg:
     	${onos_url}/v1/network/configuration -d@./util/ptf-netcfg.json
 
 test-onos-config:
-	util/onos-cmd app deactivate lldpprovider # the packet injects ruin tests
-	util/onos-cmd app activate segmentrouting
-	util/onos-cmd app activate pipelines.fabric
-	util/onos-cmd app activate netcfghostprovider
-	util/onos-cmd app activate org.onosproject.protocols.grpc
-	sleep 1
+	#util/onos-cmd app deactivate lldpprovider # the packet injects ruin tests
+	#util/onos-cmd app activate segmentrouting
+	#util/onos-cmd app activate pipelines.fabric
+	#util/onos-cmd app activate netcfghostprovider
+	#util/onos-cmd app activate org.onosproject.protocols.grpc
+	#sleep 1
 	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1
 	sleep 1
 	make test-onos-netcfg
@@ -115,7 +137,7 @@ test-onos-config:
 
 test-onos-start:
 	docker run --name test-onos-img -d -it --privileged --rm \
-		-e ONOS_APPS=gui2,drivers.bmv2,pipelines.fabric,lldpprovider,hostprovider,fwd \
+		-e ONOS_APPS=gui2,drivers.bmv2,segmentrouting,pipelines.fabric,hostprovider,netcfghostprovider,org.onosproject.protocols.grpc,fwd \
 		-p 8101:8101 \
 		-p 8181:8181 \
 		-p 51001:51001 \
@@ -126,6 +148,7 @@ test-sw-start:
 	docker run --name test-bmv2-img -d --privileged --rm \
 	  -v "/Users/macdavid/Code/up4/ptf":/ptf -w /ptf \
 	  -v "/Users/macdavid/Code/up4/p4src/build":/p4c-out \
+	  -v "/Users/macdavid/Code/up4/app/util":/util \
 	  --network "container:test-onos-img" \
 	  ccasconeonf/up4-ptf:latest \
 	  ./lib/start_bmv2.sh > /dev/null

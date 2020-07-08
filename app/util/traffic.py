@@ -4,7 +4,7 @@
 
 from scapy.contrib import gtp
 from scapy.all import send, sniff, Ether, IP, UDP
-import sys
+import sys, signal
 
 RATE = 5  # packets per second
 
@@ -21,8 +21,22 @@ TEID = 255
 
 pkt_count = 0
 
+exitOnSuccess = False
+pktSendCount = None
+
+
+def prep_brief_test():
+    global pktSendCount
+    global exitOnSuccess
+    exitOnSuccess = True
+    pktSendCount = 5
+    # wait max 10 seconds or exit
+    signal.signal(signal.SIGALRM, handle_timeout)
+    signal.alarm(10)
+
 
 def send_gtp():
+    global pktSendCount
     pkt =   IP(src=ENB_ADDR, dst=S1U_ADDR) / \
             UDP(dport=GPDU_PORT) / \
             gtp.GTPHeader(version=1, gtp_type=0xff, teid=TEID) / \
@@ -30,18 +44,27 @@ def send_gtp():
             UDP(sport=UE_PORT, dport=PDN_PORT) / \
             ' '.join(['P4 is inevitable!'] * 50)
 
-    send(pkt, inter=1.0 / RATE, loop=True, verbose=True)
+    send(pkt, inter=1.0 / RATE, loop=True, count=pktSendCount, verbose=True)
 
 
 def send_udp():
+    global pktSendCount
     pkt =   IP(src=PDN_ADDR, dst=UE_ADDR) / \
             UDP(sport=PDN_PORT, dport=UE_PORT) / \
             ' '.join(['P4 is great!'] * 50)
 
-    send(pkt, inter=1.0 / RATE, loop=True, verbose=True)
+    send(pkt, inter=1.0 / RATE, loop=True, count=pktSendCount, verbose=True)
 
 
-def handle_pkt(pkt):
+def handle_pkt(pkt, kind):
+    global exitOnSuccess
+    exp_gtp_encap = False
+    if kind == "gtp":
+        exp_gtp_encap = True
+    elif kind != "udp":
+        print("Bad handle_pkt kind argument: %s" % kind)
+        exit(1)
+
     global pkt_count
     pkt_count = pkt_count + 1
     if gtp.GTP_U_Header in pkt:
@@ -53,19 +76,54 @@ def handle_pkt(pkt):
           % (pkt_count, len(pkt), pkt[IP].src, pkt[IP].dst,
              is_gtp_encap, pkt.summary()))
 
+    if exitOnSuccess:
+        if exp_gtp_encap == is_gtp_encap:
+            exit(0)
+        else:
+            if exp_gtp_encap:
+                print("Expected a GTP encapped packet but received non-encapped!")
+            else:
+                print("Expected a non-GTP-encapped packet but received encapped!")
+            exit(1)
 
-def sniff_stuff():
+
+def sniff_gtp(kind="gtp"):
+    sniff_stuff(kind="gtp")
+
+
+def sniff_udp():
+    sniff_stuff(kind="udp")
+
+
+def sniff_stuff(kind):
     print("Will print a line for each UDP packet received...")
-    sniff(count=0, store=False, filter="udp", prn=lambda x: handle_pkt(x))
+    sniff(count=0, store=False, filter="udp", prn=lambda x: handle_pkt(x, kind))
+
+
+def handle_timeout(signum, frame):
+    print("Timeout! Did not receive expected packet")
+    exit(1)
 
 
 if __name__ == "__main__":
 
-    funcs = {"send-gtp": send_gtp, "send-udp": send_udp, "recv": sniff_stuff}
+    funcs = {
+        "send-gtp": send_gtp,
+        "send-udp": send_udp,
+        "recv-gtp": sniff_gtp,
+        "recv-udp": sniff_udp
+    }
 
-    usage = "usage: %s <%s>" % (sys.argv[0], '|'.join(funcs.keys()))
+    usage = "usage: %s <%s> [-e]" % (sys.argv[0], '|'.join(funcs.keys()))
 
     command = sys.argv[1] if len(sys.argv) > 1 else None
+
+    if len(sys.argv) > 2:
+        if sys.argv[2] == '-e':
+            prep_brief_test()
+        else:
+            print(usage)
+            exit(1)
 
     if command not in funcs:
         print(usage)
