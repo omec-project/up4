@@ -28,11 +28,17 @@ clean:
 	-rm -rf ptf/*.log
 	-rm -rf ptf/*.pcap
 
-
 app-build:
+	@mkdir -p app/src/main/resources
 	cp p4src/build/p4info.txt app/src/main/resources/
 	cd app && mvn clean install
 
+docker-app-build:
+	@mkdir -p app/src/main/resources
+	cp p4src/build/p4info.txt app/src/main/resources/
+	docker run -it --rm -v ${HOME}/.m2:/root/.m2 \
+		-v ${PWD}:/root/up4 -w /root/up4/app maven:3.6.3-openjdk-11-slim \
+		mvn clean install
 
 build: ${main_file}
 	$(info *** Building P4 program...)
@@ -43,7 +49,6 @@ build: ${main_file}
 		--Wdisable=unsupported \
 		${main_file}
 	@echo "*** P4 program compiled successfully! Output files are in p4src/build"
-
 
 graph: ${main_file}
 	$(info *** Generating P4 program graphs...)
