@@ -18,7 +18,7 @@ _docker_pull_all:
 	docker pull ${MAVEN_IMG}@${MAVEN_SHA}
 	docker tag ${MAVEN_IMG}@${MAVEN_SHA} ${MAVEN_IMG}
 
-deps: _docker_pull_all
+deps: _docker_pull_all get-onos-tools
 
 onos-ui:
 	open ${onos_url}/ui
