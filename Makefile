@@ -20,6 +20,8 @@ _docker_pull_all:
 	docker tag ${MN_STRATUM_IMG}@${MN_STRATUM_SHA} ${MN_STRATUM_IMG}
 	docker pull ${PTF_IMG}@${PTF_SHA}
 	docker tag ${PTF_IMG}@${PTF_SHA} ${PTF_IMG}
+	docker pull ${MAVEN_IMG}@${MAVEN_SHA}
+	docker tag ${MAVEN_IMG}@${MAVEN_SHA} ${MAVEN_IMG}
 
 deps: _docker_pull_all
 
@@ -28,12 +30,12 @@ clean:
 	-rm -rf ptf/*.log
 	-rm -rf ptf/*.pcap
 
-app-build:
+local-app-build:
 	@mkdir -p app/src/main/resources
 	cp p4src/build/p4info.txt app/src/main/resources/
 	cd app && mvn clean install
 
-docker-app-build:
+app-build:
 	@mkdir -p app/src/main/resources
 	cp p4src/build/p4info.txt app/src/main/resources/
 	docker run -it --rm -v ${HOME}/.m2:/root/.m2 \

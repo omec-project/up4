@@ -15,6 +15,8 @@ _docker_pull_all:
 	docker tag ${MN_TUTORIAL_IMG}@${MN_TUTORIAL_SHA} ${MN_TUTORIAL_IMG}
 	docker pull ${ONOS_IMG}@${ONOS_SHA}
 	docker tag ${ONOS_IMG}@${ONOS_SHA} ${ONOS_IMG}
+	docker pull ${MAVEN_IMG}@${MAVEN_SHA}
+	docker tag ${MAVEN_IMG}@${MAVEN_SHA} ${MAVEN_IMG}
 
 deps: _docker_pull_all
 
@@ -28,10 +30,11 @@ get-onos-tools:
 	mv onos-admin-2.2.2 onos-tools
 	rm tools.tar.gz
 
+local-build:
+	cd .. && make local-app-build
+
 build:
-	mkdir -p src/main/resources
-	cp ../p4src/build/p4info.txt src/main/resources/
-	mvn install
+	cd .. && make app-build
 
 start:
 	$(info *** Starting ONOS and Mininet (topo-gtp.py)... )
