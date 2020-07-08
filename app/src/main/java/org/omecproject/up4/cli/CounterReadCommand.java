@@ -44,7 +44,7 @@ public class CounterReadCommand extends AbstractShellCommand {
             return;
         }
 
-        Up4Service.PdrStats stats = app.readCounter(device.id(), ctrIndex);
+        Up4Service.PdrStats stats = app.readCounter(ctrIndex);
         print(stats.toString());
     }
 

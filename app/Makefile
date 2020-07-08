@@ -90,9 +90,7 @@ onos-logs:
 
 onos-config:
 	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1
-	sleep 1
 	make netcfg
-	sleep 3
 	make app-load
 
 app-load:
@@ -106,19 +104,27 @@ check:
 	@echo "*** Giving ONOS time to warm up..."
 	sleep 45
 	make onos-config
-	sleep 3
+	sleep 10
 	make p4rtsh-program
 	sleep 1
-	# util/mn-cmd requires a TTY because it uses docker -it option
-	# hence we use screen for putting it in the background
 	@echo "*** Sending downlink..."
-	screen -d -m util/mn-cmd pdn /util/traffic.py send-udp -e
-	util/mn-cmd enodeb /util/traffic.py recv-gtp -e
+	make send-downlink
 	sleep 10
 	@echo "*** Sending uplink..."
+	make send-uplink
+	make stop
+
+send-downlink:
+	# util/mn-cmd requires a TTY because it uses docker -it option
+	# hence we use screen for putting it in the background
+	screen -d -m util/mn-cmd pdn /util/traffic.py send-udp -e
+	util/mn-cmd enodeb /util/traffic.py recv-gtp -e
+
+send-uplink:
+	# util/mn-cmd requires a TTY because it uses docker -it option
+	# hence we use screen for putting it in the background
 	screen -d -m util/mn-cmd enodeb /util/traffic.py send-gtp -e
 	util/mn-cmd pdn /util/traffic.py recv-udp -e
-	make stop
 
 
 netcfg:

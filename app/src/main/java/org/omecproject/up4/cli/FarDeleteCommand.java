@@ -51,7 +51,7 @@ public class FarDeleteCommand extends AbstractShellCommand {
         }
 
         print("Deleting a FAR from device %s", uri);
-        app.removeFar(device.id(), sessionId, farId);
+        app.removeFar(sessionId, farId);
     }
 
 }

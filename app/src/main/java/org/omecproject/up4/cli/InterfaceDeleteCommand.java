@@ -48,7 +48,7 @@ public class InterfaceDeleteCommand extends AbstractShellCommand {
         Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
 
         print("Removing S1U interface address from device %s", uri);
-        app.removeS1uInterface(device.id(), s1uAddr);
+        app.removeS1uInterface(s1uAddr);
 
 
     }
