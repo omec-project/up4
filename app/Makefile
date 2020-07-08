@@ -86,7 +86,6 @@ app-reload:
 	./onos-tools/onos-app localhost reinstall! target/up4-app-0.1.oar
 
 check:
-	make build
 	make start
 	@echo "*** Giving ONOS time to warm up..."
 	sleep 45
