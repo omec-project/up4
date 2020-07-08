@@ -39,7 +39,7 @@ build:
 start:
 	$(info *** Starting ONOS and Mininet (topo-gtp.py)... )
 	@mkdir -p tmp/onos
-	@NGSDN_TOPO_PY=topo-gtp.py docker-compose up -d
+	@docker-compose up -d
 
 clean:
 	rm -rf target/
