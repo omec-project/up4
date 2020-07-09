@@ -79,6 +79,7 @@ def handle_pkt(pkt, kind):
 
     if exitOnSuccess:
         if exp_gtp_encap == is_gtp_encap:
+            print("Received expected packet!")
             exit(0)
         else:
             if exp_gtp_encap:
