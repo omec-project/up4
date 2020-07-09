@@ -7,10 +7,14 @@ via ONOS CLI commands. To test the entire app including the northbound component
 "Setting up a test using UP4 P4Runtime calls". After you have set up the testbed by following the instructions,
 verify uplink and downlink packets transmit by following the final section.
 
-## Setting up a test using CLI commands
-Download ONOS admin tools. This only needs to be done once:
+To test everything all at once:
 
-    $ make fetch-onos-tools
+    $ make deps build check
+
+## Setting up a test using CLI commands
+Download dependencies. This only needs to be done once:
+
+    $ make deps
     
 Start mininet and ONOS:
 
@@ -45,9 +49,9 @@ And for downlink:
     onos> up4:far-insert device:leaf1 1 2 255 140.0.100.254 140.0.100.1 
     
 ## Setting up a test using UP4 P4Runtime calls
-Download ONOS admin tools. This only needs to be done once:
+Download dependencies. This only needs to be done once:
 
-    $ make fetch-onos-tools
+    $ make deps
     
 Start mininet and ONOS:
 
@@ -81,10 +85,10 @@ Verify uplink packets transmit:
     
     terminal1$ util/mn-cmd enodeb /util/traffic.py send-gtp
     
-    terminal2$ util/mn-cmd pdn /util/traffic.py recv
+    terminal2$ util/mn-cmd pdn /util/traffic.py recv-udp
     
 Verify downlink packets transmit:
     
     terminal1$ util/mn-cmd pdn /util/traffic.py send-udp
     
-    terminal2$ util/mn-cmd enodeb /util/traffic.py recv
+    terminal2$ util/mn-cmd enodeb /util/traffic.py recv-gtp

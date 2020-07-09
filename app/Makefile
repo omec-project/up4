@@ -104,29 +104,30 @@ check:
 	@echo "*** Giving ONOS time to warm up..."
 	sleep 45
 	make onos-config
-	sleep 10
+	sleep 15
 	make p4rtsh-program
 	sleep 1
 	@echo "*** Sending downlink..."
 	make send-downlink
-	sleep 10
 	@echo "*** Sending uplink..."
 	make send-uplink
-	sleep 10
 	make stop
 
 send-downlink:
-	# util/mn-cmd requires a TTY because it uses docker -it option
-	# hence we use screen for putting it in the background
-	screen -d -m util/mn-cmd pdn /util/traffic.py send-udp -e
+	@# util/mn-cmd requires a TTY because it uses docker -it option
+	@# hence we use screen for putting it in the background
+	screen -d -m util/mn-cmd pdn /util/traffic.py send-udp
 	util/mn-cmd enodeb /util/traffic.py recv-gtp -e
+	@# kill sending process
+	util/mn-cmd pdn pkill "traffic.py"
 
 send-uplink:
-	# util/mn-cmd requires a TTY because it uses docker -it option
-	# hence we use screen for putting it in the background
-	screen -d -m util/mn-cmd enodeb /util/traffic.py send-gtp -e
+	@# util/mn-cmd requires a TTY because it uses docker -it option
+	@# hence we use screen for putting it in the background
+	screen -d -m util/mn-cmd enodeb /util/traffic.py send-gtp
 	util/mn-cmd pdn /util/traffic.py recv-udp -e
-
+	@# kill sending process
+	util/mn-cmd enodeb pkill "traffic.py"
 
 netcfg:
 	$(info *** Pushing ./util/netcfg.json to ONOS...)
