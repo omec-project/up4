@@ -48,7 +48,7 @@ public class UePoolInsertCommand extends AbstractShellCommand {
         Ip4Prefix poolPrefix = Ip4Prefix.valueOf(this.poolPrefix);
 
         print("Adding UE IPv4 address pool prefix to device %s", uri);
-        app.addUePool(device.id(), poolPrefix);
+        app.addUePool(poolPrefix);
 
 
     }

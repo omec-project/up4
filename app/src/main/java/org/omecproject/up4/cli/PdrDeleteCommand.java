@@ -68,10 +68,10 @@ public class PdrDeleteCommand extends AbstractShellCommand {
             }
             Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
             print("Removing *Uplink* PDR from device %s", uri);
-            app.removePdr(device.id(), ueAddr, teid, s1uAddr);
+            app.removePdr(ueAddr, teid, s1uAddr);
         } else {
             print("Removing *Downlink* PDR from device %s", uri);
-            app.removePdr(device.id(), ueAddr);
+            app.removePdr(ueAddr);
         }
 
 

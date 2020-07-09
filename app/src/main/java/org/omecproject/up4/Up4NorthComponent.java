@@ -15,8 +15,6 @@ import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
-import org.onosproject.net.Device;
-import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.pi.model.DefaultPiPipeconf;
 import org.onosproject.net.pi.model.PiActionId;
@@ -57,7 +55,6 @@ import p4.v1.P4RuntimeOuterClass;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.List;
 import java.util.Optional;
 
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
@@ -77,7 +74,6 @@ public class Up4NorthComponent {
 
     private PiPipelineModel piModel;
     private PiPipeconf pipeconf;
-    private DeviceId deviceId;
 
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
@@ -129,15 +125,6 @@ public class Up4NorthComponent {
             throw new IllegalStateException("Unable to start gRPC server", e);
         }
 
-        // TODO: add an integer p4runtime deviceId to the netcfg, and use those to identify these devices
-        List<Device> availableDevices = up4Service.getAvailableDevices();
-
-        if (availableDevices.isEmpty()) {
-            log.error("No available UP4-compliant devices found!");
-            throw new IllegalStateException("No available UP4-compliant devices found!");
-        }
-        log.info("{} UP4-compliant device(s) found. Using the first one.", availableDevices.size());
-        deviceId = availableDevices.get(0).id();
 
         log.info("Started");
     }
@@ -258,7 +245,7 @@ public class Up4NorthComponent {
         PiTableId tableId = entry.table();
         if (tableId.equals(NorthConstants.IFACE_TBL)) {
             Ip4Prefix prefix = getFieldPrefix(entry, NorthConstants.IFACE_DST_PREFIX_KEY);
-            up4Service.removeUnknownInterface(deviceId, prefix);
+            up4Service.removeUnknownInterface(prefix);
         } else if (tableId.equals(NorthConstants.PDR_TBL)) {
             Ip4Address ueAddr = getFieldAddress(entry, NorthConstants.UE_ADDR_KEY);
             int srcInterface = getFieldInt(entry, NorthConstants.SRC_IFACE_KEY);
@@ -266,10 +253,10 @@ public class Up4NorthComponent {
                 // uplink will have a non-ignored teid
                 int teid = getFieldInt(entry, NorthConstants.TEID_KEY);
                 Ip4Address tunnelDst = getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY);
-                up4Service.removePdr(deviceId, ueAddr, teid, tunnelDst);
+                up4Service.removePdr(ueAddr, teid, tunnelDst);
             } else if (srcInterface == NorthConstants.IFACE_CORE) {
                 // downlink
-                up4Service.removePdr(deviceId,  ueAddr);
+                up4Service.removePdr(ueAddr);
             } else {
                 log.error("Removing a PDR that does not match on an access or core src_iface " +
                         "is currently unsupported. Ignoring");
@@ -277,7 +264,7 @@ public class Up4NorthComponent {
         } else if (tableId.equals(NorthConstants.FAR_TBL)) {
             int farId = byteSeqToInt(getFieldValue(entry, NorthConstants.FAR_ID_KEY));
             int sessionId = byteSeqToInt(getFieldValue(entry, NorthConstants.SESSION_ID_KEY));
-            up4Service.removeFar(deviceId, sessionId, farId);
+            up4Service.removeFar(sessionId, farId);
         } else {
             log.error("Attempting to translate table entry of unknown table! {}", tableId.toString());
             return;
@@ -305,10 +292,10 @@ public class Up4NorthComponent {
                 int direction = byteSeqToInt(getParamValue(entry, NorthConstants.DIRECTION));
                 if (direction == NorthConstants.DIRECTION_UPLINK) {
                     log.info("Interpreted write req as Uplink Interface with S1U address {}", prefix.address());
-                    up4Service.addS1uInterface(deviceId, prefix.address());
+                    up4Service.addS1uInterface(prefix.address());
                 } else if (direction == NorthConstants.DIRECTION_DOWNLINK) {
                     log.info("Interpreted write req as Downlink Interface with UE Pool prefix {}", prefix);
-                    up4Service.addUePool(deviceId, prefix);
+                    up4Service.addUePool(prefix);
                 } else {
                     log.error("Received an interface lookup entry with unknown direction {}!", direction);
                 }
@@ -329,13 +316,13 @@ public class Up4NorthComponent {
                     log.info("Interpreted write req as Uplink PDR with UE-ADDR:{}, TEID:{}, " +
                                     "S1UAddr:{}, SessionID:{}, CTR-ID:{}, FAR-ID:{}",
                             ueAddr, teid, tunnelDst, sessionId, ctrId, farId);
-                    up4Service.addPdr(deviceId, sessionId, ctrId, farId, ueAddr, teid, tunnelDst);
+                    up4Service.addPdr(sessionId, ctrId, farId, ueAddr, teid, tunnelDst);
                 } else if (srcInterface == NorthConstants.IFACE_CORE) {
                     // downlink
                     log.info("Interpreted write req as Downlink PDR with UE-ADDR:{}, " +
                                     "SessionID:{}, CTR-ID:{}, FAR-ID:{}",
                             ueAddr, sessionId, ctrId, farId);
-                    up4Service.addPdr(deviceId, sessionId, ctrId, farId, ueAddr);
+                    up4Service.addPdr(sessionId, ctrId, farId, ueAddr);
                 } else {
                     log.error("PDR that does not match on an access or core src_iface " +
                             "is currently unsupported. Ignoring");
@@ -351,7 +338,7 @@ public class Up4NorthComponent {
             if (actionId.equals(NorthConstants.LOAD_FAR_NORMAL)) {
                 log.info("Interpreted write req as Uplink FAR with FAR-ID:{}, SessionID:{}, Drop:{}, Notify:{}",
                         farId, sessionId, needsDropping, notifyCp);
-                up4Service.addFar(deviceId, sessionId, farId, needsDropping, notifyCp);
+                up4Service.addFar(sessionId, farId, needsDropping, notifyCp);
             } else if (actionId.equals(NorthConstants.LOAD_FAR_TUNNEL)) {
                 Ip4Address tunnelSrc = getParamAddress(entry, NorthConstants.TUNNEL_SRC_PARAM);
                 Ip4Address tunnelDst = getParamAddress(entry, NorthConstants.TUNNEL_DST_PARAM);
@@ -360,7 +347,7 @@ public class Up4NorthComponent {
                 log.info("Interpreted write req as Downlink FAR with FAR-ID:{}, SessionID:{}, Drop:{}," +
                                 " Notify:{}, TunnelSrc:{}, TunnelDst:{}, TEID:{}",
                         farId, sessionId, needsDropping, notifyCp, tunnelSrc, tunnelDst, teid);
-                up4Service.addFar(deviceId, sessionId, farId, needsDropping, notifyCp, tunnel);
+                up4Service.addFar(sessionId, farId, needsDropping, notifyCp, tunnel);
             } else {
                 actionUnknown = true;
             }
@@ -558,7 +545,7 @@ public class Up4NorthComponent {
 
                 int counterIndex = (int) cellEntity.cellId().index();
 
-                Up4Service.PdrStats ctrValues = up4Service.readCounter(deviceId, counterIndex);
+                Up4Service.PdrStats ctrValues = up4Service.readCounter(counterIndex);
 
                 PiCounterId piCounterId = cellEntity.cellId().counterId();
 

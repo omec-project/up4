@@ -5,6 +5,21 @@
 onos_url := http://localhost:8181/onos
 onos_curl := curl --fail -sSL --user onos:rocks --noproxy localhost
 
+include ../util/docker/Makefile.vars
+
+
+_docker_pull_all:
+	docker pull ${P4RT_SH_IMG}@${P4RT_SH_SHA}
+	docker tag ${P4RT_SH_IMG}@${P4RT_SH_SHA} ${P4RT_SH_IMG}
+	docker pull ${MN_TUTORIAL_IMG}@${MN_TUTORIAL_SHA}
+	docker tag ${MN_TUTORIAL_IMG}@${MN_TUTORIAL_SHA} ${MN_TUTORIAL_IMG}
+	docker pull ${ONOS_IMG}@${ONOS_SHA}
+	docker tag ${ONOS_IMG}@${ONOS_SHA} ${ONOS_IMG}
+	docker pull ${MAVEN_IMG}@${MAVEN_SHA}
+	docker tag ${MAVEN_IMG}@${MAVEN_SHA} ${MAVEN_IMG}
+
+deps: _docker_pull_all get-onos-tools
+
 onos-ui:
 	open ${onos_url}/ui
 
@@ -15,13 +30,16 @@ get-onos-tools:
 	mv onos-admin-2.2.2 onos-tools
 	rm tools.tar.gz
 
+local-build:
+	cd .. && make local-app-build
+
 build:
-	mvn package
+	cd .. && make app-build
 
 start:
 	$(info *** Starting ONOS and Mininet (topo-gtp.py)... )
 	@mkdir -p tmp/onos
-	@NGSDN_TOPO_PY=topo-gtp.py docker-compose up -d
+	@docker-compose up -d
 
 clean:
 	rm -rf target/
@@ -53,7 +71,7 @@ far-clear:
 
 stop:
 	$(info *** Stopping ONOS and Mininet...)
-	@NGSDN_TOPO_PY=foo docker-compose down -t0
+	@NGSDN_TOPO_PY=foo docker-compose down
 
 reset: stop
 	-$(NGSDN_TUTORIAL_SUDO) rm -rf ./tmp
@@ -72,9 +90,7 @@ onos-logs:
 
 onos-config:
 	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1
-	sleep 1
 	make netcfg
-	sleep 3
 	make app-load
 
 app-load:
@@ -82,6 +98,34 @@ app-load:
 
 app-reload:
 	./onos-tools/onos-app localhost reinstall! target/up4-app-0.1.oar
+
+check:
+	make start
+	@echo "*** Giving ONOS time to warm up..."
+	sleep 45
+	make onos-config
+	sleep 10
+	make p4rtsh-program
+	sleep 1
+	@echo "*** Sending downlink..."
+	make send-downlink
+	sleep 10
+	@echo "*** Sending uplink..."
+	make send-uplink
+	sleep 10
+	make stop
+
+send-downlink:
+	# util/mn-cmd requires a TTY because it uses docker -it option
+	# hence we use screen for putting it in the background
+	screen -d -m util/mn-cmd pdn /util/traffic.py send-udp -e
+	util/mn-cmd enodeb /util/traffic.py recv-gtp -e
+
+send-uplink:
+	# util/mn-cmd requires a TTY because it uses docker -it option
+	# hence we use screen for putting it in the background
+	screen -d -m util/mn-cmd enodeb /util/traffic.py send-gtp -e
+	util/mn-cmd pdn /util/traffic.py recv-udp -e
 
 
 netcfg:
@@ -100,12 +144,12 @@ test-onos-netcfg:
     	${onos_url}/v1/network/configuration -d@./util/ptf-netcfg.json
 
 test-onos-config:
-	util/onos-cmd app deactivate lldpprovider # the packet injects ruin tests
-	util/onos-cmd app activate segmentrouting
-	util/onos-cmd app activate pipelines.fabric
-	util/onos-cmd app activate netcfghostprovider
-	util/onos-cmd app activate org.onosproject.protocols.grpc
-	sleep 1
+	#util/onos-cmd app deactivate lldpprovider # the packet injects ruin tests
+	#util/onos-cmd app activate segmentrouting
+	#util/onos-cmd app activate pipelines.fabric
+	#util/onos-cmd app activate netcfghostprovider
+	#util/onos-cmd app activate org.onosproject.protocols.grpc
+	#sleep 1
 	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1
 	sleep 1
 	make test-onos-netcfg
@@ -115,7 +159,7 @@ test-onos-config:
 
 test-onos-start:
 	docker run --name test-onos-img -d -it --privileged --rm \
-		-e ONOS_APPS=gui2,drivers.bmv2,pipelines.fabric,lldpprovider,hostprovider,fwd \
+		-e ONOS_APPS=gui2,drivers.bmv2,segmentrouting,pipelines.fabric,hostprovider,netcfghostprovider,org.onosproject.protocols.grpc,fwd \
 		-p 8101:8101 \
 		-p 8181:8181 \
 		-p 51001:51001 \
@@ -126,6 +170,7 @@ test-sw-start:
 	docker run --name test-bmv2-img -d --privileged --rm \
 	  -v "/Users/macdavid/Code/up4/ptf":/ptf -w /ptf \
 	  -v "/Users/macdavid/Code/up4/p4src/build":/p4c-out \
+	  -v "/Users/macdavid/Code/up4/app/util":/util \
 	  --network "container:test-onos-img" \
 	  ccasconeonf/up4-ptf:latest \
 	  ./lib/start_bmv2.sh > /dev/null

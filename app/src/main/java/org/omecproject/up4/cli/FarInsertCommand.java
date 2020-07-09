@@ -79,10 +79,10 @@ public class FarInsertCommand extends AbstractShellCommand {
             Up4Service.TunnelDesc tunnel = new Up4Service.TunnelDesc(tunnelSrc, tunnelDst, teid);
 
             print("Installing *Downlink* FAR on device %s", uri);
-            app.addFar(device.id(), sessionId, farId, false, false, tunnel);
+            app.addFar(sessionId, farId, false, false, tunnel);
         } else {
             print("Installing *Uplink* FAR on device %s", uri);
-            app.addFar(device.id(), sessionId, farId, false, false);
+            app.addFar(sessionId, farId, false, false);
         }
     }
 }
