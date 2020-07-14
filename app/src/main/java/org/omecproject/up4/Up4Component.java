@@ -184,7 +184,7 @@ public class Up4Component implements Up4Service {
 
         Optional<PiPipeconf> opt = piPipeconfService.getPipeconf(device.id());
         if (opt.isPresent()) {
-            if (opt.get().id().toString().endsWith(AppConstants.SUPPORTED_PIPECONF_NAME)) {
+            if (opt.get().id().toString().contains(AppConstants.SUPPORTED_PIPECONF_STRING)) {
                 return true;
             }
         }
