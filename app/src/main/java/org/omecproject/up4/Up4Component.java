@@ -9,6 +9,7 @@ import com.google.common.collect.HashBiMap;
 import org.apache.commons.lang3.tuple.Pair;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
+import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
@@ -113,7 +114,7 @@ public class Up4Component implements Up4Service {
     // TODO: Use EventuallyConsistentMap instead
     // TODO: Store PDR IDs for the flow rules somehow,
     // since they arent actually part of the flow rules but need to be read
-    private BiMap<Pair<Integer, Integer>, Integer> farIds;
+    private BiMap<Pair<ImmutableByteSequence, Integer>, Integer> farIds;
 
     private AtomicInteger lastGlobalFarId;
     private static final int DEFAULT_PRIORITY = 128;
@@ -287,7 +288,7 @@ public class Up4Component implements Up4Service {
     }
 
 
-    private int getGlobalFarId(int sessionId, int farId) {
+    private int getGlobalFarId(ImmutableByteSequence sessionId, int farId) {
         return farIds.computeIfAbsent(
             Pair.of(sessionId, farId),
             k -> lastGlobalFarId.incrementAndGet()
@@ -354,7 +355,7 @@ public class Up4Component implements Up4Service {
 
 
 
-    private void addPdr(int sessionId, int ctrId, int farId, PiCriterion match, PiTableId tableId) {
+    private void addPdr(ImmutableByteSequence sessionId, int ctrId, int farId, PiCriterion match, PiTableId tableId) {
         setFirstAvailableDevice();
         int globalFarId = getGlobalFarId(sessionId, farId);
         PiAction action = PiAction.builder()
@@ -378,8 +379,8 @@ public class Up4Component implements Up4Service {
     }
 
     @Override
-    public void addPdr(int sessionId, int ctrId, int farId,
-                        Ip4Address ueAddr, int teid, Ip4Address tunnelDst) {
+    public void addPdr(ImmutableByteSequence sessionId, int ctrId, int farId,
+                       Ip4Address ueAddr, int teid, Ip4Address tunnelDst) {
         log.info("Adding uplink PDR");
         PiCriterion match = PiCriterion.builder()
             .matchExact(SouthConstants.UE_ADDR_KEY, ueAddr.toInt())
@@ -391,7 +392,7 @@ public class Up4Component implements Up4Service {
     }
 
     @Override
-    public void addPdr(int sessionId, int ctrId, int farId, Ip4Address ueAddr) {
+    public void addPdr(ImmutableByteSequence sessionId, int ctrId, int farId, Ip4Address ueAddr) {
         log.info("Adding downlink PDR");
         PiCriterion match = PiCriterion.builder()
             .matchExact(SouthConstants.UE_ADDR_KEY, ueAddr.toInt())
@@ -403,7 +404,7 @@ public class Up4Component implements Up4Service {
 
 
 
-    private void addFar(int sessionId, int farId, PiAction action) {
+    private void addFar(ImmutableByteSequence sessionId, int farId, PiAction action) {
         setFirstAvailableDevice();
         int globalFarId = getGlobalFarId(sessionId, farId);
 
@@ -422,7 +423,7 @@ public class Up4Component implements Up4Service {
     }
 
     @Override
-    public void addFar(int sessionId, int farId, boolean drop, boolean notifyCp,
+    public void addFar(ImmutableByteSequence sessionId, int farId, boolean drop, boolean notifyCp,
                        TunnelDesc tunnelDesc) {
         log.info("Adding simple downlink FAR entry");
 
@@ -440,7 +441,7 @@ public class Up4Component implements Up4Service {
     }
 
     @Override
-    public void addFar(int sessionId, int farId, boolean drop, boolean notifyCp) {
+    public void addFar(ImmutableByteSequence sessionId, int farId, boolean drop, boolean notifyCp) {
         log.info("Adding simple uplink FAR entry");
         PiAction action = PiAction.builder()
                 .withId(SouthConstants.LOAD_FAR_NORMAL)
@@ -546,7 +547,7 @@ public class Up4Component implements Up4Service {
     }
 
     @Override
-    public void removeFar(int sessionId, int farId) {
+    public void removeFar(ImmutableByteSequence sessionId, int farId) {
         log.info("Removing FAR");
         int globalFarId = getGlobalFarId(sessionId, farId);
 

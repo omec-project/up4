@@ -10,6 +10,7 @@ import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
+import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
@@ -32,7 +33,7 @@ public class FarInsertCommand extends AbstractShellCommand {
     @Argument(index = 1, name = "session-id",
             description = "Session ID for this PDR",
             required = true)
-    int sessionId = 0;
+    long sessionId = 0;
 
     @Argument(index = 2, name = "far-id",
             description = "ID of the FAR",
@@ -79,10 +80,10 @@ public class FarInsertCommand extends AbstractShellCommand {
             Up4Service.TunnelDesc tunnel = new Up4Service.TunnelDesc(tunnelSrc, tunnelDst, teid);
 
             print("Installing *Downlink* FAR on device %s", uri);
-            app.addFar(sessionId, farId, false, false, tunnel);
+            app.addFar(ImmutableByteSequence.copyFrom(sessionId), farId, false, false, tunnel);
         } else {
             print("Installing *Uplink* FAR on device %s", uri);
-            app.addFar(sessionId, farId, false, false);
+            app.addFar(ImmutableByteSequence.copyFrom(sessionId), farId, false, false);
         }
     }
 }

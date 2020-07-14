@@ -263,7 +263,7 @@ public class Up4NorthComponent {
             }
         } else if (tableId.equals(NorthConstants.FAR_TBL)) {
             int farId = byteSeqToInt(getFieldValue(entry, NorthConstants.FAR_ID_KEY));
-            int sessionId = byteSeqToInt(getFieldValue(entry, NorthConstants.SESSION_ID_KEY));
+            ImmutableByteSequence sessionId = getFieldValue(entry, NorthConstants.SESSION_ID_KEY);
             up4Service.removeFar(sessionId, farId);
         } else {
             log.error("Attempting to translate table entry of unknown table! {}", tableId.toString());
@@ -305,7 +305,7 @@ public class Up4NorthComponent {
         } else if (tableId.equals(NorthConstants.PDR_TBL)) {
             if (actionId.equals(NorthConstants.LOAD_PDR)) {
                 // 1:pdr-id, 2:session-id, 3:ctr-id, 4:far-id, 5:needs-gtpu-decap
-                int sessionId = getParamInt(entry, NorthConstants.SESSION_ID_PARAM);
+                ImmutableByteSequence sessionId = getParamValue(entry, NorthConstants.SESSION_ID_PARAM);
                 int ctrId = getParamInt(entry, NorthConstants.CTR_ID);
                 int farId = getParamInt(entry, NorthConstants.FAR_ID_PARAM);
                 Ip4Address ueAddr = getFieldAddress(entry, NorthConstants.UE_ADDR_KEY);
@@ -332,7 +332,7 @@ public class Up4NorthComponent {
             }
         } else if (tableId.equals(NorthConstants.FAR_TBL)) {
             int farId = getFieldInt(entry, NorthConstants.FAR_ID_KEY);
-            int sessionId = getFieldInt(entry, NorthConstants.SESSION_ID_KEY);
+            ImmutableByteSequence sessionId = getFieldValue(entry, NorthConstants.SESSION_ID_KEY);
             boolean needsDropping = getParamInt(entry, NorthConstants.DROP_FLAG) > 0;
             boolean notifyCp = getParamInt(entry, NorthConstants.NOTIFY_FLAG) > 0;
             if (actionId.equals(NorthConstants.LOAD_FAR_NORMAL)) {

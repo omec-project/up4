@@ -8,6 +8,7 @@ import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
+import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
@@ -32,7 +33,7 @@ public class FarDeleteCommand extends AbstractShellCommand {
     @Argument(index = 1, name = "session-id",
             description = "Session ID for this PDR",
             required = true)
-    int sessionId = 0;
+    long sessionId = 0;
 
     @Argument(index = 2, name = "far-id",
             description = "ID of the FAR",
@@ -51,7 +52,7 @@ public class FarDeleteCommand extends AbstractShellCommand {
         }
 
         print("Deleting a FAR from device %s", uri);
-        app.removeFar(sessionId, farId);
+        app.removeFar(ImmutableByteSequence.copyFrom(sessionId), farId);
     }
 
 }

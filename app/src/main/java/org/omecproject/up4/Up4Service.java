@@ -7,6 +7,7 @@ package org.omecproject.up4;
 
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.packet.Ip4Address;
+import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.Device;
 
 import java.util.List;
@@ -117,7 +118,7 @@ public interface Up4Service {
      * @param farId The FAR that packets should hit after hitting this PDR. Must belong to the same PFCP session.
      * @param ueAddr The IPv4 address of the UE for which this PDR should apply.
      */
-    void addPdr(int sessionId, int ctrId, int farId, Ip4Address ueAddr);
+    void addPdr(ImmutableByteSequence sessionId, int ctrId, int farId, Ip4Address ueAddr);
 
     /**
      * Add an uplink PDR to the given device.
@@ -128,8 +129,8 @@ public interface Up4Service {
      * @param teid The GTP Tunnel ID for which this PDR should apply.
      * @param tunnelDst The GTP Tunnel endpoint for which this PDR should apply.
      */
-    void addPdr(int sessionId, int ctrId, int farId,
-                        Ip4Address ueAddr, int teid, Ip4Address tunnelDst);
+    void addPdr(ImmutableByteSequence sessionId, int ctrId, int farId,
+                Ip4Address ueAddr, int teid, Ip4Address tunnelDst);
 
     /**
      * Add a downlink FAR to the given device.
@@ -139,7 +140,7 @@ public interface Up4Service {
      * @param notifyCp Should this FAR notify the Control Plane when a packet hits?
      * @param desc A description of the tunnel hit packets should be encapsulated with.
      */
-    void addFar(int sessionId, int farId, boolean drop, boolean notifyCp, TunnelDesc desc);
+    void addFar(ImmutableByteSequence sessionId, int farId, boolean drop, boolean notifyCp, TunnelDesc desc);
 
     /**
      * Add a uplink FAR to the given device.
@@ -148,7 +149,7 @@ public interface Up4Service {
      * @param drop Should this FAR drop packets?
      * @param notifyCp Should this FAR notify the Control Plane when a packet hits?
      */
-    void addFar(int sessionId, int farId, boolean drop, boolean notifyCp);
+    void addFar(ImmutableByteSequence sessionId, int farId, boolean drop, boolean notifyCp);
 
     /**
      * Register a UE IPv4 address prefix with the interface lookup tables AKA the filtering stage.
@@ -181,7 +182,7 @@ public interface Up4Service {
      * @param sessionId The PFCP Session ID that owns the FAR
      * @param farId PFCP Session-local FAR Identifier
      */
-    void removeFar(int sessionId, int farId);
+    void removeFar(ImmutableByteSequence sessionId, int farId);
 
     /**
      * Remove a previously installed UE IPv4 address prefix from the interface lookup tables AKA the filtering stage.

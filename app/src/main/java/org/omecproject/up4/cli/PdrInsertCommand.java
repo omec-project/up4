@@ -10,6 +10,7 @@ import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
+import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
@@ -32,7 +33,7 @@ public class PdrInsertCommand extends AbstractShellCommand {
     @Argument(index = 1, name = "session-id",
             description = "Session ID for this PDR",
             required = true, multiValued = false)
-    int sessionId = 0;
+    long sessionId = 0;
 
     @Argument(index = 2, name = "ue-ipv4-addr",
             description = "Address of the UE for which this PDR applies",
@@ -78,10 +79,10 @@ public class PdrInsertCommand extends AbstractShellCommand {
             }
             Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
             print("Installing *Uplink* PDR on device %s", uri);
-            app.addPdr(sessionId, 1, farId, ueAddr, teid, s1uAddr);
+            app.addPdr(ImmutableByteSequence.copyFrom(sessionId), 1, farId, ueAddr, teid, s1uAddr);
         } else {
             print("Installing *Downlink* PDR on device %s", uri);
-            app.addPdr(sessionId, 1, farId, ueAddr);
+            app.addPdr(ImmutableByteSequence.copyFrom(sessionId), 1, farId, ueAddr);
         }
 
 
