@@ -289,10 +289,12 @@ public class Up4Component implements Up4Service {
 
 
     private int getGlobalFarId(ImmutableByteSequence sessionId, int farId) {
-        return farIds.computeIfAbsent(
+        int globalFarId =  farIds.computeIfAbsent(
             Pair.of(sessionId, farId),
             k -> lastGlobalFarId.incrementAndGet()
         );
+        log.info("(SessionId={}, SessionLocalFarId={}) translated to GlobalFarId={}", sessionId, farId, globalFarId);
+        return globalFarId;
     }
 
     @Override
@@ -380,11 +382,11 @@ public class Up4Component implements Up4Service {
 
     @Override
     public void addPdr(ImmutableByteSequence sessionId, int ctrId, int farId,
-                       Ip4Address ueAddr, int teid, Ip4Address tunnelDst) {
+                       Ip4Address ueAddr, ImmutableByteSequence teid, Ip4Address tunnelDst) {
         log.info("Adding uplink PDR");
         PiCriterion match = PiCriterion.builder()
             .matchExact(SouthConstants.UE_ADDR_KEY, ueAddr.toInt())
-            .matchExact(SouthConstants.TEID_KEY, teid)
+            .matchExact(SouthConstants.TEID_KEY, teid.asArray())
             .matchExact(SouthConstants.TUNNEL_DST_KEY, tunnelDst.toInt())
             .build();
         this.addPdr(sessionId, ctrId, farId, match,
@@ -536,11 +538,11 @@ public class Up4Component implements Up4Service {
     }
 
     @Override
-    public void removePdr(Ip4Address ueAddr, int teid, Ip4Address tunnelDst) {
+    public void removePdr(Ip4Address ueAddr, ImmutableByteSequence teid, Ip4Address tunnelDst) {
         log.info("Removing uplink PDR");
         PiCriterion match = PiCriterion.builder()
                 .matchExact(SouthConstants.UE_ADDR_KEY, ueAddr.toInt())
-                .matchExact(SouthConstants.TEID_KEY, teid)
+                .matchExact(SouthConstants.TEID_KEY, teid.asArray())
                 .matchExact(SouthConstants.TUNNEL_DST_KEY, tunnelDst.toInt())
                 .build();
         removeEntry(match, SouthConstants.PDR_UPLINK_TBL, false);

@@ -22,9 +22,9 @@ public interface Up4Service {
     public class TunnelDesc {
         Ip4Address src;
         Ip4Address dst;
-        int teid;
+        ImmutableByteSequence teid;
 
-        public TunnelDesc(Ip4Address src, Ip4Address dst, int teid) {
+        public TunnelDesc(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid) {
             this.src = src;
             this.dst = dst;
             this.teid = teid;
@@ -130,7 +130,7 @@ public interface Up4Service {
      * @param tunnelDst The GTP Tunnel endpoint for which this PDR should apply.
      */
     void addPdr(ImmutableByteSequence sessionId, int ctrId, int farId,
-                Ip4Address ueAddr, int teid, Ip4Address tunnelDst);
+                Ip4Address ueAddr, ImmutableByteSequence teid, Ip4Address tunnelDst);
 
     /**
      * Add a downlink FAR to the given device.
@@ -169,7 +169,7 @@ public interface Up4Service {
      * @param teid The GTP Tunnel ID that the PDR matches on
      * @param tunnelDst The GTP Tunnel destination that the PDR matches on
      */
-    void removePdr(Ip4Address ueAddr, int teid, Ip4Address tunnelDst);
+    void removePdr(Ip4Address ueAddr, ImmutableByteSequence teid, Ip4Address tunnelDst);
 
     /**
      * Remove a previously installed downlink PDR from the target device.

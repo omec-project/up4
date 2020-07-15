@@ -77,7 +77,8 @@ public class FarInsertCommand extends AbstractShellCommand {
             }
             Ip4Address tunnelDst = Ip4Address.valueOf(this.tunnelDst);
             Ip4Address tunnelSrc = Ip4Address.valueOf(this.tunnelSrc);
-            Up4Service.TunnelDesc tunnel = new Up4Service.TunnelDesc(tunnelSrc, tunnelDst, teid);
+            Up4Service.TunnelDesc tunnel = new Up4Service.TunnelDesc(tunnelSrc, tunnelDst,
+                    ImmutableByteSequence.copyFrom(teid));
 
             print("Installing *Downlink* FAR on device %s", uri);
             app.addFar(ImmutableByteSequence.copyFrom(sessionId), farId, false, false, tunnel);

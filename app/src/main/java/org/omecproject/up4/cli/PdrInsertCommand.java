@@ -79,7 +79,8 @@ public class PdrInsertCommand extends AbstractShellCommand {
             }
             Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
             print("Installing *Uplink* PDR on device %s", uri);
-            app.addPdr(ImmutableByteSequence.copyFrom(sessionId), 1, farId, ueAddr, teid, s1uAddr);
+            app.addPdr(ImmutableByteSequence.copyFrom(sessionId), 1, farId, ueAddr,
+                    ImmutableByteSequence.copyFrom(teid), s1uAddr);
         } else {
             print("Installing *Downlink* PDR on device %s", uri);
             app.addPdr(ImmutableByteSequence.copyFrom(sessionId), 1, farId, ueAddr);

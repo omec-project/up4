@@ -9,6 +9,7 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.onlab.packet.Ip4Address;
+import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
@@ -68,7 +69,7 @@ public class PdrDeleteCommand extends AbstractShellCommand {
             }
             Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
             print("Removing *Uplink* PDR from device %s", uri);
-            app.removePdr(ueAddr, teid, s1uAddr);
+            app.removePdr(ueAddr, ImmutableByteSequence.copyFrom(teid), s1uAddr);
         } else {
             print("Removing *Downlink* PDR from device %s", uri);
             app.removePdr(ueAddr);

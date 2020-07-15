@@ -30,17 +30,20 @@ clean:
 	-rm -rf ptf/*.log
 	-rm -rf ptf/*.pcap
 
-local-app-build:
-	@mkdir -p app/src/main/resources
+_prepare_app_build:
+	mkdir -p app/src/main/resources
 	cp p4src/build/p4info.txt app/src/main/resources/
+
+local-app-build: _prepare_app_build
 	cd app && mvn clean install
 
-app-build:
-	@mkdir -p app/src/main/resources
-	cp p4src/build/p4info.txt app/src/main/resources/
+app-build: _prepare_app_build
 	docker run -it --rm -v ${HOME}/.m2:/root/.m2 \
 		-v ${PWD}:/root/up4 -w /root/up4/app maven:3.6.3-openjdk-11-slim \
 		mvn clean install
+
+app-check:
+	cd app && make check
 
 build: ${main_file}
 	$(info *** Building P4 program...)

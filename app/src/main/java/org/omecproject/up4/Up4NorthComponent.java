@@ -251,7 +251,7 @@ public class Up4NorthComponent {
             int srcInterface = getFieldInt(entry, NorthConstants.SRC_IFACE_KEY);
             if (srcInterface == NorthConstants.IFACE_ACCESS) {
                 // uplink will have a non-ignored teid
-                int teid = getFieldInt(entry, NorthConstants.TEID_KEY);
+                ImmutableByteSequence teid = getFieldValue(entry, NorthConstants.TEID_KEY);
                 Ip4Address tunnelDst = getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY);
                 up4Service.removePdr(ueAddr, teid, tunnelDst);
             } else if (srcInterface == NorthConstants.IFACE_CORE) {
@@ -311,7 +311,7 @@ public class Up4NorthComponent {
                 Ip4Address ueAddr = getFieldAddress(entry, NorthConstants.UE_ADDR_KEY);
                 int srcInterface = getFieldInt(entry, NorthConstants.SRC_IFACE_KEY);
                 if (srcInterface == NorthConstants.IFACE_ACCESS) {
-                    int teid = getFieldInt(entry, NorthConstants.TEID_KEY);
+                    ImmutableByteSequence teid = getFieldValue(entry, NorthConstants.TEID_KEY);
                     Ip4Address tunnelDst = getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY);
                     log.info("Interpreted write req as Uplink PDR with UE-ADDR:{}, TEID:{}, " +
                                     "S1UAddr:{}, SessionID:{}, CTR-ID:{}, FAR-ID:{}",
@@ -342,7 +342,7 @@ public class Up4NorthComponent {
             } else if (actionId.equals(NorthConstants.LOAD_FAR_TUNNEL)) {
                 Ip4Address tunnelSrc = getParamAddress(entry, NorthConstants.TUNNEL_SRC_PARAM);
                 Ip4Address tunnelDst = getParamAddress(entry, NorthConstants.TUNNEL_DST_PARAM);
-                int teid = getParamInt(entry, NorthConstants.TEID_PARAM);
+                ImmutableByteSequence teid = getParamValue(entry, NorthConstants.TEID_PARAM);
                 Up4Service.TunnelDesc tunnel = new Up4Service.TunnelDesc(tunnelSrc, tunnelDst, teid);
                 log.info("Interpreted write req as Downlink FAR with FAR-ID:{}, SessionID:{}, Drop:{}," +
                                 " Notify:{}, TunnelSrc:{}, TunnelDst:{}, TEID:{}",
