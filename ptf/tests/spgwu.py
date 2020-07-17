@@ -105,13 +105,14 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         # build the expected encapsulated packet
         exp_pkt = pkt.copy()
         dst_mac = ENODEB_MAC
+
+        # Should be encapped too obv.
+        exp_pkt = self.gtpu_encap(exp_pkt, ip_src=S1U_IPV4, ip_dst=ENODEB_IPV4)
+
         # Expected pkt should have routed MAC addresses and decremented hop
         # limit (TTL).
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
-
-        # Should be encapped too obv.
-        exp_pkt = self.gtpu_encap(exp_pkt, ip_src=S1U_IPV4, ip_dst=ENODEB_IPV4)
 
         # PDR counter ID
         ctr_id = self.new_counter_id()
@@ -197,15 +198,16 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         # build the expected encapsulated packet
         exp_pkt = pkt.copy()
         dst_mac = ENODEB_MAC
-        # Expected pkt should have routed MAC addresses and decremented hop
-        # limit (TTL).
-        pkt_route(exp_pkt, dst_mac)
-        pkt_decrement_ttl(exp_pkt)
         # force recomputation of checksum after routing/ttl decrement
         del pkt[IP].chksum
 
         # Should be encapped too obv.
         exp_pkt = self.gtpu_encap(exp_pkt)
+
+        # Expected pkt should have routed MAC addresses and decremented hop
+        # limit (TTL).
+        pkt_route(exp_pkt, dst_mac)
+        pkt_decrement_ttl(exp_pkt)
 
         # PDR counter ID
         ctr_id = self.new_counter_id()
