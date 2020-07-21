@@ -20,7 +20,7 @@
 // ACL BLOCK
 //------------------------------------------------------------------------------
 control Acl(
-    inout parsed_headers_t hdr,
+    inout parsed_headers_t hdr, foobar
     inout local_metadata_t local_meta,
     inout standard_metadata_t std_meta) {
 
