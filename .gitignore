@@ -10,6 +10,8 @@ tmp/
 target/
 onos-tools/
 app/src/main/resources/p4info.txt
+app/mvn_settings.xml
+app/dependencies.xml
 
 *.class
 *.DS_Store
