@@ -6,11 +6,11 @@ import org.onlab.util.ImmutableByteSequence;
 public class ForwardingActionRule {
     private final ImmutableByteSequence sessionId;
     private final int farId;
-    private final boolean drop;
-    private final boolean notifyCp;
+    private final Boolean drop;
+    private final Boolean notifyCp;
     private final GtpTunnel tunnelDesc;
 
-    public ForwardingActionRule(ImmutableByteSequence sessionId, int farId, boolean drop, boolean notifyCp,
+    public ForwardingActionRule(ImmutableByteSequence sessionId, int farId, Boolean drop, Boolean notifyCp,
                                 GtpTunnel tunnelDesc) {
         this.sessionId = sessionId;
         this.farId = farId;
@@ -19,12 +19,41 @@ public class ForwardingActionRule {
         this.tunnelDesc = tunnelDesc;
     }
 
+    @Override
+    public String toString() {
+        String matchKeys = String.format("ID:%d,SEID:%s", farId, sessionId.toString());
+        String directionString;
+        String actionParams;
+        if (isUplink()) {
+            directionString = "Uplink";
+            actionParams = String.format("Drop:%b,Notify:%b", drop, notifyCp);
+        } else if (isDownlink()) {
+            directionString = "Downlink";
+            actionParams = String.format("Drop:%b,Notify:%b,Tunnel:%s", drop, notifyCp, tunnelDesc.toString());
+        } else {
+            directionString = "Blank";
+            actionParams = "";
+        }
+
+        return String.format("%s-FAR{ Keys:(%s) -> Params (%s) }", directionString, matchKeys, actionParams);
+    }
+
+    public boolean hasActionParameters() {
+        return drop != null && notifyCp != null;
+    }
+
     public boolean isUplink() {
+        if (!hasActionParameters()) {
+            return false;
+        }
         return tunnelDesc == null;
     }
 
     public boolean isDownlink() {
-        return !isUplink();
+        if (!hasActionParameters()) {
+            return false;
+        }
+        return tunnelDesc != null;
     }
 
     public ImmutableByteSequence sessionId() {
@@ -75,15 +104,15 @@ public class ForwardingActionRule {
     public static class Builder {
         private ImmutableByteSequence sessionId;
         private int farId;
-        private boolean drop;
-        private boolean notifyCp;
+        private Boolean drop;
+        private Boolean notifyCp;
         private GtpTunnel tunnelDesc;
 
         public Builder() {
             sessionId = null;
             farId = -1;
-            drop = false;
-            notifyCp = false;
+            drop = null;
+            notifyCp = null;
             tunnelDesc = null;
         }
 

@@ -173,11 +173,10 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public void addPdr(PacketDetectionRule pdr) {
+        log.info("Installing {}", pdr.toString());
         PiCriterion match;
         PiTableId tableId;
-        String pdrTypeString;
         if (pdr.isUplink()) {
-            pdrTypeString = "uplink";
             match = PiCriterion.builder()
                     .matchExact(SouthConstants.UE_ADDR_KEY, pdr.ueAddress().toInt())
                     .matchExact(SouthConstants.TEID_KEY, pdr.teid().asArray())
@@ -185,13 +184,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                     .build();
             tableId = SouthConstants.PDR_UPLINK_TBL;
         } else if (pdr.isDownlink()) {
-            pdrTypeString = "downlink";
             match = PiCriterion.builder()
                     .matchExact(SouthConstants.UE_ADDR_KEY, pdr.ueAddress().toInt())
                     .build();
             tableId = SouthConstants.PDR_DOWNLINK_TBL;
         } else {
-            pdrTypeString = "flexible";
             log.error("Flexible PDRs not yet supported! Ignoring.");
             return;
         }
@@ -214,16 +211,15 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .build();
 
         flowRuleService.applyFlowRules(pdrEntry);
-        log.info("Added {} PDR table entry with flowID {}", pdrTypeString, pdrEntry.id().value());
+        log.info("Added PDR with flowID {}", pdrEntry.id().value());
     }
 
 
     @Override
     public void addFar(ForwardingActionRule far) {
+        log.info("Installing {}", far.toString());
         PiAction action;
-        String farTypeString;
         if (far.isUplink()) {
-            farTypeString = "uplink";
             action = PiAction.builder()
                     .withId(SouthConstants.LOAD_FAR_NORMAL)
                     .withParameters(Arrays.asList(
@@ -233,7 +229,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                     .build();
 
         } else if (far.isDownlink()) {
-            farTypeString = "downlink";
             action = PiAction.builder()
                     .withId(SouthConstants.LOAD_FAR_TUNNEL)
                     .withParameters(Arrays.asList(
@@ -262,13 +257,13 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .withPriority(DEFAULT_PRIORITY)
                 .build();
         flowRuleService.applyFlowRules(farEntry);
-        log.info("Added {} FAR table entry with flowID {}", farTypeString, farEntry.id().value());
+        log.info("FAR added with flowID {}", farEntry.id().value());
     }
 
 
     @Override
     public void addS1uInterface(Ip4Address s1uAddr) {
-        log.info("Adding S1U interface table entry");
+        log.info("Adding S1U interface with address {}", s1uAddr);
         PiCriterion match = PiCriterion.builder()
                 .matchExact(SouthConstants.IFACE_UPLINK_KEY, s1uAddr.toInt())
                 .build();
@@ -288,7 +283,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public void addUePool(Ip4Prefix poolPrefix) {
-        log.info("Adding UE IPv4 Pool prefix");
+        log.info("Adding UE IPv4 Pool prefix {}", poolPrefix);
         PiCriterion match = PiCriterion.builder()
                 .matchLpm(SouthConstants.IFACE_DOWNLINK_KEY, poolPrefix.address().toInt(), poolPrefix.prefixLength())
                 .build();
@@ -335,11 +330,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public void removePdr(PacketDetectionRule pdr) {
-        String pdrTypeString;
         PiCriterion match;
         PiTableId tableId;
         if (pdr.isUplink()) {
-            pdrTypeString = "uplink";
             match = PiCriterion.builder()
                     .matchExact(SouthConstants.UE_ADDR_KEY, pdr.ueAddress().toInt())
                     .matchExact(SouthConstants.TEID_KEY, pdr.teid().asArray())
@@ -347,7 +340,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                     .build();
             tableId = SouthConstants.PDR_UPLINK_TBL;
         } else if (pdr.isDownlink()) {
-            pdrTypeString = "downlink";
             match = PiCriterion.builder()
                     .matchExact(SouthConstants.UE_ADDR_KEY, pdr.ueAddress().toInt())
                     .build();
@@ -356,13 +348,13 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             log.error("Removal of flexible PDRs not yet supported.");
             return;
         }
-        log.info("Removing {} PDR for UE {}", pdrTypeString, pdr.ueAddress());
+        log.info("Removing {}", pdr.toString());
         removeEntry(match, tableId, false);
     }
 
     @Override
     public void removeFar(ForwardingActionRule far) {
-        log.info("Removing FAR");
+        log.info("Removing {}", far.toString());
         int globalFarId = getGlobalFarId(far.sessionId(), far.localId());
 
         PiCriterion match = PiCriterion.builder()

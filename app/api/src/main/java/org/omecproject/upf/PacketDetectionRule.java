@@ -22,6 +22,26 @@ public class PacketDetectionRule {
         this.tunnelDst = tunnelDst;
     }
 
+    @Override
+    public String toString() {
+        String matchKeys;
+        String directionString;
+        if (isUplink()) {
+            directionString = "Uplink";
+            matchKeys = String.format("UE:%s,TunnelDst:%s,TEID:%s",
+                    ueAddr.toString(), tunnelDst.toString(), teid.toString());
+        } else {
+            directionString = "Downlink";
+            matchKeys = String.format("UE:%s", ueAddr.toString());
+        }
+        String actionParams = "";
+        if (hasActionParameters()) {
+            actionParams = String.format("SEID:%s,FAR:%d,CtrIdx:%d", sessionId.toString(), farId, ctrId);
+        }
+
+        return String.format("%s-PDR{ Keys:(%s) -> Params (%s) }", directionString, matchKeys, actionParams);
+    }
+
     public boolean hasActionParameters() {
         return ctrId != null && farId != null;
     }

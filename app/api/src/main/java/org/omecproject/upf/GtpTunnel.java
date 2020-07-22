@@ -17,6 +17,10 @@ public final class GtpTunnel {
         this.teid = teid;
     }
 
+    public String toString() {
+        return String.format("GTP-Tunnel(%s -> %s, TEID:%s)", src.toString(), dst.toString(), teid.toString());
+    }
+
     public Ip4Address src() {
         return this.src;
     }
