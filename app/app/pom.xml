@@ -31,6 +31,7 @@
         </onos.app.readme>
         <onos.app.requires>
             org.onosproject.protocols.grpc
+            org.onosproject.protocols.p4runtime
         </onos.app.requires>
     </properties>
 
