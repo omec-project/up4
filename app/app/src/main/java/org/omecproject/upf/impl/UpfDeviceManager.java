@@ -8,7 +8,6 @@ import org.omecproject.upf.AppConstants;
 import org.omecproject.upf.UpfProgrammable;
 import org.omecproject.upf.UpfService;
 import org.omecproject.upf.config.UpfConfig;
-import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.net.Device;
@@ -42,29 +41,19 @@ import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FAC
  * Draft UP4 ONOS application component.
  */
 @Component(immediate = true,
-           service = {UpfService.class},
-           property = {
-               "someProperty=Some Default String Value",
-           })
+           service = {UpfService.class})
 public class UpfDeviceManager implements UpfService {
 
     private static final long DEFAULT_P4_DEVICE_ID = 1;
-
-
-    /** Some configurable property. */
-    // Leaving in for now as a reference
-    private String someProperty;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private ApplicationId appId;
     private final AtomicBoolean upfInitialized = new AtomicBoolean(false);
     private InternalDeviceListener deviceListener;
-    private InternalConfigListener cfgListener;
+    private InternalConfigListener netCfgListener;
     private UpfProgrammable upfProgrammable;
     private DeviceId upfDeviceId;
 
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected ComponentConfigService compCfgService;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected NetworkConfigRegistry netCfgService;
@@ -88,26 +77,27 @@ public class UpfDeviceManager implements UpfService {
 
     @Activate
     protected void activate() {
+        log.info("Starting...");
         appId = coreService.registerApplication(AppConstants.APP_NAME,
                                                 () -> log.info("Periscope down."));
         netCfgService.registerConfigFactory(appConfigFactory);
-        compCfgService.registerProperties(getClass());
 
         deviceListener = new InternalDeviceListener();
-        cfgListener = new InternalConfigListener();
+        netCfgListener = new InternalConfigListener();
         deviceService.addListener(deviceListener);
-        netCfgService.addListener(cfgListener);
+        netCfgService.addListener(netCfgListener);
 
         updateConfig();
-        log.info("Started");
+        log.info("Started.");
     }
 
     @Deactivate
     protected void deactivate() {
-        compCfgService.unregisterProperties(getClass(), false);
+        log.info("Stopping...");
         upfInitialized.set(false);
         deviceService.removeListener(deviceListener);
-        log.info("Stopped");
+        netCfgService.removeListener(netCfgListener);
+        log.info("Stopped.");
     }
 
     public UpfProgrammable getUpfProgrammable() {
@@ -265,10 +255,14 @@ public class UpfDeviceManager implements UpfService {
                     break;
             }
         }
-
         @Override
         public boolean isRelevant(NetworkConfigEvent event) {
-            return event.configClass().equals(UpfConfig.class);
+            if (event.configClass().equals(UpfConfig.class)) {
+                log.error("FOUND RELEVANT CONFIG EVENT!");
+                return true;
+            }
+            log.error("Ignore irrelevant event class {}", event.configClass().getName());
+            return false;
         }
     }
 
@@ -276,9 +270,10 @@ public class UpfDeviceManager implements UpfService {
     private final ConfigFactory<ApplicationId, UpfConfig> appConfigFactory =
             new ConfigFactory<>(
                     APP_SUBJECT_FACTORY,
-                    UpfConfig.class, AppConstants.CONFIG_KEY) {
+                    UpfConfig.class, UpfConfig.KEY) {
                 @Override
                 public UpfConfig createConfig() {
+                    log.info("Creating UPF Config");
                     return new UpfConfig();
                 }
             };

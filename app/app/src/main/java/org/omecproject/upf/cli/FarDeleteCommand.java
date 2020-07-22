@@ -8,7 +8,7 @@ import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.onlab.util.ImmutableByteSequence;
+import org.omecproject.upf.ForwardingActionRule;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
@@ -52,7 +52,11 @@ public class FarDeleteCommand extends AbstractShellCommand {
         }
 
         print("Deleting a FAR from device %s", uri);
-        app.getUpfProgrammable().removeFar(ImmutableByteSequence.copyFrom(sessionId), farId);
+        ForwardingActionRule far = ForwardingActionRule.builder()
+                .withSessionId(sessionId)
+                .withFarId(farId)
+                .build();
+        app.getUpfProgrammable().removeFar(far);
     }
 
 }

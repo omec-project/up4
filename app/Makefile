@@ -100,10 +100,10 @@ onos-config:
 	make app-load
 
 app-load:
-	./onos-tools/onos-app localhost install! target/up4-app-0.1.oar
+	./onos-tools/onos-app localhost install! app/target/upf-app-1.0.0.oar
 
 app-reload:
-	./onos-tools/onos-app localhost reinstall! target/up4-app-0.1.oar
+	./onos-tools/onos-app localhost reinstall! app/target/upf-app-1.0.0.oar
 
 check-slow: ONOS_BOOT_TIME := 60
 check-slow: CONFIG_WAIT_TIME := 30

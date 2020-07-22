@@ -8,8 +8,8 @@ import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
+import org.omecproject.upf.PacketDetectionRule;
 import org.onlab.packet.Ip4Address;
-import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
@@ -56,9 +56,12 @@ public class PdrDeleteCommand extends AbstractShellCommand {
             return;
         }
 
-        Ip4Address ueAddr = Ip4Address.valueOf(this.ueAddr);
+        var pdrBuilder = PacketDetectionRule.builder()
+                .withUeAddr(Ip4Address.valueOf(this.ueAddr));
 
+        String directionString = "Downlink";
         if (teid != -1 || s1uAddr != null) {
+            directionString = "Uplink";
             if (teid == -1) {
                 print("TEID must be provided with the S1U IP address");
                 return;
@@ -67,13 +70,11 @@ public class PdrDeleteCommand extends AbstractShellCommand {
                 print("S1U IP address must be provided with the TEID.");
                 return;
             }
-            Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
-            print("Removing *Uplink* PDR from device %s", uri);
-            app.getUpfProgrammable().removePdr(ueAddr, ImmutableByteSequence.copyFrom(teid), s1uAddr);
-        } else {
-            print("Removing *Downlink* PDR from device %s", uri);
-            app.getUpfProgrammable().removePdr(ueAddr);
+            pdrBuilder.withTeid(teid)
+                    .withTunnelDst(Ip4Address.valueOf(this.s1uAddr));
         }
+        print("Removing *%s* PDR from device %s", directionString, uri);
+        app.getUpfProgrammable().removePdr(pdrBuilder.build());
 
 
     }

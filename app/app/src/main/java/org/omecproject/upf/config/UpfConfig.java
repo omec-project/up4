@@ -13,8 +13,6 @@ import java.util.List;
 public class UpfConfig extends Config<ApplicationId> {
     public static final String KEY = "upf";
 
-    public static final String P4RUNTIME_DEVICE_ID = "p4RuntimeDeviceId";
-
     public static final String UPF_DEVICE_ID = "upfDeviceId";
 
     public static final String UE_POOLS = "uePools";
@@ -23,9 +21,8 @@ public class UpfConfig extends Config<ApplicationId> {
 
     @Override
     public boolean isValid() {
-        return hasOnlyFields(UPF_DEVICE_ID, P4RUNTIME_DEVICE_ID, UE_POOLS, S1U_PREFIX) &&
+        return hasOnlyFields(UPF_DEVICE_ID, UE_POOLS, S1U_PREFIX) &&
                 upfDeviceId() != null &&
-                p4RuntimeDeviceId() != -1 &&
                 s1uPrefix() != null &&
                 uePools() != null && !uePools().isEmpty();
 
@@ -44,18 +41,6 @@ public class UpfConfig extends Config<ApplicationId> {
         return (UpfConfig) setOrClear(UPF_DEVICE_ID, deviceId);
     }
 
-    /**
-     * Get the deviceID that the UP4 logical switch p4runtime server will expect clients to use.
-     *
-     * @return UP4 logical switch's P4runtime Device ID
-     */
-    public int p4RuntimeDeviceId() {
-        return get(P4RUNTIME_DEVICE_ID, -1);
-    }
-
-    public UpfConfig setP4RuntimeDeviceId(int deviceId) {
-        return (UpfConfig) setOrClear(P4RUNTIME_DEVICE_ID, deviceId);
-    }
 
     /**
      * Get the S1U IPv4 prefix assigned to the device. Or null if not configured.

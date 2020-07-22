@@ -11,8 +11,7 @@ public final class AppConstants {
     // hide default constructor
     private AppConstants() {
     }
-    public static final String APP_NAME = "org.omecproject.up4";
-    public static final String CONFIG_KEY = "upf";
+    public static final String APP_NAME = "org.omecproject.upf";
     public static final PiPipeconfId PIPECONF_ID = new PiPipeconfId(APP_NAME);
     public static final int GRPC_SERVER_PORT = 51001;
     public static final String P4INFO_PATH = "/p4info.txt";

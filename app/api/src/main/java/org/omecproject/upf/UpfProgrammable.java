@@ -2,7 +2,6 @@ package org.omecproject.upf;
 
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
-import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 
@@ -35,7 +34,6 @@ public interface UpfProgrammable {
      */
     void cleanUp(ApplicationId appId);
 
-
     /**
      * Return the Device ID of the UPF-programmable device.
      * @return the Device ID of the UPF-programmable device.
@@ -43,44 +41,28 @@ public interface UpfProgrammable {
     DeviceId deviceId();
 
     /**
-     * Add a downlink PDR to the given device.
-     * @param sessionId The PFCP Session ID that the PDR is from
-     * @param ctrId The counter index that any packets that hit this PDR should use.
-     * @param farId The FAR that packets should hit after hitting this PDR. Must belong to the same PFCP session.
-     * @param ueAddr The IPv4 address of the UE for which this PDR should apply.
+     * Add a Packet Detection Rule (PDR) to the given device.
+     * @param pdr The PDR to be added
      */
-    void addPdr(ImmutableByteSequence sessionId, int ctrId, int farId, Ip4Address ueAddr);
+    void addPdr(PacketDetectionRule pdr);
 
     /**
-     * Add an uplink PDR to the given device.
-     * @param sessionId The PFCP Session ID that the PDR is from
-     * @param ctrId The counter index that any packets that hit this PDR should use.
-     * @param farId The FAR that packets should hit after hitting this PDR. Must belong to the same PFCP session.
-     * @param ueAddr The IPv4 address of the UE for which this PDR should apply.
-     * @param teid The GTP Tunnel ID for which this PDR should apply.
-     * @param tunnelDst The GTP Tunnel endpoint for which this PDR should apply.
+     * Remove a previously installed Packet Detection Rule (PDR) from the target device.
+     * @param pdr The PDR to be removed
      */
-    void addPdr(ImmutableByteSequence sessionId, int ctrId, int farId,
-                Ip4Address ueAddr, ImmutableByteSequence teid, Ip4Address tunnelDst);
+    void removePdr(PacketDetectionRule pdr);
 
     /**
-     * Add a downlink FAR to the given device.
-     * @param sessionId The PFCP Session ID that the FAR is from
-     * @param farId PFCP Session-local FAR Identifier
-     * @param drop Should this FAR drop packets?
-     * @param notifyCp Should this FAR notify the Control Plane when a packet hits?
-     * @param desc A description of the tunnel hit packets should be encapsulated with.
+     * Add a Forwarding Action Rule (FAR) to the given device.
+     * @param far The FAR to be added
      */
-    void addFar(ImmutableByteSequence sessionId, int farId, boolean drop, boolean notifyCp, GtpTunnel desc);
+    void addFar(ForwardingActionRule far);
 
     /**
-     * Add a uplink FAR to the given device.
-     * @param sessionId The PFCP Session ID that the FAR is from
-     * @param farId PFCP Session-local FAR Identifier
-     * @param drop Should this FAR drop packets?
-     * @param notifyCp Should this FAR notify the Control Plane when a packet hits?
+     * Remove a previously installed Forwarding Action Rule (FAR) from the target device.
+     * @param far The FAR to be removed
      */
-    void addFar(ImmutableByteSequence sessionId, int farId, boolean drop, boolean notifyCp);
+    void removeFar(ForwardingActionRule far);
 
     /**
      * Register a UE IPv4 address prefix with the interface lookup tables AKA the filtering stage.
@@ -93,27 +75,6 @@ public interface UpfProgrammable {
      * @param s1uAddr The S1U IPv4 address
      */
     void addS1uInterface(Ip4Address s1uAddr);
-
-    /**
-     * Remove a previously installed uplink PDR from the target device.
-     * @param ueAddr The UE IPv4 address that the PDR matches on
-     * @param teid The GTP Tunnel ID that the PDR matches on
-     * @param tunnelDst The GTP Tunnel destination that the PDR matches on
-     */
-    void removePdr(Ip4Address ueAddr, ImmutableByteSequence teid, Ip4Address tunnelDst);
-
-    /**
-     * Remove a previously installed downlink PDR from the target device.
-     * @param ueAddr The UE IPv4 address that the PDR matches on
-     */
-    void removePdr(Ip4Address ueAddr);
-
-    /**
-     * Remove a previously installed FAR from the target device.
-     * @param sessionId The PFCP Session ID that owns the FAR
-     * @param farId PFCP Session-local FAR Identifier
-     */
-    void removeFar(ImmutableByteSequence sessionId, int farId);
 
     /**
      * Remove a previously installed UE IPv4 address prefix from the interface lookup tables AKA the filtering stage.

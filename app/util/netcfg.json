@@ -126,5 +126,20 @@
         ]
       }
     }
+  },
+  "apps": {
+    "org.omecproject.upf": {
+      "upf": {
+        "deviceId": "device:leaf1",
+        "s1uPrefix": "140.0.100.254/32",
+        "uePools": [
+          "17.0.0.0/24"
+        ]
+      },
+      "up4server" : {
+        "grpcPort" : 51001,
+        "p4RuntimeDeviceId": 1
+      }
+    }
   }
 }

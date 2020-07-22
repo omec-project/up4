@@ -31,8 +31,8 @@ clean:
 	-rm -rf ptf/*.pcap
 
 _prepare_app_build:
-	mkdir -p app/src/main/resources
-	cp p4src/build/p4info.txt app/src/main/resources/
+	mkdir -p app/app/src/main/resources
+	cp p4src/build/p4info.txt app/app/src/main/resources/
 
 local-app-build: _prepare_app_build
 	cd app && mvn clean install

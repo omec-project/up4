@@ -10,37 +10,26 @@ import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.omecproject.upf.AppConstants;
-import org.omecproject.upf.GtpTunnel;
+import org.omecproject.upf.ForwardingActionRule;
 import org.omecproject.upf.NorthConstants;
+import org.omecproject.upf.PacketDetectionRule;
 import org.omecproject.upf.PdrStats;
 import org.omecproject.upf.UpfService;
-import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.CoreService;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.pi.model.DefaultPiPipeconf;
-import org.onosproject.net.pi.model.PiActionId;
-import org.onosproject.net.pi.model.PiActionParamId;
 import org.onosproject.net.pi.model.PiCounterId;
-import org.onosproject.net.pi.model.PiMatchFieldId;
-import org.onosproject.net.pi.model.PiMatchType;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.model.PiPipelineModel;
 import org.onosproject.net.pi.model.PiTableId;
-import org.onosproject.net.pi.runtime.PiAction;
-import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiCounterCell;
 import org.onosproject.net.pi.runtime.PiEntity;
 import org.onosproject.net.pi.runtime.PiEntityType;
-import org.onosproject.net.pi.runtime.PiExactFieldMatch;
-import org.onosproject.net.pi.runtime.PiFieldMatch;
-import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
-import org.onosproject.net.pi.runtime.PiRangeFieldMatch;
 import org.onosproject.net.pi.runtime.PiTableAction;
 import org.onosproject.net.pi.runtime.PiTableEntry;
-import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 import org.onosproject.p4runtime.ctl.codec.CodecException;
 import org.onosproject.p4runtime.ctl.codec.Codecs;
 import org.onosproject.p4runtime.ctl.utils.PipeconfHelper;
@@ -59,10 +48,14 @@ import p4.v1.P4RuntimeOuterClass;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Optional;
 
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
 import static org.omecproject.upf.AppConstants.PIPECONF_ID;
+
+
+/* TODO: listen for netcfg changes. If the grpc port in the netcffg is different from the default,
+         restart the grpc server on the new port.
+ */
 
 @Component(immediate = true)
 public class Up4NorthComponent {
@@ -93,19 +86,7 @@ public class Up4NorthComponent {
 
     @Activate
     protected void activate() {
-        start();
-        log.info("UPF Northbound component activated.");
-    }
-
-    @Deactivate
-    protected void deactivate() {
-        cfgService.unregisterProperties(getClass(), false);
-        stop();
-        log.info("Stopped");
-    }
-
-
-    protected void start() {
+        log.info("Starting...");
         // Load the UP4 p4info.txt
         try {
             pipeconf = buildPipeconf();
@@ -125,24 +106,25 @@ public class Up4NorthComponent {
             log.error("Unable to start gRPC server", e);
             throw new IllegalStateException("Unable to start gRPC server", e);
         }
-
-
-        log.info("Started");
+        log.info("Started.");
     }
 
-    protected void stop() {
+    @Deactivate
+    protected void deactivate() {
+        log.info("Shutting down...");
+        cfgService.unregisterProperties(getClass(), false);
         if (server != null) {
             server.shutdown();
         }
+        log.info("Stopped.");
     }
 
     private PiPipeconf buildPipeconf() throws P4InfoParserException {
 
         log.info("Looking for p4info file named {}", AppConstants.P4INFO_PATH);
         final URL p4InfoUrl = Up4NorthComponent.class.getResource(AppConstants.P4INFO_PATH);
-        log.info("Reading p4info file from path {}", p4InfoUrl);
         final PiPipelineModel pipelineModel = P4InfoParser.parse(p4InfoUrl);
-
+        log.info("Parsed UP4 p4info file.");
         return DefaultPiPipeconf.builder()
                 .withId(PIPECONF_ID)
                 .withPipelineModel(pipelineModel)
@@ -150,92 +132,6 @@ public class Up4NorthComponent {
                 .build();
     }
 
-    private ImmutableByteSequence getFieldValue(PiTableEntry entry, PiMatchFieldId fieldId) {
-        Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(fieldId);
-        if (optField.isEmpty()) {
-            log.error("Field {} is not present where expected!", fieldId);
-            return ZERO_SEQ;
-        }
-        PiFieldMatch field = optField.get();
-        if (field.type() == PiMatchType.EXACT) {
-            return ((PiExactFieldMatch) field).value();
-        } else if (field.type() == PiMatchType.LPM) {
-            return ((PiLpmFieldMatch) field).value();
-        } else if (field.type() == PiMatchType.TERNARY) {
-            return ((PiTernaryFieldMatch) field).value();
-        } else if (field.type() == PiMatchType.RANGE) {
-            return ((PiRangeFieldMatch) field).lowValue();
-        } else {
-            log.error("Field has unknown match type!");
-            return ZERO_SEQ;
-        }
-    }
-
-    private ImmutableByteSequence getParamValue(PiTableEntry entry, PiActionParamId paramId) {
-        PiAction action = (PiAction) entry.action();
-
-        for (PiActionParam param : action.parameters()) {
-            if (param.id().equals(paramId)) {
-                return param.value();
-            }
-        }
-        log.error("Unable to find ParamId {} in table entry!", paramId);
-        return ZERO_SEQ;
-    }
-
-    private int getFieldInt(PiTableEntry entry, PiMatchFieldId fieldId) {
-        return byteSeqToInt(getFieldValue(entry, fieldId));
-    }
-
-    private int getParamInt(PiTableEntry entry, PiActionParamId paramId) {
-        return byteSeqToInt(getParamValue(entry, paramId));
-    }
-
-    private Ip4Address getParamAddress(PiTableEntry entry, PiActionParamId paramId) {
-        return Ip4Address.valueOf(getParamValue(entry, paramId).asArray());
-    }
-
-    private Ip4Prefix getFieldPrefix(PiTableEntry entry, PiMatchFieldId fieldId) {
-        Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(fieldId);
-        if (optField.isEmpty()) {
-            log.error("Field {} is not present where expected!", fieldId);
-            return null;
-        }
-        PiLpmFieldMatch field = (PiLpmFieldMatch) optField.get();
-        Ip4Address address = Ip4Address.valueOf(field.value().asArray());
-        return Ip4Prefix.valueOf(address, field.prefixLength());
-    }
-
-    private Ip4Address getFieldAddress(PiTableEntry entry, PiMatchFieldId fieldId) {
-        return Ip4Address.valueOf(getFieldValue(entry, fieldId).asArray());
-    }
-
-
-    private boolean fieldMaskIsZero(PiTableEntry entry, PiMatchFieldId fieldId) {
-        Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(fieldId);
-        if (optField.isEmpty()) {
-            return true;
-        }
-        PiFieldMatch field = optField.get();
-        if (field.type() != PiMatchType.TERNARY) {
-            log.warn("Attempting to check mask for non-ternary field! {}", fieldId);
-            return false;
-        }
-        for (byte b : ((PiTernaryFieldMatch) field).mask().asArray()) {
-            if (b != (byte) 0) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private int byteSeqToInt(ImmutableByteSequence sequence) {
-        try {
-            return sequence.fit(32).asReadOnlyBuffer().getInt();
-        } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
-            throw new IllegalArgumentException("Attempted to convert a >4 byte wide sequence to an integer!");
-        }
-    }
 
     /**
      * Translate the given logical pipeline table entry to a Up4Service entry deletion call.
@@ -243,34 +139,28 @@ public class Up4NorthComponent {
      */
     private void translateAndDelete(PiTableEntry entry) {
         log.info("Translating UP4 deletion request to fabric entry deletion.");
-        PiTableId tableId = entry.table();
-        if (tableId.equals(NorthConstants.IFACE_TBL)) {
-            Ip4Prefix prefix = getFieldPrefix(entry, NorthConstants.IFACE_DST_PREFIX_KEY);
+        if (Up4Translator.isInterface(entry)) {
+            Ip4Prefix prefix = Up4Translator.piEntryToInterfacePrefix(entry);
             upfService.getUpfProgrammable().removeUnknownInterface(prefix);
-        } else if (tableId.equals(NorthConstants.PDR_TBL)) {
-            Ip4Address ueAddr = getFieldAddress(entry, NorthConstants.UE_ADDR_KEY);
-            int srcInterface = getFieldInt(entry, NorthConstants.SRC_IFACE_KEY);
-            if (srcInterface == NorthConstants.IFACE_ACCESS) {
-                // uplink will have a non-ignored teid
-                ImmutableByteSequence teid = getFieldValue(entry, NorthConstants.TEID_KEY);
-                Ip4Address tunnelDst = getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY);
-                upfService.getUpfProgrammable().removePdr(ueAddr, teid, tunnelDst);
-            } else if (srcInterface == NorthConstants.IFACE_CORE) {
-                // downlink
-                upfService.getUpfProgrammable().removePdr(ueAddr);
-            } else {
-                log.error("Removing a PDR that does not match on an access or core src_iface " +
-                        "is currently unsupported. Ignoring");
+        } else if (Up4Translator.isPdr(entry)) {
+            try {
+                PacketDetectionRule pdr = Up4Translator.piEntryToPdr(entry);
+                log.info("Translated UP4 PDR successfully. Deleting.");
+                upfService.getUpfProgrammable().removePdr(pdr);
+            } catch (Up4Translator.Up4TranslationException e) {
+                log.error("Failed to parse UP4 PDR in delete write! Error was: {}", e.getMessage());
             }
-        } else if (tableId.equals(NorthConstants.FAR_TBL)) {
-            int farId = byteSeqToInt(getFieldValue(entry, NorthConstants.FAR_ID_KEY));
-            ImmutableByteSequence sessionId = getFieldValue(entry, NorthConstants.SESSION_ID_KEY);
-            upfService.getUpfProgrammable().removeFar(sessionId, farId);
+        } else if (Up4Translator.isFar(entry)) {
+            try {
+                ForwardingActionRule far = Up4Translator.piEntryToFar(entry);
+                log.info("Translated UP4 FAR successfully. Deleting.");
+                upfService.getUpfProgrammable().removeFar(far);
+            } catch (Up4Translator.Up4TranslationException e) {
+                log.error("Failed to parse UP4 FAR in delete write! Error was {}", e.getMessage());
+            }
         } else {
-            log.error("Attempting to translate table entry of unknown table! {}", tableId.toString());
-            return;
+            log.error("Received unsupported table entry for table {} in UP4 delete request:", entry.table().id());
         }
-        log.info("Translation of UP4 deletion request successful.");
     }
 
     /**
@@ -284,84 +174,35 @@ public class Up4NorthComponent {
             log.error("Action profile entry insertion not supported. Ignoring.");
             return;
         }
-        boolean actionUnknown = false;
-        PiAction action = (PiAction) entry.action();
-        PiActionId actionId = action.id();
-        if (tableId.equals(NorthConstants.IFACE_TBL)) {
-            if (actionId.equals(NorthConstants.LOAD_IFACE)) {
-                Ip4Prefix prefix = getFieldPrefix(entry, NorthConstants.IFACE_DST_PREFIX_KEY);
-                int direction = byteSeqToInt(getParamValue(entry, NorthConstants.DIRECTION));
-                if (direction == NorthConstants.DIRECTION_UPLINK) {
-                    log.info("Interpreted write req as Uplink Interface with S1U address {}", prefix.address());
-                    upfService.getUpfProgrammable().addS1uInterface(prefix.address());
-                } else if (direction == NorthConstants.DIRECTION_DOWNLINK) {
-                    log.info("Interpreted write req as Downlink Interface with UE Pool prefix {}", prefix);
-                    upfService.getUpfProgrammable().addUePool(prefix);
-                } else {
-                    log.error("Received an interface lookup entry with unknown direction {}!", direction);
-                }
+
+        if (Up4Translator.isInterface(entry)) {
+            Ip4Prefix ifacePrefix = Up4Translator.piEntryToInterfacePrefix(entry);
+            if (Up4Translator.isS1uInterface(entry)) {
+                upfService.getUpfProgrammable().addS1uInterface(ifacePrefix.address());
+            } else if (Up4Translator.isUePool(entry)) {
+                upfService.getUpfProgrammable().addUePool(ifacePrefix);
             } else {
-                actionUnknown = true;
+                log.error("Received unknown interface write request! Ignoring");
             }
-        } else if (tableId.equals(NorthConstants.PDR_TBL)) {
-            if (actionId.equals(NorthConstants.LOAD_PDR)) {
-                // 1:pdr-id, 2:session-id, 3:ctr-id, 4:far-id, 5:needs-gtpu-decap
-                ImmutableByteSequence sessionId = getParamValue(entry, NorthConstants.SESSION_ID_PARAM);
-                int ctrId = getParamInt(entry, NorthConstants.CTR_ID);
-                int farId = getParamInt(entry, NorthConstants.FAR_ID_PARAM);
-                Ip4Address ueAddr = getFieldAddress(entry, NorthConstants.UE_ADDR_KEY);
-                int srcInterface = getFieldInt(entry, NorthConstants.SRC_IFACE_KEY);
-                if (srcInterface == NorthConstants.IFACE_ACCESS) {
-                    ImmutableByteSequence teid = getFieldValue(entry, NorthConstants.TEID_KEY);
-                    Ip4Address tunnelDst = getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY);
-                    log.info("Interpreted write req as Uplink PDR with UE-ADDR:{}, TEID:{}, " +
-                                    "S1UAddr:{}, SessionID:{}, CTR-ID:{}, FAR-ID:{}",
-                            ueAddr, teid, tunnelDst, sessionId, ctrId, farId);
-                    upfService.getUpfProgrammable().addPdr(sessionId, ctrId, farId, ueAddr, teid, tunnelDst);
-                } else if (srcInterface == NorthConstants.IFACE_CORE) {
-                    // downlink
-                    log.info("Interpreted write req as Downlink PDR with UE-ADDR:{}, " +
-                                    "SessionID:{}, CTR-ID:{}, FAR-ID:{}",
-                            ueAddr, sessionId, ctrId, farId);
-                    upfService.getUpfProgrammable().addPdr(sessionId, ctrId, farId, ueAddr);
-                } else {
-                    log.error("PDR that does not match on an access or core src_iface " +
-                            "is currently unsupported. Ignoring");
-                }
-            } else {
-                actionUnknown = true;
+        } else if (Up4Translator.isPdr(entry)) {
+            try {
+                PacketDetectionRule pdr = Up4Translator.piEntryToPdr(entry);
+                log.info("Translated UP4 PDR successfully. Inserting.");
+                upfService.getUpfProgrammable().addPdr(pdr);
+            } catch (Up4Translator.Up4TranslationException e) {
+                log.error("Failed to parse UP4 PDR! Error was: {}", e.getMessage());
             }
-        } else if (tableId.equals(NorthConstants.FAR_TBL)) {
-            int farId = getFieldInt(entry, NorthConstants.FAR_ID_KEY);
-            ImmutableByteSequence sessionId = getFieldValue(entry, NorthConstants.SESSION_ID_KEY);
-            boolean needsDropping = getParamInt(entry, NorthConstants.DROP_FLAG) > 0;
-            boolean notifyCp = getParamInt(entry, NorthConstants.NOTIFY_FLAG) > 0;
-            if (actionId.equals(NorthConstants.LOAD_FAR_NORMAL)) {
-                log.info("Interpreted write req as Uplink FAR with FAR-ID:{}, SessionID:{}, Drop:{}, Notify:{}",
-                        farId, sessionId, needsDropping, notifyCp);
-                upfService.getUpfProgrammable().addFar(sessionId, farId, needsDropping, notifyCp);
-            } else if (actionId.equals(NorthConstants.LOAD_FAR_TUNNEL)) {
-                Ip4Address tunnelSrc = getParamAddress(entry, NorthConstants.TUNNEL_SRC_PARAM);
-                Ip4Address tunnelDst = getParamAddress(entry, NorthConstants.TUNNEL_DST_PARAM);
-                ImmutableByteSequence teid = getParamValue(entry, NorthConstants.TEID_PARAM);
-                GtpTunnel tunnel = new GtpTunnel(tunnelSrc, tunnelDst, teid);
-                log.info("Interpreted write req as Downlink FAR with FAR-ID:{}, SessionID:{}, Drop:{}," +
-                                " Notify:{}, TunnelSrc:{}, TunnelDst:{}, TEID:{}",
-                        farId, sessionId, needsDropping, notifyCp, tunnelSrc, tunnelDst, teid);
-                upfService.getUpfProgrammable().addFar(sessionId, farId, needsDropping, notifyCp, tunnel);
-            } else {
-                actionUnknown = true;
+        } else if (Up4Translator.isFar(entry)) {
+            try {
+                ForwardingActionRule far = Up4Translator.piEntryToFar(entry);
+                log.info("Translated UP4 FAR successfully. Inserting.");
+                upfService.getUpfProgrammable().addFar(far);
+            } catch (Up4Translator.Up4TranslationException e) {
+                log.error("Failed to parse UP4 FAR! Error was {}", e.getMessage());
             }
         } else {
-            log.error("Attempting to translate table entry of unknown table! {}", tableId.toString());
-            return;
+            log.error("Received unsupported table entry for table {} in UP4 write request:", entry.table().id());
         }
-        if (actionUnknown) {
-            log.error("Attempting to translate table entry with unknown action! {}", actionId.toString());
-            return;
-        }
-        log.info("Translation of UP4 write request successful.");
-
     }
 
     /**

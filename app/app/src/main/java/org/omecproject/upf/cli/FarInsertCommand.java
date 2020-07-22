@@ -8,6 +8,7 @@ import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
+import org.omecproject.upf.ForwardingActionRule;
 import org.omecproject.upf.GtpTunnel;
 import org.omecproject.upf.UpfService;
 import org.onlab.packet.Ip4Address;
@@ -67,25 +68,27 @@ public class FarInsertCommand extends AbstractShellCommand {
             return;
         }
 
+        var farBuilder = ForwardingActionRule.builder()
+                .withFarId(farId)
+                .withSessionId(sessionId)
+                .withFlags(false, false);
+
+        String directionString = "Uplink";
         if (teid != -1) {
-            if (tunnelSrc == null) {
-                print("Tunnel source IP must be provided with TEID");
+            directionString = "Downlink";
+            if (tunnelSrc == null || tunnelDst == null) {
+                print("Tunnel source and destination IPs must be provided with TEID");
                 return;
             }
-            if (tunnelDst == null) {
-                print("Tunnel destination IP must be provided with TEID");
-                return;
-            }
+
             Ip4Address tunnelDst = Ip4Address.valueOf(this.tunnelDst);
             Ip4Address tunnelSrc = Ip4Address.valueOf(this.tunnelSrc);
             GtpTunnel tunnel = new GtpTunnel(tunnelSrc, tunnelDst,
                     ImmutableByteSequence.copyFrom(teid));
 
-            print("Installing *Downlink* FAR on device %s", uri);
-            app.getUpfProgrammable().addFar(ImmutableByteSequence.copyFrom(sessionId), farId, false, false, tunnel);
-        } else {
-            print("Installing *Uplink* FAR on device %s", uri);
-            app.getUpfProgrammable().addFar(ImmutableByteSequence.copyFrom(sessionId), farId, false, false);
+            farBuilder.withTunnel(tunnel);
         }
+        print("Installing *%s* FAR on device %s", directionString, uri);
+        app.getUpfProgrammable().addFar(farBuilder.build());
     }
 }

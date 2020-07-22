@@ -7,7 +7,6 @@ package org.omecproject.upf.impl;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.onosproject.cfg.ComponentConfigAdapter;
 import org.onosproject.core.CoreServiceAdapter;
 import org.onosproject.net.config.NetworkConfigRegistryAdapter;
 import org.onosproject.net.device.DeviceServiceAdapter;
@@ -24,7 +23,6 @@ public class UpfDeviceManagerTest {
     @Before
     public void setUp() {
         component = new UpfDeviceManager();
-        component.compCfgService = new ComponentConfigAdapter();
         component.coreService = new CoreServiceAdapter();
         component.flowRuleService = new FlowRuleServiceAdapter();
         component.deviceService = new DeviceServiceAdapter();
