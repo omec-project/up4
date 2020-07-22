@@ -15,7 +15,7 @@ import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
-import org.omecproject.upf.Up4Service;
+import org.omecproject.upf.UpfService;
 
 /**
  * UPF PDR deletion command.
@@ -48,7 +48,7 @@ public class PdrDeleteCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() {
         DeviceService deviceService = get(DeviceService.class);
-        Up4Service app = get(Up4Service.class);
+        UpfService app = get(UpfService.class);
 
         Device device = deviceService.getDevice(DeviceId.deviceId(uri));
         if (device == null) {
@@ -69,10 +69,10 @@ public class PdrDeleteCommand extends AbstractShellCommand {
             }
             Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
             print("Removing *Uplink* PDR from device %s", uri);
-            app.removePdr(ueAddr, ImmutableByteSequence.copyFrom(teid), s1uAddr);
+            app.getUpfProgrammable().removePdr(ueAddr, ImmutableByteSequence.copyFrom(teid), s1uAddr);
         } else {
             print("Removing *Downlink* PDR from device %s", uri);
-            app.removePdr(ueAddr);
+            app.getUpfProgrammable().removePdr(ueAddr);
         }
 
 

@@ -3,16 +3,19 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.collect.ImmutableList;
 import org.onlab.packet.Ip4Prefix;
+import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.config.Config;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class UpfDeviceConfig extends Config<DeviceId> {
+public class UpfConfig extends Config<ApplicationId> {
     public static final String KEY = "upf";
 
     public static final String P4RUNTIME_DEVICE_ID = "p4RuntimeDeviceId";
+
+    public static final String UPF_DEVICE_ID = "upfDeviceId";
 
     public static final String UE_POOLS = "uePools";
 
@@ -20,18 +23,38 @@ public class UpfDeviceConfig extends Config<DeviceId> {
 
     @Override
     public boolean isValid() {
-        return hasOnlyFields(P4RUNTIME_DEVICE_ID, UE_POOLS, S1U_PREFIX) &&
+        return hasOnlyFields(UPF_DEVICE_ID, P4RUNTIME_DEVICE_ID, UE_POOLS, S1U_PREFIX) &&
+                upfDeviceId() != null &&
+                p4RuntimeDeviceId() != -1 &&
                 s1uPrefix() != null &&
                 uePools() != null && !uePools().isEmpty();
 
     }
 
+    /**
+     * Gets the UPF device ID.
+     *
+     * @return UPF device ID
+     */
+    public DeviceId upfDeviceId() {
+        return DeviceId.deviceId(object.path(UPF_DEVICE_ID).asText());
+    }
+
+    public UpfConfig setUpfDeviceId(String deviceId) {
+        return (UpfConfig) setOrClear(UPF_DEVICE_ID, deviceId);
+    }
+
+    /**
+     * Get the deviceID that the UP4 logical switch p4runtime server will expect clients to use.
+     *
+     * @return UP4 logical switch's P4runtime Device ID
+     */
     public int p4RuntimeDeviceId() {
         return get(P4RUNTIME_DEVICE_ID, -1);
     }
 
-    public UpfDeviceConfig setP4RuntimeDeviceId(int deviceId) {
-        return (UpfDeviceConfig) setOrClear(P4RUNTIME_DEVICE_ID, deviceId);
+    public UpfConfig setP4RuntimeDeviceId(int deviceId) {
+        return (UpfConfig) setOrClear(P4RUNTIME_DEVICE_ID, deviceId);
     }
 
     /**
@@ -44,12 +67,12 @@ public class UpfDeviceConfig extends Config<DeviceId> {
     }
 
     /**
-     * Set the S1U IPv4 prefix of the device
+     * Set the S1U IPv4 prefix of the device.
      * @param prefix The S1U IPv4 prefix to assign
      * @return the config of the device
      */
-    public UpfDeviceConfig setS1uPrefix(String prefix) {
-        return (UpfDeviceConfig) setOrClear(S1U_PREFIX, prefix);
+    public UpfConfig setS1uPrefix(String prefix) {
+        return (UpfConfig) setOrClear(S1U_PREFIX, prefix);
     }
 
     /**

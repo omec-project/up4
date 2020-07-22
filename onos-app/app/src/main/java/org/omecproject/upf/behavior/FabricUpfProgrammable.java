@@ -1,14 +1,21 @@
-package org.omecproject.upf;
+package org.omecproject.upf.behavior;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import org.apache.commons.lang3.tuple.Pair;
+import org.omecproject.upf.GtpTunnel;
+import org.omecproject.upf.SouthConstants;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
+import org.onosproject.core.ApplicationId;
+import org.onosproject.net.DeviceId;
 import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.DefaultTrafficSelector;
 import org.onosproject.net.flow.DefaultTrafficTreatment;
 import org.onosproject.net.flow.FlowEntry;
 import org.onosproject.net.flow.FlowRule;
+import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.criteria.PiCriterion;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.model.PiTableId;
@@ -17,16 +24,92 @@ import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiCounterCell;
 import org.onosproject.net.pi.runtime.PiCounterCellHandle;
 import org.onosproject.net.pi.runtime.PiCounterCellId;
+import org.onosproject.net.pi.service.PiPipeconfService;
 import org.onosproject.p4runtime.api.P4RuntimeClient;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.omecproject.upf.UpfProgrammable;
+import org.omecproject.upf.PdrStats;
+import org.onosproject.p4runtime.api.P4RuntimeController;
+import org.osgi.service.component.annotations.Activate;
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Deactivate;
+import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.onosproject.net.pi.model.PiCounterType.INDIRECT;
 
-public class UpfProgrammableImpl {
+/**
+ * Implementation of a UPF programmable device behavior.
+ * TODO: this needs to be moved to
+ *  onos/pipelines/fabric/impl/src/main/java/org/onosproject/pipelines/fabric/impl/behaviour/upf/
+ *  and referenced as upfProgrammable = deviceService.getDevice(deviceId).as(UpfProgrammable.class);
+ */
+@Component(immediate = true,
+           service = {UpfProgrammable.class})
+public class FabricUpfProgrammable implements UpfProgrammable {
+
+    private final Logger log = LoggerFactory.getLogger(getClass());
+
+    // TODO: Use EventuallyConsistentMap instead
+    // TODO: Store PDR IDs for the flow rules somehow,
+    // since they arent actually part of the flow rules but need to be read
+    private BiMap<Pair<ImmutableByteSequence, Integer>, Integer> farIds;
+
+    DeviceId deviceId;
+    private ApplicationId appId;
+    private AtomicInteger lastGlobalFarId;
+    private static final int DEFAULT_PRIORITY = 128;
+    private static final long DEFAULT_P4_DEVICE_ID = 1;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected FlowRuleService flowRuleService;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected P4RuntimeController controller;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected PiPipeconfService piPipeconfService;
+
+    @Activate
+    protected void activate() {
+        farIds = HashBiMap.create();
+        lastGlobalFarId = new AtomicInteger(0);
+        log.info("Started");
+    }
+
+    @Deactivate
+    protected void deactivate() {
+        log.info("Stopped");
+    }
+
+    @Override
+    public boolean init(ApplicationId appId, DeviceId deviceId) {
+        this.appId = appId;
+        this.deviceId = deviceId;
+
+
+
+        return true;
+    }
+
+    @Override
+    public void cleanUp(ApplicationId appId) {
+        log.info("Clearing all UPF-related table entries.");
+        flowRuleService.removeFlowRulesById(appId);
+    }
+
+    @Override
+    public DeviceId deviceId() {
+        return this.deviceId;
+    }
 
     private int getGlobalFarId(ImmutableByteSequence sessionId, int farId) {
         int globalFarId =  farIds.computeIfAbsent(
@@ -38,24 +121,18 @@ public class UpfProgrammableImpl {
     }
 
     @Override
-    public void clearAllEntries() {
-        log.info("Clearing all UP4-related table entries.");
-        flowRuleService.removeFlowRulesById(appId);
-    }
-
-    @Override
-    public Up4Service.PdrStats readCounter(int cellId) {
-        Up4Service.PdrStats.Builder stats = Up4Service.PdrStats.builder(cellId);
+    public PdrStats readCounter(int cellId) {
+        PdrStats.Builder stats = PdrStats.builder(cellId);
 
         // Get client and pipeconf.
-        P4RuntimeClient client = controller.get(upfDeviceId);
+        P4RuntimeClient client = controller.get(deviceId);
         if (client == null) {
-            log.warn("Unable to find client for {}, aborting operation", upfDeviceId);
+            log.warn("Unable to find client for {}, aborting operation", deviceId);
             return stats.build();
         }
-        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(upfDeviceId);
+        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
         if (optPipeconf.isEmpty()) {
-            log.warn("Unable to load piPipeconf for {}, aborting operation", upfDeviceId);
+            log.warn("Unable to load piPipeconf for {}, aborting operation", deviceId);
             return stats.build();
         }
         PiPipeconf pipeconf = optPipeconf.get();
@@ -63,9 +140,9 @@ public class UpfProgrammableImpl {
 
         // Make list of cell handles we want to read.
         List<PiCounterCellHandle> counterCellHandles = List.of(
-                PiCounterCellHandle.of(upfDeviceId,
+                PiCounterCellHandle.of(deviceId,
                         PiCounterCellId.ofIndirect(SouthConstants.INGRESS_COUNTER_ID, cellId)),
-                PiCounterCellHandle.of(upfDeviceId,
+                PiCounterCellHandle.of(deviceId,
                         PiCounterCellId.ofIndirect(SouthConstants.EGRESS_COUNTER_ID, cellId)));
 
         // Query the device.
@@ -98,7 +175,6 @@ public class UpfProgrammableImpl {
 
 
     private void addPdr(ImmutableByteSequence sessionId, int ctrId, int farId, PiCriterion match, PiTableId tableId) {
-        setFirstAvailableDevice();
         int globalFarId = getGlobalFarId(sessionId, farId);
         PiAction action = PiAction.builder()
                 .withId(SouthConstants.LOAD_PDR)
@@ -109,7 +185,7 @@ public class UpfProgrammableImpl {
                 .build();
 
         FlowRule pdrEntry = DefaultFlowRule.builder()
-                .forDevice(upfDeviceId).fromApp(appId).makePermanent()
+                .forDevice(deviceId).fromApp(appId).makePermanent()
                 .forTable(tableId)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
@@ -147,14 +223,13 @@ public class UpfProgrammableImpl {
 
 
     private void addFar(ImmutableByteSequence sessionId, int farId, PiAction action) {
-        setFirstAvailableDevice();
         int globalFarId = getGlobalFarId(sessionId, farId);
 
         PiCriterion match = PiCriterion.builder()
                 .matchExact(SouthConstants.FAR_ID_KEY, globalFarId)
                 .build();
         FlowRule farEntry = DefaultFlowRule.builder()
-                .forDevice(upfDeviceId).fromApp(appId).makePermanent()
+                .forDevice(deviceId).fromApp(appId).makePermanent()
                 .forTable(SouthConstants.FAR_TBL)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
@@ -166,7 +241,7 @@ public class UpfProgrammableImpl {
 
     @Override
     public void addFar(ImmutableByteSequence sessionId, int farId, boolean drop, boolean notifyCp,
-                       Up4Service.TunnelDesc tunnelDesc) {
+                       GtpTunnel tunnelDesc) {
         log.info("Adding simple downlink FAR entry");
 
         PiAction action = PiAction.builder()
@@ -174,9 +249,9 @@ public class UpfProgrammableImpl {
                 .withParameters(Arrays.asList(
                         new PiActionParam(SouthConstants.DROP_FLAG, drop ? 1 : 0),
                         new PiActionParam(SouthConstants.NOTIFY_FLAG, notifyCp ? 1 : 0),
-                        new PiActionParam(SouthConstants.TEID_PARAM, tunnelDesc.teid),
-                        new PiActionParam(SouthConstants.TUNNEL_SRC_PARAM, tunnelDesc.src.toInt()),
-                        new PiActionParam(SouthConstants.TUNNEL_DST_PARAM, tunnelDesc.dst.toInt())
+                        new PiActionParam(SouthConstants.TEID_PARAM, tunnelDesc.teid()),
+                        new PiActionParam(SouthConstants.TUNNEL_SRC_PARAM, tunnelDesc.src().toInt()),
+                        new PiActionParam(SouthConstants.TUNNEL_DST_PARAM, tunnelDesc.dst().toInt())
                 ))
                 .build();
         this.addFar(sessionId, farId, action);
@@ -197,7 +272,6 @@ public class UpfProgrammableImpl {
 
     @Override
     public void addS1uInterface(Ip4Address s1uAddr) {
-        setFirstAvailableDevice();
         log.info("Adding S1U interface table entry");
         PiCriterion match = PiCriterion.builder()
                 .matchExact(SouthConstants.IFACE_UPLINK_KEY, s1uAddr.toInt())
@@ -206,7 +280,7 @@ public class UpfProgrammableImpl {
                 .withId(SouthConstants.NO_ACTION)
                 .build();
         FlowRule s1uEntry = DefaultFlowRule.builder()
-                .forDevice(upfDeviceId).fromApp(appId).makePermanent()
+                .forDevice(deviceId).fromApp(appId).makePermanent()
                 .forTable(SouthConstants.IFACE_UPLINK_TBL)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
@@ -218,7 +292,6 @@ public class UpfProgrammableImpl {
 
     @Override
     public void addUePool(Ip4Prefix poolPrefix) {
-        setFirstAvailableDevice();
         log.info("Adding UE IPv4 Pool prefix");
         PiCriterion match = PiCriterion.builder()
                 .matchLpm(SouthConstants.IFACE_DOWNLINK_KEY, poolPrefix.address().toInt(), poolPrefix.prefixLength())
@@ -227,7 +300,7 @@ public class UpfProgrammableImpl {
                 .withId(SouthConstants.NO_ACTION)
                 .build();
         FlowRule uePoolEntry = DefaultFlowRule.builder()
-                .forDevice(upfDeviceId).fromApp(appId).makePermanent()
+                .forDevice(deviceId).fromApp(appId).makePermanent()
                 .forTable(SouthConstants.IFACE_DOWNLINK_TBL)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
@@ -239,9 +312,8 @@ public class UpfProgrammableImpl {
 
 
     private boolean removeEntry(PiCriterion match, PiTableId tableId, boolean failSilent) {
-        setFirstAvailableDevice();
         FlowRule entry = DefaultFlowRule.builder()
-                .forDevice(upfDeviceId).fromApp(appId).makePermanent()
+                .forDevice(deviceId).fromApp(appId).makePermanent()
                 .forTable(tableId)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withPriority(DEFAULT_PRIORITY)

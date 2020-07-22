@@ -8,12 +8,13 @@ import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
+import org.omecproject.upf.PdrStats;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
-import org.omecproject.upf.Up4Service;
+import org.omecproject.upf.UpfService;
 
 /**
  * Counter read command.
@@ -36,7 +37,7 @@ public class CounterReadCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() {
         DeviceService deviceService = get(DeviceService.class);
-        Up4Service app = get(Up4Service.class);
+        UpfService app = get(UpfService.class);
 
         Device device = deviceService.getDevice(DeviceId.deviceId(uri));
         if (device == null) {
@@ -44,7 +45,7 @@ public class CounterReadCommand extends AbstractShellCommand {
             return;
         }
 
-        Up4Service.PdrStats stats = app.readCounter(ctrIndex);
+        PdrStats stats = app.getUpfProgrammable().readCounter(ctrIndex);
         print(stats.toString());
     }
 

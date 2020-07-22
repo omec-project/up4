@@ -6,7 +6,7 @@ package org.omecproject.upf.cli;
 
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.omecproject.upf.Up4Service;
+import org.omecproject.upf.UpfService;
 import org.onosproject.cli.AbstractShellCommand;
 
 /**
@@ -19,10 +19,10 @@ public class ClearEntriesCommand extends AbstractShellCommand {
 
     @Override
     protected void doExecute() {
-        Up4Service app = get(Up4Service.class);
+        UpfService app = get(UpfService.class);
 
         print("Clearing all UP4 dataplane table entries.");
-        app.clearAllEntries();
+        app.clearDevice();
     }
 
 }

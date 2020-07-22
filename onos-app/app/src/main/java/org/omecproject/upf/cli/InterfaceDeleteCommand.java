@@ -8,7 +8,7 @@ import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.omecproject.upf.Up4Service;
+import org.omecproject.upf.UpfService;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
@@ -37,7 +37,7 @@ public class InterfaceDeleteCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() {
         DeviceService deviceService = get(DeviceService.class);
-        Up4Service app = get(Up4Service.class);
+        UpfService app = get(UpfService.class);
 
         Device device = deviceService.getDevice(DeviceId.deviceId(uri));
         if (device == null) {
@@ -48,7 +48,7 @@ public class InterfaceDeleteCommand extends AbstractShellCommand {
         Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
 
         print("Removing S1U interface address from device %s", uri);
-        app.removeS1uInterface(s1uAddr);
+        app.getUpfProgrammable().removeS1uInterface(s1uAddr);
 
 
     }

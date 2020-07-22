@@ -2,7 +2,7 @@
  SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
-package org.omecproject.upf;
+package org.omecproject.upf.impl;
 
 import org.junit.After;
 import org.junit.Before;
@@ -24,7 +24,7 @@ public class UpfDeviceManagerTest {
     @Before
     public void setUp() {
         component = new UpfDeviceManager();
-        component.cfgService = new ComponentConfigAdapter();
+        component.compCfgService = new ComponentConfigAdapter();
         component.coreService = new CoreServiceAdapter();
         component.flowRuleService = new FlowRuleServiceAdapter();
         component.deviceService = new DeviceServiceAdapter();

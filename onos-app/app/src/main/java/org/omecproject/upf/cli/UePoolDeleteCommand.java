@@ -14,7 +14,7 @@ import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
-import org.omecproject.upf.Up4Service;
+import org.omecproject.upf.UpfService;
 
 /**
  * UPF UE IPv4 address pool deletion command.
@@ -37,7 +37,7 @@ public class UePoolDeleteCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() {
         DeviceService deviceService = get(DeviceService.class);
-        Up4Service app = get(Up4Service.class);
+        UpfService app = get(UpfService.class);
 
         Device device = deviceService.getDevice(DeviceId.deviceId(uri));
         if (device == null) {
@@ -48,7 +48,7 @@ public class UePoolDeleteCommand extends AbstractShellCommand {
         Ip4Prefix poolPrefix = Ip4Prefix.valueOf(this.poolPrefix);
 
         print("Deleting UE IPv4 address pool prefix from device %s", uri);
-        app.removeUePool(poolPrefix);
+        app.getUpfProgrammable().removeUePool(poolPrefix);
 
 
     }

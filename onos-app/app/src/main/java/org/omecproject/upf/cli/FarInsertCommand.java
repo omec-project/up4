@@ -8,7 +8,8 @@ import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.omecproject.upf.Up4Service;
+import org.omecproject.upf.GtpTunnel;
+import org.omecproject.upf.UpfService;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cli.AbstractShellCommand;
@@ -58,7 +59,7 @@ public class FarInsertCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() {
         DeviceService deviceService = get(DeviceService.class);
-        Up4Service app = get(Up4Service.class);
+        UpfService app = get(UpfService.class);
 
         Device device = deviceService.getDevice(DeviceId.deviceId(uri));
         if (device == null) {
@@ -77,14 +78,14 @@ public class FarInsertCommand extends AbstractShellCommand {
             }
             Ip4Address tunnelDst = Ip4Address.valueOf(this.tunnelDst);
             Ip4Address tunnelSrc = Ip4Address.valueOf(this.tunnelSrc);
-            Up4Service.TunnelDesc tunnel = new Up4Service.TunnelDesc(tunnelSrc, tunnelDst,
+            GtpTunnel tunnel = new GtpTunnel(tunnelSrc, tunnelDst,
                     ImmutableByteSequence.copyFrom(teid));
 
             print("Installing *Downlink* FAR on device %s", uri);
-            app.addFar(ImmutableByteSequence.copyFrom(sessionId), farId, false, false, tunnel);
+            app.getUpfProgrammable().addFar(ImmutableByteSequence.copyFrom(sessionId), farId, false, false, tunnel);
         } else {
             print("Installing *Uplink* FAR on device %s", uri);
-            app.addFar(ImmutableByteSequence.copyFrom(sessionId), farId, false, false);
+            app.getUpfProgrammable().addFar(ImmutableByteSequence.copyFrom(sessionId), farId, false, false);
         }
     }
 }

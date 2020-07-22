@@ -1,115 +1,46 @@
-/*
- SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
- SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
- */
 package org.omecproject.upf;
 
-
-import org.onlab.packet.Ip4Prefix;
 import org.onlab.packet.Ip4Address;
+import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
-import org.onosproject.net.Device;
+import org.onosproject.core.ApplicationId;
+import org.onosproject.net.DeviceId;
 
-import java.util.List;
 
 /**
- * Presents a high-level way to install dataplane table entries into the UPF extension of the fabric pipeline.
+ * UPF programmable behavior. Provides means to update device forwarding state
+ * to implement a 3GPP User Plane Function (e.g., tunnel termination, accounting,
+ * etc.). An implementation of this API should not write state directly to the
+ * device, but instead, always rely on core ONOS subsystems (e.g.,
+ * FlowRuleService, GroupService, etc).
  */
-public interface Up4Service {
-    /**
-     * A structure representing a GTP tunnel.
-     */
-    public class TunnelDesc {
-        Ip4Address src;
-        Ip4Address dst;
-        ImmutableByteSequence teid;
-
-        public TunnelDesc(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid) {
-            this.src = src;
-            this.dst = dst;
-            this.teid = teid;
-        }
-    }
+public interface UpfProgrammable {
 
     /**
-     * A structure for compactly passing PDR counter values for a given counter ID.
-     * Contains four counts: Ingress Packets, Ingress Bytes, Egress Packets, Egress Bytes
+     * Apps are expected to call this method as the first one when they are
+     * ready to install PDRs and FARs.
+     *
+     * @param appId Application ID of the caller of this API.
+     * @param deviceId Device ID of the device that is to be the UpfProgrammable
+     * @return True if initialized, false otherwise.
      */
-    public class PdrStats {
-        public int cellId;
-        public long ingressPkts;
-        public long ingressBytes;
-        public long egressPkts;
-        public long egressBytes;
-
-        public String toString() {
-            return String.format("PDR-Stats:{ Ctr-ID: %d, Ingress:(%dpkts,%dbytes), Egress:(%dpkts,%dbytes) }",
-                    cellId, ingressPkts, ingressBytes, egressPkts, egressBytes);
-        }
-
-        public PdrStats(int cellId, long ingressPkts, long ingressBytes,
-                        long egressPkts, long egressBytes) {
-            this.cellId = cellId;
-            this.ingressPkts = ingressPkts;
-            this.ingressBytes = ingressBytes;
-            this.egressPkts = egressPkts;
-            this.egressBytes = egressBytes;
-        }
-
-        public static Builder builder(int cellId) {
-            return new Builder(cellId);
-        }
-
-
-        public static class Builder {
-            public int cellId;
-            public long ingressPkts;
-            public long ingressBytes;
-            public long egressPkts;
-            public long egressBytes;
-            public Builder(int cellId) {
-                this.cellId = cellId;
-                this.ingressPkts = 0;
-                this.ingressBytes = 0;
-                this.egressPkts = 0;
-                this.egressBytes = 0;
-            }
-
-            public Builder setIngress(long ingressPkts, long ingressBytes) {
-                this.ingressPkts = ingressPkts;
-                this.ingressBytes = ingressBytes;
-                return this;
-            }
-
-            public Builder setEgress(long egressPkts, long egressBytes) {
-                this.egressPkts = egressPkts;
-                this.egressBytes = egressBytes;
-                return this;
-            }
-
-            public PdrStats build() {
-                return new PdrStats(cellId, ingressPkts, ingressBytes, egressPkts, egressBytes);
-            }
-        }
-    }
+    boolean init(ApplicationId appId, DeviceId deviceId);
 
     /**
-     * Get a list of devices available to ONOS that are configured with UP4-supporting pipeconfs.
-     * @return A list of Up4-supporting devices.
+     * Remove any state previously created by this API for the given application
+     * ID.
+     *
+     * @param appId Application ID of the application using the
+     *              UpfProgrammable.
      */
-    List<Device> getAvailableDevices();
+    void cleanUp(ApplicationId appId);
+
 
     /**
-     * Read the the given cell (Counter index) of the PDR counters from the given device.
-     * @param cellId The counter cell index from which to read
-     * @return A structure containing ingress and egress packet and byte counts for the given cellId.
+     * Return the Device ID of the UPF-programmable device.
+     * @return the Device ID of the UPF-programmable device.
      */
-    PdrStats readCounter(int cellId);
-
-    /**
-     * Delete all entries installed by this app. Intended for debugging
-     */
-    void clearAllEntries();
+    DeviceId deviceId();
 
     /**
      * Add a downlink PDR to the given device.
@@ -140,7 +71,7 @@ public interface Up4Service {
      * @param notifyCp Should this FAR notify the Control Plane when a packet hits?
      * @param desc A description of the tunnel hit packets should be encapsulated with.
      */
-    void addFar(ImmutableByteSequence sessionId, int farId, boolean drop, boolean notifyCp, TunnelDesc desc);
+    void addFar(ImmutableByteSequence sessionId, int farId, boolean drop, boolean notifyCp, GtpTunnel desc);
 
     /**
      * Add a uplink FAR to the given device.
@@ -203,4 +134,10 @@ public interface Up4Service {
      */
     void removeUnknownInterface(Ip4Prefix ifacePrefix);
 
+    /**
+     * Read the the given cell (Counter index) of the PDR counters from the given device.
+     * @param cellId The counter cell index from which to read
+     * @return A structure containing ingress and egress packet and byte counts for the given cellId.
+     */
+    PdrStats readCounter(int cellId);
 }

@@ -2,18 +2,22 @@
  SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
-package org.omecproject.upf;
+package org.omecproject.upf.impl;
 
 import com.google.rpc.Code;
 import com.google.rpc.Status;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
+import org.omecproject.upf.AppConstants;
+import org.omecproject.upf.GtpTunnel;
+import org.omecproject.upf.NorthConstants;
+import org.omecproject.upf.PdrStats;
+import org.omecproject.upf.UpfService;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cfg.ComponentConfigService;
-import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.pi.model.DefaultPiPipeconf;
@@ -68,11 +72,9 @@ public class Up4NorthComponent {
     private static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
 
     private Server server;
-    private ApplicationId appId;
     private P4InfoOuterClass.P4Info p4Info;
     private long pipeconfCookie = 0xbeefbeef;
 
-    private PiPipelineModel piModel;
     private PiPipeconf pipeconf;
 
 
@@ -86,14 +88,13 @@ public class Up4NorthComponent {
     protected CoreService coreService;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected Up4Service up4Service;
+    protected UpfService upfService;
 
 
     @Activate
     protected void activate() {
-        appId = coreService.getAppId(AppConstants.APP_NAME);
         start();
-        log.info("UP4 Northbound component activated.");
+        log.info("UPF Northbound component activated.");
     }
 
     @Deactivate
@@ -245,7 +246,7 @@ public class Up4NorthComponent {
         PiTableId tableId = entry.table();
         if (tableId.equals(NorthConstants.IFACE_TBL)) {
             Ip4Prefix prefix = getFieldPrefix(entry, NorthConstants.IFACE_DST_PREFIX_KEY);
-            up4Service.removeUnknownInterface(prefix);
+            upfService.getUpfProgrammable().removeUnknownInterface(prefix);
         } else if (tableId.equals(NorthConstants.PDR_TBL)) {
             Ip4Address ueAddr = getFieldAddress(entry, NorthConstants.UE_ADDR_KEY);
             int srcInterface = getFieldInt(entry, NorthConstants.SRC_IFACE_KEY);
@@ -253,10 +254,10 @@ public class Up4NorthComponent {
                 // uplink will have a non-ignored teid
                 ImmutableByteSequence teid = getFieldValue(entry, NorthConstants.TEID_KEY);
                 Ip4Address tunnelDst = getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY);
-                up4Service.removePdr(ueAddr, teid, tunnelDst);
+                upfService.getUpfProgrammable().removePdr(ueAddr, teid, tunnelDst);
             } else if (srcInterface == NorthConstants.IFACE_CORE) {
                 // downlink
-                up4Service.removePdr(ueAddr);
+                upfService.getUpfProgrammable().removePdr(ueAddr);
             } else {
                 log.error("Removing a PDR that does not match on an access or core src_iface " +
                         "is currently unsupported. Ignoring");
@@ -264,7 +265,7 @@ public class Up4NorthComponent {
         } else if (tableId.equals(NorthConstants.FAR_TBL)) {
             int farId = byteSeqToInt(getFieldValue(entry, NorthConstants.FAR_ID_KEY));
             ImmutableByteSequence sessionId = getFieldValue(entry, NorthConstants.SESSION_ID_KEY);
-            up4Service.removeFar(sessionId, farId);
+            upfService.getUpfProgrammable().removeFar(sessionId, farId);
         } else {
             log.error("Attempting to translate table entry of unknown table! {}", tableId.toString());
             return;
@@ -273,7 +274,7 @@ public class Up4NorthComponent {
     }
 
     /**
-     * Translate the given logical pipeline table entry to a Up4Service entry insertion call.
+     * Translate the given logical pipeline table entry to a UpfService entry insertion call.
      * @param entry The logical table entry to be inserted
      */
     private void translateAndInsert(PiTableEntry entry) {
@@ -292,10 +293,10 @@ public class Up4NorthComponent {
                 int direction = byteSeqToInt(getParamValue(entry, NorthConstants.DIRECTION));
                 if (direction == NorthConstants.DIRECTION_UPLINK) {
                     log.info("Interpreted write req as Uplink Interface with S1U address {}", prefix.address());
-                    up4Service.addS1uInterface(prefix.address());
+                    upfService.getUpfProgrammable().addS1uInterface(prefix.address());
                 } else if (direction == NorthConstants.DIRECTION_DOWNLINK) {
                     log.info("Interpreted write req as Downlink Interface with UE Pool prefix {}", prefix);
-                    up4Service.addUePool(prefix);
+                    upfService.getUpfProgrammable().addUePool(prefix);
                 } else {
                     log.error("Received an interface lookup entry with unknown direction {}!", direction);
                 }
@@ -316,13 +317,13 @@ public class Up4NorthComponent {
                     log.info("Interpreted write req as Uplink PDR with UE-ADDR:{}, TEID:{}, " +
                                     "S1UAddr:{}, SessionID:{}, CTR-ID:{}, FAR-ID:{}",
                             ueAddr, teid, tunnelDst, sessionId, ctrId, farId);
-                    up4Service.addPdr(sessionId, ctrId, farId, ueAddr, teid, tunnelDst);
+                    upfService.getUpfProgrammable().addPdr(sessionId, ctrId, farId, ueAddr, teid, tunnelDst);
                 } else if (srcInterface == NorthConstants.IFACE_CORE) {
                     // downlink
                     log.info("Interpreted write req as Downlink PDR with UE-ADDR:{}, " +
                                     "SessionID:{}, CTR-ID:{}, FAR-ID:{}",
                             ueAddr, sessionId, ctrId, farId);
-                    up4Service.addPdr(sessionId, ctrId, farId, ueAddr);
+                    upfService.getUpfProgrammable().addPdr(sessionId, ctrId, farId, ueAddr);
                 } else {
                     log.error("PDR that does not match on an access or core src_iface " +
                             "is currently unsupported. Ignoring");
@@ -338,16 +339,16 @@ public class Up4NorthComponent {
             if (actionId.equals(NorthConstants.LOAD_FAR_NORMAL)) {
                 log.info("Interpreted write req as Uplink FAR with FAR-ID:{}, SessionID:{}, Drop:{}, Notify:{}",
                         farId, sessionId, needsDropping, notifyCp);
-                up4Service.addFar(sessionId, farId, needsDropping, notifyCp);
+                upfService.getUpfProgrammable().addFar(sessionId, farId, needsDropping, notifyCp);
             } else if (actionId.equals(NorthConstants.LOAD_FAR_TUNNEL)) {
                 Ip4Address tunnelSrc = getParamAddress(entry, NorthConstants.TUNNEL_SRC_PARAM);
                 Ip4Address tunnelDst = getParamAddress(entry, NorthConstants.TUNNEL_DST_PARAM);
                 ImmutableByteSequence teid = getParamValue(entry, NorthConstants.TEID_PARAM);
-                Up4Service.TunnelDesc tunnel = new Up4Service.TunnelDesc(tunnelSrc, tunnelDst, teid);
+                GtpTunnel tunnel = new GtpTunnel(tunnelSrc, tunnelDst, teid);
                 log.info("Interpreted write req as Downlink FAR with FAR-ID:{}, SessionID:{}, Drop:{}," +
                                 " Notify:{}, TunnelSrc:{}, TunnelDst:{}, TEID:{}",
                         farId, sessionId, needsDropping, notifyCp, tunnelSrc, tunnelDst, teid);
-                up4Service.addFar(sessionId, farId, needsDropping, notifyCp, tunnel);
+                upfService.getUpfProgrammable().addFar(sessionId, farId, needsDropping, notifyCp, tunnel);
             } else {
                 actionUnknown = true;
             }
@@ -545,7 +546,7 @@ public class Up4NorthComponent {
 
                 int counterIndex = (int) cellEntity.cellId().index();
 
-                Up4Service.PdrStats ctrValues = up4Service.readCounter(counterIndex);
+                PdrStats ctrValues = upfService.getUpfProgrammable().readCounter(counterIndex);
 
                 PiCounterId piCounterId = cellEntity.cellId().counterId();
 
@@ -554,12 +555,12 @@ public class Up4NorthComponent {
                 long bytes;
                 if (piCounterId.equals(NorthConstants.INGRESS_COUNTER_ID)) {
                     gress = "ingress";
-                    pkts = ctrValues.ingressPkts;
-                    bytes = ctrValues.ingressBytes;
+                    pkts = ctrValues.getIngressPkts();
+                    bytes = ctrValues.getIngressBytes();
                 } else if (piCounterId.equals(NorthConstants.EGRESS_COUNTER_ID)) {
                     gress = "egress";
-                    pkts = ctrValues.egressPkts;
-                    bytes = ctrValues.egressBytes;
+                    pkts = ctrValues.getEgressPkts();
+                    bytes = ctrValues.getEgressBytes();
                 } else {
                     log.error("Received read request for unknown counter {}. Skipping.", piCounterId);
                     continue;
