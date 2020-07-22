@@ -13,7 +13,7 @@ import java.util.List;
 public class UpfConfig extends Config<ApplicationId> {
     public static final String KEY = "upf";
 
-    public static final String UPF_DEVICE_ID = "upfDeviceId";
+    public static final String DEVICE_ID = "deviceId";
 
     public static final String UE_POOLS = "uePools";
 
@@ -21,7 +21,7 @@ public class UpfConfig extends Config<ApplicationId> {
 
     @Override
     public boolean isValid() {
-        return hasOnlyFields(UPF_DEVICE_ID, UE_POOLS, S1U_PREFIX) &&
+        return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_PREFIX) &&
                 upfDeviceId() != null &&
                 s1uPrefix() != null &&
                 uePools() != null && !uePools().isEmpty();
@@ -34,11 +34,11 @@ public class UpfConfig extends Config<ApplicationId> {
      * @return UPF device ID
      */
     public DeviceId upfDeviceId() {
-        return DeviceId.deviceId(object.path(UPF_DEVICE_ID).asText());
+        return DeviceId.deviceId(object.path(DEVICE_ID).asText());
     }
 
     public UpfConfig setUpfDeviceId(String deviceId) {
-        return (UpfConfig) setOrClear(UPF_DEVICE_ID, deviceId);
+        return (UpfConfig) setOrClear(DEVICE_ID, deviceId);
     }
 
 

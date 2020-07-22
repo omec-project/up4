@@ -8,6 +8,7 @@ import org.omecproject.upf.AppConstants;
 import org.omecproject.upf.UpfProgrammable;
 import org.omecproject.upf.UpfService;
 import org.omecproject.upf.config.UpfConfig;
+import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.net.Device;
@@ -54,6 +55,8 @@ public class UpfDeviceManager implements UpfService {
     private UpfProgrammable upfProgrammable;
     private DeviceId upfDeviceId;
 
+    private UpfConfig config;
+
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected NetworkConfigRegistry netCfgService;
@@ -73,6 +76,16 @@ public class UpfDeviceManager implements UpfService {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected UpfProgrammable upfProgrammableService;
 
+    private final ConfigFactory<ApplicationId, UpfConfig> appConfigFactory = new ConfigFactory<>(
+            APP_SUBJECT_FACTORY,
+            UpfConfig.class,
+            UpfConfig.KEY) {
+        @Override
+        public UpfConfig createConfig() {
+            log.info("Creating UPF Config");
+            return new UpfConfig();
+        }
+    };
 
 
     @Activate
@@ -80,23 +93,28 @@ public class UpfDeviceManager implements UpfService {
         log.info("Starting...");
         appId = coreService.registerApplication(AppConstants.APP_NAME,
                                                 () -> log.info("Periscope down."));
-        netCfgService.registerConfigFactory(appConfigFactory);
 
         deviceListener = new InternalDeviceListener();
         netCfgListener = new InternalConfigListener();
-        deviceService.addListener(deviceListener);
         netCfgService.addListener(netCfgListener);
+        netCfgService.registerConfigFactory(appConfigFactory);
 
         updateConfig();
+
+        deviceService.addListener(deviceListener);
         log.info("Started.");
     }
 
     @Deactivate
     protected void deactivate() {
         log.info("Stopping...");
-        upfInitialized.set(false);
+        if (upfProgrammableAvailable()) {
+            upfProgrammable.cleanUp(appId);
+        }
         deviceService.removeListener(deviceListener);
         netCfgService.removeListener(netCfgListener);
+        netCfgService.unregisterConfigFactory(appConfigFactory);
+        upfInitialized.set(false);
         log.info("Stopped.");
     }
 
@@ -160,6 +178,11 @@ public class UpfDeviceManager implements UpfService {
             upfProgrammable.cleanUp(appId);
             upfProgrammable.init(appId, deviceId);
             upfInitialized.set(true);
+
+            upfProgrammable.addS1uInterface(config.s1uPrefix().address());
+            for (Ip4Prefix uePool : config.uePools()) {
+                upfProgrammable.addUePool(uePool);
+            }
             log.info("UPF device setup successful!");
         }
     }
@@ -181,6 +204,7 @@ public class UpfDeviceManager implements UpfService {
     private void upfUpdateConfig(UpfConfig config) {
         if (config.isValid()) {
             upfDeviceId = config.upfDeviceId();
+            this.config = config;
             setUpfDevice(upfDeviceId);
         }
 
@@ -258,25 +282,13 @@ public class UpfDeviceManager implements UpfService {
         @Override
         public boolean isRelevant(NetworkConfigEvent event) {
             if (event.configClass().equals(UpfConfig.class)) {
-                log.error("FOUND RELEVANT CONFIG EVENT!");
                 return true;
             }
-            log.error("Ignore irrelevant event class {}", event.configClass().getName());
+            log.debug("Ignore irrelevant event class {}", event.configClass().getName());
             return false;
         }
     }
 
-
-    private final ConfigFactory<ApplicationId, UpfConfig> appConfigFactory =
-            new ConfigFactory<>(
-                    APP_SUBJECT_FACTORY,
-                    UpfConfig.class, UpfConfig.KEY) {
-                @Override
-                public UpfConfig createConfig() {
-                    log.info("Creating UPF Config");
-                    return new UpfConfig();
-                }
-            };
 
 
 
