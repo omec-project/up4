@@ -6,6 +6,8 @@ package org.omecproject.up4;
 
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * A single Forwarding Action Rule (FAR), an entity described in the 3GPP specifications (although that does not mean
@@ -15,15 +17,18 @@ import org.onlab.util.ImmutableByteSequence;
  * information (or expose the means to retrieve such information) to generate the corresponding
  * fabric.p4 dataplane forwarding state that implements the FAR.
  */
-public class ForwardingActionRule {
-    private final ImmutableByteSequence sessionId;
-    private final int farId;
-    private final Boolean drop;
-    private final Boolean notifyCp;
-    private final GtpTunnel tunnelDesc;
+public final class ForwardingActionRule {
+    // Match Keys
+    private final ImmutableByteSequence sessionId;  // The PFCP session identifier that created this FAR
+    private final int farId;  // PFCP session-local identifier for this FAR
+    // Action parameters
+    private final Boolean drop;  // Should this FAR drop packets?
+    private final Boolean notifyCp;  // Should this FAR notify the control plane when it sees a packet?
+    private final GtpTunnel tunnelDesc;  // The GTP tunnel that this FAR should encapsulate packets with (if downlink)
 
-    public ForwardingActionRule(ImmutableByteSequence sessionId, int farId, Boolean drop, Boolean notifyCp,
+    private ForwardingActionRule(ImmutableByteSequence sessionId, Integer farId, Boolean drop, Boolean notifyCp,
                                 GtpTunnel tunnelDesc) {
+        // All match keys are required
         this.sessionId = sessionId;
         this.farId = farId;
         this.drop = drop;
@@ -133,14 +138,14 @@ public class ForwardingActionRule {
 
     public static class Builder {
         private ImmutableByteSequence sessionId;
-        private int farId;
+        private Integer farId;
         private Boolean drop;
         private Boolean notifyCp;
         private GtpTunnel tunnelDesc;
 
         public Builder() {
             sessionId = null;
-            farId = -1;
+            farId = null;
             drop = null;
             notifyCp = null;
             tunnelDesc = null;
@@ -183,10 +188,21 @@ public class ForwardingActionRule {
         }
 
         public Builder withTunnel(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid) {
-            return this.withTunnel(new GtpTunnel(src, dst, teid));
+            return this.withTunnel(GtpTunnel.builder()
+                                            .setSrc(src)
+                                            .setDst(dst)
+                                            .setTeid(teid)
+                                            .build());
         }
 
         public ForwardingActionRule build() {
+            // All match keys are required
+            checkNotNull(sessionId, "Session ID is required");
+            checkNotNull(farId, "FAR ID is required");
+            // Action parameters are optional. If the tunnel desc is provided, the flags must also be provided.
+            checkArgument((drop != null && notifyCp != null) ||
+                            (drop == null && notifyCp == null && tunnelDesc == null),
+                    "FAR Arguments must be provided together or not at all.");
             return new ForwardingActionRule(sessionId, farId, drop, notifyCp, tunnelDesc);
         }
     }

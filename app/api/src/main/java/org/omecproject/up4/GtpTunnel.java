@@ -6,16 +6,17 @@ package org.omecproject.up4;
 
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A structure representing a unidirectional GTP tunnel.
  */
 public final class GtpTunnel {
-    private final Ip4Address src;
-    private final Ip4Address dst;
-    private final ImmutableByteSequence teid;
+    private final Ip4Address src;  // The source address of the unidirectional tunnel
+    private final Ip4Address dst;  // The destination address of the unidirectional tunnel
+    private final ImmutableByteSequence teid;  // Tunnel Endpoint Identifier
 
-    public GtpTunnel(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid) {
+    private GtpTunnel(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid) {
         this.src = src;
         this.dst = dst;
         this.teid = teid;
@@ -64,7 +65,14 @@ public final class GtpTunnel {
             this.teid = teid;
             return this;
         }
+        public GtpTunnelBuilder setTeid(long teid) {
+            this.teid = ImmutableByteSequence.copyFrom(teid);
+            return this;
+        }
         public GtpTunnel build() {
+            checkNotNull(src, "Tunnel source address cannot be null");
+            checkNotNull(dst, "Tunnel destination address cannot be null");
+            checkNotNull(teid, "Tunnel TEID cannot be null");
             return new GtpTunnel(this.src, this.dst, this.teid);
         }
     }

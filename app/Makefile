@@ -8,9 +8,9 @@ onos_curl := curl --fail -sSL --user onos:rocks --noproxy localhost
 include ../util/docker/Makefile.vars
 
 
-ONOS_BOOT_TIME := 30
+ONOS_BOOT_TIME := 45
 CONFIG_WAIT_TIME := 10
-PKT_WAIT_TIME := 5
+PKT_WAIT_TIME := 10
 
 
 
@@ -105,7 +105,7 @@ app-load:
 app-reload:
 	./onos-tools/onos-app localhost reinstall! app/target/up4-app-1.0.0.oar
 
-check-slow: ONOS_BOOT_TIME := 60
+check-slow: ONOS_BOOT_TIME := 75
 check-slow: CONFIG_WAIT_TIME := 30
 check-slow: PKT_WAIT_TIME := 20
 check-slow: _check

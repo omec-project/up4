@@ -12,7 +12,6 @@ import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
-import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
@@ -83,8 +82,11 @@ public class FarInsertCommand extends AbstractShellCommand {
 
             Ip4Address tunnelDst = Ip4Address.valueOf(this.tunnelDst);
             Ip4Address tunnelSrc = Ip4Address.valueOf(this.tunnelSrc);
-            GtpTunnel tunnel = new GtpTunnel(tunnelSrc, tunnelDst,
-                    ImmutableByteSequence.copyFrom(teid));
+            GtpTunnel tunnel = GtpTunnel.builder()
+                                        .setSrc(tunnelSrc)
+                                        .setDst(tunnelDst)
+                                        .setTeid(teid)
+                                        .build();
 
             farBuilder.withTunnel(tunnel);
         }

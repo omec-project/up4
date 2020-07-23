@@ -6,6 +6,8 @@ package org.omecproject.up4;
 
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * A single Packet Detection Rule (PDR), an entity described in the 3GPP specifications (although that does not mean
@@ -15,23 +17,25 @@ import org.onlab.util.ImmutableByteSequence;
  * information (or expose the means to retrieve such information) to generate the corresponding
  * fabric.p4 dataplane forwarding state that implements the PDR.
  */
-public class PacketDetectionRule {
-    private final ImmutableByteSequence sessionId;
-    private final Integer ctrId;
-    private final Integer farId;
-    private final Ip4Address ueAddr;
-    private final ImmutableByteSequence teid;
-    private final Ip4Address tunnelDst;
-    private int globalFarId;
+public final class PacketDetectionRule {
+    // Match keys
+    private final Ip4Address ueAddr;  // The UE IP address that this PDR matches on
+    private final ImmutableByteSequence teid;  // The Tunnel Endpoint ID that this PDR matches on (if PDR is uplink)
+    private final Ip4Address tunnelDst;  // The tunnel destination address that this PDR matches on (if PDR is uplink)
+    // Action parameters
+    private final ImmutableByteSequence sessionId;  // The ID of the PFCP session that created this PDR
+    private final Integer ctrId;  // Counter ID unique to this PDR
+    private final Integer farId;  // The PFCP session-local ID of the FAR that should apply to packets if this PDR hits
+    private int globalFarId; // The non-session-local ID of the FAR that should apply to packets if this PDR hits
 
-    public PacketDetectionRule(ImmutableByteSequence sessionId, Integer ctrId, Integer farId, Ip4Address ueAddr,
+    private PacketDetectionRule(ImmutableByteSequence sessionId, Integer ctrId, Integer farId, Ip4Address ueAddr,
                                ImmutableByteSequence teid, Ip4Address tunnelDst) {
-        this.sessionId = sessionId;
-        this.ctrId = ctrId;
-        this.farId = farId;
         this.ueAddr = ueAddr;
         this.teid = teid;
         this.tunnelDst = tunnelDst;
+        this.sessionId = sessionId;
+        this.ctrId = ctrId;
+        this.farId = farId;
     }
 
     @Override
@@ -173,6 +177,15 @@ public class PacketDetectionRule {
         }
 
         public PacketDetectionRule build() {
+            // Some match keys are required.
+            checkNotNull(ueAddr, "UE address is required");
+            checkArgument((teid == null && tunnelDst == null) ||
+                            (teid != null && tunnelDst != null),
+                    "TEID and Tunnel destination must be provided together or not at all");
+            // Action parameters are optional but must be all provided together if they are provided
+            checkArgument((sessionId != null && ctrId != null && farId != null) ||
+                            (sessionId == null && ctrId == null && farId == null),
+                    "PDR action parameters must be provided together or not at all.");
             return new PacketDetectionRule(sessionId, ctrId, farId, ueAddr, teid, tunnelDst);
         }
     }
