@@ -10,12 +10,12 @@
 
     <parent>
         <groupId>org.omecproject</groupId>
-        <artifactId>upf</artifactId>
+        <artifactId>up4</artifactId>
         <version>1.0.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>upf-api</artifactId>
+    <artifactId>up4-api</artifactId>
     <packaging>bundle</packaging>
 
     <dependencies>

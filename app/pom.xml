@@ -26,11 +26,11 @@
     </parent>
 
     <groupId>org.omecproject</groupId>
-    <artifactId>upf</artifactId>
+    <artifactId>up4</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
 
-    <description>UPF Control app</description>
+    <description>UP4 Control app</description>
     <url>http://omecproject.org</url>
 
     <modules>

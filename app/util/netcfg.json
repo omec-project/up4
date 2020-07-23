@@ -128,8 +128,8 @@
     }
   },
   "apps": {
-    "org.omecproject.upf": {
-      "upf": {
+    "org.omecproject.up4": {
+      "up4": {
         "deviceId": "device:leaf1",
         "s1uPrefix": "140.0.100.254/32",
         "uePools": [

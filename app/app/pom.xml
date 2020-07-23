@@ -8,29 +8,29 @@
 
     <parent>
         <groupId>org.omecproject</groupId>
-        <artifactId>upf</artifactId>
+        <artifactId>up4</artifactId>
         <version>1.0.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>upf-app</artifactId>
+    <artifactId>up4-app</artifactId>
 
 
     <packaging>bundle</packaging>
-    <description>UPF Control App</description>
+    <description>UP4 Control App</description>
 
 
     <properties>
-        <onos.app.name>org.omecproject.upf</onos.app.name>
-        <onos.app.title>UPF Control App</onos.app.title>
+        <onos.app.name>org.omecproject.up4</onos.app.name>
+        <onos.app.title>UP4 Control App</onos.app.title>
         <onos.app.origin>Open Networking Foundation</onos.app.origin>
         <onos.app.category>Traffic Steering</onos.app.category>
         <onos.app.url>http://onosproject.org</onos.app.url>
         <onos.app.readme>
-            App for controlling the UPF component of fabric.p4.
+            App for controlling the UP4 component of fabric.p4.
         </onos.app.readme>
         <onos.app.requires>
-            org.onosproject.protocols.grpc
+            org.onosproject.protocols.grpc,
             org.onosproject.protocols.p4runtime
         </onos.app.requires>
     </properties>
@@ -59,7 +59,7 @@
 
         <dependency>
             <groupId>org.omecproject</groupId>
-            <artifactId>upf-api</artifactId>
+            <artifactId>up4-api</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
@@ -184,7 +184,7 @@
         </dependency>
         <dependency>
             <groupId>org.omecproject</groupId>
-            <artifactId>upf-api</artifactId>
+            <artifactId>up4-api</artifactId>
             <version>1.0.0</version>
             <scope>compile</scope>
         </dependency>
@@ -204,7 +204,7 @@
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
-                        <Karaf-Commands>org.omecproject.upf.cli</Karaf-Commands>
+                        <Karaf-Commands>org.omecproject.up4.cli</Karaf-Commands>
                         <!-- The hardcoded import version number can be changed to ${onos.version} once this app
                          ~ moves to an X.Y.Z onos version (instead of a X.Y.Z.SNAPSHOT version) -->
                         <Import-Package>com.google.protobuf;version=${onos.version},*</Import-Package>
