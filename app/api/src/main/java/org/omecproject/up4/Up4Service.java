@@ -9,7 +9,8 @@ import org.onosproject.net.DeviceId;
 
 
 /**
- * Presents a high-level way to install dataplane table entries into the UPF extension of the fabric pipeline.
+ * The service provided by the UP4 Device Manager. This API is a work in progress. Currently the only important
+ * service it provides is retrieving the available UpfProgrammable.
  */
 public interface Up4Service {
 
