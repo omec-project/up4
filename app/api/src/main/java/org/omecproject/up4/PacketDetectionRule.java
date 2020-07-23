@@ -26,16 +26,40 @@ public final class PacketDetectionRule {
     private final ImmutableByteSequence sessionId;  // The ID of the PFCP session that created this PDR
     private final Integer ctrId;  // Counter ID unique to this PDR
     private final Integer farId;  // The PFCP session-local ID of the FAR that should apply to packets if this PDR hits
+    private final Type type; // Is the PDR Uplink, Downlink, etc.
     private int globalFarId; // The non-session-local ID of the FAR that should apply to packets if this PDR hits
 
     private PacketDetectionRule(ImmutableByteSequence sessionId, Integer ctrId, Integer farId, Ip4Address ueAddr,
-                               ImmutableByteSequence teid, Ip4Address tunnelDst) {
+                               ImmutableByteSequence teid, Ip4Address tunnelDst, Type type) {
         this.ueAddr = ueAddr;
         this.teid = teid;
         this.tunnelDst = tunnelDst;
         this.sessionId = sessionId;
         this.ctrId = ctrId;
         this.farId = farId;
+        this.type = type;
+    }
+
+    public enum Type {
+        /**
+         * Uplink PDRs match on packets travelling in the uplink direction. These packets will have a GTP tunnel.
+         */
+        UPLINK,
+        /**
+         * Downlink PDRs match on packets travelling in the downlink direction.
+         * These packets will not have a GTP tunnel.
+         */
+        DOWNLINK,
+        /**
+         * For uplink PDRs that were not build with any action parameters, only match keys.
+         * These are usually built in the context of P4Runtime DELETE write requests.
+         */
+        UPLINK_KEYS_ONLY,
+        /**
+         * For downlink PDRs that were not build with any action parameters, only match keys.
+         * These are usually built in the context of P4Runtime DELETE write requests.
+         */
+        DOWNLINK_KEYS_ONLY
     }
 
     @Override
@@ -64,7 +88,7 @@ public final class PacketDetectionRule {
      * @return true if this instance has PDR action parameters, false otherwise.
      */
     public boolean hasActionParameters() {
-        return ctrId != null && farId != null;
+        return type == Type.UPLINK || type == Type.DOWNLINK;
     }
 
     /**
@@ -72,7 +96,7 @@ public final class PacketDetectionRule {
      * @return true if the PDR matches only uplink packets
      */
     public boolean isUplink() {
-        return teid != null && tunnelDst != null;
+        return type == Type.UPLINK || type == Type.UPLINK_KEYS_ONLY;
     }
 
     /**
@@ -80,7 +104,7 @@ public final class PacketDetectionRule {
      * @return true if the PDR matches only downlink packets
      */
     public boolean isDownlink() {
-        return teid == null && tunnelDst == null;
+        return type == Type.DOWNLINK ||  type == Type.DOWNLINK_KEYS_ONLY;
     }
 
     public ImmutableByteSequence sessionId() {
@@ -186,7 +210,21 @@ public final class PacketDetectionRule {
             checkArgument((sessionId != null && ctrId != null && farId != null) ||
                             (sessionId == null && ctrId == null && farId == null),
                     "PDR action parameters must be provided together or not at all.");
-            return new PacketDetectionRule(sessionId, ctrId, farId, ueAddr, teid, tunnelDst);
+            Type type;
+            if (teid != null) {
+                if (sessionId != null) {
+                    type = Type.UPLINK;
+                } else  {
+                    type = Type.UPLINK_KEYS_ONLY;
+                }
+            } else {
+                if (sessionId != null) {
+                    type = Type.DOWNLINK;
+                } else {
+                    type = Type.DOWNLINK_KEYS_ONLY;
+                }
+            }
+            return new PacketDetectionRule(sessionId, ctrId, farId, ueAddr, teid, tunnelDst, type);
         }
     }
 }

@@ -150,7 +150,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public PdrStats readCounter(int cellId) {
-        PdrStats.Builder stats = PdrStats.builder(cellId);
+        PdrStats.Builder stats = PdrStats.builder().withCellId(cellId);
 
         // Get client and pipeconf.
         P4RuntimeClient client = controller.get(deviceId);

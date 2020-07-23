@@ -145,7 +145,8 @@ public class Up4DeviceManager implements Up4Service {
                 piPipeconf.id().toString().contains(AppConstants.SUPPORTED_PIPECONF_STRING)).orElse(false);
     }
 
-    public void clearDevice() {
+    @Override
+    public void clearUpfProgrammable() {
         if (upfProgrammable == null || !upfInitialized.get()) {
             log.error("Attempting to clear UPF before it has been initialized!");
             return;

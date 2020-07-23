@@ -14,11 +14,22 @@ import org.onosproject.net.DeviceId;
  */
 public interface Up4Service {
 
+    /**
+     * Grab a reference to the current UpfProgrammable, for installing PDRs, FARs and Interfaces.
+     * @return a reference to the current UpfProgrammable
+     */
     UpfProgrammable getUpfProgrammable();
 
+    /**
+     * Is the UPF device currently available in ONOS?
+     * @return true if the device is available and false otherwise
+     */
     boolean upfProgrammableAvailable();
 
-    void clearDevice();
+    /**
+     * Clear all table entries in the UpfProgrammable installed by the UP4 app.
+     */
+    void clearUpfProgrammable();
 
     /**
      * Check if the device is registered and is a valid UPF dataplane.
@@ -27,4 +38,5 @@ public interface Up4Service {
      * @return True if the device is a valid UPF data plane, and False otherwise
      */
     boolean isUpfDevice(DeviceId deviceId);
+
 }

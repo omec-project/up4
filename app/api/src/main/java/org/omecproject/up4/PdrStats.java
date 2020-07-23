@@ -4,6 +4,9 @@
  */
 package org.omecproject.up4;
 
+
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * A structure for compactly passing PDR counter values for a given counter ID.
  * Contains four counts: Ingress Packets, Ingress Bytes, Egress Packets, Egress Bytes
@@ -16,11 +19,11 @@ public final class PdrStats {
     private final long egressBytes;
 
     public String toString() {
-        return String.format("PDR-Stats:{ Ctr-ID: %d, Ingress:(%dpkts,%dbytes), Egress:(%dpkts,%dbytes) }",
+        return String.format("PDR-Stats:{ CellID: %d, Ingress:(%dpkts,%dbytes), Egress:(%dpkts,%dbytes) }",
                 cellId, ingressPkts, ingressBytes, egressPkts, egressBytes);
     }
 
-    public PdrStats(int cellId, long ingressPkts, long ingressBytes,
+    private PdrStats(int cellId, long ingressPkts, long ingressBytes,
                     long egressPkts, long egressBytes) {
         this.cellId = cellId;
         this.ingressPkts = ingressPkts;
@@ -45,23 +48,26 @@ public final class PdrStats {
         return egressBytes;
     }
 
-    public static Builder builder(int cellId) {
-        return new Builder(cellId);
+    public static Builder builder() {
+        return new Builder();
     }
 
-
     public static class Builder {
-        private final int cellId;
+        private Integer cellId;
         private long ingressPkts;
         private long ingressBytes;
         private long egressPkts;
         private long egressBytes;
-        public Builder(int cellId) {
-            this.cellId = cellId;
+        public Builder() {
             this.ingressPkts = 0;
             this.ingressBytes = 0;
             this.egressPkts = 0;
             this.egressBytes = 0;
+        }
+
+        public Builder withCellId(int cellId) {
+            this.cellId = cellId;
+            return this;
         }
 
         public Builder setIngress(long ingressPkts, long ingressBytes) {
@@ -77,6 +83,7 @@ public final class PdrStats {
         }
 
         public PdrStats build() {
+            checkNotNull(cellId, "CellID must be provided");
             return new PdrStats(cellId, ingressPkts, ingressBytes, egressPkts, egressBytes);
         }
     }

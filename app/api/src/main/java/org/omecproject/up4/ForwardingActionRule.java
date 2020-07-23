@@ -25,15 +25,32 @@ public final class ForwardingActionRule {
     private final Boolean drop;  // Should this FAR drop packets?
     private final Boolean notifyCp;  // Should this FAR notify the control plane when it sees a packet?
     private final GtpTunnel tunnelDesc;  // The GTP tunnel that this FAR should encapsulate packets with (if downlink)
+    private final Type type;  // Is the FAR Uplink, Downlink, etc
 
     private ForwardingActionRule(ImmutableByteSequence sessionId, Integer farId, Boolean drop, Boolean notifyCp,
-                                GtpTunnel tunnelDesc) {
+                                GtpTunnel tunnelDesc, Type type) {
         // All match keys are required
         this.sessionId = sessionId;
         this.farId = farId;
         this.drop = drop;
         this.notifyCp = notifyCp;
         this.tunnelDesc = tunnelDesc;
+        this.type = type;
+    }
+
+    public enum Type {
+        /**
+         * Uplink FARs apply to packets traveling in the uplink direction, and do not encapsulate.
+         */
+        UPLINK,
+        /**
+         * Downlink FARS apply to packets traveling in the downlink direction, and do encapsulate.
+         */
+        DOWNLINK,
+        /**
+         * FAR was not built with any action parameters, only match keys.
+         */
+        KEYS_ONLY
     }
 
     @Override
@@ -61,7 +78,7 @@ public final class ForwardingActionRule {
      * @return true if this instance has FAR action parameters, false otherwise.
      */
     public boolean hasActionParameters() {
-        return drop != null && notifyCp != null;
+        return type != Type.KEYS_ONLY;
     }
 
     /**
@@ -69,10 +86,7 @@ public final class ForwardingActionRule {
      * @return true if FAR is uplink
      */
     public boolean isUplink() {
-        if (!hasActionParameters()) {
-            return false;
-        }
-        return tunnelDesc == null;
+        return type == Type.UPLINK;
     }
 
     /**
@@ -80,10 +94,7 @@ public final class ForwardingActionRule {
      * @return true is FAR is downlink
      */
     public boolean isDownlink() {
-        if (!hasActionParameters()) {
-            return false;
-        }
-        return tunnelDesc != null;
+        return type == Type.DOWNLINK;
     }
 
     public ImmutableByteSequence sessionId() {
@@ -203,7 +214,15 @@ public final class ForwardingActionRule {
             checkArgument((drop != null && notifyCp != null) ||
                             (drop == null && notifyCp == null && tunnelDesc == null),
                     "FAR Arguments must be provided together or not at all.");
-            return new ForwardingActionRule(sessionId, farId, drop, notifyCp, tunnelDesc);
+            Type type;
+            if (drop == null && notifyCp == null) {
+                type = Type.KEYS_ONLY;
+            } else if (tunnelDesc == null) {
+                type = Type.UPLINK;
+            } else {
+                type = Type.DOWNLINK;
+            }
+            return new ForwardingActionRule(sessionId, farId, drop, notifyCp, tunnelDesc, type);
         }
     }
 }

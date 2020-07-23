@@ -22,7 +22,7 @@ public class ClearEntriesCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         print("Clearing all UP4 dataplane table entries.");
-        app.clearDevice();
+        app.clearUpfProgrammable();
     }
 
 }
