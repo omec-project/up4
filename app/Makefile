@@ -80,7 +80,11 @@ far-clear:
 
 stop:
 	$(info *** Stopping ONOS and Mininet...)
-	@NGSDN_TOPO_PY=foo docker-compose down
+	@docker-compose down
+
+stop-quick:
+	$(info *** Stopping ONOS and Mininet...)
+	@docker-compose down -t0
 
 reset: stop
 	-$(NGSDN_TUTORIAL_SUDO) rm -rf ./tmp
@@ -128,6 +132,9 @@ _check:
 	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-downlink
 	@echo "*** Sending uplink..."
 	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-uplink
+	@echo "**********************************"
+	@echo "** Integration checks passed :D **"
+	@echo "**********************************"
 	make stop
 
 send-downlink:

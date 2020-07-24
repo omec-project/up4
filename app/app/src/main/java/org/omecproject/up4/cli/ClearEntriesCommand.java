@@ -24,6 +24,5 @@ public class ClearEntriesCommand extends AbstractShellCommand {
         print("Clearing all UP4 dataplane table entries.");
         app.clearUpfProgrammable();
     }
-
 }
 

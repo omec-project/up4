@@ -6,15 +6,10 @@ package org.omecproject.up4.cli;
 
 import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
-import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
-import org.onosproject.cli.net.DeviceIdCompleter;
-import org.onosproject.net.Device;
-import org.onosproject.net.DeviceId;
-import org.onosproject.net.device.DeviceService;
 
 /**
  * UP4 S1U Interface insertion command.
@@ -24,34 +19,19 @@ import org.onosproject.net.device.DeviceService;
         description = "Insert a S1U interface address into the UP4 dataplane")
 public class InterfaceInsertCommand extends AbstractShellCommand {
 
-    @Argument(index = 0, name = "uri", description = "Device ID",
-            required = true)
-    @Completion(DeviceIdCompleter.class)
-    String uri = null;
-
-    @Argument(index = 1, name = "s1u-addr",
+    @Argument(index = 0, name = "s1u-addr",
             description = "Address of the S1U interface",
             required = true)
     String s1uAddr = null;
 
     @Override
     protected void doExecute() {
-        DeviceService deviceService = get(DeviceService.class);
         Up4Service app = get(Up4Service.class);
-
-        Device device = deviceService.getDevice(DeviceId.deviceId(uri));
-        if (device == null) {
-            print("Device \"%s\" is not found", uri);
-            return;
-        }
 
         Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
 
-        print("Adding S1U interface address to device %s", uri);
+        print("Adding S1U interface address: %s", s1uAddr.toString());
         app.getUpfProgrammable().addS1uInterface(s1uAddr);
-
-
     }
-
 }
 

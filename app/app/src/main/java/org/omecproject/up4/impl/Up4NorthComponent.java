@@ -137,7 +137,7 @@ public class Up4NorthComponent {
                 log.info("Translated UP4 PDR successfully. Deleting.");
                 up4Service.getUpfProgrammable().removePdr(pdr);
             } catch (Up4Translator.Up4TranslationException e) {
-                log.error("Failed to parse UP4 PDR in delete write! Error was: {}", e.getMessage());
+                log.warn("Failed to parse UP4 PDR in delete write! Error was: {}", e.getMessage());
             }
         } else if (Up4Translator.isFar(entry)) {
             try {
@@ -145,10 +145,10 @@ public class Up4NorthComponent {
                 log.info("Translated UP4 FAR successfully. Deleting.");
                 up4Service.getUpfProgrammable().removeFar(far);
             } catch (Up4Translator.Up4TranslationException e) {
-                log.error("Failed to parse UP4 FAR in delete write! Error was {}", e.getMessage());
+                log.warn("Failed to parse UP4 FAR in delete write! Error was {}", e.getMessage());
             }
         } else {
-            log.error("Received unsupported table entry for table {} in UP4 delete request:", entry.table().id());
+            log.warn("Received unsupported table entry for table {} in UP4 delete request:", entry.table().id());
         }
     }
 
@@ -161,7 +161,7 @@ public class Up4NorthComponent {
         log.info("Translating UP4 write request to fabric entry.");
         PiTableId tableId = entry.table();
         if (entry.action().type() != PiTableAction.Type.ACTION) {
-            log.error("Action profile entry insertion not supported. Ignoring.");
+            log.warn("Action profile entry insertion not supported. Ignoring.");
             return;
         }
 
@@ -172,7 +172,7 @@ public class Up4NorthComponent {
             } else if (Up4Translator.isUePool(entry)) {
                 up4Service.getUpfProgrammable().addUePool(ifacePrefix);
             } else {
-                log.error("Received unknown interface write request! Ignoring");
+                log.warn("Received unknown interface write request! Ignoring");
             }
         } else if (Up4Translator.isPdr(entry)) {
             try {
@@ -180,7 +180,7 @@ public class Up4NorthComponent {
                 log.info("Translated UP4 PDR successfully. Inserting.");
                 up4Service.getUpfProgrammable().addPdr(pdr);
             } catch (Up4Translator.Up4TranslationException e) {
-                log.error("Failed to parse UP4 PDR! Error was: {}", e.getMessage());
+                log.warn("Failed to parse UP4 PDR! Error was: {}", e.getMessage());
             }
         } else if (Up4Translator.isFar(entry)) {
             try {
@@ -188,10 +188,10 @@ public class Up4NorthComponent {
                 log.info("Translated UP4 FAR successfully. Inserting.");
                 up4Service.getUpfProgrammable().addFar(far);
             } catch (Up4Translator.Up4TranslationException e) {
-                log.error("Failed to parse UP4 FAR! Error was {}", e.getMessage());
+                log.warn("Failed to parse UP4 FAR! Error was {}", e.getMessage());
             }
         } else {
-            log.error("Received unsupported table entry for table {} in UP4 write request:", entry.table().id());
+            log.warn("Received unsupported table entry for table {} in UP4 write request:", entry.table().id());
         }
     }
 
@@ -270,7 +270,7 @@ public class Up4NorthComponent {
             log.info("Received setForwardingPipelineConfig message.");
             P4InfoOuterClass.P4Info otherP4Info = request.getConfig().getP4Info();
             if (!otherP4Info.equals(p4Info)) {
-                log.error("Someone attempted to write a p4info file that doesn't match our hardcoded one! What a jerk");
+                log.warn("Someone attempted to write a p4info file that doesn't match our hardcoded one! What a jerk");
             } else {
                 log.info("Received p4info correctly matches hardcoded p4info. Saving cookie.");
                 pipeconfCookie = request.getConfig().getCookie().getCookie();
@@ -313,17 +313,17 @@ public class Up4NorthComponent {
                           StreamObserver<P4RuntimeOuterClass.WriteResponse> responseObserver) {
             log.info("Received write request.");
             if (p4Info == null) {
-                log.error("Write request received before pipeline config set! Ignoring");
+                log.warn("Write request received before pipeline config set! Ignoring");
                 responseObserver.onNext(P4RuntimeOuterClass.WriteResponse.getDefaultInstance());
                 responseObserver.onCompleted();
                 return;
             }
             for (P4RuntimeOuterClass.Update update : request.getUpdatesList()) {
                 if (!update.hasEntity()) {
-                    log.error("Update message with no entity received. Ignoring");
+                    log.warn("Update message with no entity received. Ignoring");
                     continue;
                 } else if (!update.getEntity().hasTableEntry()) {
-                    log.error("Update message with no table entry received. Ignoring.");
+                    log.warn("Update message with no table entry received. Ignoring.");
                     continue;
                 }
                 PiTableEntry entry;
@@ -333,11 +333,11 @@ public class Up4NorthComponent {
                     if (entity.piEntityType() == PiEntityType.TABLE_ENTRY) {
                         entry = (PiTableEntry) entity;
                     } else {
-                        log.error("Update entity is not a table entry. Ignoring.");
+                        log.warn("Update entity is not a table entry. Ignoring.");
                         continue;
                     }
                 } catch (CodecException e) {
-                    log.error("Unable to decode p4runtime entity update message", e);
+                    log.warn("Unable to decode p4runtime entity update message", e);
                     continue;
                 }
                 if (update.getType() == P4RuntimeOuterClass.Update.Type.INSERT
@@ -371,11 +371,11 @@ public class Up4NorthComponent {
                 try {
                     piEntity = Codecs.CODECS.entity().decode(entity, null, pipeconf);
                 } catch (CodecException e) {
-                    log.error("Unable to decode p4runtime read request entity", e);
+                    log.warn("Unable to decode p4runtime read request entity", e);
                     continue;
                 }
                 if (piEntity.piEntityType() != PiEntityType.COUNTER_CELL) {
-                    log.error("Received read request for an entity we don't yet support. Skipping");
+                    log.warn("Received read request for an entity we don't yet support. Skipping");
                     continue;
                 }
                 PiCounterCell cellEntity = (PiCounterCell) piEntity;
@@ -398,7 +398,7 @@ public class Up4NorthComponent {
                     pkts = ctrValues.getEgressPkts();
                     bytes = ctrValues.getEgressBytes();
                 } else {
-                    log.error("Received read request for unknown counter {}. Skipping.", piCounterId);
+                    log.warn("Received read request for unknown counter {}. Skipping.", piCounterId);
                     continue;
                 }
 

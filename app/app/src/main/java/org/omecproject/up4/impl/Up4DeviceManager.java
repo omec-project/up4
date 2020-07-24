@@ -136,7 +136,7 @@ public class Up4DeviceManager implements Up4Service {
     @Override
     public void clearUpfProgrammable() {
         if (upfProgrammable == null || !upfInitialized.get()) {
-            log.error("Attempting to clear UPF before it has been initialized!");
+            log.warn("Attempting to clear UPF before it has been initialized!");
             return;
         }
         upfProgrammable.cleanUp(appId);
@@ -157,7 +157,7 @@ public class Up4DeviceManager implements Up4Service {
                 return;
             }
             if (upfProgrammable != null && !upfProgrammable.deviceId().equals(deviceId)) {
-                log.error("Change of the UPF while UPF device is available is not supported!");
+                log.warn("Change of the UPF while UPF device is available is not supported!");
                 return;
             }
 

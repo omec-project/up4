@@ -28,14 +28,29 @@ public final class GtpTunnel {
         return String.format("GTP-Tunnel(%s -> %s, TEID:%s)", src.toString(), dst.toString(), teid.toString());
     }
 
+    /**
+     * Get the source IP address of this unidirectional GTP tunnel.
+     *
+     * @return tunnel source IP
+     */
     public Ip4Address src() {
         return this.src;
     }
 
+    /**
+     * Get the destination address of this unidirectional GTP tunnel.
+     *
+     * @return tunnel destination IP
+     */
     public Ip4Address dst() {
         return this.dst;
     }
 
+    /**
+     * Get the ID of this unidirectional GTP tunnel.
+     *
+     * @return tunnel ID
+     */
     public ImmutableByteSequence teid() {
         return this.teid;
     }
@@ -56,7 +71,9 @@ public final class GtpTunnel {
         }
 
         /**
-         * @param src The source IP address of the unidirectional GTP tunnel
+         * Set the source IP address of the unidirectional GTP tunnel.
+         *
+         * @param src GTP tunnel source IP
          * @return This builder object
          */
         public GtpTunnelBuilder setSrc(Ip4Address src) {
@@ -65,7 +82,9 @@ public final class GtpTunnel {
         }
 
         /**
-         * @param dst The destination IP address of the unidirectional GTP tunnel
+         * Set the destination IP address of the unidirectional GTP tunnel.
+         *
+         * @param dst GTP tunnel destination IP
          * @return This builder object
          */
         public GtpTunnelBuilder setDst(Ip4Address dst) {
@@ -74,7 +93,9 @@ public final class GtpTunnel {
         }
 
         /**
-         * @param teid The tunnel identifier of this unidirectional GTP tunnel
+         * Set the identifier of this unidirectional GTP tunnel.
+         *
+         * @param teid tunnel ID
          * @return This builder object
          */
         public GtpTunnelBuilder setTeid(ImmutableByteSequence teid) {
@@ -83,7 +104,9 @@ public final class GtpTunnel {
         }
 
         /**
-         * @param teid The tunnel identifier of this unidirectional GTP tunnel
+         * Set the identifier of this unidirectional GTP tunnel.
+         *
+         * @param teid tunnel ID
          * @return This builder object
          */
         public GtpTunnelBuilder setTeid(long teid) {

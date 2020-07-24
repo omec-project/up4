@@ -18,6 +18,7 @@ public final class PdrStats {
     private final long egressPkts;
     private final long egressBytes;
 
+    @Override
     public String toString() {
         return String.format("PDR-Stats:{ CellID: %d, Ingress:(%dpkts,%dbytes), Egress:(%dpkts,%dbytes) }",
                 cellId, ingressPkts, ingressBytes, egressPkts, egressBytes);
@@ -32,22 +33,47 @@ public final class PdrStats {
         this.egressBytes = egressBytes;
     }
 
+    /**
+     * Get the cell ID (index) of the dataplane PDR counter that produced this set of stats.
+     *
+     * @return counter cell ID
+     */
     public int getCellId() {
         return cellId;
     }
 
+    /**
+     * Get the number of packets that hit this counter in the dataplane ingress pipeline.
+     *
+     * @return ingress packet count
+     */
     public long getIngressPkts() {
         return ingressPkts;
     }
 
+    /**
+     * Get the number of packets that hit this counter in the dataplane egress pipeline.
+     *
+     * @return egress packet count
+     */
     public long getEgressPkts() {
         return egressPkts;
     }
 
+    /**
+     * Get the number of packet bytes that hit this counter in the dataplane ingress pipeline.
+     *
+     * @return ingress byte count
+     */
     public long getIngressBytes() {
         return ingressBytes;
     }
 
+    /**
+     * Get the number of packet bytes that hit this counter in the dataplane egress pipeline.
+     *
+     * @return egress byte count
+     */
     public long getEgressBytes() {
         return egressBytes;
     }
@@ -70,17 +96,37 @@ public final class PdrStats {
             this.egressBytes = 0;
         }
 
+        /**
+         * Set the Cell ID (index) of the datalane PDR counter that produced this set of stats.
+         *
+         * @param cellId the counter cell ID
+         * @return This builder
+         */
         public Builder withCellId(int cellId) {
             this.cellId = cellId;
             return this;
         }
 
+        /**
+         * Set the number of packets and bytes that hit the PDR counter in the dataplane ingress pipeline.
+         *
+         * @param ingressPkts  ingress packet count
+         * @param ingressBytes egress packet count
+         * @return This builder
+         */
         public Builder setIngress(long ingressPkts, long ingressBytes) {
             this.ingressPkts = ingressPkts;
             this.ingressBytes = ingressBytes;
             return this;
         }
 
+        /**
+         * Set the number of packets and bytes that hit the PDR counter in the dataplane egress pipeline.
+         *
+         * @param egressPkts  egress packet count
+         * @param egressBytes egress byte count
+         * @return This builder
+         */
         public Builder setEgress(long egressPkts, long egressBytes) {
             this.egressPkts = egressPkts;
             this.egressBytes = egressBytes;

@@ -84,7 +84,7 @@ public final class ForwardingActionRule {
     }
 
     /**
-     * Is this an FAR which sends packets in the uplink direction?
+     * True if this FAR forwards packets in the uplink direction, and false otherwise.
      *
      * @return true if FAR is uplink
      */
@@ -93,7 +93,7 @@ public final class ForwardingActionRule {
     }
 
     /**
-     * Is this a FAR which sends packets in the downlink direction?
+     * True if this FAR forwards packets in the downlink direction, and false otherwise.
      *
      * @return true is FAR is downlink
      */
@@ -102,28 +102,36 @@ public final class ForwardingActionRule {
     }
 
     /**
-     * @return The ID of the PFCP Session that produced this FAR
+     * Get the ID of the PFCP Session that produced this FAR.
+     *
+     * @return PFCP session ID
      */
     public ImmutableByteSequence sessionId() {
         return sessionId;
     }
 
     /**
-     * @return The PFCP Session-local ID of the FAR that should apply to packets that match this PDR
+     * Get the PFCP session-local ID of the FAR that should apply to packets that match this PDR.
+     *
+     * @return PFCP session-local FAR ID
      */
     public int localFarId() {
         return farId;
     }
 
     /**
-     * @return True if this FAR drops packets, and false otherwise
+     * Returns true if this FAR drops packets, and false otherwise.
+     *
+     * @return true if this FAR drops
      */
     public boolean dropFlag() {
         return drop;
     }
 
     /**
-     * @return true if this FAR notifies the control plane on receiving a packet, and false otherwise
+     * Returns true if this FAR notifies the control plane on receiving a packet, and false otherwise.
+     *
+     * @return true if this FAR notifies the cp
      */
     public boolean notifyCpFlag() {
         return notifyCp;
@@ -140,7 +148,9 @@ public final class ForwardingActionRule {
     }
 
     /**
-     * @return The source IP of the GTP tunnel that this FAR will encapsulate packets with
+     * Get the source IP of the GTP tunnel that this FAR will encapsulate packets with.
+     *
+     * @return GTP tunnel source IP
      */
     public Ip4Address tunnelSrc() {
         if (tunnelDesc == null) {
@@ -150,7 +160,9 @@ public final class ForwardingActionRule {
     }
 
     /**
-     * @return The destination IP of the GTP tunnel that this FAR will encapsulate packets with
+     * Get the destination IP of the GTP tunnel that this FAR will encapsulate packets with.
+     *
+     * @return GTP tunnel destination IP
      */
     public Ip4Address tunnelDst() {
         if (tunnelDesc == null) {
@@ -160,7 +172,9 @@ public final class ForwardingActionRule {
     }
 
     /**
-     * @return The Tunnel ID of the GTP tunnel that this FAR will encapsulate packets with
+     * Get the identifier of the GTP tunnel that this FAR will encapsulate packets with.
+     *
+     * @return GTP tunnel ID
      */
     public ImmutableByteSequence teid() {
         if (tunnelDesc == null) {
@@ -189,7 +203,9 @@ public final class ForwardingActionRule {
         }
 
         /**
-         * @param sessionId ID of the PFCP session that created this FAR
+         * Set the ID of the PFCP session that created this FAR.
+         *
+         * @param sessionId PFC session ID
          * @return This builder object
          */
         public Builder withSessionId(ImmutableByteSequence sessionId) {
@@ -198,7 +214,9 @@ public final class ForwardingActionRule {
         }
 
         /**
-         * @param sessionId ID of the PFCP session that created this FAR
+         * Set the ID of the PFCP session that created this FAR.
+         *
+         * @param sessionId PFC session ID
          * @return This builder object
          */
         public Builder withSessionId(long sessionId) {
@@ -207,7 +225,9 @@ public final class ForwardingActionRule {
         }
 
         /**
-         * @param farId The PFCP Session-local ID of this FAR
+         * Set the PFCP Session-local ID of this FAR.
+         *
+         * @param farId PFCP session-local FAR ID
          * @return This builder object
          */
         public Builder withFarId(int farId) {
@@ -216,8 +236,11 @@ public final class ForwardingActionRule {
         }
 
         /**
-         * @param drop     Flag specifying if this FAR drops traffic or not
-         * @param notifyCp Flag specifying if the control plane should be notified when this FAR is hit
+         * Set flags specifying whether this FAR should drop packets and/or notify the control plane when
+         * any packets arrive.
+         *
+         * @param drop     true if this FAR drops
+         * @param notifyCp true if this FAR notifies the control plane
          * @return This builder object
          */
         public Builder withFlags(boolean drop, boolean notifyCp) {
@@ -227,7 +250,9 @@ public final class ForwardingActionRule {
         }
 
         /**
-         * @param drop Flag specifying if this FAR drops traffic or not
+         * Set a flag specifying if this FAR drops traffic or not.
+         *
+         * @param drop true if FAR drops
          * @return This builder object
          */
         public Builder withDropFlag(boolean drop) {
@@ -236,7 +261,9 @@ public final class ForwardingActionRule {
         }
 
         /**
-         * @param notifyCp Flag specifying if the control plane should be notified when this FAR is hit
+         * Set a flag specifying if the control plane should be notified when this FAR is hit.
+         *
+         * @param notifyCp true if FAR notifies control plane
          * @return This builder object
          */
         public Builder withNotifyFlag(boolean notifyCp) {
@@ -245,7 +272,9 @@ public final class ForwardingActionRule {
         }
 
         /**
-         * @param tunnel The GTP tunnel that this FAR should encapsulate packets with
+         * Set the GTP tunnel that this FAR should encapsulate packets with.
+         *
+         * @param tunnel GTP tunnel
          * @return This builder object
          */
         public Builder withTunnel(GtpTunnel tunnel) {
@@ -254,9 +283,11 @@ public final class ForwardingActionRule {
         }
 
         /**
-         * @param src  The Source IP of the GTP tunnel that this FAR should encapsulate packets with
-         * @param dst  The Destination IP of the GTP tunnel that this FAR should encapsulate packets with
-         * @param teid The Tunnel ID of the GTP tunnel that this FAR should encapsulate packets with
+         * Set the unidirectional GTP tunnel that this FAR should encapsulate packets with.
+         *
+         * @param src  GTP tunnel source IP
+         * @param dst  GTP tunnel destination IP
+         * @param teid GTP tunnel ID
          * @return This builder object
          */
         public Builder withTunnel(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid) {

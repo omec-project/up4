@@ -33,8 +33,7 @@ public interface UpfProgrammable {
      * Remove any state previously created by this API for the given application
      * ID.
      *
-     * @param appId Application ID of the application using the
-     *              UpfProgrammable.
+     * @param appId Application ID of the application using the UpfProgrammable.
      */
     void cleanUp(ApplicationId appId);
 

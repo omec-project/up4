@@ -94,7 +94,7 @@ public final class PacketDetectionRule {
     }
 
     /**
-     * Is this a PDR matching on packets travelling in the uplink direction?
+     * True if this PDR matches on packets travelling in the uplink direction, and false otherwise.
      *
      * @return true if the PDR matches only uplink packets
      */
@@ -103,7 +103,7 @@ public final class PacketDetectionRule {
     }
 
     /**
-     * Is this a PDR matching on packets travelling in the downlink direction?
+     * True if this PDR matches on packets travelling in the downlink direction, and false otherwise.
      *
      * @return true if the PDR matches only downlink packets
      */
@@ -111,57 +111,58 @@ public final class PacketDetectionRule {
         return type == Type.DOWNLINK || type == Type.DOWNLINK_KEYS_ONLY;
     }
 
+    /**
+     * Get the ID of the PFCP session that produced this PDR.
+     *
+     * @return PFCP session ID
+     */
     public ImmutableByteSequence sessionId() {
         return sessionId;
     }
 
     /**
-     * @return The UE IP address that this PDR matches on
+     * Get the UE IP address that this PDR matches on.
+     *
+     * @return UE IP address
      */
     public Ip4Address ueAddress() {
         return ueAddr;
     }
 
     /**
-     * @return The GTP Tunnel ID that this PDR matches on
+     * Get the identifier of the GTP tunnel that this PDR matches on.
+     *
+     * @return GTP tunnel ID
      */
     public ImmutableByteSequence teid() {
         return teid;
     }
 
     /**
-     * @return The GTP tunnel destination that this PDR matches on
+     * Get the destination IP of the GTP tunnel that this PDR matches on.
+     *
+     * @return GTP tunnel destination IP
      */
     public Ip4Address tunnelDest() {
         return tunnelDst;
     }
 
     /**
-     * @return The Counter CellID unique to this PDR
+     * Get the dataplane PDR counter cell ID that this PDR is assigned.
+     *
+     * @return PDR counter cell ID
      */
     public int counterId() {
         return ctrId;
     }
 
     /**
-     * @return PFCP Session-Local FAR ID
+     * Get the PFCP session-local ID of the far that should apply to packets that this PDR matches.
+     *
+     * @return PFCP session-local FAR ID
      */
     public int localFarId() {
         return farId;
-    }
-
-    /**
-     * @param globalFarId Globally unique FAR ID
-     */
-    public void setGlobalFarId(int globalFarId) {
-        this.globalFarId = globalFarId;
-    }
-
-    /**
-     * @return Globally unique FAR ID
-     */
-    public int getGlobalFarId() {
-        return globalFarId;
     }
 
     public static Builder builder() {
@@ -180,7 +181,9 @@ public final class PacketDetectionRule {
         }
 
         /**
-         * @param sessionId The ID of the PFCP session that produced this PDR
+         * Set the ID of the PFCP session that produced this PDR.
+         *
+         * @param sessionId PFCP session ID
          * @return This builder object
          */
         public Builder withSessionId(ImmutableByteSequence sessionId) {
@@ -189,7 +192,9 @@ public final class PacketDetectionRule {
         }
 
         /**
-         * @param sessionId The ID of the PFCP session that produced this PDR
+         * Set the ID of the PFCP session that produced this PDR.
+         *
+         * @param sessionId PFCP session ID
          * @return This builder object
          */
         public Builder withSessionId(long sessionId) {
@@ -198,7 +203,9 @@ public final class PacketDetectionRule {
         }
 
         /**
-         * @param ueAddr The UE IP address that this PDR matches on
+         * Set the UE IP address that this PDR matches on.
+         *
+         * @param ueAddr UE IP address
          * @return This builder object
          */
         public Builder withUeAddr(Ip4Address ueAddr) {
@@ -207,7 +214,9 @@ public final class PacketDetectionRule {
         }
 
         /**
-         * @param ctrId Index into the dataplane counter that this PDR should use to count packets and bytes
+         * Set the dataplane PDR counter cell ID that this PDR is assigned.
+         *
+         * @param ctrId PDR counter cell ID
          * @return This builder object
          */
         public Builder withCounterId(int ctrId) {
@@ -216,7 +225,9 @@ public final class PacketDetectionRule {
         }
 
         /**
-         * @param farId The ID of the FAR that should apply to packets that this PDR matches
+         * Set the PFCP session-local ID of the far that should apply to packets that this PDR matches.
+         *
+         * @param farId PFCP session-local FAR ID
          * @return This builder object
          */
         public Builder withFarId(int farId) {
@@ -225,7 +236,9 @@ public final class PacketDetectionRule {
         }
 
         /**
-         * @param teid The GTP tunnel ID that this PDR matches on
+         * Set the identifier of the GTP tunnel that this PDR matches on.
+         *
+         * @param teid GTP tunnel ID
          * @return This builder object
          */
         public Builder withTeid(int teid) {
@@ -234,7 +247,9 @@ public final class PacketDetectionRule {
         }
 
         /**
-         * @param teid The GTP tunnel ID that this PDR matches on
+         * Set the identifier of the GTP tunnel that this PDR matches on.
+         *
+         * @param teid GTP tunnel ID
          * @return This builder object
          */
         public Builder withTeid(ImmutableByteSequence teid) {
@@ -243,7 +258,9 @@ public final class PacketDetectionRule {
         }
 
         /**
-         * @param tunnelDst The GTP tunnel destination IP that this PDR matches on.
+         * Set the destination IP of the GTP tunnel that this PDR matches on.
+         *
+         * @param tunnelDst GTP tunnel destination IP
          * @return This builder object
          */
         public Builder withTunnelDst(Ip4Address tunnelDst) {
@@ -252,8 +269,10 @@ public final class PacketDetectionRule {
         }
 
         /**
-         * @param teid      The GTP tunnel ID that this PDR matches on
-         * @param tunnelDst The GTP tunnel destination IP that this PDR matches on.
+         * Set the tunnel ID and destination IP of the GTP tunnel that this PDR matches on.
+         *
+         * @param teid      GTP tunnel ID
+         * @param tunnelDst GTP tunnel destination IP
          * @return This builder object
          */
         public Builder withTunnel(ImmutableByteSequence teid, Ip4Address tunnelDst) {

@@ -1,12 +1,10 @@
 package org.omecproject.up4.behavior;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
-import org.omecproject.up4.impl.SouthConstants;
 import org.omecproject.up4.UpfProgrammable;
+import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
@@ -31,6 +29,7 @@ import org.onosproject.net.pi.service.PiPipeconfService;
 import org.onosproject.p4runtime.api.P4RuntimeClient;
 import org.onosproject.p4runtime.api.P4RuntimeController;
 import org.onosproject.store.serializers.KryoNamespaces;
+import org.onosproject.store.service.AtomicCounter;
 import org.onosproject.store.service.EventuallyConsistentMap;
 import org.onosproject.store.service.StorageService;
 import org.onosproject.store.service.WallClockTimestamp;
@@ -59,10 +58,6 @@ import static org.onosproject.net.pi.model.PiCounterType.INDIRECT;
         service = {UpfProgrammable.class})
 public class FabricUpfProgrammable implements UpfProgrammable {
 
-    // This key is used to look up the last assigned global FAR ID in the globalFarIds map, for assigning
-    // new global FAR IDs
-    private static final Pair<ImmutableByteSequence, Integer> LAST_GLOBAL_FAR_ID_KEY
-            = Pair.of(ImmutableByteSequence.ofZeros(1), 0);
     private static final int DEFAULT_PRIORITY = 128;
     private static final long DEFAULT_P4_DEVICE_ID = 1;
     private final Logger log = LoggerFactory.getLogger(getClass());
@@ -75,17 +70,18 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected StorageService storageService;
     DeviceId deviceId;
-    private EventuallyConsistentMap<Pair<ImmutableByteSequence, Integer>, Integer> globalFarIds;
+    private EventuallyConsistentMap<FarIdPair, Integer> globalFarIds;
+    private AtomicCounter globalFarIdCounter;
     private ApplicationId appId;
 
     @Activate
     protected void activate() {
+        globalFarIdCounter = storageService.getAtomicCounter("global-far-id-counter");
+
         KryoNamespace.Builder globalFarIdSerializer = KryoNamespace.newBuilder()
                 .register(KryoNamespaces.API)
-                .register(ImmutableByteSequence.class,
-                        ImmutablePair.class,
-                        Integer.class);
-        globalFarIds = storageService.<Pair<ImmutableByteSequence, Integer>, Integer>eventuallyConsistentMapBuilder()
+                .register(FarIdPair.class);
+        globalFarIds = storageService.<FarIdPair, Integer>eventuallyConsistentMapBuilder()
                 .withName("global-far-ids")
                 .withSerializer(globalFarIdSerializer)
                 .withTimestampProvider((k, v) -> new WallClockTimestamp())
@@ -117,28 +113,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         return this.deviceId;
     }
 
-
-    private int getGlobalFarId(ImmutableByteSequence sessionId, int farId) {
-        // Attempt to find an existing global FAR ID
-        Pair<ImmutableByteSequence, Integer> key = Pair.of(sessionId, farId);
-        Integer globalFarId = globalFarIds.get(key);
-        if (globalFarId != null) {
-            return globalFarId;
-        }
-        // If one doesn't exist, compute a new one
-        globalFarId = globalFarIds.compute(LAST_GLOBAL_FAR_ID_KEY,
-                (k, existingVal) -> {
-                    if (existingVal == null) {
-                        return 1;
-                    } else {
-                        return existingVal + 1;
-                    }
-                });
-
-        globalFarIds.put(key, globalFarId);
-        log.info("(SessionId={}, SessionLocalFarId={}) translated to GlobalFarId={}", sessionId, farId, globalFarId);
-        return globalFarId;
-    }
 
     @Override
     public PdrStats readCounter(int cellId) {
@@ -215,7 +189,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             return;
         }
 
-        int globalFarId = getGlobalFarId(pdr.sessionId(), pdr.localFarId());
+        int globalFarId = globalFarIdOf(pdr.sessionId(), pdr.localFarId());
         PiAction action = PiAction.builder()
                 .withId(SouthConstants.LOAD_PDR)
                 .withParameters(Arrays.asList(
@@ -266,7 +240,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             return;
         }
 
-        int globalFarId = getGlobalFarId(far.sessionId(), far.localFarId());
+        int globalFarId = globalFarIdOf(far.sessionId(), far.localFarId());
 
         PiCriterion match = PiCriterion.builder()
                 .matchExact(SouthConstants.FAR_ID_KEY, globalFarId)
@@ -377,7 +351,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Override
     public void removeFar(ForwardingActionRule far) {
         log.info("Removing {}", far.toString());
-        int globalFarId = getGlobalFarId(far.sessionId(), far.localFarId());
+        int globalFarId = globalFarIdOf(far.sessionId(), far.localFarId());
 
         PiCriterion match = PiCriterion.builder()
                 .matchExact(SouthConstants.FAR_ID_KEY, globalFarId)
@@ -420,6 +394,77 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         if (!removeEntry(match2, SouthConstants.IFACE_DOWNLINK_TBL, true)) {
             log.error("Could not remove interface! No matching entry found!");
         }
+    }
+
+    /**
+     * Wrapper for identifying information of Forwarding Action Rules.
+     */
+    private static final class FarIdPair {
+        final int sessionlocalId;
+        final ImmutableByteSequence pfcpSessionId;
+
+        /**
+         * A FAR can be globally uniquely identified by the combination of the ID of the PFCP session that
+         * produced it, and the ID that the FAR was assigned in that PFCP session.
+         *
+         * @param pfcpSessionId  The PFCP session that produced the FAR ID
+         * @param sessionlocalId The FAR ID
+         */
+        public FarIdPair(ImmutableByteSequence pfcpSessionId, int sessionlocalId) {
+            this.pfcpSessionId = pfcpSessionId;
+            this.sessionlocalId = sessionlocalId;
+        }
+
+        @Override
+        public String toString() {
+            return "FarIdPair{" +
+                    "sessionlocalId=" + sessionlocalId +
+                    ", pfcpSessionId=" + pfcpSessionId +
+                    '}';
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            FarIdPair that = (FarIdPair) obj;
+            return (this.sessionlocalId == that.sessionlocalId) && (this.pfcpSessionId.equals(that.pfcpSessionId));
+        }
+
+        @Override
+        public int hashCode() {
+            return this.sessionlocalId + this.pfcpSessionId.hashCode();
+        }
+    }
+
+    private int globalFarIdOf(FarIdPair farIdPair) {
+        Integer globalFarId = globalFarIds.get(farIdPair);
+        if (globalFarId == null) {
+            globalFarId = (int) globalFarIdCounter.incrementAndGet();
+            globalFarIds.put(farIdPair, globalFarId);
+        }
+        log.info("{} translated to GlobalFarId={}", farIdPair, globalFarId);
+        return globalFarId;
+    }
+
+    /**
+     * Get a globally unique integer identifier for the FAR identified by the given (Session ID, Far ID) pair.
+     *
+     * @param pfcpSessionId     The ID of the PFCP session that produced the FAR ID.
+     * @param sessionLocalFarId The FAR ID.
+     * @return A globally unique integer identifier
+     */
+    private int globalFarIdOf(ImmutableByteSequence pfcpSessionId, int sessionLocalFarId) {
+        FarIdPair farId = new FarIdPair(pfcpSessionId, sessionLocalFarId);
+        return globalFarIdOf(farId);
+
     }
 
 

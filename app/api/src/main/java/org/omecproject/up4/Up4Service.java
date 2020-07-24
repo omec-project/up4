@@ -22,7 +22,7 @@ public interface Up4Service {
     UpfProgrammable getUpfProgrammable();
 
     /**
-     * Is the UPF device currently available in ONOS?
+     * True if a UPF device is currently available in ONOS, and false otherwise.
      *
      * @return true if the device is available and false otherwise
      */

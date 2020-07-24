@@ -12,6 +12,9 @@ To test everything all at once:
     $ make deps build check
 
 ## Setting up a test using CLI commands
+This is the first way to test the app, which does not include the P4Runtime server 
+(aka the northbound service).
+
 Download dependencies. This only needs to be done once:
 
     $ make deps
@@ -28,10 +31,9 @@ Push the netcfg
 
     $ make netcfg  
     
-Run the ONOS CLI, activate four apps, and install routes 
+Run the ONOS CLI and install a route to the UEs
  
     $ make onos-cli  
-    onos> app activate fabric segmentrouting netcfghostprovider org.onosproject.protocols.grpc
     onos> route-add 17.0.0.0/24 140.0.100.1  
 Build and load the UP4 app
 
@@ -39,16 +41,20 @@ Build and load the UP4 app
     $ make app-load
 Using the ONOS CLI, install table entries for uplink packets:
 
-    onos> up4:s1u-insert device:leaf1 140.0.100.254  
-    onos> up4:pdr-insert device:leaf1 1 17.0.0.1 1 255 140.0.100.254  
-    onos> up4:far-insert device:leaf1 1 1     
+    onos> up4:s1u-insert 140.0.100.254  
+    onos> up4:pdr-insert 1 17.0.0.1 1 255 140.0.100.254  
+    onos> up4:far-insert 1 1     
 And for downlink:
 
-    onos> up4:ue-pool-insert device:leaf1 17.0.0.0/24  
-    onos> up4:pdr-insert device:leaf1 1 17.0.0.1 2  
-    onos> up4:far-insert device:leaf1 1 2 255 140.0.100.254 140.0.100.1 
+    onos> up4:ue-pool-insert 17.0.0.0/24  
+    onos> up4:pdr-insert 1 17.0.0.1 2  
+    onos> up4:far-insert 1 2 255 140.0.100.254 140.0.100.1 
+    
+Next, go to the section on sending and receiving packets.
     
 ## Setting up a test using UP4 P4Runtime calls
+This is the second way to test the app, which uses both the northbound and southbound.
+
 Download dependencies. This only needs to be done once:
 
     $ make deps
@@ -65,7 +71,7 @@ View ONOS logs
     
     $ make onos-logs
     
-Wait for ONOS to warm up. Then, activate apps, install routes, load the UP4 app, and push the netcfg
+Wait for ONOS to warm up. Then install routes, load the UP4 app, and push the netcfg
 with a single command
 
     $ make onos-config

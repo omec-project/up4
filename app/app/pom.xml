@@ -200,8 +200,8 @@
                 <configuration>
                     <instructions>
                         <Karaf-Commands>org.omecproject.up4.cli</Karaf-Commands>
-                        <!-- The hardcoded import version number can be changed to ${onos.version} once this app
-                         ~ moves to an X.Y.Z onos version (instead of a X.Y.Z.SNAPSHOT version) -->
+                        <!-- If using an ONOS X.Y.Z.SNAPSHOT version during development, the variable
+                           ~ ${onos.version} must be changed to the literal X.Y.Z -->
                         <Import-Package>com.google.protobuf;version=${onos.version},*</Import-Package>
                     </instructions>
                 </configuration>
