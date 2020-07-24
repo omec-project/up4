@@ -3,7 +3,7 @@
  ~ SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
  ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
   -->
-<app name="org.opencord.up4" origin="Open Networking Foundation"
+<app name="org.omecproject.up4" origin="Open Networking Foundation"
      version="${project.version}"
      category="default" url="http://onosproject.org" title="UP4"
      featuresRepo="mvn:${project.groupId}/${project.artifactId}/${project.version}/xml/features"
