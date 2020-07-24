@@ -35,6 +35,12 @@ public class Up4ServerConfig extends Config<ApplicationId> {
         return get(P4RUNTIME_DEVICE_ID, -1);
     }
 
+    /**
+     * Set the deviceID that the UP4 logical switch p4runtime server will expect clients to use.
+     *
+     * @param deviceId UP4 logical switch's P4runtime Device ID
+     * @return an updated instance of this config
+     */
     public Up4ServerConfig setP4RuntimeDeviceId(int deviceId) {
         return (Up4ServerConfig) setOrClear(P4RUNTIME_DEVICE_ID, deviceId);
     }
@@ -48,7 +54,13 @@ public class Up4ServerConfig extends Config<ApplicationId> {
         return get(GRPC_PORT, -1);
     }
 
-    public Up4ServerConfig setGrpcPort(int deviceId) {
-        return (Up4ServerConfig) setOrClear(GRPC_PORT, deviceId);
+    /**
+     * Set the port on which the p4runtime gRPC server of the logical UP4 switch will listen for clients.
+     *
+     * @param grpcPort p4runtime server port
+     * @return an updated instance of this config
+     */
+    public Up4ServerConfig setGrpcPort(int grpcPort) {
+        return (Up4ServerConfig) setOrClear(GRPC_PORT, grpcPort);
     }
 }

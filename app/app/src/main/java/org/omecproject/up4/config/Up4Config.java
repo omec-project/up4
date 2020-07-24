@@ -36,7 +36,7 @@ public class Up4Config extends Config<ApplicationId> {
     }
 
     /**
-     * Gets the UP4 device ID.
+     * Gets the UP4 ONOS device ID.
      *
      * @return UP4 device ID
      */
@@ -44,6 +44,12 @@ public class Up4Config extends Config<ApplicationId> {
         return DeviceId.deviceId(object.path(DEVICE_ID).asText());
     }
 
+    /**
+     * Set the UP4 ONOS device ID.
+     *
+     * @param deviceId device ID
+     * @return an updated instance of this config
+     */
     public Up4Config setUp4DeviceId(String deviceId) {
         return (Up4Config) setOrClear(DEVICE_ID, deviceId);
     }
@@ -63,7 +69,7 @@ public class Up4Config extends Config<ApplicationId> {
      * Set the S1U IPv4 prefix of the device.
      *
      * @param prefix The S1U IPv4 prefix to assign
-     * @return the config of the device
+     * @return an updated instance of this config
      */
     public Up4Config setS1uPrefix(String prefix) {
         return (Up4Config) setOrClear(S1U_PREFIX, prefix);
