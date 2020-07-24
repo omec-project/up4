@@ -16,12 +16,14 @@ public interface Up4Service {
 
     /**
      * Grab a reference to the current UpfProgrammable, for installing PDRs, FARs and Interfaces.
+     *
      * @return a reference to the current UpfProgrammable
      */
     UpfProgrammable getUpfProgrammable();
 
     /**
      * Is the UPF device currently available in ONOS?
+     *
      * @return true if the device is available and false otherwise
      */
     boolean upfProgrammableAvailable();

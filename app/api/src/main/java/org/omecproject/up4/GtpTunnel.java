@@ -6,6 +6,7 @@ package org.omecproject.up4;
 
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -53,22 +54,27 @@ public final class GtpTunnel {
             this.dst = null;
             this.teid = null;
         }
+
         public GtpTunnelBuilder setSrc(Ip4Address src) {
             this.src = src;
             return this;
         }
+
         public GtpTunnelBuilder setDst(Ip4Address dst) {
             this.dst = dst;
             return this;
         }
+
         public GtpTunnelBuilder setTeid(ImmutableByteSequence teid) {
             this.teid = teid;
             return this;
         }
+
         public GtpTunnelBuilder setTeid(long teid) {
             this.teid = ImmutableByteSequence.copyFrom(teid);
             return this;
         }
+
         public GtpTunnel build() {
             checkNotNull(src, "Tunnel source address cannot be null");
             checkNotNull(dst, "Tunnel destination address cannot be null");

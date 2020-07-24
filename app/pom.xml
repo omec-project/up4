@@ -27,7 +27,7 @@
 
     <groupId>org.omecproject</groupId>
     <artifactId>up4</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <description>UP4 Control app</description>

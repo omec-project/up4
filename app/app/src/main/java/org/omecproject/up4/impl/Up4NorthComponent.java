@@ -49,8 +49,8 @@ import p4.v1.P4RuntimeOuterClass;
 import java.io.IOException;
 import java.net.URL;
 
-import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
 import static org.omecproject.up4.AppConstants.PIPECONF_ID;
+import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
 
 
 /* TODO: listen for netcfg changes. If the grpc port in the netcffg is different from the default,
@@ -59,30 +59,20 @@ import static org.omecproject.up4.AppConstants.PIPECONF_ID;
 
 @Component(immediate = true)
 public class Up4NorthComponent {
-    private final Logger log = LoggerFactory.getLogger(getClass());
-
-
     private static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
-
+    private final Logger log = LoggerFactory.getLogger(getClass());
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected DeviceService deviceService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected ComponentConfigService cfgService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected CoreService coreService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected Up4Service up4Service;
     private Server server;
     private P4InfoOuterClass.P4Info p4Info;
     private long pipeconfCookie = 0xbeefbeef;
-
     private PiPipeconf pipeconf;
-
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected DeviceService deviceService;
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected ComponentConfigService cfgService;
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected CoreService coreService;
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected Up4Service up4Service;
-
 
     @Activate
     protected void activate() {
@@ -135,6 +125,7 @@ public class Up4NorthComponent {
 
     /**
      * Translate the given logical pipeline table entry to a Up4Service entry deletion call.
+     *
      * @param entry The logical table entry to be deleted
      */
     private void translateAndDelete(PiTableEntry entry) {
@@ -165,6 +156,7 @@ public class Up4NorthComponent {
 
     /**
      * Translate the given logical pipeline table entry to a Up4Service entry insertion call.
+     *
      * @param entry The logical table entry to be inserted
      */
     private void translateAndInsert(PiTableEntry entry) {
@@ -215,6 +207,7 @@ public class Up4NorthComponent {
          * controller. The streamChannel is used for master/slave arbitration. Currently this implementation does not
          * track a master, and blindly tells every controller that they are the master as soon as they send an
          * arbitration request. We also do not yet handle anything except arbitration requests.
+         *
          * @param responseObserver The thing that is fed responses to arbitration requests.
          * @return A thing that will be fed arbitration requests.
          */
@@ -267,7 +260,8 @@ public class Up4NorthComponent {
          * Receives a pipeline config from a client. Discards all but the p4info file and cookie, and compares the
          * received p4info to the already present hardcoded p4info. If the two match, the cookie is stored and a
          * success response is sent. If they do not, the cookie is disarded and an error is reported.
-         * @param request A request containing a p4info and cookie
+         *
+         * @param request          A request containing a p4info and cookie
          * @param responseObserver The thing that is fed a response to the config request.
          */
         @Override
@@ -291,7 +285,8 @@ public class Up4NorthComponent {
 
         /**
          * Returns the UP4 logical switch p4info and cookie.
-         * @param request A request for a forwarding pipeline config
+         *
+         * @param request          A request for a forwarding pipeline config
          * @param responseObserver The thing that is fed the pipeline config response.
          */
         @Override
@@ -299,19 +294,20 @@ public class Up4NorthComponent {
                                                 StreamObserver<P4RuntimeOuterClass.GetForwardingPipelineConfigResponse>
                                                         responseObserver) {
             responseObserver.onNext(
-                P4RuntimeOuterClass.GetForwardingPipelineConfigResponse.newBuilder()
-                    .setConfig(P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
-                        .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
-                                .setCookie(pipeconfCookie))
-                        .setP4Info(p4Info)
-                        .build())
-                    .build());
+                    P4RuntimeOuterClass.GetForwardingPipelineConfigResponse.newBuilder()
+                            .setConfig(P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
+                                    .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
+                                            .setCookie(pipeconfCookie))
+                                    .setP4Info(p4Info)
+                                    .build())
+                            .build());
             responseObserver.onCompleted();
         }
 
         /**
          * Writes entities to the logical UP4 switch. Currently only supports direct table entries.
-         * @param request A request containing entities to be written
+         *
+         * @param request          A request containing entities to be written
          * @param responseObserver The thing that is fed a response once writing has concluded.
          */
         @Override
@@ -364,7 +360,8 @@ public class Up4NorthComponent {
 
         /**
          * Reads entities from the logical UP4 switch. Currently only supports counter reads.
-         * @param request A request containing one or more entities to be read.
+         *
+         * @param request          A request containing one or more entities to be read.
          * @param responseObserver Thing that will be fed descriptions of the requested entities.
          */
         @Override
@@ -408,17 +405,17 @@ public class Up4NorthComponent {
                 }
 
                 responseObserver.onNext(P4RuntimeOuterClass.ReadResponse.newBuilder()
-                    .addEntities(P4RuntimeOuterClass.Entity.newBuilder()
-                        .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder()
-                            .setCounterId(entity.getCounterEntry().getCounterId())
-                            .setData(P4RuntimeOuterClass.CounterData.newBuilder()
-                                .setByteCount(bytes)
-                                .setPacketCount(pkts)
+                        .addEntities(P4RuntimeOuterClass.Entity.newBuilder()
+                                .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder()
+                                        .setCounterId(entity.getCounterEntry().getCounterId())
+                                        .setData(P4RuntimeOuterClass.CounterData.newBuilder()
+                                                .setByteCount(bytes)
+                                                .setPacketCount(pkts)
+                                                .build())
+                                        .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(counterIndex))
+                                        .build())
                                 .build())
-                            .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(counterIndex))
-                            .build())
-                        .build())
-                    .build());
+                        .build());
                 log.info("Responded to {} counter read request for counter ID {}.", gress, counterIndex);
             }
 

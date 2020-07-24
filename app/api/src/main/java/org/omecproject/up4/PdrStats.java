@@ -24,7 +24,7 @@ public final class PdrStats {
     }
 
     private PdrStats(int cellId, long ingressPkts, long ingressBytes,
-                    long egressPkts, long egressBytes) {
+                     long egressPkts, long egressBytes) {
         this.cellId = cellId;
         this.ingressPkts = ingressPkts;
         this.ingressBytes = ingressBytes;
@@ -35,15 +35,19 @@ public final class PdrStats {
     public int getCellId() {
         return cellId;
     }
+
     public long getIngressPkts() {
         return ingressPkts;
     }
+
     public long getEgressPkts() {
         return egressPkts;
     }
+
     public long getIngressBytes() {
         return ingressBytes;
     }
+
     public long getEgressBytes() {
         return egressBytes;
     }
@@ -58,6 +62,7 @@ public final class PdrStats {
         private long ingressBytes;
         private long egressPkts;
         private long egressBytes;
+
         public Builder() {
             this.ingressPkts = 0;
             this.ingressBytes = 0;

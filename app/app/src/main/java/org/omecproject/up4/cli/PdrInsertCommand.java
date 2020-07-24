@@ -22,11 +22,11 @@ import org.onosproject.net.device.DeviceService;
  */
 @Service
 @Command(scope = "up4", name = "pdr-insert",
-         description = "Insert a packet detection rule into the UP4 dataplane")
+        description = "Insert a packet detection rule into the UP4 dataplane")
 public class PdrInsertCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "uri", description = "Device ID",
-              required = true, multiValued = false)
+            required = true, multiValued = false)
     @Completion(DeviceIdCompleter.class)
     String uri = null;
 

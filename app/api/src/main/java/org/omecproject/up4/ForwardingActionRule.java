@@ -6,6 +6,7 @@ package org.omecproject.up4;
 
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -28,7 +29,7 @@ public final class ForwardingActionRule {
     private final Type type;  // Is the FAR Uplink, Downlink, etc
 
     private ForwardingActionRule(ImmutableByteSequence sessionId, Integer farId, Boolean drop, Boolean notifyCp,
-                                GtpTunnel tunnelDesc, Type type) {
+                                 GtpTunnel tunnelDesc, Type type) {
         // All match keys are required
         this.sessionId = sessionId;
         this.farId = farId;
@@ -75,6 +76,7 @@ public final class ForwardingActionRule {
     /**
      * Instances created as a result of DELETE write requests will not have action parameters, only match keys.
      * This method should be used to avoid null pointer exceptions in those instances.
+     *
      * @return true if this instance has FAR action parameters, false otherwise.
      */
     public boolean hasActionParameters() {
@@ -83,6 +85,7 @@ public final class ForwardingActionRule {
 
     /**
      * Is this an FAR which sends packets in the uplink direction?
+     *
      * @return true if FAR is uplink
      */
     public boolean isUplink() {
@@ -91,6 +94,7 @@ public final class ForwardingActionRule {
 
     /**
      * Is this a FAR which sends packets in the downlink direction?
+     *
      * @return true is FAR is downlink
      */
     public boolean isDownlink() {
@@ -116,6 +120,7 @@ public final class ForwardingActionRule {
     /**
      * A description of the tunnel that this FAR will encapsulate packets with, if it is a downlink FAR. If the FAR
      * is uplink, there will be no such tunnel and this method wil return null.
+     *
      * @return A GtpTunnel instance containing a tunnel sourceIP, destIP, and GTPU TEID, or null if the FAR is uplink.
      */
     public GtpTunnel tunnelDesc() {
@@ -200,10 +205,10 @@ public final class ForwardingActionRule {
 
         public Builder withTunnel(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid) {
             return this.withTunnel(GtpTunnel.builder()
-                                            .setSrc(src)
-                                            .setDst(dst)
-                                            .setTeid(teid)
-                                            .build());
+                    .setSrc(src)
+                    .setDst(dst)
+                    .setTeid(teid)
+                    .build());
         }
 
         public ForwardingActionRule build() {
