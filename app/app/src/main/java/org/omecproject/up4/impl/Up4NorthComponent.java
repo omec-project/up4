@@ -148,7 +148,7 @@ public class Up4NorthComponent {
                 log.warn("Failed to parse UP4 FAR in delete write! Error was {}", e.getMessage());
             }
         } else {
-            log.warn("Received unsupported table entry for table {} in UP4 delete request:", entry.table().id());
+            log.warn("Received unknown table entry for table {} in UP4 delete request:", entry.table().id());
         }
     }
 
@@ -420,5 +420,4 @@ public class Up4NorthComponent {
             responseObserver.onCompleted();
         }
     }
-
 }

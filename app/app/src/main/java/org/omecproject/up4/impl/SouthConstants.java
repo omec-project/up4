@@ -55,6 +55,4 @@ public final class SouthConstants {
     // hide default constructor
     private SouthConstants() {
     }
-
-
 }

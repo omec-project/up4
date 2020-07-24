@@ -55,5 +55,4 @@ public final class NorthConstants {
     // hide default constructor
     private NorthConstants() {
     }
-
 }

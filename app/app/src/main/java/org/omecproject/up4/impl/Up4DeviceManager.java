@@ -119,12 +119,7 @@ public class Up4DeviceManager implements Up4Service {
     }
 
 
-    /**
-     * Check if the device is registered and is a valid UPF dataplane.
-     *
-     * @param deviceId ID of the device to check
-     * @return True if the device is a valid UPF data plane, and False otherwise
-     */
+    @Override
     public boolean isUpfDevice(DeviceId deviceId) {
         final Device device = deviceService.getDevice(deviceId);
 
@@ -166,12 +161,12 @@ public class Up4DeviceManager implements Up4Service {
 
             upfProgrammable.cleanUp(appId);
             upfProgrammable.init(appId, deviceId);
-            upfInitialized.set(true);
 
             upfProgrammable.addS1uInterface(config.s1uPrefix().address());
             for (Ip4Prefix uePool : config.uePools()) {
                 upfProgrammable.addUePool(uePool);
             }
+            upfInitialized.set(true);
             log.info("UPF device setup successful!");
         }
     }
@@ -278,6 +273,4 @@ public class Up4DeviceManager implements Up4Service {
             return false;
         }
     }
-
-
 }

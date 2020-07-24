@@ -16,13 +16,14 @@ import org.onosproject.net.config.Config;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Class that represents the config expected from a UPF network configuration JSON block.
+ */
 public class Up4Config extends Config<ApplicationId> {
-    public static final String KEY = "up4";
-
+    // JSON keys to look for in the network config
+    public static final String KEY = "up4";  // base key that signals the presence of this config
     public static final String DEVICE_ID = "deviceId";
-
     public static final String UE_POOLS = "uePools";
-
     public static final String S1U_PREFIX = "s1uPrefix";
 
     @Override

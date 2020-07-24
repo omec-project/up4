@@ -8,12 +8,14 @@ package org.omecproject.up4.config;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.config.Config;
 
-
+/**
+ * Class that represents the config expected from a UP4 logical switch network configuration JSON block.
+ * Currently unused. Planned to be used soon
+ */
 public class Up4ServerConfig extends Config<ApplicationId> {
-    public static final String KEY = "up4server";
-
+    // JSON keys to look for in the network config
+    public static final String KEY = "up4server";  // base key that signals the presence of this config
     public static final String P4RUNTIME_DEVICE_ID = "p4RuntimeDeviceId";
-
     public static final String GRPC_PORT = "grpcPort";
 
     @Override

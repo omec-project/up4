@@ -20,6 +20,10 @@ import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 
 import java.util.Optional;
 
+/**
+ * Utility class for transforming PiTableEntries to classes more specific to the UPF pipelines, like
+ * PacketDetectionRule and ForwardingActionRule.
+ */
 public final class Up4Translator {
 
     protected static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
