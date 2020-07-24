@@ -122,7 +122,7 @@ _check:
 	sleep ${ONOS_BOOT_TIME}
 	make onos-config
 	sleep ${CONFIG_WAIT_TIME}
-	make p4rtsh-program
+	make p4rtsh-program && ([ $$? -eq 0 ] && echo "P4RTSH done!") || docker-compose logs onos
 	sleep 1
 	@echo "*** Sending downlink..."
 	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-downlink

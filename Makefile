@@ -31,6 +31,10 @@ clean:
 	-rm -rf p4src/build
 	-rm -rf ptf/*.log
 	-rm -rf ptf/*.pcap
+	-rm -rf .m2
+	-rm -rf app/target
+	-rm -rf app/app/target
+	-rm -rf app/api/target
 
 _prepare_app_build:
 	mkdir -p app/app/src/main/resources
@@ -42,7 +46,7 @@ local-app-build: _prepare_app_build
 app-build: _prepare_app_build
 	docker run -it --rm -v ${CURRENT_DIR}:/root -w /root/app \
 		maven:3.6.3-openjdk-11-slim \
-		bash -c "mvn clean install && \
+		bash -c "mvn clean install; \
 		chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
 
 # ci-verify is a build profile specified in onos-dependencies's pom.xml
