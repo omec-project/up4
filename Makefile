@@ -45,6 +45,14 @@ app-build: _prepare_app_build
 		bash -c "mvn clean install && \
 		chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
 
+# ci-verify is a build profile specified in onos-dependencies's pom.xml
+# It's used to run javadoc validation and other checks that should not
+# run on local build, but during CI.
+app-build-ci:
+	docker run -it --rm -v ${CURRENT_DIR}:/root -w /root/app \
+		maven:3.6.3-openjdk-11-slim \
+		bash -c "mvn -Pci-verify clean install && \
+		chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
 app-check:
 	cd app && make check
 

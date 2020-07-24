@@ -42,6 +42,9 @@ local-build:
 build:
 	cd .. && make app-build
 
+build-ci:
+	cd .. && make app-build-ci
+
 start:
 	$(info *** Starting ONOS and Mininet (topo-gtp.py)... )
 	@mkdir -p tmp/onos
