@@ -7,8 +7,8 @@ package org.omecproject.up4;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A single Packet Detection Rule (PDR), an entity described in the 3GPP specifications (although that does not mean
@@ -115,30 +115,51 @@ public final class PacketDetectionRule {
         return sessionId;
     }
 
+    /**
+     * @return The UE IP address that this PDR matches on
+     */
     public Ip4Address ueAddress() {
         return ueAddr;
     }
 
+    /**
+     * @return The GTP Tunnel ID that this PDR matches on
+     */
     public ImmutableByteSequence teid() {
         return teid;
     }
 
+    /**
+     * @return The GTP tunnel destination that this PDR matches on
+     */
     public Ip4Address tunnelDest() {
         return tunnelDst;
     }
 
+    /**
+     * @return The Counter CellID unique to this PDR
+     */
     public int counterId() {
         return ctrId;
     }
 
+    /**
+     * @return PFCP Session-Local FAR ID
+     */
     public int localFarId() {
         return farId;
     }
 
+    /**
+     * @param globalFarId Globally unique FAR ID
+     */
     public void setGlobalFarId(int globalFarId) {
         this.globalFarId = globalFarId;
     }
 
+    /**
+     * @return Globally unique FAR ID
+     */
     public int getGlobalFarId() {
         return globalFarId;
     }
@@ -158,46 +179,83 @@ public final class PacketDetectionRule {
         public Builder() {
         }
 
+        /**
+         * @param sessionId The ID of the PFCP session that produced this PDR
+         * @return This builder object
+         */
         public Builder withSessionId(ImmutableByteSequence sessionId) {
             this.sessionId = sessionId;
             return this;
         }
 
+        /**
+         * @param sessionId The ID of the PFCP session that produced this PDR
+         * @return This builder object
+         */
         public Builder withSessionId(long sessionId) {
             this.sessionId = ImmutableByteSequence.copyFrom(sessionId);
             return this;
         }
 
+        /**
+         * @param ueAddr The UE IP address that this PDR matches on
+         * @return This builder object
+         */
         public Builder withUeAddr(Ip4Address ueAddr) {
             this.ueAddr = ueAddr;
             return this;
         }
 
+        /**
+         * @param ctrId Index into the dataplane counter that this PDR should use to count packets and bytes
+         * @return This builder object
+         */
         public Builder withCounterId(int ctrId) {
             this.ctrId = ctrId;
             return this;
         }
 
+        /**
+         * @param farId The ID of the FAR that should apply to packets that this PDR matches
+         * @return This builder object
+         */
         public Builder withFarId(int farId) {
             this.farId = farId;
             return this;
         }
 
+        /**
+         * @param teid The GTP tunnel ID that this PDR matches on
+         * @return This builder object
+         */
         public Builder withTeid(int teid) {
             this.teid = ImmutableByteSequence.copyFrom(teid);
             return this;
         }
 
+        /**
+         * @param teid The GTP tunnel ID that this PDR matches on
+         * @return This builder object
+         */
         public Builder withTeid(ImmutableByteSequence teid) {
             this.teid = teid;
             return this;
         }
 
+        /**
+         * @param tunnelDst The GTP tunnel destination IP that this PDR matches on.
+         * @return This builder object
+         */
         public Builder withTunnelDst(Ip4Address tunnelDst) {
             this.tunnelDst = tunnelDst;
             return this;
         }
 
+        /**
+         * @param teid      The GTP tunnel ID that this PDR matches on
+         * @param tunnelDst The GTP tunnel destination IP that this PDR matches on.
+         * @return This builder object
+         */
         public Builder withTunnel(ImmutableByteSequence teid, Ip4Address tunnelDst) {
             this.teid = teid;
             this.tunnelDst = tunnelDst;

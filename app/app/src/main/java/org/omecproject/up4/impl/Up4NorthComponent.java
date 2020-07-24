@@ -9,9 +9,7 @@ import com.google.rpc.Status;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
-import org.omecproject.up4.AppConstants;
 import org.omecproject.up4.ForwardingActionRule;
-import org.omecproject.up4.NorthConstants;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
 import org.omecproject.up4.Up4Service;
@@ -49,7 +47,7 @@ import p4.v1.P4RuntimeOuterClass;
 import java.io.IOException;
 import java.net.URL;
 
-import static org.omecproject.up4.AppConstants.PIPECONF_ID;
+import static org.omecproject.up4.impl.AppConstants.PIPECONF_ID;
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
 
 

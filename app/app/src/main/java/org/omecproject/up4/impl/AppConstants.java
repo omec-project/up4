@@ -3,7 +3,7 @@
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 
-package org.omecproject.up4;
+package org.omecproject.up4.impl;
 
 import org.onosproject.net.pi.model.PiPipeconfId;
 

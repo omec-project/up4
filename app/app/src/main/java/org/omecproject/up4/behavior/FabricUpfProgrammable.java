@@ -5,7 +5,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
-import org.omecproject.up4.SouthConstants;
+import org.omecproject.up4.impl.SouthConstants;
 import org.omecproject.up4.UpfProgrammable;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
@@ -266,7 +266,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             return;
         }
 
-        int globalFarId = getGlobalFarId(far.sessionId(), far.localId());
+        int globalFarId = getGlobalFarId(far.sessionId(), far.localFarId());
 
         PiCriterion match = PiCriterion.builder()
                 .matchExact(SouthConstants.FAR_ID_KEY, globalFarId)
@@ -377,7 +377,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Override
     public void removeFar(ForwardingActionRule far) {
         log.info("Removing {}", far.toString());
-        int globalFarId = getGlobalFarId(far.sessionId(), far.localId());
+        int globalFarId = getGlobalFarId(far.sessionId(), far.localFarId());
 
         PiCriterion match = PiCriterion.builder()
                 .matchExact(SouthConstants.FAR_ID_KEY, globalFarId)

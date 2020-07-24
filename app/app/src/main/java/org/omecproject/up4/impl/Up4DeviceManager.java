@@ -4,7 +4,6 @@
  */
 package org.omecproject.up4.impl;
 
-import org.omecproject.up4.AppConstants;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.config.Up4Config;

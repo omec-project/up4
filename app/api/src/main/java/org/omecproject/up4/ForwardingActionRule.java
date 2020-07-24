@@ -7,8 +7,8 @@ package org.omecproject.up4;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A single Forwarding Action Rule (FAR), an entity described in the 3GPP specifications (although that does not mean
@@ -101,18 +101,30 @@ public final class ForwardingActionRule {
         return type == Type.DOWNLINK;
     }
 
+    /**
+     * @return The ID of the PFCP Session that produced this FAR
+     */
     public ImmutableByteSequence sessionId() {
         return sessionId;
     }
 
-    public int localId() {
+    /**
+     * @return The PFCP Session-local ID of the FAR that should apply to packets that match this PDR
+     */
+    public int localFarId() {
         return farId;
     }
 
+    /**
+     * @return True if this FAR drops packets, and false otherwise
+     */
     public boolean dropFlag() {
         return drop;
     }
 
+    /**
+     * @return true if this FAR notifies the control plane on receiving a packet, and false otherwise
+     */
     public boolean notifyCpFlag() {
         return notifyCp;
     }
@@ -127,6 +139,9 @@ public final class ForwardingActionRule {
         return tunnelDesc;
     }
 
+    /**
+     * @return The source IP of the GTP tunnel that this FAR will encapsulate packets with
+     */
     public Ip4Address tunnelSrc() {
         if (tunnelDesc == null) {
             return null;
@@ -134,6 +149,9 @@ public final class ForwardingActionRule {
         return tunnelDesc.src();
     }
 
+    /**
+     * @return The destination IP of the GTP tunnel that this FAR will encapsulate packets with
+     */
     public Ip4Address tunnelDst() {
         if (tunnelDesc == null) {
             return null;
@@ -141,6 +159,9 @@ public final class ForwardingActionRule {
         return tunnelDesc.dst();
     }
 
+    /**
+     * @return The Tunnel ID of the GTP tunnel that this FAR will encapsulate packets with
+     */
     public ImmutableByteSequence teid() {
         if (tunnelDesc == null) {
             return null;
@@ -167,42 +188,77 @@ public final class ForwardingActionRule {
             tunnelDesc = null;
         }
 
+        /**
+         * @param sessionId ID of the PFCP session that created this FAR
+         * @return This builder object
+         */
         public Builder withSessionId(ImmutableByteSequence sessionId) {
             this.sessionId = sessionId;
             return this;
         }
 
+        /**
+         * @param sessionId ID of the PFCP session that created this FAR
+         * @return This builder object
+         */
         public Builder withSessionId(long sessionId) {
             this.sessionId = ImmutableByteSequence.copyFrom(sessionId);
             return this;
         }
 
+        /**
+         * @param farId The PFCP Session-local ID of this FAR
+         * @return This builder object
+         */
         public Builder withFarId(int farId) {
             this.farId = farId;
             return this;
         }
 
+        /**
+         * @param drop     Flag specifying if this FAR drops traffic or not
+         * @param notifyCp Flag specifying if the control plane should be notified when this FAR is hit
+         * @return This builder object
+         */
         public Builder withFlags(boolean drop, boolean notifyCp) {
             this.drop = drop;
             this.notifyCp = notifyCp;
             return this;
         }
 
+        /**
+         * @param drop Flag specifying if this FAR drops traffic or not
+         * @return This builder object
+         */
         public Builder withDropFlag(boolean drop) {
             this.drop = drop;
             return this;
         }
 
+        /**
+         * @param notifyCp Flag specifying if the control plane should be notified when this FAR is hit
+         * @return This builder object
+         */
         public Builder withNotifyFlag(boolean notifyCp) {
             this.notifyCp = notifyCp;
             return this;
         }
 
+        /**
+         * @param tunnel The GTP tunnel that this FAR should encapsulate packets with
+         * @return This builder object
+         */
         public Builder withTunnel(GtpTunnel tunnel) {
             this.tunnelDesc = tunnel;
             return this;
         }
 
+        /**
+         * @param src  The Source IP of the GTP tunnel that this FAR should encapsulate packets with
+         * @param dst  The Destination IP of the GTP tunnel that this FAR should encapsulate packets with
+         * @param teid The Tunnel ID of the GTP tunnel that this FAR should encapsulate packets with
+         * @return This builder object
+         */
         public Builder withTunnel(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid) {
             return this.withTunnel(GtpTunnel.builder()
                     .setSrc(src)

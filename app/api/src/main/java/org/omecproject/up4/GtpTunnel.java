@@ -55,21 +55,37 @@ public final class GtpTunnel {
             this.teid = null;
         }
 
+        /**
+         * @param src The source IP address of the unidirectional GTP tunnel
+         * @return This builder object
+         */
         public GtpTunnelBuilder setSrc(Ip4Address src) {
             this.src = src;
             return this;
         }
 
+        /**
+         * @param dst The destination IP address of the unidirectional GTP tunnel
+         * @return This builder object
+         */
         public GtpTunnelBuilder setDst(Ip4Address dst) {
             this.dst = dst;
             return this;
         }
 
+        /**
+         * @param teid The tunnel identifier of this unidirectional GTP tunnel
+         * @return This builder object
+         */
         public GtpTunnelBuilder setTeid(ImmutableByteSequence teid) {
             this.teid = teid;
             return this;
         }
 
+        /**
+         * @param teid The tunnel identifier of this unidirectional GTP tunnel
+         * @return This builder object
+         */
         public GtpTunnelBuilder setTeid(long teid) {
             this.teid = ImmutableByteSequence.copyFrom(teid);
             return this;

@@ -1,7 +1,6 @@
 package org.omecproject.up4.impl;
 
 import org.omecproject.up4.ForwardingActionRule;
-import org.omecproject.up4.NorthConstants;
 import org.omecproject.up4.PacketDetectionRule;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
