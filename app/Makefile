@@ -103,10 +103,10 @@ onos-config:
 	make app-load
 
 app-load:
-	./onos-tools/onos-app localhost install! app/target/up4-app-1.0.0.oar
+	./onos-tools/onos-app localhost install! app/target/up4-app-1.0.0-SNAPSHOT.oar
 
 app-reload:
-	./onos-tools/onos-app localhost reinstall! app/target/up4-app-1.0.0.oar
+	./onos-tools/onos-app localhost reinstall! app/target/up4-app-1.0.0-SNAPSHOT.oar
 
 check-slow: ONOS_BOOT_TIME := 75
 check-slow: CONFIG_WAIT_TIME := 30
