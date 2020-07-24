@@ -6,6 +6,7 @@ package org.omecproject.up4;
 
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -30,7 +31,7 @@ public final class PacketDetectionRule {
     private int globalFarId; // The non-session-local ID of the FAR that should apply to packets if this PDR hits
 
     private PacketDetectionRule(ImmutableByteSequence sessionId, Integer ctrId, Integer farId, Ip4Address ueAddr,
-                               ImmutableByteSequence teid, Ip4Address tunnelDst, Type type) {
+                                ImmutableByteSequence teid, Ip4Address tunnelDst, Type type) {
         this.ueAddr = ueAddr;
         this.teid = teid;
         this.tunnelDst = tunnelDst;
@@ -85,6 +86,7 @@ public final class PacketDetectionRule {
     /**
      * Instances created as a result of DELETE write requests will not have action parameters, only match keys.
      * This method should be used to avoid null pointer exceptions in those instances.
+     *
      * @return true if this instance has PDR action parameters, false otherwise.
      */
     public boolean hasActionParameters() {
@@ -93,6 +95,7 @@ public final class PacketDetectionRule {
 
     /**
      * Is this a PDR matching on packets travelling in the uplink direction?
+     *
      * @return true if the PDR matches only uplink packets
      */
     public boolean isUplink() {
@@ -101,10 +104,11 @@ public final class PacketDetectionRule {
 
     /**
      * Is this a PDR matching on packets travelling in the downlink direction?
+     *
      * @return true if the PDR matches only downlink packets
      */
     public boolean isDownlink() {
-        return type == Type.DOWNLINK ||  type == Type.DOWNLINK_KEYS_ONLY;
+        return type == Type.DOWNLINK || type == Type.DOWNLINK_KEYS_ONLY;
     }
 
     public ImmutableByteSequence sessionId() {
@@ -214,7 +218,7 @@ public final class PacketDetectionRule {
             if (teid != null) {
                 if (sessionId != null) {
                     type = Type.UPLINK;
-                } else  {
+                } else {
                     type = Type.UPLINK_KEYS_ONLY;
                 }
             } else {

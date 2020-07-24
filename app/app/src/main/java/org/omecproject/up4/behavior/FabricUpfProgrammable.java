@@ -4,12 +4,13 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
+import org.omecproject.up4.PdrStats;
 import org.omecproject.up4.SouthConstants;
+import org.omecproject.up4.UpfProgrammable;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
 import org.onlab.util.KryoNamespace;
-import org.onosproject.store.serializers.KryoNamespaces;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.flow.DefaultFlowRule;
@@ -28,18 +29,11 @@ import org.onosproject.net.pi.runtime.PiCounterCellHandle;
 import org.onosproject.net.pi.runtime.PiCounterCellId;
 import org.onosproject.net.pi.service.PiPipeconfService;
 import org.onosproject.p4runtime.api.P4RuntimeClient;
+import org.onosproject.p4runtime.api.P4RuntimeController;
+import org.onosproject.store.serializers.KryoNamespaces;
+import org.onosproject.store.service.EventuallyConsistentMap;
 import org.onosproject.store.service.StorageService;
 import org.onosproject.store.service.WallClockTimestamp;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-
-import org.omecproject.up4.UpfProgrammable;
-import org.omecproject.up4.PdrStats;
-import org.onosproject.p4runtime.api.P4RuntimeController;
-import org.onosproject.store.service.EventuallyConsistentMap;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -48,52 +42,50 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+
 import static org.onosproject.net.pi.model.PiCounterType.INDIRECT;
 
 /**
  * Implementation of a UPF programmable device behavior.
  * TODO: this needs to be moved to
- *  onos/pipelines/fabric/impl/src/main/java/org/onosproject/pipelines/fabric/impl/behaviour/up4/
- *  and referenced as upfProgrammable = deviceService.getDevice(deviceId).as(UpfProgrammable.class);
+ * onos/pipelines/fabric/impl/src/main/java/org/onosproject/pipelines/fabric/impl/behaviour/up4/
+ * and referenced as upfProgrammable = deviceService.getDevice(deviceId).as(UpfProgrammable.class);
  */
 @Component(immediate = true,
-           service = {UpfProgrammable.class})
+        service = {UpfProgrammable.class})
 public class FabricUpfProgrammable implements UpfProgrammable {
-
-    private final Logger log = LoggerFactory.getLogger(getClass());
-
-    private EventuallyConsistentMap<Pair<ImmutableByteSequence, Integer>, Integer> globalFarIds;
 
     // This key is used to look up the last assigned global FAR ID in the globalFarIds map, for assigning
     // new global FAR IDs
     private static final Pair<ImmutableByteSequence, Integer> LAST_GLOBAL_FAR_ID_KEY
             = Pair.of(ImmutableByteSequence.ofZeros(1), 0);
-
-    DeviceId deviceId;
-    private ApplicationId appId;
     private static final int DEFAULT_PRIORITY = 128;
     private static final long DEFAULT_P4_DEVICE_ID = 1;
-
+    private final Logger log = LoggerFactory.getLogger(getClass());
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowRuleService flowRuleService;
-
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected P4RuntimeController controller;
-
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PiPipeconfService piPipeconfService;
-
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected StorageService storageService;
+    DeviceId deviceId;
+    private EventuallyConsistentMap<Pair<ImmutableByteSequence, Integer>, Integer> globalFarIds;
+    private ApplicationId appId;
 
     @Activate
     protected void activate() {
         KryoNamespace.Builder globalFarIdSerializer = KryoNamespace.newBuilder()
                 .register(KryoNamespaces.API)
                 .register(ImmutableByteSequence.class,
-                          ImmutablePair.class,
-                          Integer.class);
-        globalFarIds =  storageService.<Pair<ImmutableByteSequence, Integer>, Integer>eventuallyConsistentMapBuilder()
+                        ImmutablePair.class,
+                        Integer.class);
+        globalFarIds = storageService.<Pair<ImmutableByteSequence, Integer>, Integer>eventuallyConsistentMapBuilder()
                 .withName("global-far-ids")
                 .withSerializer(globalFarIdSerializer)
                 .withTimestampProvider((k, v) -> new WallClockTimestamp())
@@ -136,7 +128,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         // If one doesn't exist, compute a new one
         globalFarId = globalFarIds.compute(LAST_GLOBAL_FAR_ID_KEY,
                 (k, existingVal) -> {
-                    if  (existingVal == null) {
+                    if (existingVal == null) {
                         return 1;
                     } else {
                         return existingVal + 1;

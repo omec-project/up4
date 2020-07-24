@@ -3,6 +3,7 @@
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4;
+
 import org.onosproject.net.pi.model.PiActionId;
 import org.onosproject.net.pi.model.PiActionParamId;
 import org.onosproject.net.pi.model.PiCounterId;
@@ -11,15 +12,9 @@ import org.onosproject.net.pi.model.PiTableId;
 
 public final class SouthConstants {
 
-    // hide default constructor
-    private SouthConstants() {
-    }
-
     // Counters
     public static final PiCounterId INGRESS_COUNTER_ID = PiCounterId.of("FabricIngress.spgw_ingress.pdr_counter");
     public static final PiCounterId EGRESS_COUNTER_ID = PiCounterId.of("FabricEgress.spgw_egress.pdr_counter");
-
-
     // Table names
     //   interface lookup
     public static final PiTableId IFACE_UPLINK_TBL = PiTableId.of("FabricIngress.spgw_ingress.uplink_filter_table");
@@ -29,8 +24,6 @@ public final class SouthConstants {
     public static final PiTableId PDR_DOWNLINK_TBL = PiTableId.of("FabricIngress.spgw_ingress.downlink_pdr_lookup");
     //   far tables
     public static final PiTableId FAR_TBL = PiTableId.of("FabricIngress.spgw_ingress.far_lookup");
-
-
     // Action names
     public static final PiActionId NO_ACTION = PiActionId.of("nop");
     public static final PiActionId LOAD_PDR = PiActionId.of("FabricIngress.spgw_ingress.set_pdr_attributes");
@@ -38,8 +31,6 @@ public final class SouthConstants {
             PiActionId.of("FabricIngress.spgw_ingress.load_normal_far_attributes");
     public static final PiActionId LOAD_FAR_TUNNEL =
             PiActionId.of("FabricIngress.spgw_ingress.load_tunnel_far_attributes");
-
-
     // Match key names
     //   interface lookup
     public static final PiMatchFieldId IFACE_UPLINK_KEY = PiMatchFieldId.of("gtp_ipv4_dst");
@@ -50,8 +41,6 @@ public final class SouthConstants {
     public static final PiMatchFieldId TUNNEL_DST_KEY = PiMatchFieldId.of("tunnel_ipv4_dst");
     //   fars
     public static final PiMatchFieldId FAR_ID_KEY = PiMatchFieldId.of("far_id");
-
-
     // Action parameter names
     //   interface lookup
     //   pdrs
@@ -63,8 +52,9 @@ public final class SouthConstants {
     public static final PiActionParamId TEID_PARAM = PiActionParamId.of("teid");
     public static final PiActionParamId TUNNEL_SRC_PARAM = PiActionParamId.of("tunnel_src_addr");
     public static final PiActionParamId TUNNEL_DST_PARAM = PiActionParamId.of("tunnel_dst_addr");
-
-
+    // hide default constructor
+    private SouthConstants() {
+    }
 
 
 }

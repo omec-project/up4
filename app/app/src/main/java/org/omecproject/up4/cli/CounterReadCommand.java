@@ -21,11 +21,11 @@ import org.onosproject.net.device.DeviceService;
  */
 @Service
 @Command(scope = "up4", name = "ctr-read",
-         description = "Read a PDR counter")
+        description = "Read a PDR counter")
 public class CounterReadCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "uri", description = "Device ID",
-              required = true, multiValued = false)
+            required = true, multiValued = false)
     @Completion(DeviceIdCompleter.class)
     String uri = null;
 

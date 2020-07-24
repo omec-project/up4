@@ -83,10 +83,10 @@ public class FarInsertCommand extends AbstractShellCommand {
             Ip4Address tunnelDst = Ip4Address.valueOf(this.tunnelDst);
             Ip4Address tunnelSrc = Ip4Address.valueOf(this.tunnelSrc);
             GtpTunnel tunnel = GtpTunnel.builder()
-                                        .setSrc(tunnelSrc)
-                                        .setDst(tunnelDst)
-                                        .setTeid(teid)
-                                        .build();
+                    .setSrc(tunnelSrc)
+                    .setDst(tunnelDst)
+                    .setTeid(teid)
+                    .build();
 
             farBuilder.withTunnel(tunnel);
         }

@@ -3,6 +3,7 @@
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4;
+
 import org.onosproject.net.pi.model.PiActionId;
 import org.onosproject.net.pi.model.PiActionParamId;
 import org.onosproject.net.pi.model.PiCounterId;
@@ -10,34 +11,23 @@ import org.onosproject.net.pi.model.PiMatchFieldId;
 import org.onosproject.net.pi.model.PiTableId;
 
 public final class NorthConstants {
-    // hide default constructor
-    private NorthConstants() {
-    }
-
     // Counters
     public static final PiCounterId INGRESS_COUNTER_ID = PiCounterId.of("PreQosPipe.pre_qos_pdr_counter");
     public static final PiCounterId EGRESS_COUNTER_ID = PiCounterId.of("PostQosPipe.post_qos_pdr_counter");
-
     // P4 enums
     public static final int DIRECTION_UPLINK = 1;
     public static final int DIRECTION_DOWNLINK = 2;
     public static final int IFACE_ACCESS = 1;
     public static final int IFACE_CORE = 2;
-
-
     // Table names
     public static final PiTableId IFACE_TBL = PiTableId.of("PreQosPipe.source_iface_lookup");
     public static final PiTableId PDR_TBL = PiTableId.of("PreQosPipe.pdrs");
     public static final PiTableId FAR_TBL = PiTableId.of("PreQosPipe.load_far_attributes");
-
-
     // Action names
     public static final PiActionId LOAD_IFACE = PiActionId.of("PreQosPipe.set_source_iface");
     public static final PiActionId LOAD_PDR = PiActionId.of("PreQosPipe.set_pdr_attributes");
     public static final PiActionId LOAD_FAR_TUNNEL = PiActionId.of("PreQosPipe.load_tunnel_far_attributes");
     public static final PiActionId LOAD_FAR_NORMAL = PiActionId.of("PreQosPipe.load_normal_far_attributes");
-
-
     // Match key names
     //   interface lookup table
     public static final PiMatchFieldId IFACE_DST_PREFIX_KEY = PiMatchFieldId.of("ipv4_dst_prefix");
@@ -49,8 +39,6 @@ public final class NorthConstants {
     //   far table
     public static final PiMatchFieldId FAR_ID_KEY = PiMatchFieldId.of("far_id");
     public static final PiMatchFieldId SESSION_ID_KEY = PiMatchFieldId.of("session_id");
-
-
     // Action parameter names
     //   interface lookup table
     public static final PiActionParamId DIRECTION = PiActionParamId.of("direction");
@@ -64,5 +52,8 @@ public final class NorthConstants {
     public static final PiActionParamId TUNNEL_DST_PARAM = PiActionParamId.of("dst_addr");
     public static final PiActionParamId DROP_FLAG = PiActionParamId.of("needs_dropping");
     public static final PiActionParamId NOTIFY_FLAG = PiActionParamId.of("notify_cp");
+    // hide default constructor
+    private NorthConstants() {
+    }
 
 }

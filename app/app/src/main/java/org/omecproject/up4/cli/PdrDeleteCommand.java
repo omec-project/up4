@@ -9,24 +9,24 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Completion;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.PacketDetectionRule;
+import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceService;
-import org.omecproject.up4.Up4Service;
 
 /**
  * UP4 PDR deletion command.
  */
 @Service
 @Command(scope = "up4", name = "pdr-delete",
-         description = "Delete a packet detection rule from the UP4 dataplane")
+        description = "Delete a packet detection rule from the UP4 dataplane")
 public class PdrDeleteCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "uri", description = "Device ID",
-              required = true, multiValued = false)
+            required = true, multiValued = false)
     @Completion(DeviceIdCompleter.class)
     String uri = null;
 

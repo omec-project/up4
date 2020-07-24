@@ -4,6 +4,7 @@
  */
 
 package org.omecproject.up4.config;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.collect.ImmutableList;
@@ -49,6 +50,7 @@ public class Up4Config extends Config<ApplicationId> {
 
     /**
      * Get the S1U IPv4 prefix assigned to the device. Or null if not configured.
+     *
      * @return The S1U IPv4 prefix assigned to the device
      */
     public Ip4Prefix s1uPrefix() {
@@ -58,6 +60,7 @@ public class Up4Config extends Config<ApplicationId> {
 
     /**
      * Set the S1U IPv4 prefix of the device.
+     *
      * @param prefix The S1U IPv4 prefix to assign
      * @return the config of the device
      */
@@ -67,6 +70,7 @@ public class Up4Config extends Config<ApplicationId> {
 
     /**
      * Gets the list of UE IPv4 address pools assigned to the device. Or null if not configured.
+     *
      * @return UE IPv4 address pools assigned to the device
      */
     public List<Ip4Prefix> uePools() {

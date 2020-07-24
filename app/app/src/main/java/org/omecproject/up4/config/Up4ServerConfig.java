@@ -4,6 +4,7 @@
  */
 
 package org.omecproject.up4.config;
+
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.config.Config;
 

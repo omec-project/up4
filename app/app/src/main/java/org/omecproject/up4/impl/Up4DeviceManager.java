@@ -5,8 +5,8 @@
 package org.omecproject.up4.impl;
 
 import org.omecproject.up4.AppConstants;
-import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.config.Up4Config;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
@@ -37,45 +37,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FACTORY;
 
 
-
 /**
  * Draft UP4 ONOS application component.
  */
 @Component(immediate = true,
-           service = {Up4Service.class})
+        service = {Up4Service.class})
 public class Up4DeviceManager implements Up4Service {
 
     private static final long DEFAULT_P4_DEVICE_ID = 1;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
-    private ApplicationId appId;
     private final AtomicBoolean upfInitialized = new AtomicBoolean(false);
-    private InternalDeviceListener deviceListener;
-    private InternalConfigListener netCfgListener;
-    private UpfProgrammable upfProgrammable;
-    private DeviceId upfDeviceId;
-
-    private Up4Config config;
-
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected NetworkConfigRegistry netCfgService;
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected CoreService coreService;
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected FlowRuleService flowRuleService;
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected PiPipeconfService piPipeconfService;
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected DeviceService deviceService;
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected UpfProgrammable upfProgrammableService;
-
     private final ConfigFactory<ApplicationId, Up4Config> appConfigFactory = new ConfigFactory<>(
             APP_SUBJECT_FACTORY,
             Up4Config.class,
@@ -86,13 +58,30 @@ public class Up4DeviceManager implements Up4Service {
             return new Up4Config();
         }
     };
-
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected NetworkConfigRegistry netCfgService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected CoreService coreService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected FlowRuleService flowRuleService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected PiPipeconfService piPipeconfService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected DeviceService deviceService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected UpfProgrammable upfProgrammableService;
+    private ApplicationId appId;
+    private InternalDeviceListener deviceListener;
+    private InternalConfigListener netCfgListener;
+    private UpfProgrammable upfProgrammable;
+    private DeviceId upfDeviceId;
+    private Up4Config config;
 
     @Activate
     protected void activate() {
         log.info("Starting...");
         appId = coreService.registerApplication(AppConstants.APP_NAME,
-                                                () -> log.info("Periscope down."));
+                () -> log.info("Periscope down."));
 
         deviceListener = new InternalDeviceListener();
         netCfgListener = new InternalConfigListener();
@@ -280,6 +269,7 @@ public class Up4DeviceManager implements Up4Service {
                     break;
             }
         }
+
         @Override
         public boolean isRelevant(NetworkConfigEvent event) {
             if (event.configClass().equals(Up4Config.class)) {
@@ -289,8 +279,6 @@ public class Up4DeviceManager implements Up4Service {
             return false;
         }
     }
-
-
 
 
 }

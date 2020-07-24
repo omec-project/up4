@@ -23,23 +23,13 @@ import java.util.Optional;
 
 public final class Up4Translator {
 
+    protected static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
+
     /**
      * Hidden constructor for utility class.
      */
-    private Up4Translator() {}
-
-    static class Up4TranslationException extends Exception {
-        /**
-         * Creates a new exception for the given message.
-         *
-         * @param message message
-         */
-        public Up4TranslationException(String message) {
-            super(message);
-        }
+    private Up4Translator() {
     }
-
-    protected static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
 
     protected static ImmutableByteSequence getFieldValue(PiTableEntry entry, PiMatchFieldId fieldId)
             throws Up4TranslationException {
@@ -199,7 +189,7 @@ public final class Up4Translator {
     }
 
     public static ForwardingActionRule piEntryToFar(PiTableEntry entry)
-        throws Up4TranslationException {
+            throws Up4TranslationException {
         // First get the match keys
         var farBuilder = ForwardingActionRule.builder()
                 .withFarId(byteSeqToInt(getFieldValue(entry, NorthConstants.FAR_ID_KEY)))
@@ -226,5 +216,16 @@ public final class Up4Translator {
 
     public static Ip4Prefix piEntryToInterfacePrefix(PiTableEntry entry) {
         return getFieldPrefix(entry, NorthConstants.IFACE_DST_PREFIX_KEY);
+    }
+
+    static class Up4TranslationException extends Exception {
+        /**
+         * Creates a new exception for the given message.
+         *
+         * @param message message
+         */
+        public Up4TranslationException(String message) {
+            super(message);
+        }
     }
 }
