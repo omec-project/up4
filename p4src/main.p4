@@ -90,7 +90,6 @@ control Routing(inout parsed_headers_t    hdr,
         std_meta.egress_spec = egress_port;
         hdr.ethernet.src_addr = hdr.ethernet.dst_addr;
         hdr.ethernet.dst_addr = dst_mac;
-        hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
     }
 
 
@@ -111,15 +110,18 @@ control Routing(inout parsed_headers_t    hdr,
     }
 
     apply {
-        // Normalize IP address for routing table
+        // Normalize IP address for routing table, and decrement TTL
         // TODO: find a better alternative to this hack
         if (hdr.outer_ipv4.isValid()) {
             local_meta.next_hop_ip = hdr.outer_ipv4.dst_addr;
+            hdr.outer_ipv4.ttl = hdr.outer_ipv4.ttl - 1;
         } else if (hdr.ipv4.isValid()){
             local_meta.next_hop_ip = hdr.ipv4.dst_addr;
+            hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
+            
         }
 
-        if (hdr.ipv4.ttl == 1) {
+        if (hdr.ipv4.ttl == 0) {
             drop();
         }
         else {

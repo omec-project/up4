@@ -10,7 +10,7 @@ jobs:
     machine: true
     steps:
       - checkout
-      - run: cd app && make deps build check
+      - run: cd app && make deps build-ci check-slow
 
 workflows:
   main:

@@ -26,14 +26,14 @@ exitOnSuccess = False
 pktSendCount = None
 
 
-def prep_brief_test():
+def prep_brief_test(timeout):
     global pktSendCount
     global exitOnSuccess
     exitOnSuccess = True
     pktSendCount = 5
-    # wait max 10 seconds or exit
+    # wait timeout seconds or exit
     signal.signal(signal.SIGALRM, handle_timeout)
-    signal.alarm(TIMEOUT)
+    signal.alarm(timeout)
 
 
 def send_gtp():
@@ -116,13 +116,19 @@ if __name__ == "__main__":
         "recv-udp": sniff_udp
     }
 
-    usage = "usage: %s <%s> [-e]" % (sys.argv[0], '|'.join(funcs.keys()))
+    usage = "usage: %s <%s> [-t <timeout>]" % (sys.argv[0], '|'.join(funcs.keys()))
 
     command = sys.argv[1] if len(sys.argv) > 1 else None
 
     if len(sys.argv) > 2:
-        if sys.argv[2] == '-e':
-            prep_brief_test()
+        if sys.argv[2] == '-t':
+            try:
+                timeout = int(sys.argv[3])
+                prep_brief_test(timeout)
+            except:
+                print("Bad or no timeout provided with -t flag")
+                print(usage)
+                exit(1)
         else:
             print(usage)
             exit(1)

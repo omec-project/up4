@@ -2,8 +2,10 @@
 #
 # SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
 
-mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
-curr_dir := $(patsubst %/,%,$(dir $(mkfile_path)))
+CURRENT_UID              := $(shell id -u)
+CURRENT_GID              := $(shell id -g)
+MKFILE_PATH              := $(abspath $(lastword $(MAKEFILE_LIST)))
+CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 
 main_file := p4src/main.p4
 
@@ -29,23 +31,39 @@ clean:
 	-rm -rf p4src/build
 	-rm -rf ptf/*.log
 	-rm -rf ptf/*.pcap
+	-rm -rf .m2
+	-rm -rf app/target
+	-rm -rf app/app/target
+	-rm -rf app/api/target
 
-local-app-build:
-	@mkdir -p app/src/main/resources
-	cp p4src/build/p4info.txt app/src/main/resources/
+_prepare_app_build:
+	mkdir -p app/app/src/main/resources
+	cp p4src/build/p4info.txt app/app/src/main/resources/
+
+local-app-build: _prepare_app_build
 	cd app && mvn clean install
 
-app-build:
-	@mkdir -p app/src/main/resources
-	cp p4src/build/p4info.txt app/src/main/resources/
-	docker run -it --rm -v ${HOME}/.m2:/root/.m2 \
-		-v ${PWD}:/root/up4 -w /root/up4/app maven:3.6.3-openjdk-11-slim \
-		mvn clean install
+app-build: _prepare_app_build
+	docker run -it --rm -v ${CURRENT_DIR}:/root -w /root/app \
+		maven:3.6.3-openjdk-11-slim \
+		bash -c "mvn clean install; \
+		chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
+
+# ci-verify is a build profile specified in onos-dependencies's pom.xml
+# It's used to run javadoc validation and other checks that should not
+# run on local build, but during CI.
+app-build-ci: _prepare_app_build
+	docker run -it --rm -v ${CURRENT_DIR}:/root -w /root/app \
+		maven:3.6.3-openjdk-11-slim \
+		bash -c "mvn -Pci-verify clean install && \
+		chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
+app-check:
+	cd app && make check
 
 build: ${main_file}
 	$(info *** Building P4 program...)
 	@mkdir -p p4src/build
-	docker run --rm -v ${curr_dir}:/workdir -w /workdir ${P4C_IMG} \
+	docker run --rm -v ${CURRENT_DIR}:/workdir -w /workdir ${P4C_IMG} \
 		p4c-bm2-ss ${P4C_FLAGS} --arch v1model -o p4src/build/bmv2.json \
 		--p4runtime-files p4src/build/p4info.txt,p4src/build/p4info.bin \
 		--Wdisable=unsupported \
@@ -55,10 +73,10 @@ build: ${main_file}
 graph: ${main_file}
 	$(info *** Generating P4 program graphs...)
 	@mkdir -p p4src/build/graphs
-	docker run --rm -v ${curr_dir}:/workdir -w /workdir ${P4C_IMG} \
+	docker run --rm -v ${CURRENT_DIR}:/workdir -w /workdir ${P4C_IMG} \
 		p4c-graphs --graphs-dir p4src/build/graphs ${main_file}
 	for f in p4src/build/graphs/*.dot; do \
-		docker run --rm -v ${curr_dir}:/workdir -w /workdir ${P4C_IMG} \
+		docker run --rm -v ${CURRENT_DIR}:/workdir -w /workdir ${P4C_IMG} \
 			dot -Tpdf $${f} > $${f}.pdf; rm -f $${f}; \
 	done
 	@echo "*** Done! Graph files are in p4src/build/graphs"
@@ -72,4 +90,4 @@ check:
 	rm -rf .yapf/.git
 
 prettify: .yapf
-	PYTHONPATH=${curr_dir}/.yapf python .yapf/yapf -ir -e .yapf/ .
+	PYTHONPATH=${CURRENT_DIR}/.yapf python .yapf/yapf -ir -e .yapf/ .
