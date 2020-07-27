@@ -442,7 +442,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
         @Override
         public int hashCode() {
-            return this.sessionlocalId + this.pfcpSessionId.hashCode();
+            return Integer.hashCode(this.sessionlocalId) + this.pfcpSessionId.asReadOnlyBuffer().hashCode();
         }
     }
 
