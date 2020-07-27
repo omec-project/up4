@@ -52,10 +52,10 @@ p4rt-shell:
 		--device-id 0 --election-id 0,1
 
 p4rtsh-program:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh program
+	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh ${ARGS} program
 
 p4rtsh-clear:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh clear
+	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh ${ARGS} clear
 
 p4rtsh-bash:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /bin/bash
