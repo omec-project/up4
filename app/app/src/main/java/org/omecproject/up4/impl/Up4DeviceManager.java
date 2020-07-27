@@ -140,15 +140,15 @@ public class Up4DeviceManager implements Up4Service {
     private void setUpfDevice(DeviceId deviceId) {
         synchronized (upfInitialized) {
             if (upfInitialized.get()) {
-                log.debug("UPF {} already initialized", deviceId);
+                log.info("UPF {} already initialized, skipping setup.", deviceId);
                 return;
             }
             if (!deviceService.isAvailable(deviceId)) {
-                log.info("UPF is currently unavailable, skip setup");
+                log.info("UPF is currently unavailable, skip setup.");
                 return;
             }
             if (!isUpfDevice(deviceId)) {
-                log.warn("{} is not a UPF", deviceId);
+                log.warn("{} is not a UPF, cannot setup.", deviceId);
                 return;
             }
             if (upfProgrammable != null && !upfProgrammable.deviceId().equals(deviceId)) {
