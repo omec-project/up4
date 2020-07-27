@@ -169,6 +169,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public void addPdr(PacketDetectionRule pdr) {
+        int globalFarId = globalFarIdOf(pdr.sessionId(), pdr.localFarId());
+        pdr.setGlobalFarId(globalFarId);
         log.info("Installing {}", pdr.toString());
         PiCriterion match;
         PiTableId tableId;
@@ -189,12 +191,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             return;
         }
 
-        int globalFarId = globalFarIdOf(pdr.sessionId(), pdr.localFarId());
         PiAction action = PiAction.builder()
                 .withId(SouthConstants.LOAD_PDR)
                 .withParameters(Arrays.asList(
                         new PiActionParam(SouthConstants.CTR_ID, pdr.counterId()),
-                        new PiActionParam(SouthConstants.FAR_ID_PARAM, globalFarId)
+                        new PiActionParam(SouthConstants.FAR_ID_PARAM, pdr.getGlobalFarId())
                 ))
                 .build();
 
@@ -207,12 +208,14 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .build();
 
         flowRuleService.applyFlowRules(pdrEntry);
-        log.info("Added PDR with flowID {}", pdrEntry.id().value());
+        log.debug("Added PDR with flowID {}", pdrEntry.id().value());
     }
 
 
     @Override
     public void addFar(ForwardingActionRule far) {
+        int globalFarId = globalFarIdOf(far.sessionId(), far.localFarId());
+        far.setGlobalFarId(globalFarId);
         log.info("Installing {}", far.toString());
         PiAction action;
         if (far.isUplink()) {
@@ -240,10 +243,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             return;
         }
 
-        int globalFarId = globalFarIdOf(far.sessionId(), far.localFarId());
-
         PiCriterion match = PiCriterion.builder()
-                .matchExact(SouthConstants.FAR_ID_KEY, globalFarId)
+                .matchExact(SouthConstants.FAR_ID_KEY, far.getGlobalFarId())
                 .build();
         FlowRule farEntry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
@@ -253,7 +254,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .withPriority(DEFAULT_PRIORITY)
                 .build();
         flowRuleService.applyFlowRules(farEntry);
-        log.info("FAR added with flowID {}", farEntry.id().value());
+        log.debug("FAR added with flowID {}", farEntry.id().value());
     }
 
 
@@ -274,7 +275,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .withPriority(DEFAULT_PRIORITY)
                 .build();
         flowRuleService.applyFlowRules(s1uEntry);
-        log.info("Added S1U entry with flowID {}", s1uEntry.id().value());
+        log.debug("Added S1U entry with flowID {}", s1uEntry.id().value());
     }
 
     @Override
@@ -294,7 +295,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .withPriority(DEFAULT_PRIORITY)
                 .build();
         flowRuleService.applyFlowRules(uePoolEntry);
-        log.info("Added UE IPv4 pool entry with flowID {}", uePoolEntry.id().value());
+        log.debug("Added UE IPv4 pool entry with flowID {}", uePoolEntry.id().value());
     }
 
 
@@ -350,11 +351,12 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public void removeFar(ForwardingActionRule far) {
-        log.info("Removing {}", far.toString());
         int globalFarId = globalFarIdOf(far.sessionId(), far.localFarId());
+        far.setGlobalFarId(globalFarId);
+        log.info("Removing {}", far.toString());
 
         PiCriterion match = PiCriterion.builder()
-                .matchExact(SouthConstants.FAR_ID_KEY, globalFarId)
+                .matchExact(SouthConstants.FAR_ID_KEY, far.getGlobalFarId())
                 .build();
 
         removeEntry(match, SouthConstants.FAR_TBL, false);
@@ -453,7 +455,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                         return existingId;
                     }
                 });
-        log.info("{} translated to GlobalFarId={}", farIdPair, globalFarId);
+        log.debug("{} translated to GlobalFarId={}", farIdPair, globalFarId);
         return globalFarId;
     }
 
