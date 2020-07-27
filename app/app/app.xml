@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<app name="org.omecproject.up4" origin="Open Networking Foundation"
+     version="${project.version}"
+     category="default" url="http://onosproject.org" title="UP4"
+     featuresRepo="mvn:${project.groupId}/${project.artifactId}/${project.version}/xml/features"
+     features="${project.artifactId}" apps="org.onosproject.protocols.grpc,org.onosproject.protocols.p4runtime">
+    <description>${project.description}</description>
+    <artifact>mvn:${project.groupId}/${project.artifactId}/${project.version}</artifact>
+    <artifact>mvn:${project.groupId}/up4-api/${project.version}</artifact>
+</app>

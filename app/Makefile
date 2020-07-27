@@ -8,6 +8,12 @@ onos_curl := curl --fail -sSL --user onos:rocks --noproxy localhost
 include ../util/docker/Makefile.vars
 
 
+ONOS_BOOT_TIME := 45
+CONFIG_WAIT_TIME := 10
+PKT_WAIT_TIME := 10
+
+
+
 _docker_pull_all:
 	docker pull ${P4RT_SH_IMG}@${P4RT_SH_SHA}
 	docker tag ${P4RT_SH_IMG}@${P4RT_SH_SHA} ${P4RT_SH_IMG}
@@ -35,6 +41,9 @@ local-build:
 
 build:
 	cd .. && make app-build
+
+build-ci:
+	cd .. && make app-build-ci
 
 start:
 	$(info *** Starting ONOS and Mininet (topo-gtp.py)... )
@@ -71,7 +80,11 @@ far-clear:
 
 stop:
 	$(info *** Stopping ONOS and Mininet...)
-	@NGSDN_TOPO_PY=foo docker-compose down
+	@docker-compose down
+
+stop-quick:
+	$(info *** Stopping ONOS and Mininet...)
+	@docker-compose down -t0
 
 reset: stop
 	-$(NGSDN_TUTORIAL_SUDO) rm -rf ./tmp
@@ -94,30 +107,41 @@ onos-config:
 	make app-load
 
 app-load:
-	./onos-tools/onos-app localhost install! target/up4-app-0.1.oar
+	./onos-tools/onos-app localhost install! app/target/up4-app-1.0.0-SNAPSHOT.oar
 
 app-reload:
-	./onos-tools/onos-app localhost reinstall! target/up4-app-0.1.oar
+	./onos-tools/onos-app localhost reinstall! app/target/up4-app-1.0.0-SNAPSHOT.oar
 
-check:
+check-slow: ONOS_BOOT_TIME := 75
+check-slow: CONFIG_WAIT_TIME := 30
+check-slow: PKT_WAIT_TIME := 20
+check-slow: _check
+
+check: _check
+
+
+_check:
 	make start
 	@echo "*** Giving ONOS time to warm up..."
-	sleep 45
+	sleep ${ONOS_BOOT_TIME}
 	make onos-config
-	sleep 15
+	sleep ${CONFIG_WAIT_TIME}
 	make p4rtsh-program
 	sleep 1
 	@echo "*** Sending downlink..."
-	make send-downlink
+	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-downlink
 	@echo "*** Sending uplink..."
-	make send-uplink
+	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-uplink
+	@echo "**********************************"
+	@echo "** Integration checks passed :D **"
+	@echo "**********************************"
 	make stop
 
 send-downlink:
 	@# util/mn-cmd requires a TTY because it uses docker -it option
 	@# hence we use screen for putting it in the background
 	screen -d -m util/mn-cmd pdn /util/traffic.py send-udp
-	util/mn-cmd enodeb /util/traffic.py recv-gtp -e
+	util/mn-cmd enodeb /util/traffic.py recv-gtp -t ${PKT_WAIT_TIME}
 	@# kill sending process
 	util/mn-cmd pdn pkill "traffic.py"
 
@@ -125,7 +149,7 @@ send-uplink:
 	@# util/mn-cmd requires a TTY because it uses docker -it option
 	@# hence we use screen for putting it in the background
 	screen -d -m util/mn-cmd enodeb /util/traffic.py send-gtp
-	util/mn-cmd pdn /util/traffic.py recv-udp -e
+	util/mn-cmd pdn /util/traffic.py recv-udp -t ${PKT_WAIT_TIME}
 	@# kill sending process
 	util/mn-cmd enodeb pkill "traffic.py"
 
