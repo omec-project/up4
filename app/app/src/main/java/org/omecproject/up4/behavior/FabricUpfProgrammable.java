@@ -445,11 +445,14 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     private int globalFarIdOf(FarIdPair farIdPair) {
-        Integer globalFarId = globalFarIds.get(farIdPair);
-        if (globalFarId == null) {
-            globalFarId = (int) globalFarIdCounter.incrementAndGet();
-            globalFarIds.put(farIdPair, globalFarId);
-        }
+        int globalFarId = globalFarIds.compute(farIdPair,
+                (k, existingId) -> {
+                    if (existingId == null) {
+                        return (int) globalFarIdCounter.incrementAndGet();
+                    } else {
+                        return existingId;
+                    }
+                });
         log.info("{} translated to GlobalFarId={}", farIdPair, globalFarId);
         return globalFarId;
     }
