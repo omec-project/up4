@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static org.onosproject.net.pi.model.PiCounterType.INDIRECT;
@@ -443,7 +444,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
         @Override
         public int hashCode() {
-            return Integer.hashCode(this.sessionlocalId) + this.pfcpSessionId.asReadOnlyBuffer().hashCode();
+            return Objects.hash(this.sessionlocalId, this.pfcpSessionId);
         }
     }
 
