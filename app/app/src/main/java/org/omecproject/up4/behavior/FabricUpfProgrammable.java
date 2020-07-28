@@ -106,6 +106,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         log.info("Clearing all UPF-related table entries.");
         flowRuleService.removeFlowRulesById(appId);
         globalFarIds.clear();
+        globalFarIdCounter.set(0);
     }
 
     @Override
