@@ -79,8 +79,7 @@ def main():
     #========================#
     # Filter Entries
     #========================#
-    # Commented out because they are now part of the netcfg instead.
-    """
+
     ## Uplink
     uplinkFilter = sh.TableEntry('PreQosPipe.source_iface_lookup')(action='PreQosPipe.set_source_iface')
     uplinkFilter.match['ipv4_dst_prefix'] = S1U_IPV4 + '/32'
@@ -94,7 +93,6 @@ def main():
     downlinkFilter.action['src_iface'] = IFACE_CORE
     downlinkFilter.action['direction'] = DIR_DOWNLINK
     addEntry(downlinkFilter)
-    """
 
     #========================#
     # PDR Entries

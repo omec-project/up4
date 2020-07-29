@@ -27,6 +27,7 @@ public final class ForwardingActionRule {
     private final Boolean notifyCp;  // Should this FAR notify the control plane when it sees a packet?
     private final GtpTunnel tunnelDesc;  // The GTP tunnel that this FAR should encapsulate packets with (if downlink)
     private final Type type;  // Is the FAR Uplink, Downlink, etc
+    private Integer globalFarId;  // Globally unique identifier of this FAR
 
     private ForwardingActionRule(ImmutableByteSequence sessionId, Integer farId, Boolean drop, Boolean notifyCp,
                                  GtpTunnel tunnelDesc, Type type) {
@@ -37,6 +38,7 @@ public final class ForwardingActionRule {
         this.notifyCp = notifyCp;
         this.tunnelDesc = tunnelDesc;
         this.type = type;
+        this.globalFarId = null;
     }
 
     public enum Type {
@@ -56,7 +58,8 @@ public final class ForwardingActionRule {
 
     @Override
     public String toString() {
-        String matchKeys = String.format("ID:%d,SEID:%s", farId, sessionId.toString());
+        String globalIdStr = globalFarId == null ? "None" : globalFarId.toString();
+        String matchKeys = String.format("ID:%d,SEID:%s,GID:%s", farId, sessionId.toString(), globalIdStr);
         String directionString;
         String actionParams;
         if (isUplink()) {
@@ -99,6 +102,24 @@ public final class ForwardingActionRule {
      */
     public boolean isDownlink() {
         return type == Type.DOWNLINK;
+    }
+
+    /**
+     * Get the globally unique identifier of this FAR.
+     *
+     * @param globalFarId globally unique FAR ID
+     */
+    public void setGlobalFarId(int globalFarId) {
+        this.globalFarId = globalFarId;
+    }
+
+    /**
+     * Set the globally unique identifier of this FAR.
+     *
+     * @return globally unique FAR ID
+     */
+    public int getGlobalFarId() {
+        return this.globalFarId;
     }
 
     /**

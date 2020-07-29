@@ -127,14 +127,14 @@ public class Up4NorthComponent {
      * @param entry The logical table entry to be deleted
      */
     private void translateAndDelete(PiTableEntry entry) {
-        log.info("Translating UP4 deletion request to fabric entry deletion.");
+        log.debug("Translating UP4 deletion request to fabric entry deletion.");
         if (Up4Translator.isInterface(entry)) {
             Ip4Prefix prefix = Up4Translator.piEntryToInterfacePrefix(entry);
             up4Service.getUpfProgrammable().removeUnknownInterface(prefix);
         } else if (Up4Translator.isPdr(entry)) {
             try {
                 PacketDetectionRule pdr = Up4Translator.piEntryToPdr(entry);
-                log.info("Translated UP4 PDR successfully. Deleting.");
+                log.debug("Translated UP4 PDR successfully. Deleting.");
                 up4Service.getUpfProgrammable().removePdr(pdr);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 PDR in delete write! Error was: {}", e.getMessage());
@@ -142,7 +142,7 @@ public class Up4NorthComponent {
         } else if (Up4Translator.isFar(entry)) {
             try {
                 ForwardingActionRule far = Up4Translator.piEntryToFar(entry);
-                log.info("Translated UP4 FAR successfully. Deleting.");
+                log.debug("Translated UP4 FAR successfully. Deleting.");
                 up4Service.getUpfProgrammable().removeFar(far);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 FAR in delete write! Error was {}", e.getMessage());
@@ -158,7 +158,7 @@ public class Up4NorthComponent {
      * @param entry The logical table entry to be inserted
      */
     private void translateAndInsert(PiTableEntry entry) {
-        log.info("Translating UP4 write request to fabric entry.");
+        log.debug("Translating UP4 write request to fabric entry.");
         PiTableId tableId = entry.table();
         if (entry.action().type() != PiTableAction.Type.ACTION) {
             log.warn("Action profile entry insertion not supported. Ignoring.");
@@ -177,7 +177,6 @@ public class Up4NorthComponent {
         } else if (Up4Translator.isPdr(entry)) {
             try {
                 PacketDetectionRule pdr = Up4Translator.piEntryToPdr(entry);
-                log.info("Translated UP4 PDR successfully. Inserting.");
                 up4Service.getUpfProgrammable().addPdr(pdr);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 PDR! Error was: {}", e.getMessage());
@@ -185,7 +184,6 @@ public class Up4NorthComponent {
         } else if (Up4Translator.isFar(entry)) {
             try {
                 ForwardingActionRule far = Up4Translator.piEntryToFar(entry);
-                log.info("Translated UP4 FAR successfully. Inserting.");
                 up4Service.getUpfProgrammable().addFar(far);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 FAR! Error was {}", e.getMessage());
@@ -311,7 +309,7 @@ public class Up4NorthComponent {
         @Override
         public void write(P4RuntimeOuterClass.WriteRequest request,
                           StreamObserver<P4RuntimeOuterClass.WriteResponse> responseObserver) {
-            log.info("Received write request.");
+            log.debug("Received write request.");
             if (p4Info == null) {
                 log.warn("Write request received before pipeline config set! Ignoring");
                 responseObserver.onNext(P4RuntimeOuterClass.WriteResponse.getDefaultInstance());
@@ -342,10 +340,10 @@ public class Up4NorthComponent {
                 }
                 if (update.getType() == P4RuntimeOuterClass.Update.Type.INSERT
                         || update.getType() == P4RuntimeOuterClass.Update.Type.MODIFY) {
-                    log.info("Update type is insert or modify.");
+                    log.debug("Update type is insert or modify.");
                     translateAndInsert(entry);
                 } else if (update.getType() == P4RuntimeOuterClass.Update.Type.DELETE) {
-                    log.info("Update type is delete");
+                    log.debug("Update type is delete");
                     translateAndDelete(entry);
                 } else {
                     throw new UnsupportedOperationException("Unsupported update type.");
@@ -365,7 +363,7 @@ public class Up4NorthComponent {
         @Override
         public void read(P4RuntimeOuterClass.ReadRequest request,
                          StreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver) {
-            log.info("Received read request.");
+            log.debug("Received read request.");
             for (P4RuntimeOuterClass.Entity entity : request.getEntitiesList()) {
                 PiEntity piEntity;
                 try {
@@ -414,7 +412,7 @@ public class Up4NorthComponent {
                                         .build())
                                 .build())
                         .build());
-                log.info("Responded to {} counter read request for counter ID {}.", gress, counterIndex);
+                log.debug("Responded to {} counter read request for counter ID {}.", gress, counterIndex);
             }
 
             responseObserver.onCompleted();

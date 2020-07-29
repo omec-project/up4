@@ -28,7 +28,7 @@ public final class PacketDetectionRule {
     private final Integer ctrId;  // Counter ID unique to this PDR
     private final Integer farId;  // The PFCP session-local ID of the FAR that should apply to packets if this PDR hits
     private final Type type; // Is the PDR Uplink, Downlink, etc.
-    private int globalFarId; // The non-session-local ID of the FAR that should apply to packets if this PDR hits
+    private Integer globalFarId; // The non-session-local ID of the FAR that should apply to packets if this PDR hits
 
     private PacketDetectionRule(ImmutableByteSequence sessionId, Integer ctrId, Integer farId, Ip4Address ueAddr,
                                 ImmutableByteSequence teid, Ip4Address tunnelDst, Type type) {
@@ -39,6 +39,7 @@ public final class PacketDetectionRule {
         this.ctrId = ctrId;
         this.farId = farId;
         this.type = type;
+        this.globalFarId = null;
     }
 
     public enum Type {
@@ -77,7 +78,9 @@ public final class PacketDetectionRule {
         }
         String actionParams = "";
         if (hasActionParameters()) {
-            actionParams = String.format("SEID:%s,FAR:%d,CtrIdx:%d", sessionId.toString(), farId, ctrId);
+            String globalIdStr = globalFarId == null ? "None" : globalFarId.toString();
+            actionParams = String.format("SEID:%s,FAR:%d,FAR-GID:%s,CtrIdx:%d",
+                    sessionId.toString(), farId, globalIdStr, ctrId);
         }
 
         return String.format("%s-PDR{ Keys:(%s) -> Params (%s) }", directionString, matchKeys, actionParams);
@@ -109,6 +112,24 @@ public final class PacketDetectionRule {
      */
     public boolean isDownlink() {
         return type == Type.DOWNLINK || type == Type.DOWNLINK_KEYS_ONLY;
+    }
+
+    /**
+     * Get the globally unique identifier of the FAR that should apply to packets that match this PDR.
+     *
+     * @param globalFarId globally unique FAR ID
+     */
+    public void setGlobalFarId(int globalFarId) {
+        this.globalFarId = globalFarId;
+    }
+
+    /**
+     * Set the globally unique identifier of the FAR that should apply to packets that match this PDR.
+     *
+     * @return globally unique FAR ID
+     */
+    public int getGlobalFarId() {
+        return this.globalFarId;
     }
 
     /**
