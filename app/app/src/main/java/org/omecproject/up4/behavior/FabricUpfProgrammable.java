@@ -197,7 +197,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .withId(SouthConstants.LOAD_PDR)
                 .withParameters(Arrays.asList(
                         new PiActionParam(SouthConstants.CTR_ID, pdr.counterId()),
-                        new PiActionParam(SouthConstants.FAR_ID_PARAM, pdr.getGlobalFarId())
+                        new PiActionParam(SouthConstants.FAR_ID_PARAM, pdr.getGlobalFarId()),
+                        new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP_PARAM, pdr.isUplink() ? 1 : 0)
                 ))
                 .build();
 
@@ -230,6 +231,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                     .build();
 
         } else if (far.isDownlink()) {
+            // TODO: copy tunnel destination port from logical switch write requests, instead of hardcoding 2152
             action = PiAction.builder()
                     .withId(SouthConstants.LOAD_FAR_TUNNEL)
                     .withParameters(Arrays.asList(
@@ -237,7 +239,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                             new PiActionParam(SouthConstants.NOTIFY_FLAG, far.notifyCpFlag() ? 1 : 0),
                             new PiActionParam(SouthConstants.TEID_PARAM, far.teid()),
                             new PiActionParam(SouthConstants.TUNNEL_SRC_PARAM, far.tunnelSrc().toInt()),
-                            new PiActionParam(SouthConstants.TUNNEL_DST_PARAM, far.tunnelDst().toInt())
+                            new PiActionParam(SouthConstants.TUNNEL_DST_PARAM, far.tunnelDst().toInt()),
+                            new PiActionParam(SouthConstants.TUNNEL_DST_PORT_PARAM, 2152)
                     ))
                     .build();
         } else {
@@ -263,15 +266,22 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Override
     public void addS1uInterface(Ip4Address s1uAddr) {
         log.info("Adding S1U interface with address {}", s1uAddr);
+        // TODO: copy s1u address prefix len from logical swich writes, instead of hardcoding 32
         PiCriterion match = PiCriterion.builder()
-                .matchExact(SouthConstants.IFACE_UPLINK_KEY, s1uAddr.toInt())
+                .matchLpm(SouthConstants.IPV4_DST_ADDR, s1uAddr.toInt(), 32)
+                .matchExact(SouthConstants.GTPU_IS_VALID, 1)  // Tunnel present in uplink direction
                 .build();
         PiAction action = PiAction.builder()
-                .withId(SouthConstants.NO_ACTION)
+                .withId(SouthConstants.SET_SOURCE_IFACE)
+                .withParameters(Arrays.asList(
+                        new PiActionParam(SouthConstants.SRC_IFACE_PARAM, SouthConstants.INTERFACE_ACCESS),
+                        new PiActionParam(SouthConstants.DIRECTION_PARAM, SouthConstants.DIRECTION_UPLINK),
+                        new PiActionParam(SouthConstants.SKIP_SPGW_PARAM, 0)
+                ))
                 .build();
         FlowRule s1uEntry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(SouthConstants.IFACE_UPLINK_TBL)
+                .forTable(SouthConstants.INTERFACE_LOOKUP)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(DEFAULT_PRIORITY)
@@ -284,14 +294,20 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     public void addUePool(Ip4Prefix poolPrefix) {
         log.info("Adding UE IPv4 Pool prefix {}", poolPrefix);
         PiCriterion match = PiCriterion.builder()
-                .matchLpm(SouthConstants.IFACE_DOWNLINK_KEY, poolPrefix.address().toInt(), poolPrefix.prefixLength())
+                .matchLpm(SouthConstants.IPV4_DST_ADDR, poolPrefix.address().toInt(), poolPrefix.prefixLength())
+                .matchExact(SouthConstants.GTPU_IS_VALID, 0)  // No tunnel in downlink direction
                 .build();
         PiAction action = PiAction.builder()
-                .withId(SouthConstants.NO_ACTION)
+                .withId(SouthConstants.SET_SOURCE_IFACE)
+                .withParameters(Arrays.asList(
+                        new PiActionParam(SouthConstants.SRC_IFACE_PARAM, SouthConstants.INTERFACE_CORE),
+                        new PiActionParam(SouthConstants.DIRECTION_PARAM, SouthConstants.DIRECTION_DOWNLINK),
+                        new PiActionParam(SouthConstants.SKIP_SPGW_PARAM, 0)
+                ))
                 .build();
         FlowRule uePoolEntry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(SouthConstants.IFACE_DOWNLINK_TBL)
+                .forTable(SouthConstants.INTERFACE_LOOKUP)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(DEFAULT_PRIORITY)
@@ -368,34 +384,39 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     public void removeUePool(Ip4Prefix poolPrefix) {
         log.info("Removing S1U interface table entry");
         PiCriterion match = PiCriterion.builder()
-                .matchLpm(SouthConstants.IFACE_DOWNLINK_KEY, poolPrefix.address().toInt(), poolPrefix.prefixLength())
+                .matchLpm(SouthConstants.IPV4_DST_ADDR, poolPrefix.address().toInt(), poolPrefix.prefixLength())
+                .matchExact(SouthConstants.GTPU_IS_VALID, 0)
                 .build();
-        removeEntry(match, SouthConstants.IFACE_DOWNLINK_TBL, false);
+        removeEntry(match, SouthConstants.INTERFACE_LOOKUP, false);
     }
 
     @Override
     public void removeS1uInterface(Ip4Address s1uAddr) {
         log.info("Removing S1U interface table entry");
         PiCriterion match = PiCriterion.builder()
-                .matchExact(SouthConstants.IFACE_UPLINK_KEY, s1uAddr.toInt())
+                .matchLpm(SouthConstants.IPV4_DST_ADDR, s1uAddr.toInt(), 32)
+                .matchExact(SouthConstants.GTPU_IS_VALID, 1)
                 .build();
-        removeEntry(match, SouthConstants.IFACE_UPLINK_TBL, false);
+        removeEntry(match, SouthConstants.INTERFACE_LOOKUP, false);
     }
 
     @Override
     public void removeUnknownInterface(Ip4Prefix ifacePrefix) {
         // For when you don't know if its a uePool or s1uInterface table entry
+        // Try removing an S1U entry
         PiCriterion match1 = PiCriterion.builder()
-                .matchExact(SouthConstants.IFACE_UPLINK_KEY, ifacePrefix.address().toInt())
+                .matchLpm(SouthConstants.IPV4_DST_ADDR, ifacePrefix.address().toInt(), 32)
+                .matchExact(SouthConstants.GTPU_IS_VALID, 1)
                 .build();
-        if (removeEntry(match1, SouthConstants.IFACE_UPLINK_TBL, true)) {
+        if (removeEntry(match1, SouthConstants.INTERFACE_LOOKUP, true)) {
             return;
         }
-
+        // If that didn't work, try removing a UE pool entry
         PiCriterion match2 = PiCriterion.builder()
-                .matchLpm(SouthConstants.IFACE_DOWNLINK_KEY, ifacePrefix.address().toInt(), ifacePrefix.prefixLength())
+                .matchLpm(SouthConstants.IPV4_DST_ADDR, ifacePrefix.address().toInt(), ifacePrefix.prefixLength())
+                .matchExact(SouthConstants.GTPU_IS_VALID, 0)
                 .build();
-        if (!removeEntry(match2, SouthConstants.IFACE_DOWNLINK_TBL, true)) {
+        if (!removeEntry(match2, SouthConstants.INTERFACE_LOOKUP, true)) {
             log.error("Could not remove interface! No matching entry found!");
         }
     }
