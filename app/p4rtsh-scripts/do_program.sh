@@ -5,4 +5,4 @@
 cd /p4runtime-sh/
 source $VENV/bin/activate
 
-/scripts/program_tables.py $@
+/scripts/program_many_flows.py $@
