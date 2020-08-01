@@ -29,9 +29,9 @@ public final class ForwardingActionRule {
     private final Type type;  // Is the FAR Uplink, Downlink, etc
     private Integer globalFarId;  // Globally unique identifier of this FAR
 
-    private ForwardingActionRule(ImmutableByteSequence sessionId, Integer farId, Boolean drop, Boolean notifyCp,
+    private ForwardingActionRule(Integer globalFarId, ImmutableByteSequence sessionId, Integer farId, Boolean drop, Boolean notifyCp,
                                  GtpTunnel tunnelDesc, Type type) {
-        // All match keys are required
+        this.globalFarId = globalFarId;
         this.sessionId = sessionId;
         this.farId = farId;
         this.drop = drop;
@@ -111,6 +111,16 @@ public final class ForwardingActionRule {
      */
     public void setGlobalFarId(int globalFarId) {
         this.globalFarId = globalFarId;
+    }
+
+    /**
+     * Check whether a global FAR ID has been assigned, which is necessary for an entry to be written
+     * to the fabric.p4 pipeline.
+     *
+     * @return true if a global FAR ID has been assigned
+     */
+    public boolean hasGlobalFarId() {
+        return this.globalFarId != null;
     }
 
     /**
@@ -209,6 +219,7 @@ public final class ForwardingActionRule {
     }
 
     public static class Builder {
+        private Integer globalFarId;
         private ImmutableByteSequence sessionId;
         private Integer farId;
         private Boolean drop;
@@ -216,6 +227,7 @@ public final class ForwardingActionRule {
         private GtpTunnel tunnelDesc;
 
         public Builder() {
+            globalFarId = null;
             sessionId = null;
             farId = null;
             drop = null;
@@ -253,6 +265,17 @@ public final class ForwardingActionRule {
          */
         public Builder withFarId(int farId) {
             this.farId = farId;
+            return this;
+        }
+
+        /**
+         * Set the globally unique ID of this FAR.
+         *
+         * @param globalFarId globally unique FAR ID
+         * @return This builder object
+         */
+        public Builder withGlobalFarId(int globalFarId) {
+            this.globalFarId = globalFarId;
             return this;
         }
 
@@ -335,7 +358,7 @@ public final class ForwardingActionRule {
             } else {
                 type = Type.DOWNLINK;
             }
-            return new ForwardingActionRule(sessionId, farId, drop, notifyCp, tunnelDesc, type);
+            return new ForwardingActionRule(globalFarId, sessionId, farId, drop, notifyCp, tunnelDesc, type);
         }
     }
 }

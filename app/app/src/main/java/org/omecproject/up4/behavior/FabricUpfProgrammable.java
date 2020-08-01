@@ -3,11 +3,13 @@ package org.omecproject.up4.behavior;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
+import org.omecproject.up4.UeSession;
+import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.impl.SouthConstants;
+import org.omecproject.up4.impl.Up4Translator;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
-import org.onlab.util.ImmutableByteSequence;
 import org.onlab.util.KryoNamespace;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
@@ -41,10 +43,12 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.onosproject.net.pi.model.PiCounterType.INDIRECT;
@@ -70,23 +74,14 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected StorageService storageService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    private Up4Translator up4Translator;
     DeviceId deviceId;
-    private EventuallyConsistentMap<FarIdPair, Integer> globalFarIds;
-    private AtomicCounter globalFarIdCounter;
+
     private ApplicationId appId;
 
     @Activate
     protected void activate() {
-        globalFarIdCounter = storageService.getAtomicCounter("global-far-id-counter");
-
-        KryoNamespace.Builder globalFarIdSerializer = KryoNamespace.newBuilder()
-                .register(KryoNamespaces.API)
-                .register(FarIdPair.class);
-        globalFarIds = storageService.<FarIdPair, Integer>eventuallyConsistentMapBuilder()
-                .withName("global-far-ids")
-                .withSerializer(globalFarIdSerializer)
-                .withTimestampProvider((k, v) -> new WallClockTimestamp())
-                .build();
         log.info("Started");
     }
 
@@ -106,8 +101,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     public void cleanUp(ApplicationId appId) {
         log.info("Clearing all UPF-related table entries.");
         flowRuleService.removeFlowRulesById(appId);
-        globalFarIds.clear();
-        globalFarIdCounter.set(0);
+        up4Translator.reset();
     }
 
     @Override
@@ -171,95 +165,27 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public void addPdr(PacketDetectionRule pdr) {
-        int globalFarId = globalFarIdOf(pdr.sessionId(), pdr.localFarId());
-        pdr.setGlobalFarId(globalFarId);
-        log.info("Installing {}", pdr.toString());
-        PiCriterion match;
-        PiTableId tableId;
-        if (pdr.isUplink()) {
-            match = PiCriterion.builder()
-                    .matchExact(SouthConstants.UE_ADDR_KEY, pdr.ueAddress().toInt())
-                    .matchExact(SouthConstants.TEID_KEY, pdr.teid().asArray())
-                    .matchExact(SouthConstants.TUNNEL_DST_KEY, pdr.tunnelDest().toInt())
-                    .build();
-            tableId = SouthConstants.PDR_UPLINK_TBL;
-        } else if (pdr.isDownlink()) {
-            match = PiCriterion.builder()
-                    .matchExact(SouthConstants.UE_ADDR_KEY, pdr.ueAddress().toInt())
-                    .build();
-            tableId = SouthConstants.PDR_DOWNLINK_TBL;
-        } else {
-            log.error("Flexible PDRs not yet supported! Ignoring.");
-            return;
+        try {
+            FlowRule fabricPdr = up4Translator.pdrToFabricEntry(pdr, deviceId, appId, DEFAULT_PRIORITY);
+            log.info("Installing {}", pdr.toString());
+            flowRuleService.applyFlowRules(fabricPdr);
+            log.debug("FAR added with flowID {}", fabricPdr.id().value());
+        } catch (Up4Translator.Up4TranslationException e) {
+            log.warn("Unable to insert malformed FAR to dataplane! {}", pdr.toString());
         }
-
-        PiAction action = PiAction.builder()
-                .withId(SouthConstants.LOAD_PDR)
-                .withParameters(Arrays.asList(
-                        new PiActionParam(SouthConstants.CTR_ID, pdr.counterId()),
-                        new PiActionParam(SouthConstants.FAR_ID_PARAM, pdr.getGlobalFarId()),
-                        new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP_PARAM, pdr.isUplink() ? 1 : 0)
-                ))
-                .build();
-
-        FlowRule pdrEntry = DefaultFlowRule.builder()
-                .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(tableId)
-                .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
-                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
-                .withPriority(DEFAULT_PRIORITY)
-                .build();
-
-        flowRuleService.applyFlowRules(pdrEntry);
-        log.debug("Added PDR with flowID {}", pdrEntry.id().value());
     }
 
 
     @Override
     public void addFar(ForwardingActionRule far) {
-        int globalFarId = globalFarIdOf(far.sessionId(), far.localFarId());
-        far.setGlobalFarId(globalFarId);
-        log.info("Installing {}", far.toString());
-        PiAction action;
-        if (far.isUplink()) {
-            action = PiAction.builder()
-                    .withId(SouthConstants.LOAD_FAR_NORMAL)
-                    .withParameters(Arrays.asList(
-                            new PiActionParam(SouthConstants.DROP_FLAG, far.dropFlag() ? 1 : 0),
-                            new PiActionParam(SouthConstants.NOTIFY_FLAG, far.notifyCpFlag() ? 1 : 0)
-                    ))
-                    .build();
-
-        } else if (far.isDownlink()) {
-            // TODO: copy tunnel destination port from logical switch write requests, instead of hardcoding 2152
-            action = PiAction.builder()
-                    .withId(SouthConstants.LOAD_FAR_TUNNEL)
-                    .withParameters(Arrays.asList(
-                            new PiActionParam(SouthConstants.DROP_FLAG, far.dropFlag() ? 1 : 0),
-                            new PiActionParam(SouthConstants.NOTIFY_FLAG, far.notifyCpFlag() ? 1 : 0),
-                            new PiActionParam(SouthConstants.TEID_PARAM, far.teid()),
-                            new PiActionParam(SouthConstants.TUNNEL_SRC_PARAM, far.tunnelSrc().toInt()),
-                            new PiActionParam(SouthConstants.TUNNEL_DST_PARAM, far.tunnelDst().toInt()),
-                            new PiActionParam(SouthConstants.TUNNEL_DST_PORT_PARAM, 2152)
-                    ))
-                    .build();
-        } else {
-            log.error("Attempting to add unknown type of FAR!");
-            return;
+        try {
+            FlowRule fabricFar = up4Translator.farToFabricEntry(far, deviceId, appId, DEFAULT_PRIORITY);
+            log.info("Installing {}", far.toString());
+            flowRuleService.applyFlowRules(fabricFar);
+            log.debug("FAR added with flowID {}", fabricFar.id().value());
+        } catch (Up4Translator.Up4TranslationException e) {
+            log.warn("Unable to insert malformed FAR to dataplane! {}", far.toString());
         }
-
-        PiCriterion match = PiCriterion.builder()
-                .matchExact(SouthConstants.FAR_ID_KEY, far.getGlobalFarId())
-                .build();
-        FlowRule farEntry = DefaultFlowRule.builder()
-                .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(SouthConstants.FAR_TBL)
-                .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
-                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
-                .withPriority(DEFAULT_PRIORITY)
-                .build();
-        flowRuleService.applyFlowRules(farEntry);
-        log.debug("FAR added with flowID {}", farEntry.id().value());
     }
 
 
@@ -271,11 +197,12 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .matchLpm(SouthConstants.IPV4_DST_ADDR, s1uAddr.toInt(), 32)
                 .matchExact(SouthConstants.GTPU_IS_VALID, 1)  // Tunnel present in uplink direction
                 .build();
+        // DIRECTION_PARAM must always be zero currently, due to the direction field being optimized away in hardware
         PiAction action = PiAction.builder()
                 .withId(SouthConstants.SET_SOURCE_IFACE)
                 .withParameters(Arrays.asList(
                         new PiActionParam(SouthConstants.SRC_IFACE_PARAM, SouthConstants.INTERFACE_ACCESS),
-                        new PiActionParam(SouthConstants.DIRECTION_PARAM, SouthConstants.DIRECTION_UPLINK),
+                        new PiActionParam(SouthConstants.DIRECTION_PARAM, 0),
                         new PiActionParam(SouthConstants.SKIP_SPGW_PARAM, 0)
                 ))
                 .build();
@@ -297,11 +224,12 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .matchLpm(SouthConstants.IPV4_DST_ADDR, poolPrefix.address().toInt(), poolPrefix.prefixLength())
                 .matchExact(SouthConstants.GTPU_IS_VALID, 0)  // No tunnel in downlink direction
                 .build();
+        // DIRECTION_PARAM must always be zero currently, due to the direction field being optimized away in hardware
         PiAction action = PiAction.builder()
                 .withId(SouthConstants.SET_SOURCE_IFACE)
                 .withParameters(Arrays.asList(
                         new PiActionParam(SouthConstants.SRC_IFACE_PARAM, SouthConstants.INTERFACE_CORE),
-                        new PiActionParam(SouthConstants.DIRECTION_PARAM, SouthConstants.DIRECTION_DOWNLINK),
+                        new PiActionParam(SouthConstants.DIRECTION_PARAM, 0),
                         new PiActionParam(SouthConstants.SKIP_SPGW_PARAM, 0)
                 ))
                 .build();
@@ -343,6 +271,103 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         return false;
     }
 
+    public Collection<UeSession> getSessions() {
+        Map<Ip4Address, UeSession.Builder> ueAddrToSessionBuilder = new HashMap<>();
+        Map<Integer, UeSession.Builder> globalFarToSessionBuilder = new HashMap<>();
+        List<PacketDetectionRule> pdrs = new ArrayList<>();
+        List<ForwardingActionRule> fars = new ArrayList<>();
+        for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
+            if (Up4Translator.isFabricFar(flowRule)) {
+                // If its a far, save it for later
+                try {
+                    fars.add(up4Translator.fabricEntryToFar(flowRule));
+                } catch (Up4Translator.Up4TranslationException e) {
+                    log.warn("Found what appears to be a FAR but we can't translate it?? {}", flowRule);
+                }
+            } else if (Up4Translator.isFabricPdr(flowRule)) {
+                // If its a PDR, add it to a session builder, or create a new session builder for it
+                // We should have one session builder per UE address.
+                try {
+                    PacketDetectionRule pdr = up4Translator.fabricEntryToPdr(flowRule);
+                    pdrs.add(pdr);
+                    var builder = ueAddrToSessionBuilder.compute(pdr.ueAddress(), (ueAddr, sessionBuilder) -> {
+                        if (sessionBuilder == null) {
+                            return UeSession.builder().addPdr(pdr);
+                        } else {
+                            return sessionBuilder.addPdr(pdr);
+                        }
+                    });
+                    builder.addStats(readCounter(pdr.counterId()));
+                    // Also save the builder that contains each global FAR ID, for adding FARs
+                    //  after all the session builders have been created.
+                    globalFarToSessionBuilder.put(pdr.getGlobalFarId(), builder);
+                } catch (Up4Translator.Up4TranslationException e) {
+                    log.warn("Found what appears to be a PDR but we can't translate it?? {}", flowRule);
+                }
+            }
+        }
+        for (ForwardingActionRule far : fars) {
+            var builder = globalFarToSessionBuilder.getOrDefault(far.getGlobalFarId(), null);
+            if (builder != null) {
+                builder.addFar(far);
+            } else {
+                log.warn("Found an FAR with no corresponding PDR: {}", far);
+            }
+        }
+        List<UeSession> results = new ArrayList<>();
+        for (var builder : ueAddrToSessionBuilder.values()) {
+            results.add(builder.build());
+        }
+        return results;
+    }
+
+    @Override
+    public Collection<PacketDetectionRule> getInstalledPdrs() {
+        ArrayList<PacketDetectionRule> pdrs = new ArrayList<>();
+        for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
+            if (Up4Translator.isFabricPdr(flowRule)) {
+                try {
+                    pdrs.add(up4Translator.fabricEntryToPdr(flowRule));
+                } catch (Up4Translator.Up4TranslationException e) {
+                    log.warn("Found what appears to be a PDR but we can't translate it?? {}", flowRule);
+                }
+            }
+        }
+        return pdrs;
+    }
+
+    @Override
+    public Collection<ForwardingActionRule> getInstalledFars() {
+        ArrayList<ForwardingActionRule> fars = new ArrayList<>();
+        for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
+            if (Up4Translator.isFabricFar(flowRule)) {
+                try {
+                    fars.add(up4Translator.fabricEntryToFar(flowRule));
+                } catch (Up4Translator.Up4TranslationException e) {
+                    log.warn("Found what appears to be a FAR but we can't translate it?? {}", flowRule);
+                }
+            }
+        }
+        return fars;
+    }
+
+    public Collection<UpfInterface> getInstalledInterfaces() {
+        ArrayList<UpfInterface> ifaces = new ArrayList<>();
+        for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
+            if (Up4Translator.isFabricInterface(flowRule)) {
+                try {
+                    ifaces.add(up4Translator.fabricEntryToUpfInterface(flowRule));
+                } catch (Up4Translator.Up4TranslationException e) {
+                    log.warn("Found what appears to be a interface table entry but we can't translate it?? {}",
+                            flowRule);
+                }
+            }
+        }
+        return ifaces;
+    }
+
+
+
     @Override
     public void removePdr(PacketDetectionRule pdr) {
         PiCriterion match;
@@ -369,8 +394,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public void removeFar(ForwardingActionRule far) {
-        int globalFarId = globalFarIdOf(far.sessionId(), far.localFarId());
-        far.setGlobalFarId(globalFarId);
         log.info("Removing {}", far.toString());
 
         PiCriterion match = PiCriterion.builder()
@@ -421,79 +444,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         }
     }
 
-    /**
-     * Wrapper for identifying information of Forwarding Action Rules.
-     */
-    private static final class FarIdPair {
-        final int sessionlocalId;
-        final ImmutableByteSequence pfcpSessionId;
 
-        /**
-         * A FAR can be globally uniquely identified by the combination of the ID of the PFCP session that
-         * produced it, and the ID that the FAR was assigned in that PFCP session.
-         *
-         * @param pfcpSessionId  The PFCP session that produced the FAR ID
-         * @param sessionlocalId The FAR ID
-         */
-        public FarIdPair(ImmutableByteSequence pfcpSessionId, int sessionlocalId) {
-            this.pfcpSessionId = pfcpSessionId;
-            this.sessionlocalId = sessionlocalId;
-        }
-
-        @Override
-        public String toString() {
-            return "FarIdPair{" +
-                    "sessionlocalId=" + sessionlocalId +
-                    ", pfcpSessionId=" + pfcpSessionId +
-                    '}';
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj == this) {
-                return true;
-            }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
-            FarIdPair that = (FarIdPair) obj;
-            return (this.sessionlocalId == that.sessionlocalId) && (this.pfcpSessionId.equals(that.pfcpSessionId));
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.sessionlocalId, this.pfcpSessionId);
-        }
-    }
-
-    private int globalFarIdOf(FarIdPair farIdPair) {
-        int globalFarId = globalFarIds.compute(farIdPair,
-                (k, existingId) -> {
-                    if (existingId == null) {
-                        return (int) globalFarIdCounter.incrementAndGet();
-                    } else {
-                        return existingId;
-                    }
-                });
-        log.debug("{} translated to GlobalFarId={}", farIdPair, globalFarId);
-        return globalFarId;
-    }
-
-    /**
-     * Get a globally unique integer identifier for the FAR identified by the given (Session ID, Far ID) pair.
-     *
-     * @param pfcpSessionId     The ID of the PFCP session that produced the FAR ID.
-     * @param sessionLocalFarId The FAR ID.
-     * @return A globally unique integer identifier
-     */
-    private int globalFarIdOf(ImmutableByteSequence pfcpSessionId, int sessionLocalFarId) {
-        FarIdPair farId = new FarIdPair(pfcpSessionId, sessionLocalFarId);
-        return globalFarIdOf(farId);
-
-    }
 
 
 }

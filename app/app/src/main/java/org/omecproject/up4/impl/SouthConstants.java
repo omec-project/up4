@@ -13,7 +13,7 @@ import org.onosproject.net.pi.model.PiTableId;
 public final class SouthConstants {
 
     public static final int INTERFACE_ACCESS = 1;
-    public static final int INTERFACE_CORE = 1;
+    public static final int INTERFACE_CORE = 2;
 
     public static final int DIRECTION_UPLINK = 1;
     public static final int DIRECTION_DOWNLINK = 2;

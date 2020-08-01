@@ -1,180 +1,337 @@
 package org.omecproject.up4.impl;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.up4.ForwardingActionRule;
+import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
+import org.omecproject.up4.UpfInterface;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
+import org.onlab.util.KryoNamespace;
+import org.onosproject.core.ApplicationId;
+import org.onosproject.net.DeviceId;
+import org.onosproject.net.flow.DefaultFlowRule;
+import org.onosproject.net.flow.DefaultTrafficSelector;
+import org.onosproject.net.flow.DefaultTrafficTreatment;
+import org.onosproject.net.flow.FlowRule;
+import org.onosproject.net.flow.criteria.PiCriterion;
 import org.onosproject.net.pi.model.PiActionId;
-import org.onosproject.net.pi.model.PiActionParamId;
-import org.onosproject.net.pi.model.PiMatchFieldId;
-import org.onosproject.net.pi.model.PiMatchType;
+import org.onosproject.net.pi.model.PiTableId;
 import org.onosproject.net.pi.runtime.PiAction;
 import org.onosproject.net.pi.runtime.PiActionParam;
-import org.onosproject.net.pi.runtime.PiExactFieldMatch;
-import org.onosproject.net.pi.runtime.PiFieldMatch;
-import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
-import org.onosproject.net.pi.runtime.PiRangeFieldMatch;
+import org.onosproject.net.pi.runtime.PiTableAction;
 import org.onosproject.net.pi.runtime.PiTableEntry;
-import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
+import org.onosproject.store.serializers.KryoNamespaces;
+import org.onosproject.store.service.AtomicCounter;
+import org.onosproject.store.service.EventuallyConsistentMap;
+import org.onosproject.store.service.StorageService;
+import org.onosproject.store.service.WallClockTimestamp;
+import org.osgi.service.component.annotations.Activate;
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Deactivate;
+import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
+import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Utility class for transforming PiTableEntries to classes more specific to the UPF pipelines, like
  * PacketDetectionRule and ForwardingActionRule.
  */
-public final class Up4Translator {
+@Component(immediate = true)
+public class Up4Translator {
+    private final Logger log = LoggerFactory.getLogger(getClass());
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected StorageService storageService;
 
-    protected static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
+    private EventuallyConsistentMap<RuleIdentifier, Integer> localToGlobalFarId;
+    private EventuallyConsistentMap<Integer, RuleIdentifier> globalToLocalFarId;
+    private AtomicCounter globalFarIdCounter;
 
     /**
      * Hidden constructor for utility class.
      */
-    private Up4Translator() {
+    @Activate
+    protected void activate() {
+        globalFarIdCounter = storageService.getAtomicCounter("global-far-id-counter");
+
+        KryoNamespace.Builder globalFarIdSerializer = KryoNamespace.newBuilder()
+                .register(KryoNamespaces.API)
+                .register(RuleIdentifier.class);
+        localToGlobalFarId = storageService.<RuleIdentifier, Integer>eventuallyConsistentMapBuilder()
+                .withName("global-to-local-far-ids")
+                .withSerializer(globalFarIdSerializer)
+                .withTimestampProvider((k, v) -> new WallClockTimestamp())
+                .build();
+        globalToLocalFarId = storageService.<Integer, RuleIdentifier>eventuallyConsistentMapBuilder()
+                .withName("local-to-global-far-ids")
+                .withSerializer(globalFarIdSerializer)
+                .withTimestampProvider((k, v) -> new WallClockTimestamp())
+                .build();
+        log.info("Started");
     }
 
-    protected static ImmutableByteSequence getFieldValue(PiTableEntry entry, PiMatchFieldId fieldId)
-            throws Up4TranslationException {
-        Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(fieldId);
-        if (optField.isEmpty()) {
-            throw new Up4TranslationException(
-                    String.format("Unable to find field %s where expected!", fieldId.toString()));
-        }
-        PiFieldMatch field = optField.get();
-        if (field.type() == PiMatchType.EXACT) {
-            return ((PiExactFieldMatch) field).value();
-        } else if (field.type() == PiMatchType.LPM) {
-            return ((PiLpmFieldMatch) field).value();
-        } else if (field.type() == PiMatchType.TERNARY) {
-            return ((PiTernaryFieldMatch) field).value();
-        } else if (field.type() == PiMatchType.RANGE) {
-            return ((PiRangeFieldMatch) field).lowValue();
-        } else {
-            throw new Up4TranslationException(
-                    String.format("Field %s has unknown match type: %s", fieldId.toString(), field.type().toString()));
-        }
+    @Deactivate
+    protected void deactivate() {
+        log.info("Stopped");
     }
 
-    protected static ImmutableByteSequence getParamValue(PiTableEntry entry, PiActionParamId paramId)
-            throws Up4TranslationException {
-        PiAction action = (PiAction) entry.action();
-
-        for (PiActionParam param : action.parameters()) {
-            if (param.id().equals(paramId)) {
-                return param.value();
-            }
-        }
-        throw new Up4TranslationException(
-                String.format("Unable to find parameter %s where expected!", paramId.toString()));
+    public void reset() {
+        localToGlobalFarId.clear();
+        globalFarIdCounter.set(0);
+        globalToLocalFarId.clear();
     }
 
-    protected static int getFieldInt(PiTableEntry entry, PiMatchFieldId fieldId)
-            throws Up4TranslationException {
-        return byteSeqToInt(getFieldValue(entry, fieldId));
+    /**
+     * Get a globally unique integer identifier for the FAR identified by the given (Session ID, Far ID) pair.
+     *
+     * @param farIdPair a RuleIdentifier instance uniquely identifying the FAR
+     * @return A globally unique integer identifier
+     */
+    public int globalFarIdOf(RuleIdentifier farIdPair) {
+        int globalFarId = localToGlobalFarId.compute(farIdPair,
+                (k, existingId) -> {
+                    if (existingId == null) {
+                        return (int) globalFarIdCounter.incrementAndGet();
+                    } else {
+                        return existingId;
+                    }
+                });
+        // use compute to avoid unnecessary writes, even though we ignore the return value
+        globalToLocalFarId.compute(globalFarId,
+                (k, existingId) -> {
+                    if (existingId == null) {
+                        return farIdPair;
+                    } else {
+                        return existingId;
+                    }
+                });
+        log.debug("{} translated to GlobalFarId={}", farIdPair, globalFarId);
+        return globalFarId;
     }
 
-    protected static int getParamInt(PiTableEntry entry, PiActionParamId paramId)
-            throws Up4TranslationException {
-        return byteSeqToInt(getParamValue(entry, paramId));
+    /**
+     * Get a globally unique integer identifier for the FAR identified by the given (Session ID, Far ID) pair.
+     *
+     * @param pfcpSessionId     The ID of the PFCP session that produced the FAR ID.
+     * @param sessionLocalFarId The FAR ID.
+     * @return A globally unique integer identifier
+     */
+    public int globalFarIdOf(ImmutableByteSequence pfcpSessionId, int sessionLocalFarId) {
+        RuleIdentifier farId = new RuleIdentifier(pfcpSessionId, sessionLocalFarId);
+        return globalFarIdOf(farId);
+
     }
 
-    protected static Ip4Address getParamAddress(PiTableEntry entry, PiActionParamId paramId)
-            throws Up4TranslationException {
-        return Ip4Address.valueOf(getParamValue(entry, paramId).asArray());
+    /**
+     * Get the corresponding PFCP session ID and session-local FAR ID from a globally unique FAR ID, or return
+     * null if no such mapping is found.
+     *
+     * @param globalFarId globally unique FAR ID
+     * @return the corresponding PFCP session ID and session-local FAR ID, as a RuleIdentifier
+     */
+    public RuleIdentifier localFarIdOf(int globalFarId) {
+        return globalToLocalFarId.get(globalFarId);
     }
 
-    protected static Ip4Prefix getFieldPrefix(PiTableEntry entry, PiMatchFieldId fieldId) {
-        Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(fieldId);
-        if (optField.isEmpty()) {
-            return null;
-        }
-        PiLpmFieldMatch field = (PiLpmFieldMatch) optField.get();
-        Ip4Address address = Ip4Address.valueOf(field.value().asArray());
-        return Ip4Prefix.valueOf(address, field.prefixLength());
-    }
-
-    protected static Ip4Address getFieldAddress(PiTableEntry entry, PiMatchFieldId fieldId)
-            throws Up4TranslationException {
-        return Ip4Address.valueOf(getFieldValue(entry, fieldId).asArray());
-    }
-
-    protected static boolean fieldMaskIsZero(PiTableEntry entry, PiMatchFieldId fieldId)
-            throws Up4TranslationException {
-        Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(fieldId);
-        if (optField.isEmpty()) {
-            return true;
-        }
-        PiFieldMatch field = optField.get();
-        if (field.type() != PiMatchType.TERNARY) {
-            throw new Up4TranslationException(
-                    String.format("Attempting to check mask for non-ternary field: %s", fieldId.toString()));
-        }
-        for (byte b : ((PiTernaryFieldMatch) field).mask().asArray()) {
-            if (b != (byte) 0) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    protected static int byteSeqToInt(ImmutableByteSequence sequence) {
-        try {
-            return sequence.fit(32).asReadOnlyBuffer().getInt();
-        } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
-            throw new IllegalArgumentException("Attempted to convert a >4 byte wide sequence to an integer!");
-        }
-    }
-
-    public static boolean isPdr(PiTableEntry entry) {
+    /**
+     * Returns true if the given table entry is a Packet Detection Rule from the UP4 logical pipeline, and
+     * false otherwise.
+     *
+     * @param entry the entry that may or may not be a logical PDR
+     * @return true if the entry is a logical PDR
+     */
+    public static boolean isUp4Pdr(PiTableEntry entry) {
         return entry.table().equals(NorthConstants.PDR_TBL);
     }
 
-    public static boolean isFar(PiTableEntry entry) {
+    /**
+     * Returns true if the given table entry is a Packet Detection Rule from the physical fabric pipeline, and
+     * false otherwise.
+     *
+     * @param entry the entry that may or may not be a fabric.p4 PDR
+     * @return true if the entry is a fabric.p4 PDR
+     */
+    public static boolean isFabricPdr(FlowRule entry) {
+        return entry.table().equals(SouthConstants.PDR_DOWNLINK_TBL)
+                || entry.table().equals(SouthConstants.PDR_DOWNLINK_TBL);
+    }
+
+    /**
+     * Returns true if the given table entry is a Forwarding Action Rule from the UP4 logical pipeline, and
+     * false otherwise.
+     *
+     * @param entry the entry that may or may not be a logical FAR
+     * @return true if the entry is a UP4 FAR
+     */
+    public static boolean isUp4Far(PiTableEntry entry) {
         return entry.table().equals(NorthConstants.FAR_TBL);
     }
 
-    public static boolean isInterface(PiTableEntry entry) {
+    /**
+     * Returns true if the given table entry is a Forwarding Action Rule from the physical fabric pipeline, and
+     * false otherwise.
+     *
+     * @param entry the entry that may or may not be a fabric.p4 FAR
+     * @return true if the entry is a fabric.p4 FAR
+     */
+    public static boolean isFabricFar(FlowRule entry) {
+        return entry.table().equals(SouthConstants.FAR_TBL);
+    }
+
+
+    /**
+     * Returns true if the given table entry is an interface table entry from the fabric.p4 physical pipeline, and
+     * false otherwise.
+     *
+     * @param entry the entry that may or may not be a fabric.p4 UPF interface
+     * @return true if the entry is a fabric.p4 UPF interface
+     */
+    public static boolean isFabricInterface(FlowRule entry) {
+        return entry.table().equals(SouthConstants.INTERFACE_LOOKUP);
+    }
+
+    /**
+     * Returns true if the given table entry is an interface table entry from the UP4 logical pipeline, and
+     * false otherwise.
+     *
+     * @param entry the entry that may or may not be a UP4 interface
+     * @return true if the entry is a UP4 interface
+     */
+    public static boolean isUp4Interface(PiTableEntry entry) {
         return entry.table().equals(NorthConstants.IFACE_TBL);
     }
 
-    public static boolean isS1uInterface(PiTableEntry entry) {
-        if (!isInterface(entry)) {
+    /**
+     * Returns true if the given table entry is an S1U interface entry from the UP4 logical pipeline, and
+     * false otherwise.
+     *
+     * @param entry the entry that may or may not be a logical S1U interface
+     * @return true if the entry is a UP4 logical S1U interface
+     */
+    public static boolean isUp4S1uInterface(PiTableEntry entry) {
+        if (!isUp4Interface(entry)) {
             return false;
         }
         int direction;
         try {
-            direction = byteSeqToInt(getParamValue(entry, NorthConstants.DIRECTION));
+            direction = TranslatorUtil.byteSeqToInt(TranslatorUtil.getParamValue(entry, NorthConstants.DIRECTION));
         } catch (Up4TranslationException e) {
             return false;
         }
         return direction == NorthConstants.DIRECTION_UPLINK;
     }
 
-    public static boolean isUePool(PiTableEntry entry) {
-        if (!isInterface(entry)) {
+    /**
+     * Returns true if the given table entry is an UE pool entry from the UP4 logical pipeline, and
+     * false otherwise.
+     *
+     * @param entry the entry that may or may not be a UP4 UE pool interface
+     * @return true if the entry is a UP4 UE pool
+     */
+    public static boolean isUp4UePool(PiTableEntry entry) {
+        if (!isUp4Interface(entry)) {
             return false;
         }
         int direction;
         try {
-            direction = byteSeqToInt(getParamValue(entry, NorthConstants.DIRECTION));
+            direction = TranslatorUtil.byteSeqToInt(TranslatorUtil.getParamValue(entry, NorthConstants.DIRECTION));
         } catch (Up4TranslationException e) {
             return false;
         }
         return direction == NorthConstants.DIRECTION_DOWNLINK;
     }
 
-    public static PacketDetectionRule piEntryToPdr(PiTableEntry entry)
+    public void assignGlobalFarId(PacketDetectionRule pdr) {
+        pdr.setGlobalFarId(globalFarIdOf(pdr.sessionId(), pdr.localFarId()));
+    }
+
+    public void assignGlobalFarId(ForwardingActionRule far) {
+        far.setGlobalFarId(globalFarIdOf(far.sessionId(), far.localFarId()));
+    }
+
+    /**
+     * Translate a fabric.p4 PDR table entry to a PacketDetectionRule instance for easier handling.
+     *
+     * @param entry the fabric.p4 entry to translate
+     * @return the corresponding PacketDetectionRule
+     * @throws Up4TranslationException if the entry cannot be translated
+     */
+    public PacketDetectionRule fabricEntryToPdr(FlowRule entry)
+            throws Up4TranslationException {
+        var pdrBuilder = PacketDetectionRule.builder();
+        Pair<PiCriterion, PiTableAction> matchActionPair = TranslatorUtil.fabricEntryToPiPair(entry);
+        PiCriterion match = matchActionPair.getLeft();
+        PiAction action = (PiAction) matchActionPair.getRight();
+
+        // UE Address key should always be present for fabric entries
+        int globalFarId = TranslatorUtil.getParamInt(action, SouthConstants.FAR_ID_PARAM);
+        RuleIdentifier farId = localFarIdOf(globalFarId);
+
+        // So should all the action parameters
+        pdrBuilder.withUeAddr(TranslatorUtil.getFieldAddress(match, SouthConstants.UE_ADDR_KEY))
+                .withCounterId(TranslatorUtil.getParamInt(action, SouthConstants.CTR_ID))
+                .withLocalFarId(farId.getSessionlocalId())
+                .withSessionId(farId.getPfcpSessionId());
+
+        // These keys are only present for uplink entries
+        if (TranslatorUtil.fieldIsPresent(match, SouthConstants.TEID_KEY)) {
+            ImmutableByteSequence teid = TranslatorUtil.getFieldValue(match, SouthConstants.TEID_KEY);
+            Ip4Address tunnelDst = TranslatorUtil.getFieldAddress(match, SouthConstants.TUNNEL_DST_KEY);
+            pdrBuilder.withTeid(teid)
+                    .withTunnelDst(tunnelDst);
+        }
+
+        return pdrBuilder.build();
+    }
+
+    /**
+     * Translate a fabric.p4 interface table entry to a UpfInterface instance for easier handling.
+     *
+     * @param entry the fabric.p4 entry to translate
+     * @return the corresponding UpfInterface
+     * @throws Up4TranslationException if the entry cannot be translated
+     */
+    public UpfInterface fabricEntryToUpfInterface(FlowRule entry)
+            throws Up4TranslationException {
+        Pair<PiCriterion, PiTableAction> matchActionPair = TranslatorUtil.fabricEntryToPiPair(entry);
+        PiCriterion match = matchActionPair.getLeft();
+        PiAction action = (PiAction) matchActionPair.getRight();
+
+        var ifaceBuilder = UpfInterface.builder()
+                .setPrefix(TranslatorUtil.getFieldPrefix(match, SouthConstants.IPV4_DST_ADDR));
+
+        int interfaceType = TranslatorUtil.getParamInt(action, SouthConstants.SRC_IFACE_PARAM);
+        if (interfaceType == SouthConstants.INTERFACE_ACCESS) {
+            ifaceBuilder.setUplink();
+        } else if (interfaceType == SouthConstants.INTERFACE_CORE) {
+            ifaceBuilder.setDownlink();
+        }
+        return ifaceBuilder.build();
+    }
+
+    /**
+     * Translate a UP4 PDR table entry to a PacketDetectionRule instance for easier handling.
+     *
+     * @param entry the UP4 entry to translate
+     * @return the corresponding PacketDetectionRule
+     * @throws Up4TranslationException if the entry cannot be translated
+     */
+    public PacketDetectionRule up4EntryToPdr(PiTableEntry entry)
             throws Up4TranslationException {
         var pdrBuilder = PacketDetectionRule.builder();
         // Uplink and downlink both have a UE address key
-        pdrBuilder.withUeAddr(getFieldAddress(entry, NorthConstants.UE_ADDR_KEY));
+        pdrBuilder.withUeAddr(TranslatorUtil.getFieldAddress(entry, NorthConstants.UE_ADDR_KEY));
 
-        int srcInterface = getFieldInt(entry, NorthConstants.SRC_IFACE_KEY);
+        int srcInterface = TranslatorUtil.getFieldInt(entry, NorthConstants.SRC_IFACE_KEY);
         if (srcInterface == NorthConstants.IFACE_ACCESS) {
             // uplink entries will also have a F-TEID key (tunnel destination address + TEID)
-            pdrBuilder.withTunnel(getFieldValue(entry, NorthConstants.TEID_KEY),
-                    getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY));
+            pdrBuilder.withTunnel(TranslatorUtil.getFieldValue(entry, NorthConstants.TEID_KEY),
+                    TranslatorUtil.getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY));
         } else if (srcInterface != NorthConstants.IFACE_CORE) {
             throw new Up4TranslationException("Flexible PDRs not yet supported.");
         }
@@ -183,45 +340,216 @@ public final class Up4Translator {
         PiAction action = (PiAction) entry.action();
         PiActionId actionId = action.id();
         if (actionId.equals(NorthConstants.LOAD_PDR) && !action.parameters().isEmpty()) {
-            pdrBuilder.withSessionId(getParamValue(entry, NorthConstants.SESSION_ID_PARAM))
-                    .withCounterId(getParamInt(entry, NorthConstants.CTR_ID))
-                    .withFarId(getParamInt(entry, NorthConstants.FAR_ID_PARAM));
+            ImmutableByteSequence sessionId = TranslatorUtil.getParamValue(entry, NorthConstants.SESSION_ID_PARAM);
+            int localFarId = TranslatorUtil.getParamInt(entry, NorthConstants.FAR_ID_PARAM);
+            pdrBuilder.withSessionId(sessionId)
+                    .withCounterId(TranslatorUtil.getParamInt(entry, NorthConstants.CTR_ID))
+                    .withLocalFarId(localFarId)
+                    .withGlobalFarId(globalFarIdOf(sessionId, localFarId));
         }
 
         return pdrBuilder.build();
     }
 
-    public static ForwardingActionRule piEntryToFar(PiTableEntry entry)
+
+    /**
+     * Translate a fabric.p4 FAR table entry to a ForwardActionRule instance for easier handling.
+     *
+     * @param entry the fabric.p4 entry to translate
+     * @return the corresponding ForwardingActionRule
+     * @throws Up4TranslationException if the entry cannot be translated
+     */
+    public ForwardingActionRule fabricEntryToFar(FlowRule entry)
+            throws Up4TranslationException {
+        var farBuilder = ForwardingActionRule.builder();
+        Pair<PiCriterion, PiTableAction> matchActionPair = TranslatorUtil.fabricEntryToPiPair(entry);
+        PiCriterion match = matchActionPair.getLeft();
+        PiAction action = (PiAction) matchActionPair.getRight();
+
+        int globalFarId = TranslatorUtil.getFieldInt(match, SouthConstants.FAR_ID_KEY);
+        RuleIdentifier farId = localFarIdOf(globalFarId);
+
+        boolean dropFlag = TranslatorUtil.getParamInt(action, SouthConstants.DROP_FLAG) > 0;
+        boolean notifyFlag = TranslatorUtil.getParamInt(action, SouthConstants.NOTIFY_FLAG) > 0;
+
+        // Match keys
+        farBuilder.withGlobalFarId(globalFarId)
+                .withSessionId(farId.getPfcpSessionId())
+                .withFarId(farId.getSessionlocalId());
+
+        // Parameters common to uplink and downlink should always be present
+        farBuilder.withDropFlag(dropFlag)
+                .withNotifyFlag(notifyFlag);
+
+        if (TranslatorUtil.paramIsPresent(action, SouthConstants.TEID_PARAM)) {
+            // Grab parameters specific to downlink FARs if they're present
+            Ip4Address tunnelSrc = TranslatorUtil.getParamAddress(action, SouthConstants.TUNNEL_SRC_PARAM);
+            Ip4Address tunnelDst = TranslatorUtil.getParamAddress(action, SouthConstants.TUNNEL_DST_PARAM);
+            ImmutableByteSequence teid = TranslatorUtil.getParamValue(action, SouthConstants.TEID_PARAM);
+
+            farBuilder.withTunnel(GtpTunnel.builder()
+                    .setSrc(tunnelSrc)
+                    .setDst(tunnelDst)
+                    .setTeid(teid)
+                    .build());
+        }
+        return farBuilder.build();
+    }
+
+    /**
+     * Translate a UP4 FAR table entry to a ForwardActionRule instance for easier handling.
+     *
+     * @param entry the UP4 entry to translate
+     * @return the corresponding ForwardingActionRule
+     * @throws Up4TranslationException if the entry cannot be translated
+     */
+    public ForwardingActionRule up4EntryToFar(PiTableEntry entry)
             throws Up4TranslationException {
         // First get the match keys
+        ImmutableByteSequence sessionId = TranslatorUtil.getFieldValue(entry, NorthConstants.SESSION_ID_KEY);
+        int localFarId = TranslatorUtil.getFieldInt(entry, NorthConstants.FAR_ID_KEY);
         var farBuilder = ForwardingActionRule.builder()
-                .withFarId(byteSeqToInt(getFieldValue(entry, NorthConstants.FAR_ID_KEY)))
-                .withSessionId(getFieldValue(entry, NorthConstants.SESSION_ID_KEY));
+                .withFarId(TranslatorUtil.byteSeqToInt(sessionId))
+                .withSessionId(localFarId)
+                .withGlobalFarId(globalFarIdOf(sessionId, localFarId));
 
         // Now get the action parameters, if they are present (entries from delete writes don't have parameters)
         PiAction action = (PiAction) entry.action();
         PiActionId actionId = action.id();
         if (!action.parameters().isEmpty()) {
             // Parameters that both types of FAR have
-            farBuilder.withDropFlag(getParamInt(entry, NorthConstants.DROP_FLAG) > 0)
-                    .withNotifyFlag(getParamInt(entry, NorthConstants.NOTIFY_FLAG) > 0);
+            farBuilder.withDropFlag(TranslatorUtil.getParamInt(entry, NorthConstants.DROP_FLAG) > 0)
+                    .withNotifyFlag(TranslatorUtil.getParamInt(entry, NorthConstants.NOTIFY_FLAG) > 0);
             if (actionId.equals(NorthConstants.LOAD_FAR_TUNNEL)) {
                 // Parameters exclusive to a downlink FAR
                 farBuilder.withTunnel(
-                        getParamAddress(entry, NorthConstants.TUNNEL_SRC_PARAM),
-                        getParamAddress(entry, NorthConstants.TUNNEL_DST_PARAM),
-                        getParamValue(entry, NorthConstants.TEID_PARAM));
+                        TranslatorUtil.getParamAddress(entry, NorthConstants.TUNNEL_SRC_PARAM),
+                        TranslatorUtil.getParamAddress(entry, NorthConstants.TUNNEL_DST_PARAM),
+                        TranslatorUtil.getParamValue(entry, NorthConstants.TEID_PARAM));
             }
         }
-
         return farBuilder.build();
     }
 
-    public static Ip4Prefix piEntryToInterfacePrefix(PiTableEntry entry) {
-        return getFieldPrefix(entry, NorthConstants.IFACE_DST_PREFIX_KEY);
+
+    /**
+     * Translate a ForwardingActionRule to a FlowRule to be inserted into the fabric.p4 pipeline.
+     * SIDE EFFECT: fills in the far object's globalFarId if it is not present.
+     *
+     * @param far      The FAR to be translated
+     * @param deviceId the ID of the device the FlowRule should be installed on
+     * @param appId    the ID of the application that will insert the FlowRule
+     * @param priority the FlowRule's priority
+     * @return the FAR translated to a FlowRule
+     * @throws Up4TranslationException if the FAR to be translated is malformed
+     */
+    public FlowRule farToFabricEntry(ForwardingActionRule far, DeviceId deviceId, ApplicationId appId, int priority)
+            throws Up4TranslationException {
+        if (!far.hasGlobalFarId()) {
+            assignGlobalFarId(far);
+        }
+        PiAction action;
+        if (far.isUplink()) {
+            action = PiAction.builder()
+                    .withId(SouthConstants.LOAD_FAR_NORMAL)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(SouthConstants.DROP_FLAG, far.dropFlag() ? 1 : 0),
+                            new PiActionParam(SouthConstants.NOTIFY_FLAG, far.notifyCpFlag() ? 1 : 0)
+                    ))
+                    .build();
+
+        } else if (far.isDownlink()) {
+            // TODO: copy tunnel destination port from logical switch write requests, instead of hardcoding 2152
+            action = PiAction.builder()
+                    .withId(SouthConstants.LOAD_FAR_TUNNEL)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(SouthConstants.DROP_FLAG, far.dropFlag() ? 1 : 0),
+                            new PiActionParam(SouthConstants.NOTIFY_FLAG, far.notifyCpFlag() ? 1 : 0),
+                            new PiActionParam(SouthConstants.TEID_PARAM, far.teid()),
+                            new PiActionParam(SouthConstants.TUNNEL_SRC_PARAM, far.tunnelSrc().toInt()),
+                            new PiActionParam(SouthConstants.TUNNEL_DST_PARAM, far.tunnelDst().toInt()),
+                            new PiActionParam(SouthConstants.TUNNEL_DST_PORT_PARAM, 2152)
+                    ))
+                    .build();
+        } else {
+            throw new Up4TranslationException("Attempting to translate a FAR of unknown direction to fabric entry!");
+        }
+
+        PiCriterion match = PiCriterion.builder()
+                .matchExact(SouthConstants.FAR_ID_KEY, far.getGlobalFarId())
+                .build();
+        return DefaultFlowRule.builder()
+                .forDevice(deviceId).fromApp(appId).makePermanent()
+                .forTable(SouthConstants.FAR_TBL)
+                .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
+                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
+                .withPriority(priority)
+                .build();
     }
 
-    static class Up4TranslationException extends Exception {
+    /**
+     * Translate a PacketDetectionRule to a FlowRule to be inserted into the fabric.p4 pipeline.
+     * SIDE EFFECT: fills in the pdr object's globalFarId if it is not present.
+     *
+     * @param pdr      The PDR to be translated
+     * @param deviceId the ID of the device the FlowRule should be installed on
+     * @param appId    the ID of the application that will insert the FlowRule
+     * @param priority the FlowRule's priority
+     * @return the FAR translated to a FlowRule
+     * @throws Up4TranslationException if the PDR to be translated is malformed
+     */
+    public FlowRule pdrToFabricEntry(PacketDetectionRule pdr, DeviceId deviceId, ApplicationId appId, int priority)
+            throws Up4TranslationException {
+        if (!pdr.hasGlobalFarId()) {
+            assignGlobalFarId(pdr);
+        }
+        PiCriterion match;
+        PiTableId tableId;
+        if (pdr.isUplink()) {
+            match = PiCriterion.builder()
+                    .matchExact(SouthConstants.UE_ADDR_KEY, pdr.ueAddress().toInt())
+                    .matchExact(SouthConstants.TEID_KEY, pdr.teid().asArray())
+                    .matchExact(SouthConstants.TUNNEL_DST_KEY, pdr.tunnelDest().toInt())
+                    .build();
+            tableId = SouthConstants.PDR_UPLINK_TBL;
+        } else if (pdr.isDownlink()) {
+            match = PiCriterion.builder()
+                    .matchExact(SouthConstants.UE_ADDR_KEY, pdr.ueAddress().toInt())
+                    .build();
+            tableId = SouthConstants.PDR_DOWNLINK_TBL;
+        } else {
+            throw new Up4TranslationException("Flexible PDRs not yet supported! Cannot translate " + pdr.toString());
+        }
+
+        PiAction action = PiAction.builder()
+                .withId(SouthConstants.LOAD_PDR)
+                .withParameters(Arrays.asList(
+                        new PiActionParam(SouthConstants.CTR_ID, pdr.counterId()),
+                        new PiActionParam(SouthConstants.FAR_ID_PARAM, pdr.getGlobalFarId()),
+                        new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP_PARAM, pdr.isUplink() ? 1 : 0)
+                ))
+                .build();
+
+        return DefaultFlowRule.builder()
+                .forDevice(deviceId).fromApp(appId).makePermanent()
+                .forTable(tableId)
+                .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
+                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
+                .withPriority(priority)
+                .build();
+    }
+
+    /**
+     * Extract the prefix from a UP4 interface table entry.
+     *
+     * @param entry the interface from which to extract a prefix
+     * @return the extracted prefix
+     */
+    public static Ip4Prefix up4EntryToInterfacePrefix(PiTableEntry entry) {
+        return TranslatorUtil.getFieldPrefix(entry, NorthConstants.IFACE_DST_PREFIX_KEY);
+    }
+
+    public static class Up4TranslationException extends Exception {
         /**
          * Creates a new exception for the given message.
          *
@@ -229,6 +557,62 @@ public final class Up4Translator {
          */
         public Up4TranslationException(String message) {
             super(message);
+        }
+    }
+
+    /**
+     * Wrapper for identifying information of FARs and PDRs
+     */
+    public static final class RuleIdentifier {
+        final int sessionlocalId;
+        final ImmutableByteSequence pfcpSessionId;
+
+        /**
+         * A PDR or FAR can be globally uniquely identified by the combination of the ID of the PFCP session that
+         * produced it, and the ID that the rule was assigned in that PFCP session.
+         *
+         * @param pfcpSessionId  The PFCP session that produced the rule ID
+         * @param sessionlocalId The rule ID
+         */
+        public RuleIdentifier(ImmutableByteSequence pfcpSessionId, int sessionlocalId) {
+            this.pfcpSessionId = pfcpSessionId;
+            this.sessionlocalId = sessionlocalId;
+        }
+
+        public int getSessionlocalId() {
+            return sessionlocalId;
+        }
+
+        public ImmutableByteSequence getPfcpSessionId() {
+            return pfcpSessionId;
+        }
+
+        @Override
+        public String toString() {
+            return "RuleIdentifier{" +
+                    "sessionlocalId=" + sessionlocalId +
+                    ", pfcpSessionId=" + pfcpSessionId +
+                    '}';
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            RuleIdentifier that = (RuleIdentifier) obj;
+            return (this.sessionlocalId == that.sessionlocalId) && (this.pfcpSessionId.equals(that.pfcpSessionId));
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.sessionlocalId, this.pfcpSessionId);
         }
     }
 }

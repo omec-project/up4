@@ -67,6 +67,8 @@ public class Up4NorthComponent {
     protected CoreService coreService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Service up4Service;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected Up4Translator up4Translator;
     private Server server;
     private P4InfoOuterClass.P4Info p4Info;
     private long pipeconfCookie = 0xbeefbeef;
@@ -128,20 +130,20 @@ public class Up4NorthComponent {
      */
     private void translateAndDelete(PiTableEntry entry) {
         log.debug("Translating UP4 deletion request to fabric entry deletion.");
-        if (Up4Translator.isInterface(entry)) {
-            Ip4Prefix prefix = Up4Translator.piEntryToInterfacePrefix(entry);
+        if (Up4Translator.isUp4Interface(entry)) {
+            Ip4Prefix prefix = Up4Translator.up4EntryToInterfacePrefix(entry);
             up4Service.getUpfProgrammable().removeUnknownInterface(prefix);
-        } else if (Up4Translator.isPdr(entry)) {
+        } else if (Up4Translator.isUp4Pdr(entry)) {
             try {
-                PacketDetectionRule pdr = Up4Translator.piEntryToPdr(entry);
+                PacketDetectionRule pdr = up4Translator.up4EntryToPdr(entry);
                 log.debug("Translated UP4 PDR successfully. Deleting.");
                 up4Service.getUpfProgrammable().removePdr(pdr);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 PDR in delete write! Error was: {}", e.getMessage());
             }
-        } else if (Up4Translator.isFar(entry)) {
+        } else if (Up4Translator.isUp4Far(entry)) {
             try {
-                ForwardingActionRule far = Up4Translator.piEntryToFar(entry);
+                ForwardingActionRule far = up4Translator.up4EntryToFar(entry);
                 log.debug("Translated UP4 FAR successfully. Deleting.");
                 up4Service.getUpfProgrammable().removeFar(far);
             } catch (Up4Translator.Up4TranslationException e) {
@@ -165,25 +167,25 @@ public class Up4NorthComponent {
             return;
         }
 
-        if (Up4Translator.isInterface(entry)) {
-            Ip4Prefix ifacePrefix = Up4Translator.piEntryToInterfacePrefix(entry);
-            if (Up4Translator.isS1uInterface(entry)) {
+        if (Up4Translator.isUp4Interface(entry)) {
+            Ip4Prefix ifacePrefix = Up4Translator.up4EntryToInterfacePrefix(entry);
+            if (Up4Translator.isUp4S1uInterface(entry)) {
                 up4Service.getUpfProgrammable().addS1uInterface(ifacePrefix.address());
-            } else if (Up4Translator.isUePool(entry)) {
+            } else if (Up4Translator.isUp4UePool(entry)) {
                 up4Service.getUpfProgrammable().addUePool(ifacePrefix);
             } else {
                 log.warn("Received unknown interface write request! Ignoring");
             }
-        } else if (Up4Translator.isPdr(entry)) {
+        } else if (Up4Translator.isUp4Pdr(entry)) {
             try {
-                PacketDetectionRule pdr = Up4Translator.piEntryToPdr(entry);
+                PacketDetectionRule pdr = up4Translator.up4EntryToPdr(entry);
                 up4Service.getUpfProgrammable().addPdr(pdr);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 PDR! Error was: {}", e.getMessage());
             }
-        } else if (Up4Translator.isFar(entry)) {
+        } else if (Up4Translator.isUp4Far(entry)) {
             try {
-                ForwardingActionRule far = Up4Translator.piEntryToFar(entry);
+                ForwardingActionRule far = up4Translator.up4EntryToFar(entry);
                 up4Service.getUpfProgrammable().addFar(far);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 FAR! Error was {}", e.getMessage());
