@@ -5,6 +5,10 @@ import org.onosproject.net.DeviceId;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 
+/**
+ * This service provides stateful translation between UP4 p4 table entries, fabric.p4 table entries,
+ * and the intermediate java structures PacketDetectionRule, ForwardingActionRule, and UpfInterface.
+ */
 public interface Up4Translator {
 
     /**
@@ -128,7 +132,7 @@ public interface Up4Translator {
 
     /**
      * Translate a ForwardingActionRule to a FlowRule to be inserted into the fabric.p4 pipeline.
-     * SIDE EFFECT: fills in the far object's globalFarId if it is not present.
+     * A side effect of calling this method is the FAR object's globalFarId is assigned if it was not already.
      *
      * @param far      The FAR to be translated
      * @param deviceId the ID of the device the FlowRule should be installed on
@@ -142,7 +146,7 @@ public interface Up4Translator {
 
     /**
      * Translate a PacketDetectionRule to a FlowRule to be inserted into the fabric.p4 pipeline.
-     * SIDE EFFECT: fills in the pdr object's globalFarId if it is not present.
+     * A side effect of calling this method is the PDR object's globalFarId is assigned if it was not already.
      *
      * @param pdr      The PDR to be translated
      * @param deviceId the ID of the device the FlowRule should be installed on

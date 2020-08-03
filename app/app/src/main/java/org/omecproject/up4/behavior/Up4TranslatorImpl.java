@@ -51,8 +51,11 @@ public class Up4TranslatorImpl implements Up4Translator {
     private final Logger log = LoggerFactory.getLogger(getClass());
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected StorageService storageService;
+    // Maps local FAR IDs to global FAR IDs
     private EventuallyConsistentMap<RuleIdentifier, Integer> localToGlobalFarId;
+    // Maps global FAR IDs to local FAR IDs
     private EventuallyConsistentMap<Integer, RuleIdentifier> globalToLocalFarId;
+    // Counter for producing new global FAR IDs
     private AtomicCounter globalFarIdCounter;
 
     @Activate

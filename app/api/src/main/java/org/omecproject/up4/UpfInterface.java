@@ -5,6 +5,9 @@ import org.onlab.packet.Ip4Prefix;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+/**
+ * A UPF device interface, such as a S1U or UE IP address pool.
+ */
 public final class UpfInterface {
     private final Ip4Prefix prefix;
     private final Type type;

@@ -26,7 +26,6 @@ import org.onosproject.net.pi.runtime.PiCounterCellId;
 import org.onosproject.net.pi.service.PiPipeconfService;
 import org.onosproject.p4runtime.api.P4RuntimeClient;
 import org.onosproject.p4runtime.api.P4RuntimeController;
-import org.onosproject.store.service.StorageService;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -64,10 +63,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected StorageService storageService;
-    DeviceId deviceId;
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
     private Up4Translator up4Translator;
+    DeviceId deviceId;
     private ApplicationId appId;
 
     @Activate

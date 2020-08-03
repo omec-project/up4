@@ -24,9 +24,10 @@ import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 
 import java.util.Optional;
 
+/**
+ * Utility class for manipulation of FlowRules and PiTableEntry objects.
+ */
 final class TranslatorUtil {
-
-    static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
 
     private TranslatorUtil() {
     }
