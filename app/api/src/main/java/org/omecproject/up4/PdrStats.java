@@ -18,12 +18,6 @@ public final class PdrStats {
     private final long egressPkts;
     private final long egressBytes;
 
-    @Override
-    public String toString() {
-        return String.format("PDR-Stats:{ CellID: %d, Ingress:(%dpkts,%dbytes), Egress:(%dpkts,%dbytes) }",
-                cellId, ingressPkts, ingressBytes, egressPkts, egressBytes);
-    }
-
     private PdrStats(int cellId, long ingressPkts, long ingressBytes,
                      long egressPkts, long egressBytes) {
         this.cellId = cellId;
@@ -31,6 +25,16 @@ public final class PdrStats {
         this.ingressBytes = ingressBytes;
         this.egressPkts = egressPkts;
         this.egressBytes = egressBytes;
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    @Override
+    public String toString() {
+        return String.format("PDR-Stats:{ CellID: %d, Ingress:(%dpkts,%dbytes), Egress:(%dpkts,%dbytes) }",
+                cellId, ingressPkts, ingressBytes, egressPkts, egressBytes);
     }
 
     /**
@@ -76,10 +80,6 @@ public final class PdrStats {
      */
     public long getEgressBytes() {
         return egressBytes;
-    }
-
-    public static Builder builder() {
-        return new Builder();
     }
 
     public static class Builder {

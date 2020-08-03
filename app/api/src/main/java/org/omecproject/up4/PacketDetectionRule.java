@@ -26,42 +26,24 @@ public final class PacketDetectionRule {
     // Action parameters
     private final ImmutableByteSequence sessionId;  // The ID of the PFCP session that created this PDR
     private final Integer ctrId;  // Counter ID unique to this PDR
-    private final Integer farId;  // The PFCP session-local ID of the FAR that should apply to packets if this PDR hits
+    private final Integer localFarId;  // The PFCP session-local ID of the FAR that should apply after this PDR hits
     private final Type type; // Is the PDR Uplink, Downlink, etc.
     private Integer globalFarId; // The non-session-local ID of the FAR that should apply to packets if this PDR hits
 
-    private PacketDetectionRule(ImmutableByteSequence sessionId, Integer ctrId, Integer farId, Ip4Address ueAddr,
-                                ImmutableByteSequence teid, Ip4Address tunnelDst, Type type) {
+    private PacketDetectionRule(ImmutableByteSequence sessionId, Integer ctrId, Integer localFarId, Ip4Address ueAddr,
+                                ImmutableByteSequence teid, Ip4Address tunnelDst, Integer globalFarId, Type type) {
         this.ueAddr = ueAddr;
         this.teid = teid;
         this.tunnelDst = tunnelDst;
         this.sessionId = sessionId;
         this.ctrId = ctrId;
-        this.farId = farId;
+        this.localFarId = localFarId;
         this.type = type;
-        this.globalFarId = null;
+        this.globalFarId = globalFarId;
     }
 
-    public enum Type {
-        /**
-         * Uplink PDRs match on packets travelling in the uplink direction. These packets will have a GTP tunnel.
-         */
-        UPLINK,
-        /**
-         * Downlink PDRs match on packets travelling in the downlink direction.
-         * These packets will not have a GTP tunnel.
-         */
-        DOWNLINK,
-        /**
-         * For uplink PDRs that were not build with any action parameters, only match keys.
-         * These are usually built in the context of P4Runtime DELETE write requests.
-         */
-        UPLINK_KEYS_ONLY,
-        /**
-         * For downlink PDRs that were not build with any action parameters, only match keys.
-         * These are usually built in the context of P4Runtime DELETE write requests.
-         */
-        DOWNLINK_KEYS_ONLY
+    public static Builder builder() {
+        return new Builder();
     }
 
     @Override
@@ -80,7 +62,7 @@ public final class PacketDetectionRule {
         if (hasActionParameters()) {
             String globalIdStr = globalFarId == null ? "None" : globalFarId.toString();
             actionParams = String.format("SEID:%s,FAR:%d,FAR-GID:%s,CtrIdx:%d",
-                    sessionId.toString(), farId, globalIdStr, ctrId);
+                    sessionId.toString(), localFarId, globalIdStr, ctrId);
         }
 
         return String.format("%s-PDR{ Keys:(%s) -> Params (%s) }", directionString, matchKeys, actionParams);
@@ -115,12 +97,13 @@ public final class PacketDetectionRule {
     }
 
     /**
-     * Get the globally unique identifier of the FAR that should apply to packets that match this PDR.
+     * Check whether a global FAR ID has been assigned, which is necessary for an entry to be written
+     * to the fabric.p4 pipeline.
      *
-     * @param globalFarId globally unique FAR ID
+     * @return true if a global FAR ID has been assigned
      */
-    public void setGlobalFarId(int globalFarId) {
-        this.globalFarId = globalFarId;
+    public boolean hasGlobalFarId() {
+        return this.globalFarId != null;
     }
 
     /**
@@ -130,6 +113,15 @@ public final class PacketDetectionRule {
      */
     public int getGlobalFarId() {
         return this.globalFarId;
+    }
+
+    /**
+     * Get the globally unique identifier of the FAR that should apply to packets that match this PDR.
+     *
+     * @param globalFarId globally unique FAR ID
+     */
+    public void setGlobalFarId(int globalFarId) {
+        this.globalFarId = globalFarId;
     }
 
     /**
@@ -183,17 +175,36 @@ public final class PacketDetectionRule {
      * @return PFCP session-local FAR ID
      */
     public int localFarId() {
-        return farId;
+        return localFarId;
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public enum Type {
+        /**
+         * Uplink PDRs match on packets travelling in the uplink direction. These packets will have a GTP tunnel.
+         */
+        UPLINK,
+        /**
+         * Downlink PDRs match on packets travelling in the downlink direction.
+         * These packets will not have a GTP tunnel.
+         */
+        DOWNLINK,
+        /**
+         * For uplink PDRs that were not build with any action parameters, only match keys.
+         * These are usually built in the context of P4Runtime DELETE write requests.
+         */
+        UPLINK_KEYS_ONLY,
+        /**
+         * For downlink PDRs that were not build with any action parameters, only match keys.
+         * These are usually built in the context of P4Runtime DELETE write requests.
+         */
+        DOWNLINK_KEYS_ONLY
     }
 
     public static class Builder {
         private ImmutableByteSequence sessionId = null;
         private Integer ctrId = null;
-        private Integer farId = null;
+        private Integer localFarId = null;
+        private Integer globalFarId = null;
         private Ip4Address ueAddr = null;
         private ImmutableByteSequence teid = null;
         private Ip4Address tunnelDst = null;
@@ -246,13 +257,24 @@ public final class PacketDetectionRule {
         }
 
         /**
-         * Set the PFCP session-local ID of the far that should apply to packets that this PDR matches.
+         * Set the globally unique ID of the far that should apply to packets that this PDR matches.
          *
-         * @param farId PFCP session-local FAR ID
+         * @param globalFarId globally unique FAR ID
          * @return This builder object
          */
-        public Builder withFarId(int farId) {
-            this.farId = farId;
+        public Builder withGlobalFarId(int globalFarId) {
+            this.globalFarId = globalFarId;
+            return this;
+        }
+
+        /**
+         * Set the PFCP session-local ID of the far that should apply to packets that this PDR matches.
+         *
+         * @param localFarId PFCP session-local FAR ID
+         * @return This builder object
+         */
+        public Builder withLocalFarId(int localFarId) {
+            this.localFarId = localFarId;
             return this;
         }
 
@@ -309,8 +331,8 @@ public final class PacketDetectionRule {
                             (teid != null && tunnelDst != null),
                     "TEID and Tunnel destination must be provided together or not at all");
             // Action parameters are optional but must be all provided together if they are provided
-            checkArgument((sessionId != null && ctrId != null && farId != null) ||
-                            (sessionId == null && ctrId == null && farId == null),
+            checkArgument((sessionId != null && ctrId != null && localFarId != null) ||
+                            (sessionId == null && ctrId == null && localFarId == null),
                     "PDR action parameters must be provided together or not at all.");
             Type type;
             if (teid != null) {
@@ -326,7 +348,7 @@ public final class PacketDetectionRule {
                     type = Type.DOWNLINK_KEYS_ONLY;
                 }
             }
-            return new PacketDetectionRule(sessionId, ctrId, farId, ueAddr, teid, tunnelDst, type);
+            return new PacketDetectionRule(sessionId, ctrId, localFarId, ueAddr, teid, tunnelDst, globalFarId, type);
         }
     }
 }

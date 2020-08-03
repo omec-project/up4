@@ -23,6 +23,10 @@ public final class GtpTunnel {
         this.teid = teid;
     }
 
+    public static GtpTunnelBuilder builder() {
+        return new GtpTunnelBuilder();
+    }
+
     @Override
     public String toString() {
         return String.format("GTP-Tunnel(%s -> %s, TEID:%s)", src.toString(), dst.toString(), teid.toString());
@@ -53,10 +57,6 @@ public final class GtpTunnel {
      */
     public ImmutableByteSequence teid() {
         return this.teid;
-    }
-
-    public static GtpTunnelBuilder builder() {
-        return new GtpTunnelBuilder();
     }
 
     public static class GtpTunnelBuilder {

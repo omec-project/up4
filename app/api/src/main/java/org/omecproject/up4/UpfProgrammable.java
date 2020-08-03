@@ -9,6 +9,8 @@ import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 
+import java.util.Collection;
+
 
 /**
  * UPF programmable behavior. Provides means to update device forwarding state
@@ -45,6 +47,34 @@ public interface UpfProgrammable {
     DeviceId deviceId();
 
     /**
+     * Get all UE sessions currently installed on the UPF-programmable device.
+     *
+     * @return a collection of installed Sessions
+     */
+    Collection<UeSession> getSessions();
+
+    /**
+     * Get all ForwardingActionRules currently installed on the UPF-programmable device.
+     *
+     * @return a collection of installed FARs
+     */
+    Collection<ForwardingActionRule> getInstalledFars();
+
+    /**
+     * Get all PacketDetectionRules currently installed on the UPF-programmable device.
+     *
+     * @return a collection of installed PDRs
+     */
+    Collection<PacketDetectionRule> getInstalledPdrs();
+
+    /**
+     * Get all UPF interface lookup entries currently installed on the UPF-programmable device.
+     *
+     * @return a collection of installed interface entries
+     */
+    Collection<UpfInterface> getInstalledInterfaces();
+
+    /**
      * Add a Packet Detection Rule (PDR) to the given device.
      *
      * @param pdr The PDR to be added
@@ -71,6 +101,13 @@ public interface UpfProgrammable {
      * @param far The FAR to be removed
      */
     void removeFar(ForwardingActionRule far);
+
+    /**
+     * Install a new interface on the UPF device's interface lookup tables.
+     *
+     * @param upfInterface the interface to install
+     */
+    void addInterface(UpfInterface upfInterface);
 
     /**
      * Register a UE IPv4 address prefix with the interface lookup tables AKA the filtering stage.

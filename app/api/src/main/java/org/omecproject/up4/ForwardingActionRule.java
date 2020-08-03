@@ -29,31 +29,19 @@ public final class ForwardingActionRule {
     private final Type type;  // Is the FAR Uplink, Downlink, etc
     private Integer globalFarId;  // Globally unique identifier of this FAR
 
-    private ForwardingActionRule(ImmutableByteSequence sessionId, Integer farId, Boolean drop, Boolean notifyCp,
-                                 GtpTunnel tunnelDesc, Type type) {
-        // All match keys are required
+    private ForwardingActionRule(Integer globalFarId, ImmutableByteSequence sessionId, Integer farId,
+                                 Boolean drop, Boolean notifyCp, GtpTunnel tunnelDesc, Type type) {
+        this.globalFarId = globalFarId;
         this.sessionId = sessionId;
         this.farId = farId;
         this.drop = drop;
         this.notifyCp = notifyCp;
         this.tunnelDesc = tunnelDesc;
         this.type = type;
-        this.globalFarId = null;
     }
 
-    public enum Type {
-        /**
-         * Uplink FARs apply to packets traveling in the uplink direction, and do not encapsulate.
-         */
-        UPLINK,
-        /**
-         * Downlink FARS apply to packets traveling in the downlink direction, and do encapsulate.
-         */
-        DOWNLINK,
-        /**
-         * FAR was not built with any action parameters, only match keys.
-         */
-        KEYS_ONLY
+    public static Builder builder() {
+        return new Builder();
     }
 
     @Override
@@ -105,12 +93,13 @@ public final class ForwardingActionRule {
     }
 
     /**
-     * Get the globally unique identifier of this FAR.
+     * Check whether a global FAR ID has been assigned, which is necessary for an entry to be written
+     * to the fabric.p4 pipeline.
      *
-     * @param globalFarId globally unique FAR ID
+     * @return true if a global FAR ID has been assigned
      */
-    public void setGlobalFarId(int globalFarId) {
-        this.globalFarId = globalFarId;
+    public boolean hasGlobalFarId() {
+        return this.globalFarId != null;
     }
 
     /**
@@ -120,6 +109,15 @@ public final class ForwardingActionRule {
      */
     public int getGlobalFarId() {
         return this.globalFarId;
+    }
+
+    /**
+     * Get the globally unique identifier of this FAR.
+     *
+     * @param globalFarId globally unique FAR ID
+     */
+    public void setGlobalFarId(int globalFarId) {
+        this.globalFarId = globalFarId;
     }
 
     /**
@@ -204,11 +202,23 @@ public final class ForwardingActionRule {
         return tunnelDesc.teid();
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public enum Type {
+        /**
+         * Uplink FARs apply to packets traveling in the uplink direction, and do not encapsulate.
+         */
+        UPLINK,
+        /**
+         * Downlink FARS apply to packets traveling in the downlink direction, and do encapsulate.
+         */
+        DOWNLINK,
+        /**
+         * FAR was not built with any action parameters, only match keys.
+         */
+        KEYS_ONLY
     }
 
     public static class Builder {
+        private Integer globalFarId;
         private ImmutableByteSequence sessionId;
         private Integer farId;
         private Boolean drop;
@@ -216,6 +226,7 @@ public final class ForwardingActionRule {
         private GtpTunnel tunnelDesc;
 
         public Builder() {
+            globalFarId = null;
             sessionId = null;
             farId = null;
             drop = null;
@@ -253,6 +264,17 @@ public final class ForwardingActionRule {
          */
         public Builder withFarId(int farId) {
             this.farId = farId;
+            return this;
+        }
+
+        /**
+         * Set the globally unique ID of this FAR.
+         *
+         * @param globalFarId globally unique FAR ID
+         * @return This builder object
+         */
+        public Builder withGlobalFarId(int globalFarId) {
+            this.globalFarId = globalFarId;
             return this;
         }
 
@@ -335,7 +357,7 @@ public final class ForwardingActionRule {
             } else {
                 type = Type.DOWNLINK;
             }
-            return new ForwardingActionRule(sessionId, farId, drop, notifyCp, tunnelDesc, type);
+            return new ForwardingActionRule(globalFarId, sessionId, farId, drop, notifyCp, tunnelDesc, type);
         }
     }
 }

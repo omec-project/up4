@@ -11,7 +11,7 @@ include ../util/docker/Makefile.vars
 ONOS_BOOT_TIME := 45
 CONFIG_WAIT_TIME := 10
 PKT_WAIT_TIME := 10
-
+STOP_ARGS := -t0
 
 
 _docker_pull_all:
@@ -78,13 +78,12 @@ pdr-clear:
 far-clear:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh far
 
+stop2: STOP_ARGS :=
+stop2: stop
+
 stop:
 	$(info *** Stopping ONOS and Mininet...)
-	@docker-compose down
-
-stop-quick:
-	$(info *** Stopping ONOS and Mininet...)
-	@docker-compose down -t0
+	docker-compose down ${STOP_ARGS}
 
 reset: stop
 	-$(NGSDN_TUTORIAL_SUDO) rm -rf ./tmp
@@ -115,6 +114,7 @@ app-reload:
 check-slow: ONOS_BOOT_TIME := 75
 check-slow: CONFIG_WAIT_TIME := 30
 check-slow: PKT_WAIT_TIME := 20
+check-slow: STOP_ARGS :=
 check-slow: _check
 
 check: _check
@@ -135,7 +135,7 @@ _check:
 	@echo "**********************************"
 	@echo "** Integration checks passed :D **"
 	@echo "**********************************"
-	make stop
+	make stop STOP_ARGS=${STOP_ARGS}
 
 send-downlink:
 	@# util/mn-cmd requires a TTY because it uses docker -it option

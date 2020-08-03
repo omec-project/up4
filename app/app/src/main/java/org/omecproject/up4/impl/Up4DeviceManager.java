@@ -81,7 +81,6 @@ public class Up4DeviceManager implements Up4Service {
         log.info("Starting...");
         appId = coreService.registerApplication(AppConstants.APP_NAME,
                 () -> log.info("Periscope down."));
-
         deviceListener = new InternalDeviceListener();
         netCfgListener = new InternalConfigListener();
         netCfgService.addListener(netCfgListener);
@@ -117,7 +116,6 @@ public class Up4DeviceManager implements Up4Service {
     public DeviceId getUpfDeviceId() {
         return upfDeviceId;
     }
-
 
     @Override
     public boolean isUpfDevice(DeviceId deviceId) {

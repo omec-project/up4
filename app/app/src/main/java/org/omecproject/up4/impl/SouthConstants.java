@@ -13,7 +13,7 @@ import org.onosproject.net.pi.model.PiTableId;
 public final class SouthConstants {
 
     public static final int INTERFACE_ACCESS = 1;
-    public static final int INTERFACE_CORE = 1;
+    public static final int INTERFACE_CORE = 2;
 
     public static final int DIRECTION_UPLINK = 1;
     public static final int DIRECTION_DOWNLINK = 2;
@@ -63,6 +63,7 @@ public final class SouthConstants {
     public static final PiActionParamId TUNNEL_SRC_PARAM = PiActionParamId.of("tunnel_src_addr");
     public static final PiActionParamId TUNNEL_DST_PARAM = PiActionParamId.of("tunnel_dst_addr");
     public static final PiActionParamId TUNNEL_DST_PORT_PARAM = PiActionParamId.of("tunnel_src_port");
+
     // hide default constructor
     private SouthConstants() {
     }

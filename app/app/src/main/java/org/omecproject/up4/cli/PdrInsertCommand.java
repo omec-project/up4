@@ -54,7 +54,7 @@ public class PdrInsertCommand extends AbstractShellCommand {
         var pdrBuilder = PacketDetectionRule.builder()
                 .withSessionId(sessionId)
                 .withUeAddr(ueAddr)
-                .withFarId(farId)
+                .withLocalFarId(farId)
                 .withCounterId(1);
 
         if (teid != -1) {

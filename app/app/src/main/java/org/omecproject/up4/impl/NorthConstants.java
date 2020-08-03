@@ -41,6 +41,7 @@ public final class NorthConstants {
     public static final PiMatchFieldId SESSION_ID_KEY = PiMatchFieldId.of("session_id");
     // Action parameter names
     //   interface lookup table
+    public static final PiActionParamId SRC_IFACE_PARAM = PiActionParamId.of("src_iface");
     public static final PiActionParamId DIRECTION = PiActionParamId.of("direction");
     //   pdr table
     public static final PiActionParamId CTR_ID = PiActionParamId.of("ctr_id");
@@ -52,6 +53,7 @@ public final class NorthConstants {
     public static final PiActionParamId TUNNEL_DST_PARAM = PiActionParamId.of("dst_addr");
     public static final PiActionParamId DROP_FLAG = PiActionParamId.of("needs_dropping");
     public static final PiActionParamId NOTIFY_FLAG = PiActionParamId.of("notify_cp");
+
     // hide default constructor
     private NorthConstants() {
     }
