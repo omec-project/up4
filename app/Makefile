@@ -135,7 +135,7 @@ _check:
 	@echo "**********************************"
 	@echo "** Integration checks passed :D **"
 	@echo "**********************************"
-	make stop
+	make stop STOP_ARGS=${STOP_ARGS}
 
 send-downlink:
 	@# util/mn-cmd requires a TTY because it uses docker -it option
