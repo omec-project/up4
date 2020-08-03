@@ -45,7 +45,7 @@ public final class UeSession {
     @Override
     public String toString() {
         String divider = "-------------------------------------------------------\n";
-        String dividerf = "--- %s ----------------------------------------\n";
+        String dividerf = "-- %s --\n";
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append(divider)
                 .append("UE Address: ").append(ueAddress)
@@ -91,7 +91,7 @@ public final class UeSession {
                 pdrString = pdr.toString();
             }
         }
-        return String.format("%s  -->  %s;\n %5d Ingress pkts -> %5d Egress pkts",
+        return String.format("- %s  -->  %s;\n- %5d Ingress pkts -> %5d Egress pkts",
                 pdrString, farString, stats.getIngressPkts(), stats.getEgressPkts());
     }
 
