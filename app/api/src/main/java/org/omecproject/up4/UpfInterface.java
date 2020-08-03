@@ -21,6 +21,11 @@ public final class UpfInterface {
         return new Builder();
     }
 
+    @Override
+    public String toString() {
+        return String.format("Interface{%s, %s}", isUplink() ? "Uplink" : "Downlink", prefix);
+    }
+
     /**
      * Create an uplink UPF Interface from the given address, which will be treated as a /32 prefix.
      *
