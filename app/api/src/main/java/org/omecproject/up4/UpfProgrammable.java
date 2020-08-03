@@ -54,6 +54,11 @@ public interface UpfProgrammable {
     Collection<UeSession> getSessions();
 
     /**
+     * Remove all UE sessions currently installed on the UPF-programmable device.
+     */
+    void clearSessions();
+
+    /**
      * Get all ForwardingActionRules currently installed on the UPF-programmable device.
      *
      * @return a collection of installed FARs
@@ -70,7 +75,7 @@ public interface UpfProgrammable {
     /**
      * Get all UPF interface lookup entries currently installed on the UPF-programmable device.
      *
-     * @return a collection of installed interface entries
+     * @return a collection of installed interfaces
      */
     Collection<UpfInterface> getInstalledInterfaces();
 
