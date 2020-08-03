@@ -103,6 +103,13 @@ public interface UpfProgrammable {
     void removeFar(ForwardingActionRule far);
 
     /**
+     * Install a new interface on the UPF device's interface lookup tables.
+     *
+     * @param upfInterface the interface to install
+     */
+    void addInterface(UpfInterface upfInterface);
+
+    /**
      * Register a UE IPv4 address prefix with the interface lookup tables AKA the filtering stage.
      *
      * @param poolPrefix The UE IPv4 address prefix

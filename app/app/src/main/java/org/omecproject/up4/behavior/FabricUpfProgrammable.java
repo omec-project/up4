@@ -4,37 +4,29 @@ import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
 import org.omecproject.up4.UeSession;
+import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.impl.SouthConstants;
-import org.omecproject.up4.impl.Up4Translator;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
-import org.onlab.util.KryoNamespace;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.DefaultTrafficSelector;
-import org.onosproject.net.flow.DefaultTrafficTreatment;
 import org.onosproject.net.flow.FlowEntry;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.criteria.PiCriterion;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.model.PiTableId;
-import org.onosproject.net.pi.runtime.PiAction;
-import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiCounterCell;
 import org.onosproject.net.pi.runtime.PiCounterCellHandle;
 import org.onosproject.net.pi.runtime.PiCounterCellId;
 import org.onosproject.net.pi.service.PiPipeconfService;
 import org.onosproject.p4runtime.api.P4RuntimeClient;
 import org.onosproject.p4runtime.api.P4RuntimeController;
-import org.onosproject.store.serializers.KryoNamespaces;
-import org.onosproject.store.service.AtomicCounter;
-import org.onosproject.store.service.EventuallyConsistentMap;
 import org.onosproject.store.service.StorageService;
-import org.onosproject.store.service.WallClockTimestamp;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -44,7 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -94,6 +85,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     public boolean init(ApplicationId appId, DeviceId deviceId) {
         this.appId = appId;
         this.deviceId = deviceId;
+        log.info("UpfProgrammable initialized for appId {} and deviceId {}", appId, deviceId);
         return true;
     }
 
@@ -184,64 +176,30 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             flowRuleService.applyFlowRules(fabricFar);
             log.debug("FAR added with flowID {}", fabricFar.id().value());
         } catch (Up4Translator.Up4TranslationException e) {
-            log.warn("Unable to insert malformed FAR to dataplane! {}", far.toString());
+            log.warn("Unable to insert FAR {} to dataplane! Error was: {}", far, e.getMessage());
         }
     }
 
+    @Override
+    public void addInterface(UpfInterface upfInterface) {
+        try {
+            FlowRule flowRule = up4Translator.interfaceToFabricEntry(upfInterface, deviceId, appId, DEFAULT_PRIORITY);
+            log.info("Installing {}", upfInterface);
+            flowRuleService.applyFlowRules(flowRule);
+            log.debug("Interface added with flowID {}", flowRule.id().value());
+        } catch (Up4Translator.Up4TranslationException e) {
+            log.warn("Unable to install interface {} on dataplane! Error was: {}", upfInterface, e.getMessage());
+        }
+    }
 
     @Override
     public void addS1uInterface(Ip4Address s1uAddr) {
-        log.info("Adding S1U interface with address {}", s1uAddr);
-        // TODO: copy s1u address prefix len from logical swich writes, instead of hardcoding 32
-        PiCriterion match = PiCriterion.builder()
-                .matchLpm(SouthConstants.IPV4_DST_ADDR, s1uAddr.toInt(), 32)
-                .matchExact(SouthConstants.GTPU_IS_VALID, 1)  // Tunnel present in uplink direction
-                .build();
-        // DIRECTION_PARAM must always be zero currently, due to the direction field being optimized away in hardware
-        PiAction action = PiAction.builder()
-                .withId(SouthConstants.SET_SOURCE_IFACE)
-                .withParameters(Arrays.asList(
-                        new PiActionParam(SouthConstants.SRC_IFACE_PARAM, SouthConstants.INTERFACE_ACCESS),
-                        new PiActionParam(SouthConstants.DIRECTION_PARAM, 0),
-                        new PiActionParam(SouthConstants.SKIP_SPGW_PARAM, 0)
-                ))
-                .build();
-        FlowRule s1uEntry = DefaultFlowRule.builder()
-                .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(SouthConstants.INTERFACE_LOOKUP)
-                .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
-                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
-                .withPriority(DEFAULT_PRIORITY)
-                .build();
-        flowRuleService.applyFlowRules(s1uEntry);
-        log.debug("Added S1U entry with flowID {}", s1uEntry.id().value());
+        addInterface(UpfInterface.createS1uFrom(s1uAddr));
     }
 
     @Override
     public void addUePool(Ip4Prefix poolPrefix) {
-        log.info("Adding UE IPv4 Pool prefix {}", poolPrefix);
-        PiCriterion match = PiCriterion.builder()
-                .matchLpm(SouthConstants.IPV4_DST_ADDR, poolPrefix.address().toInt(), poolPrefix.prefixLength())
-                .matchExact(SouthConstants.GTPU_IS_VALID, 0)  // No tunnel in downlink direction
-                .build();
-        // DIRECTION_PARAM must always be zero currently, due to the direction field being optimized away in hardware
-        PiAction action = PiAction.builder()
-                .withId(SouthConstants.SET_SOURCE_IFACE)
-                .withParameters(Arrays.asList(
-                        new PiActionParam(SouthConstants.SRC_IFACE_PARAM, SouthConstants.INTERFACE_CORE),
-                        new PiActionParam(SouthConstants.DIRECTION_PARAM, 0),
-                        new PiActionParam(SouthConstants.SKIP_SPGW_PARAM, 0)
-                ))
-                .build();
-        FlowRule uePoolEntry = DefaultFlowRule.builder()
-                .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(SouthConstants.INTERFACE_LOOKUP)
-                .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
-                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
-                .withPriority(DEFAULT_PRIORITY)
-                .build();
-        flowRuleService.applyFlowRules(uePoolEntry);
-        log.debug("Added UE IPv4 pool entry with flowID {}", uePoolEntry.id().value());
+        addInterface(UpfInterface.createUePoolFrom(poolPrefix));
     }
 
 
@@ -277,14 +235,14 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         List<PacketDetectionRule> pdrs = new ArrayList<>();
         List<ForwardingActionRule> fars = new ArrayList<>();
         for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
-            if (Up4Translator.isFabricFar(flowRule)) {
+            if (up4Translator.isFabricFar(flowRule)) {
                 // If its a far, save it for later
                 try {
                     fars.add(up4Translator.fabricEntryToFar(flowRule));
                 } catch (Up4Translator.Up4TranslationException e) {
                     log.warn("Found what appears to be a FAR but we can't translate it?? {}", flowRule);
                 }
-            } else if (Up4Translator.isFabricPdr(flowRule)) {
+            } else if (up4Translator.isFabricPdr(flowRule)) {
                 // If its a PDR, add it to a session builder, or create a new session builder for it
                 // We should have one session builder per UE address.
                 try {
@@ -325,7 +283,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     public Collection<PacketDetectionRule> getInstalledPdrs() {
         ArrayList<PacketDetectionRule> pdrs = new ArrayList<>();
         for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
-            if (Up4Translator.isFabricPdr(flowRule)) {
+            if (up4Translator.isFabricPdr(flowRule)) {
                 try {
                     pdrs.add(up4Translator.fabricEntryToPdr(flowRule));
                 } catch (Up4Translator.Up4TranslationException e) {
@@ -340,7 +298,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     public Collection<ForwardingActionRule> getInstalledFars() {
         ArrayList<ForwardingActionRule> fars = new ArrayList<>();
         for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
-            if (Up4Translator.isFabricFar(flowRule)) {
+            if (up4Translator.isFabricFar(flowRule)) {
                 try {
                     fars.add(up4Translator.fabricEntryToFar(flowRule));
                 } catch (Up4Translator.Up4TranslationException e) {
@@ -354,9 +312,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     public Collection<UpfInterface> getInstalledInterfaces() {
         ArrayList<UpfInterface> ifaces = new ArrayList<>();
         for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
-            if (Up4Translator.isFabricInterface(flowRule)) {
+            if (up4Translator.isFabricInterface(flowRule)) {
                 try {
-                    ifaces.add(up4Translator.fabricEntryToUpfInterface(flowRule));
+                    ifaces.add(up4Translator.fabricEntryToInterface(flowRule));
                 } catch (Up4Translator.Up4TranslationException e) {
                     log.warn("Found what appears to be a interface table entry but we can't translate it?? {}",
                             flowRule);
@@ -365,7 +323,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         }
         return ifaces;
     }
-
 
 
     @Override
@@ -443,8 +400,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             log.error("Could not remove interface! No matching entry found!");
         }
     }
-
-
 
 
 }

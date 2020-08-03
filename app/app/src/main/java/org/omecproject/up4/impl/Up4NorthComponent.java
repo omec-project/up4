@@ -13,7 +13,8 @@ import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
 import org.omecproject.up4.Up4Service;
-import org.onlab.packet.Ip4Prefix;
+import org.omecproject.up4.Up4Translator;
+import org.omecproject.up4.UpfInterface;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.CoreService;
@@ -51,7 +52,7 @@ import static org.omecproject.up4.impl.AppConstants.PIPECONF_ID;
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
 
 
-/* TODO: listen for netcfg changes. If the grpc port in the netcffg is different from the default,
+/* TODO: listen for netcfg changes. If the grpc port in the netcfg is different from the default,
          restart the grpc server on the new port.
  */
 
@@ -130,10 +131,14 @@ public class Up4NorthComponent {
      */
     private void translateAndDelete(PiTableEntry entry) {
         log.debug("Translating UP4 deletion request to fabric entry deletion.");
-        if (Up4Translator.isUp4Interface(entry)) {
-            Ip4Prefix prefix = Up4Translator.up4EntryToInterfacePrefix(entry);
-            up4Service.getUpfProgrammable().removeUnknownInterface(prefix);
-        } else if (Up4Translator.isUp4Pdr(entry)) {
+        if (up4Translator.isUp4Interface(entry)) {
+            try {
+                UpfInterface upfInterface = up4Translator.up4EntryToInterface(entry);
+                up4Service.getUpfProgrammable().removeUnknownInterface(upfInterface.prefix());
+            } catch (Up4Translator.Up4TranslationException e) {
+                log.warn("Failed to parse UP4 interface in delete write! Error was: {}", e.getMessage());
+            }
+        } else if (up4Translator.isUp4Pdr(entry)) {
             try {
                 PacketDetectionRule pdr = up4Translator.up4EntryToPdr(entry);
                 log.debug("Translated UP4 PDR successfully. Deleting.");
@@ -141,7 +146,7 @@ public class Up4NorthComponent {
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 PDR in delete write! Error was: {}", e.getMessage());
             }
-        } else if (Up4Translator.isUp4Far(entry)) {
+        } else if (up4Translator.isUp4Far(entry)) {
             try {
                 ForwardingActionRule far = up4Translator.up4EntryToFar(entry);
                 log.debug("Translated UP4 FAR successfully. Deleting.");
@@ -167,23 +172,20 @@ public class Up4NorthComponent {
             return;
         }
 
-        if (Up4Translator.isUp4Interface(entry)) {
-            Ip4Prefix ifacePrefix = Up4Translator.up4EntryToInterfacePrefix(entry);
-            if (Up4Translator.isUp4S1uInterface(entry)) {
-                up4Service.getUpfProgrammable().addS1uInterface(ifacePrefix.address());
-            } else if (Up4Translator.isUp4UePool(entry)) {
-                up4Service.getUpfProgrammable().addUePool(ifacePrefix);
-            } else {
-                log.warn("Received unknown interface write request! Ignoring");
+        if (up4Translator.isUp4Interface(entry)) {
+            try {
+                UpfInterface iface = up4Translator.up4EntryToInterface(entry);
+            } catch (Up4Translator.Up4TranslationException e) {
+                log.warn("Unable to translate UP4 interface table entry! Error was: {}", e.getMessage());
             }
-        } else if (Up4Translator.isUp4Pdr(entry)) {
+        } else if (up4Translator.isUp4Pdr(entry)) {
             try {
                 PacketDetectionRule pdr = up4Translator.up4EntryToPdr(entry);
                 up4Service.getUpfProgrammable().addPdr(pdr);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 PDR! Error was: {}", e.getMessage());
             }
-        } else if (Up4Translator.isUp4Far(entry)) {
+        } else if (up4Translator.isUp4Far(entry)) {
             try {
                 ForwardingActionRule far = up4Translator.up4EntryToFar(entry);
                 up4Service.getUpfProgrammable().addFar(far);

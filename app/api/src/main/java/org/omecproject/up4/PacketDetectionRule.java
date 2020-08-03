@@ -26,7 +26,7 @@ public final class PacketDetectionRule {
     // Action parameters
     private final ImmutableByteSequence sessionId;  // The ID of the PFCP session that created this PDR
     private final Integer ctrId;  // Counter ID unique to this PDR
-    private final Integer localFarId;  // The PFCP session-local ID of the FAR that should apply to packets if this PDR hits
+    private final Integer localFarId;  // The PFCP session-local ID of the FAR that should apply after this PDR hits
     private final Type type; // Is the PDR Uplink, Downlink, etc.
     private Integer globalFarId; // The non-session-local ID of the FAR that should apply to packets if this PDR hits
 

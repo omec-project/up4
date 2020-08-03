@@ -1,27 +1,26 @@
 package org.omecproject.up4;
 
-import com.google.common.collect.ArrayListMultimap;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-public class UeSession {
-    private Ip4Address ueAddress;
-    private ImmutableByteSequence pfcpSessionId;
-    private PacketDetectionRule uplinkPdr;
-    private PacketDetectionRule downlinkPdr;
-    private ForwardingActionRule uplinkFar;
-    private ForwardingActionRule downlinkFar;
-    private PdrStats uplinkStats;
-    private PdrStats downlinkStats;
-    private Collection<PacketDetectionRule> otherPdrs;
-    private Collection<ForwardingActionRule> otherFars;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+public final class UeSession {
+    private final Ip4Address ueAddress;
+    private final ImmutableByteSequence pfcpSessionId;
+    private final PacketDetectionRule uplinkPdr;
+    private final PacketDetectionRule downlinkPdr;
+    private final ForwardingActionRule uplinkFar;
+    private final ForwardingActionRule downlinkFar;
+    private final PdrStats uplinkStats;
+    private final PdrStats downlinkStats;
+    private final Collection<PacketDetectionRule> otherPdrs;
+    private final Collection<ForwardingActionRule> otherFars;
 
     private UeSession(Ip4Address ueAddress, ImmutableByteSequence pfcpSessionId,
                       PacketDetectionRule uplinkPdr, PacketDetectionRule downlinkPdr,
@@ -53,7 +52,7 @@ public class UeSession {
                 .append(flowToString(uplinkPdr, uplinkFar, uplinkStats))
                 .append("\n")
                 .append(String.format(dividerf, "Downlink"))
-                .append(flowToString(downlinkPdr,downlinkFar,downlinkStats))
+                .append(flowToString(downlinkPdr, downlinkFar, downlinkStats))
                 .append("\n");
 
         if (!otherPdrs.isEmpty() || !otherFars.isEmpty()) {
@@ -83,15 +82,13 @@ public class UeSession {
         if (pdr != null) {
             if (pdr.isUplink()) {
                 pdrString = String.format("(TunnelDst:%s,TEID:%s)", pdr.tunnelDest(), pdr.teid());
-                return String.format("(TunnelDst:%s,TEID:%s) -> %s; %d RX pkts, %d TX pkts \n%s\n",
-                        pdr.tunnelDest(), pdr.teid(), farString, stats.getIngressPkts(), stats.getEgressPkts());
             } else if (pdr.isDownlink()) {
                 pdrString = "(Unencapped)";
             } else {
                 pdrString = pdr.toString();
             }
         }
-        return String.format("%s -> %s; %d RX pkts, %d TX pkts",
+        return String.format("%s -> %s; %d Ingress pkts, %d Egress pkts",
                 pdrString, farString, stats.getIngressPkts(), stats.getEgressPkts());
     }
 
@@ -128,7 +125,7 @@ public class UeSession {
         public Builder addFar(ForwardingActionRule far) {
             if (far.isUplink()) {
                 uplinkFar = far;
-            } else if(far.isDownlink()) {
+            } else if (far.isDownlink()) {
                 downlinkFar = far;
             } else {
                 otherFars.add(far);
@@ -153,8 +150,8 @@ public class UeSession {
                     "FAR ID of the downlink PDR and downlink FAR must match!");
             // Confirm they're all the same session
             checkArgument(downlinkPdr.sessionId() == sessionId
-                    && uplinkFar.sessionId() == sessionId
-                    && downlinkFar.sessionId() == sessionId,
+                            && uplinkFar.sessionId() == sessionId
+                            && downlinkFar.sessionId() == sessionId,
                     "All PDRs and FARs must belong to the same PFCP session!");
 
             PdrStats uplinkStats = null;

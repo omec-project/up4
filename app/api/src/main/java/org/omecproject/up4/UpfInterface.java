@@ -1,5 +1,6 @@
 package org.omecproject.up4;
 
+import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -33,6 +34,15 @@ public final class UpfInterface {
     }
 
     /**
+     * Get the IP prefix of this interface.
+     *
+     * @return the interface prefix
+     */
+    public Ip4Prefix prefix() {
+        return prefix;
+    }
+
+    /**
      * Check if this UPF interface is for uplink packets from UEs.
      * This will be true for S1U interface table entries.
      *
@@ -63,6 +73,33 @@ public final class UpfInterface {
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    /**
+     * Create an uplink UPF Interface from the given address, which will be treated as a /32 prefix.
+     * @param address the address of the new uplink interface
+     * @return a new UPF interface
+     */
+    public static UpfInterface createS1uFrom(Ip4Address address) {
+        return builder().setUplink().setPrefix(Ip4Prefix.valueOf(address, 32)).build();
+    }
+
+    /**
+     * Create an uplink UPF Interface from the given IP prefix.
+     * @param prefix the prefix of the new uplink interface
+     * @return a new UPF interface
+     */
+    public static UpfInterface createS1uFrom(Ip4Prefix prefix) {
+        return builder().setUplink().setPrefix(prefix).build();
+    }
+
+    /**
+     * Create an downlink UPF Interface from the given IP prefix.
+     * @param prefix the prefix of the new downlink interface
+     * @return a new UPF interface
+     */
+    public static UpfInterface createUePoolFrom(Ip4Prefix prefix) {
+        return builder().setDownlink().setPrefix(prefix).build();
     }
 
     public static class Builder {
@@ -106,7 +143,6 @@ public final class UpfInterface {
 
         public UpfInterface build() {
             checkNotNull(prefix);
-            checkNotNull(type);
             return new UpfInterface(prefix, type);
         }
     }

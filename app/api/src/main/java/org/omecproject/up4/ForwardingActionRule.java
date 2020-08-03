@@ -29,8 +29,8 @@ public final class ForwardingActionRule {
     private final Type type;  // Is the FAR Uplink, Downlink, etc
     private Integer globalFarId;  // Globally unique identifier of this FAR
 
-    private ForwardingActionRule(Integer globalFarId, ImmutableByteSequence sessionId, Integer farId, Boolean drop, Boolean notifyCp,
-                                 GtpTunnel tunnelDesc, Type type) {
+    private ForwardingActionRule(Integer globalFarId, ImmutableByteSequence sessionId, Integer farId,
+                                 Boolean drop, Boolean notifyCp, GtpTunnel tunnelDesc, Type type) {
         this.globalFarId = globalFarId;
         this.sessionId = sessionId;
         this.farId = farId;
