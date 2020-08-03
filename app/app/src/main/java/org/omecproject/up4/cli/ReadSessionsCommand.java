@@ -21,6 +21,7 @@ public class ReadSessionsCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         Collection<UeSession> sessions = app.getUpfProgrammable().getSessions();
+        print("%d sessions found", sessions.size());
         for (UeSession session : sessions) {
             print(session.toString());
         }

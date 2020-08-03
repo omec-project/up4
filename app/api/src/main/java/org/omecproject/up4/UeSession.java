@@ -10,6 +10,9 @@ import java.util.List;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+/**
+ * Helper class primarily intended for organizing and printing PDRs and FARs, grouped by UE.
+ */
 public final class UeSession {
     private final Ip4Address ueAddress;
     private final ImmutableByteSequence pfcpSessionId;
@@ -41,13 +44,13 @@ public final class UeSession {
 
     @Override
     public String toString() {
-        String divider = "--------------------------\n";
-        String dividerf = "------------ %s ------------\n";
+        String divider = "-------------------------------------------------------\n";
+        String dividerf = "--- %s ----------------------------------------\n";
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append(divider)
-                .append("UE: ").append(ueAddress)
-                .append(", Session ID: ").append(pfcpSessionId)
-                .append("\n").append(divider)
+                .append("UE Address: ").append(ueAddress)
+                .append(", PFCP Session ID: ").append(pfcpSessionId)
+                .append("\n")
                 .append(String.format(dividerf, "Uplink"))
                 .append(flowToString(uplinkPdr, uplinkFar, uplinkStats))
                 .append("\n")
@@ -72,23 +75,23 @@ public final class UeSession {
         String farString = "NO FAR!";
         if (far != null) {
             if (far.isUplink()) {
-                farString = String.format("FarID %d -> Decap()", far.localFarId());
+                farString = String.format("FarID %d  -->  Decap()", far.localFarId());
             } else if (far.isDownlink()) {
-                farString = String.format("FarID %d -> Encap(Src:%s,TEID:%s,Dst:%s)",
+                farString = String.format("FarID %d  -->  Encap(Src=%s, TEID=%s, Dst=%s)",
                         far.localFarId(), far.tunnelSrc(), far.teid(), far.tunnelDst());
             }
         }
         String pdrString = "NO PDR!";
         if (pdr != null) {
             if (pdr.isUplink()) {
-                pdrString = String.format("(TunnelDst:%s,TEID:%s)", pdr.tunnelDest(), pdr.teid());
+                pdrString = String.format("Match(Src=UE && TunnelDst=%s && TEID=%s)", pdr.tunnelDest(), pdr.teid());
             } else if (pdr.isDownlink()) {
-                pdrString = "(Unencapped)";
+                pdrString = "Match(Dst=UE && !GTP)";
             } else {
                 pdrString = pdr.toString();
             }
         }
-        return String.format("%s -> %s; %d Ingress pkts, %d Egress pkts",
+        return String.format("%s  -->  %s;\n %5d Ingress pkts -> %5d Egress pkts",
                 pdrString, farString, stats.getIngressPkts(), stats.getEgressPkts());
     }
 
@@ -111,6 +114,13 @@ public final class UeSession {
             statList = new ArrayList<>();
         }
 
+        /**
+         * Add a PDR to the session. All added PDRs should match on the same UE address. If this condition
+         * is violated, the call to build() will fail.
+         *
+         * @param pdr the PacketDetectionRule to add
+         * @return this builder object
+         */
         public Builder addPdr(PacketDetectionRule pdr) {
             if (pdr.isUplink()) {
                 uplinkPdr = pdr;
@@ -122,6 +132,13 @@ public final class UeSession {
             return this;
         }
 
+        /**
+         * Add a PDR to the session. Each FAR should match on the FAR-ID and PFCP Session ID that were set by some
+         * PDR that is also added to this builder. If this condition is violated, the call to build() will fail.
+         *
+         * @param far the ForwardingActionRule to add
+         * @return this builder object
+         */
         public Builder addFar(ForwardingActionRule far) {
             if (far.isUplink()) {
                 uplinkFar = far;
@@ -133,6 +150,14 @@ public final class UeSession {
             return this;
         }
 
+        /**
+         * Add a PDR counter statistics instance to this session. The instance will automatically be paired with
+         * the associated PDR, if it was added to this builder object. If the associated PDR is not added before
+         * build() is called, the statistics instance will be silently deleted.
+         *
+         * @param stat the PDR counter statistics instance to add
+         * @return this builder object
+         */
         public Builder addStats(PdrStats stat) {
             statList.add(stat);
             return this;
@@ -141,7 +166,7 @@ public final class UeSession {
         public UeSession build() {
             Ip4Address ueAddress = uplinkPdr.ueAddress();
             ImmutableByteSequence sessionId = uplinkPdr.sessionId();
-            checkArgument(uplinkPdr.ueAddress() == downlinkPdr.ueAddress(),
+            checkArgument(uplinkPdr.ueAddress().equals(downlinkPdr.ueAddress()),
                     "UE addresses of all PDRs must match!");
             // Confirm the FAR IDs match
             checkArgument(uplinkPdr.localFarId() == uplinkFar.localFarId(),
@@ -149,9 +174,9 @@ public final class UeSession {
             checkArgument(downlinkPdr.localFarId() == downlinkFar.localFarId(),
                     "FAR ID of the downlink PDR and downlink FAR must match!");
             // Confirm they're all the same session
-            checkArgument(downlinkPdr.sessionId() == sessionId
-                            && uplinkFar.sessionId() == sessionId
-                            && downlinkFar.sessionId() == sessionId,
+            checkArgument(downlinkPdr.sessionId().equals(sessionId)
+                            && uplinkFar.sessionId().equals(sessionId)
+                            && downlinkFar.sessionId().equals(sessionId),
                     "All PDRs and FARs must belong to the same PFCP session!");
 
             PdrStats uplinkStats = null;

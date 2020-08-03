@@ -38,7 +38,6 @@ public final class ForwardingActionRule {
         this.notifyCp = notifyCp;
         this.tunnelDesc = tunnelDesc;
         this.type = type;
-        this.globalFarId = null;
     }
 
     public enum Type {

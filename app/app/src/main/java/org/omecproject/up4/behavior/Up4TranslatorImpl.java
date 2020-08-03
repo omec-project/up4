@@ -114,7 +114,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                         return existingId;
                     }
                 });
-        log.debug("{} translated to GlobalFarId={}", farIdPair, globalFarId);
+        log.info("{} translated to GlobalFarId={}", farIdPair, globalFarId);
         return globalFarId;
     }
 
@@ -197,6 +197,7 @@ public class Up4TranslatorImpl implements Up4Translator {
         pdrBuilder.withUeAddr(TranslatorUtil.getFieldAddress(match, SouthConstants.UE_ADDR_KEY))
                 .withCounterId(TranslatorUtil.getParamInt(action, SouthConstants.CTR_ID))
                 .withLocalFarId(farId.getSessionlocalId())
+                .withGlobalFarId(globalFarId)
                 .withSessionId(farId.getPfcpSessionId());
 
         // These keys are only present for uplink entries
@@ -286,8 +287,8 @@ public class Up4TranslatorImpl implements Up4Translator {
         ImmutableByteSequence sessionId = TranslatorUtil.getFieldValue(entry, NorthConstants.SESSION_ID_KEY);
         int localFarId = TranslatorUtil.getFieldInt(entry, NorthConstants.FAR_ID_KEY);
         var farBuilder = ForwardingActionRule.builder()
-                .withFarId(TranslatorUtil.byteSeqToInt(sessionId))
-                .withSessionId(localFarId)
+                .withFarId(localFarId)
+                .withSessionId(sessionId)
                 .withGlobalFarId(globalFarIdOf(sessionId, localFarId));
 
         // Now get the action parameters, if they are present (entries from delete writes don't have parameters)
@@ -349,6 +350,7 @@ public class Up4TranslatorImpl implements Up4Translator {
     public FlowRule farToFabricEntry(ForwardingActionRule far, DeviceId deviceId, ApplicationId appId, int priority)
             throws Up4TranslationException {
         if (!far.hasGlobalFarId()) {
+            log.warn("FAR received with no global FAR ID!");
             assignGlobalFarId(far);
         }
         PiAction action;
@@ -394,6 +396,7 @@ public class Up4TranslatorImpl implements Up4Translator {
     public FlowRule pdrToFabricEntry(PacketDetectionRule pdr, DeviceId deviceId, ApplicationId appId, int priority)
             throws Up4TranslationException {
         if (!pdr.hasGlobalFarId()) {
+            log.warn("PDR received with no global FAR ID!");
             assignGlobalFarId(pdr);
         }
         PiCriterion match;
