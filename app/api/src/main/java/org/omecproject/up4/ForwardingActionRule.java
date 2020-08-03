@@ -40,19 +40,8 @@ public final class ForwardingActionRule {
         this.type = type;
     }
 
-    public enum Type {
-        /**
-         * Uplink FARs apply to packets traveling in the uplink direction, and do not encapsulate.
-         */
-        UPLINK,
-        /**
-         * Downlink FARS apply to packets traveling in the downlink direction, and do encapsulate.
-         */
-        DOWNLINK,
-        /**
-         * FAR was not built with any action parameters, only match keys.
-         */
-        KEYS_ONLY
+    public static Builder builder() {
+        return new Builder();
     }
 
     @Override
@@ -104,15 +93,6 @@ public final class ForwardingActionRule {
     }
 
     /**
-     * Get the globally unique identifier of this FAR.
-     *
-     * @param globalFarId globally unique FAR ID
-     */
-    public void setGlobalFarId(int globalFarId) {
-        this.globalFarId = globalFarId;
-    }
-
-    /**
      * Check whether a global FAR ID has been assigned, which is necessary for an entry to be written
      * to the fabric.p4 pipeline.
      *
@@ -129,6 +109,15 @@ public final class ForwardingActionRule {
      */
     public int getGlobalFarId() {
         return this.globalFarId;
+    }
+
+    /**
+     * Get the globally unique identifier of this FAR.
+     *
+     * @param globalFarId globally unique FAR ID
+     */
+    public void setGlobalFarId(int globalFarId) {
+        this.globalFarId = globalFarId;
     }
 
     /**
@@ -213,8 +202,19 @@ public final class ForwardingActionRule {
         return tunnelDesc.teid();
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public enum Type {
+        /**
+         * Uplink FARs apply to packets traveling in the uplink direction, and do not encapsulate.
+         */
+        UPLINK,
+        /**
+         * Downlink FARS apply to packets traveling in the downlink direction, and do encapsulate.
+         */
+        DOWNLINK,
+        /**
+         * FAR was not built with any action parameters, only match keys.
+         */
+        KEYS_ONLY
     }
 
     public static class Builder {

@@ -42,6 +42,10 @@ public final class UeSession {
         this.otherFars = otherFars;
     }
 
+    public static Builder builder() {
+        return new Builder();
+    }
+
     @Override
     public String toString() {
         String divider = "-------------------------------------------------------\n";
@@ -93,10 +97,6 @@ public final class UeSession {
         }
         return String.format("- %s  -->  %s;\n- %5d Ingress pkts -> %5d Egress pkts",
                 pdrString, farString, stats.getIngressPkts(), stats.getEgressPkts());
-    }
-
-    public static Builder builder() {
-        return new Builder();
     }
 
     public static class Builder {

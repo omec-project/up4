@@ -26,10 +26,10 @@ import java.util.Optional;
 
 final class TranslatorUtil {
 
+    static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
+
     private TranslatorUtil() {
     }
-
-    static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
 
     static ImmutableByteSequence getFieldValue(PiFieldMatch field, PiMatchFieldId fieldId)
             throws Up4TranslatorImpl.Up4TranslationException {

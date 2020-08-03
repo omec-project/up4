@@ -14,23 +14,38 @@ public final class UpfInterface {
         this.type = type;
     }
 
-    public enum Type {
-        /**
-         * Unknown UPF interface type.
-         */
-        UNKNOWN,
+    public static Builder builder() {
+        return new Builder();
+    }
 
-        /**
-         * Uplink interface that receives GTP encapsulated packets.
-         * This is the type of the S1U interface.
-         */
-        ACCESS,
+    /**
+     * Create an uplink UPF Interface from the given address, which will be treated as a /32 prefix.
+     *
+     * @param address the address of the new uplink interface
+     * @return a new UPF interface
+     */
+    public static UpfInterface createS1uFrom(Ip4Address address) {
+        return builder().setUplink().setPrefix(Ip4Prefix.valueOf(address, 32)).build();
+    }
 
-        /**
-         * Downlink interface that receives unencapsulated packets from the core of the network.
-         * This is the type of UE IP address pool interfaces.
-         */
-        CORE
+    /**
+     * Create an uplink UPF Interface from the given IP prefix.
+     *
+     * @param prefix the prefix of the new uplink interface
+     * @return a new UPF interface
+     */
+    public static UpfInterface createS1uFrom(Ip4Prefix prefix) {
+        return builder().setUplink().setPrefix(prefix).build();
+    }
+
+    /**
+     * Create an downlink UPF Interface from the given IP prefix.
+     *
+     * @param prefix the prefix of the new downlink interface
+     * @return a new UPF interface
+     */
+    public static UpfInterface createUePoolFrom(Ip4Prefix prefix) {
+        return builder().setDownlink().setPrefix(prefix).build();
     }
 
     /**
@@ -71,35 +86,23 @@ public final class UpfInterface {
         return this.prefix;
     }
 
-    public static Builder builder() {
-        return new Builder();
-    }
+    public enum Type {
+        /**
+         * Unknown UPF interface type.
+         */
+        UNKNOWN,
 
-    /**
-     * Create an uplink UPF Interface from the given address, which will be treated as a /32 prefix.
-     * @param address the address of the new uplink interface
-     * @return a new UPF interface
-     */
-    public static UpfInterface createS1uFrom(Ip4Address address) {
-        return builder().setUplink().setPrefix(Ip4Prefix.valueOf(address, 32)).build();
-    }
+        /**
+         * Uplink interface that receives GTP encapsulated packets.
+         * This is the type of the S1U interface.
+         */
+        ACCESS,
 
-    /**
-     * Create an uplink UPF Interface from the given IP prefix.
-     * @param prefix the prefix of the new uplink interface
-     * @return a new UPF interface
-     */
-    public static UpfInterface createS1uFrom(Ip4Prefix prefix) {
-        return builder().setUplink().setPrefix(prefix).build();
-    }
-
-    /**
-     * Create an downlink UPF Interface from the given IP prefix.
-     * @param prefix the prefix of the new downlink interface
-     * @return a new UPF interface
-     */
-    public static UpfInterface createUePoolFrom(Ip4Prefix prefix) {
-        return builder().setDownlink().setPrefix(prefix).build();
+        /**
+         * Downlink interface that receives unencapsulated packets from the core of the network.
+         * This is the type of UE IP address pool interfaces.
+         */
+        CORE
     }
 
     public static class Builder {

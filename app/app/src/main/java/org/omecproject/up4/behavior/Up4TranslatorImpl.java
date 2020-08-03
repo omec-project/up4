@@ -49,13 +49,11 @@ import java.util.Objects;
         service = {Up4Translator.class})
 public class Up4TranslatorImpl implements Up4Translator {
     private final Logger log = LoggerFactory.getLogger(getClass());
-
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected StorageService storageService;
     private EventuallyConsistentMap<RuleIdentifier, Integer> localToGlobalFarId;
     private EventuallyConsistentMap<Integer, RuleIdentifier> globalToLocalFarId;
     private AtomicCounter globalFarIdCounter;
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected StorageService storageService;
 
     @Activate
     protected void activate() {

@@ -42,26 +42,8 @@ public final class PacketDetectionRule {
         this.globalFarId = globalFarId;
     }
 
-    public enum Type {
-        /**
-         * Uplink PDRs match on packets travelling in the uplink direction. These packets will have a GTP tunnel.
-         */
-        UPLINK,
-        /**
-         * Downlink PDRs match on packets travelling in the downlink direction.
-         * These packets will not have a GTP tunnel.
-         */
-        DOWNLINK,
-        /**
-         * For uplink PDRs that were not build with any action parameters, only match keys.
-         * These are usually built in the context of P4Runtime DELETE write requests.
-         */
-        UPLINK_KEYS_ONLY,
-        /**
-         * For downlink PDRs that were not build with any action parameters, only match keys.
-         * These are usually built in the context of P4Runtime DELETE write requests.
-         */
-        DOWNLINK_KEYS_ONLY
+    public static Builder builder() {
+        return new Builder();
     }
 
     @Override
@@ -115,15 +97,6 @@ public final class PacketDetectionRule {
     }
 
     /**
-     * Get the globally unique identifier of the FAR that should apply to packets that match this PDR.
-     *
-     * @param globalFarId globally unique FAR ID
-     */
-    public void setGlobalFarId(int globalFarId) {
-        this.globalFarId = globalFarId;
-    }
-
-    /**
      * Check whether a global FAR ID has been assigned, which is necessary for an entry to be written
      * to the fabric.p4 pipeline.
      *
@@ -140,6 +113,15 @@ public final class PacketDetectionRule {
      */
     public int getGlobalFarId() {
         return this.globalFarId;
+    }
+
+    /**
+     * Get the globally unique identifier of the FAR that should apply to packets that match this PDR.
+     *
+     * @param globalFarId globally unique FAR ID
+     */
+    public void setGlobalFarId(int globalFarId) {
+        this.globalFarId = globalFarId;
     }
 
     /**
@@ -196,8 +178,26 @@ public final class PacketDetectionRule {
         return localFarId;
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public enum Type {
+        /**
+         * Uplink PDRs match on packets travelling in the uplink direction. These packets will have a GTP tunnel.
+         */
+        UPLINK,
+        /**
+         * Downlink PDRs match on packets travelling in the downlink direction.
+         * These packets will not have a GTP tunnel.
+         */
+        DOWNLINK,
+        /**
+         * For uplink PDRs that were not build with any action parameters, only match keys.
+         * These are usually built in the context of P4Runtime DELETE write requests.
+         */
+        UPLINK_KEYS_ONLY,
+        /**
+         * For downlink PDRs that were not build with any action parameters, only match keys.
+         * These are usually built in the context of P4Runtime DELETE write requests.
+         */
+        DOWNLINK_KEYS_ONLY
     }
 
     public static class Builder {
