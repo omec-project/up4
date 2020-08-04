@@ -161,10 +161,8 @@ public class Up4DeviceManager implements Up4Service {
             upfProgrammable.cleanUp(appId);
             upfProgrammable.init(appId, deviceId);
 
-            upfProgrammable.addInterface(UpfInterface.createUePoolFrom(config.s1uPrefix()));
-            for (Ip4Prefix uePool : config.uePools()) {
-                upfProgrammable.addInterface(UpfInterface.createUePoolFrom(uePool));
-            }
+            setInterfaces();
+
             upfInitialized.set(true);
             log.info("UPF device setup successful!");
         }
@@ -174,8 +172,8 @@ public class Up4DeviceManager implements Up4Service {
      * Install the UPF dataplane interfaces.
      */
     private void setInterfaces() {
-        log.info("Installing interfaces from config.");
         upfProgrammable.clearInterfaces();
+        log.info("Installing interfaces from config.");
         upfProgrammable.addInterface(UpfInterface.createUePoolFrom(config.s1uPrefix()));
         for (Ip4Prefix uePool : config.uePools()) {
             upfProgrammable.addInterface(UpfInterface.createUePoolFrom(uePool));
@@ -201,7 +199,6 @@ public class Up4DeviceManager implements Up4Service {
             upfDeviceId = config.up4DeviceId();
             this.config = config;
             setUpfDevice(upfDeviceId);
-            setInterfaces();
         }
 
     }
