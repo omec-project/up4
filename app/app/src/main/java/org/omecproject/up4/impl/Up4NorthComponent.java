@@ -175,6 +175,7 @@ public class Up4NorthComponent {
         if (up4Translator.isUp4Interface(entry)) {
             try {
                 UpfInterface iface = up4Translator.up4EntryToInterface(entry);
+                up4Service.getUpfProgrammable().addInterface(iface);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Unable to translate UP4 interface table entry! Error was: {}", e.getMessage());
             }

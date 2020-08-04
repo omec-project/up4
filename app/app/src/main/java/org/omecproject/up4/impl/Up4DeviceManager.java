@@ -5,6 +5,7 @@
 package org.omecproject.up4.impl;
 
 import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.config.Up4Config;
 import org.onlab.packet.Ip4Prefix;
@@ -160,12 +161,21 @@ public class Up4DeviceManager implements Up4Service {
             upfProgrammable.cleanUp(appId);
             upfProgrammable.init(appId, deviceId);
 
-            upfProgrammable.addS1uInterface(config.s1uPrefix().address());
-            for (Ip4Prefix uePool : config.uePools()) {
-                upfProgrammable.addUePool(uePool);
-            }
+            setInterfaces();
+
             upfInitialized.set(true);
             log.info("UPF device setup successful!");
+        }
+    }
+
+    /**
+     * Install the UPF dataplane interfaces.
+     */
+    private void setInterfaces() {
+        log.info("Installing interfaces from config.");
+        upfProgrammable.addInterface(UpfInterface.createUePoolFrom(config.s1uPrefix()));
+        for (Ip4Prefix uePool : config.uePools()) {
+            upfProgrammable.addInterface(UpfInterface.createUePoolFrom(uePool));
         }
     }
 
