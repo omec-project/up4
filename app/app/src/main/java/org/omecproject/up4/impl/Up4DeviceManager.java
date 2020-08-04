@@ -172,7 +172,6 @@ public class Up4DeviceManager implements Up4Service {
      * Install the UPF dataplane interfaces.
      */
     private void setInterfaces() {
-        upfProgrammable.clearInterfaces();
         log.info("Installing interfaces from config.");
         upfProgrammable.addInterface(UpfInterface.createUePoolFrom(config.s1uPrefix()));
         for (Ip4Prefix uePool : config.uePools()) {
