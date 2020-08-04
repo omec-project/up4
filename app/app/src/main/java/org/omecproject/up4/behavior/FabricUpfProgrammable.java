@@ -93,6 +93,16 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
+    public void clearInterfaces() {
+        log.info("Clearing all UPF interfaces.");
+        for (FlowRule entry : flowRuleService.getFlowEntriesById(appId)) {
+            if (up4Translator.isFabricInterface(entry)) {
+                flowRuleService.removeFlowRules(entry);
+            }
+        }
+    }
+
+    @Override
     public void clearSessions() {
         log.info("Clearing all UE sessions.");
         for (FlowRule entry : flowRuleService.getFlowEntriesById(appId)) {

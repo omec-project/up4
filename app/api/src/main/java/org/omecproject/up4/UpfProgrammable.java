@@ -54,6 +54,11 @@ public interface UpfProgrammable {
     Collection<UeSession> getSessions();
 
     /**
+     * Remove all interfaces currently installed on the UPF-programmable device.
+     */
+    void clearInterfaces();
+
+    /**
      * Remove all UE sessions currently installed on the UPF-programmable device.
      */
     void clearSessions();
