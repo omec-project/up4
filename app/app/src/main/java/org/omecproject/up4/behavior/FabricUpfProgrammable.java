@@ -96,6 +96,10 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     public void clearInterfaces() {
         log.info("Clearing all UPF interfaces.");
         for (FlowRule entry : flowRuleService.getFlowEntriesById(appId)) {
+            // don't delete default entries
+            if (entry.selector().criteria().isEmpty()) {
+                continue;
+            }
             if (up4Translator.isFabricInterface(entry)) {
                 flowRuleService.removeFlowRules(entry);
             }
@@ -106,6 +110,10 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     public void clearSessions() {
         log.info("Clearing all UE sessions.");
         for (FlowRule entry : flowRuleService.getFlowEntriesById(appId)) {
+            // don't delete default entries
+            if (entry.selector().criteria().isEmpty()) {
+                continue;
+            }
             if (up4Translator.isFabricPdr(entry) || up4Translator.isFabricFar(entry)) {
                 flowRuleService.removeFlowRules(entry);
             }
