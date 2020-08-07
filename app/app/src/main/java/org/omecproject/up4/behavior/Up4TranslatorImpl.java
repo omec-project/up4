@@ -28,6 +28,7 @@ import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.store.serializers.KryoNamespaces;
 import org.onosproject.store.service.AtomicCounter;
 import org.onosproject.store.service.EventuallyConsistentMap;
+import org.onosproject.store.service.EventuallyConsistentMapEvent;
 import org.onosproject.store.service.StorageService;
 import org.onosproject.store.service.WallClockTimestamp;
 import org.osgi.service.component.annotations.Activate;
@@ -39,7 +40,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiFunction;
 
 /**
  * Utility class for transforming PiTableEntries to classes more specific to the UPF pipelines,
@@ -51,31 +55,124 @@ public class Up4TranslatorImpl implements Up4Translator {
     private final Logger log = LoggerFactory.getLogger(getClass());
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected StorageService storageService;
-    // Maps local FAR IDs to global FAR IDs
-    private EventuallyConsistentMap<RuleIdentifier, Integer> localToGlobalFarId;
-    // Maps global FAR IDs to local FAR IDs
-    private EventuallyConsistentMap<Integer, RuleIdentifier> globalToLocalFarId;
-    // Counter for producing new global FAR IDs
-    private AtomicCounter globalFarIdCounter;
+    // Maps logical FAR IDs to physical FAR IDs
+    private LogicalToPhysicalIdTranslator<RuleIdentifier> farIdTranslator;
+    // Maps logical counter indices to physical counter indices
+    private LogicalToPhysicalIdTranslator<Integer> counterIdxTranslator;
+
+
+    class LogicalToPhysicalIdTranslator<LogicalId> {
+        HackyBiMap<LogicalId,Integer> idBiMap;
+        AtomicCounter nextId;
+
+        public LogicalToPhysicalIdTranslator(String name,
+                                             KryoNamespace.Builder serializer
+                                         ) {
+            this.nextId = storageService.getAtomicCounter(name + "-next-id-generator");
+            EventuallyConsistentMap<LogicalId, Integer> logicalToPhysicalMapper =
+                    storageService.<LogicalId, Integer>eventuallyConsistentMapBuilder()
+                            .withName(name + "-id-mapper")
+                            .withSerializer(serializer)
+                            .withTimestampProvider((k, v) -> new WallClockTimestamp())
+                            .build();
+            this.idBiMap = new HackyBiMap<>(logicalToPhysicalMapper);
+        }
+
+        public void clear() {
+            this.idBiMap.clear();
+            this.nextId.set(0);
+        }
+
+        public int physicalIdOf(LogicalId logicalId) {
+            return this.idBiMap.compute(logicalId,
+                    (k, existingId) -> {
+                        if (existingId == null) {
+                            return (int) nextId.incrementAndGet();
+                        } else {
+                            return existingId;
+                        }
+                    });
+        }
+
+        public LogicalId logicalIdOf(int physicalId) {
+            return this.idBiMap.inverseGet(physicalId);
+        }
+    }
+
+    /**
+     * BiMap backed by an EventuallyConsistentMap, which uses a local copy of the distributed state for the inverse
+     * direction.
+     *
+     * @param <K> key for the forward direction, value for the inverse
+     * @param <V> value for the forward direction, key for the inverse
+     */
+    static class HackyBiMap<K, V> {
+        EventuallyConsistentMap<K, V> backingMap;
+        Map<V, K> inverseMap;
+
+        public HackyBiMap(EventuallyConsistentMap<K, V> backingMap) {
+            this.backingMap = backingMap;
+            this.inverseMap = new HashMap<>();
+            // fill out our local state
+            for (Map.Entry<K, V> entry : backingMap.entrySet()) {
+                this.inverseMap.put(entry.getValue(), entry.getKey());
+            }
+            // subscribe to changes in the backing mono map
+            backingMap.addListener(event -> {
+                if (event.type() == EventuallyConsistentMapEvent.Type.PUT) {
+                    inverseMap.put(event.value(), event.key());
+                } else if (event.type() == EventuallyConsistentMapEvent.Type.REMOVE) {
+                    inverseMap.remove(event.value());
+                }
+            });
+        }
+
+        public void clear() {
+            backingMap.clear();
+            inverseMap.clear();
+        }
+
+        public V compute(K key, BiFunction<K, V, V> recomputeFunction) {
+            return backingMap.compute(key, (k, existingVal) -> {
+                final V newVal = recomputeFunction.apply(k, existingVal);
+                if (newVal != null) {
+                    if (existingVal != null && !newVal.equals(existingVal)) {
+                        inverseMap.remove(existingVal);
+                    }
+                    this.inverseMap.put(newVal, k);
+                }
+                return newVal;
+            });
+        }
+
+        public void put(K key, V val) {
+            this.backingMap.put(key, val);
+            this.inverseMap.put(val, key);
+        }
+
+        public K inverseGet(V val) {
+            return inverseMap.get(val);
+        }
+
+        public V get(K key) {
+            return backingMap.get(key);
+        }
+    }
 
     @Activate
     protected void activate() {
         log.info("Starting...");
-        globalFarIdCounter = storageService.getAtomicCounter("global-far-id-counter");
 
         KryoNamespace.Builder globalFarIdSerializer = KryoNamespace.newBuilder()
                 .register(KryoNamespaces.API)
                 .register(RuleIdentifier.class);
-        localToGlobalFarId = storageService.<RuleIdentifier, Integer>eventuallyConsistentMapBuilder()
-                .withName("global-to-local-far-ids")
-                .withSerializer(globalFarIdSerializer)
-                .withTimestampProvider((k, v) -> new WallClockTimestamp())
-                .build();
-        globalToLocalFarId = storageService.<Integer, RuleIdentifier>eventuallyConsistentMapBuilder()
-                .withName("local-to-global-far-ids")
-                .withSerializer(globalFarIdSerializer)
-                .withTimestampProvider((k, v) -> new WallClockTimestamp())
-                .build();
+
+        farIdTranslator = new LogicalToPhysicalIdTranslator<>("far-id", globalFarIdSerializer);
+
+        KryoNamespace.Builder counterIdSerializer = KryoNamespace.newBuilder()
+                .register(KryoNamespaces.API);
+        counterIdxTranslator = new LogicalToPhysicalIdTranslator<>("counter-idx", counterIdSerializer);
+
         log.info("Started");
     }
 
@@ -86,9 +183,8 @@ public class Up4TranslatorImpl implements Up4Translator {
 
     @Override
     public void reset() {
-        localToGlobalFarId.clear();
-        globalFarIdCounter.set(0);
-        globalToLocalFarId.clear();
+        farIdTranslator.clear();
+        counterIdxTranslator.clear();
     }
 
     /**
@@ -98,25 +194,15 @@ public class Up4TranslatorImpl implements Up4Translator {
      * @return A globally unique integer identifier
      */
     private int globalFarIdOf(RuleIdentifier farIdPair) {
-        int globalFarId = localToGlobalFarId.compute(farIdPair,
-                (k, existingId) -> {
-                    if (existingId == null) {
-                        return (int) globalFarIdCounter.incrementAndGet();
-                    } else {
-                        return existingId;
-                    }
-                });
-        // use compute to avoid unnecessary writes, even though we ignore the return value
-        globalToLocalFarId.compute(globalFarId,
-                (k, existingId) -> {
-                    if (existingId == null) {
-                        return farIdPair;
-                    } else {
-                        return existingId;
-                    }
-                });
+        int globalFarId = farIdTranslator.physicalIdOf(farIdPair);
         log.info("{} translated to GlobalFarId={}", farIdPair, globalFarId);
         return globalFarId;
+    }
+
+    private int logicalCounterIdxToPhysical(int logicalIdx) {
+        int physicalCtrIdx = counterIdxTranslator.physicalIdOf(logicalIdx);
+        log.info("Logical counter index {} translated to physical index {}", logicalIdx, physicalCtrIdx);
+        return physicalCtrIdx;
     }
 
     /**
@@ -140,6 +226,7 @@ public class Up4TranslatorImpl implements Up4Translator {
         far.setGlobalFarId(globalFarIdOf(far.sessionId(), far.localFarId()));
     }
 
+
     /**
      * Get the corresponding PFCP session ID and session-local FAR ID from a globally unique FAR ID, or return
      * null if no such mapping is found.
@@ -148,7 +235,7 @@ public class Up4TranslatorImpl implements Up4Translator {
      * @return the corresponding PFCP session ID and session-local FAR ID, as a RuleIdentifier
      */
     private RuleIdentifier localFarIdOf(int globalFarId) {
-        return globalToLocalFarId.get(globalFarId);
+        return farIdTranslator.logicalIdOf(globalFarId);
     }
 
     @Override
