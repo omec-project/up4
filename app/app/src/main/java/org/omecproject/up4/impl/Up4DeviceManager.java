@@ -173,7 +173,7 @@ public class Up4DeviceManager implements Up4Service {
      */
     private void setInterfaces() {
         log.info("Installing interfaces from config.");
-        upfProgrammable.addInterface(UpfInterface.createUePoolFrom(config.s1uPrefix()));
+        upfProgrammable.addInterface(UpfInterface.createS1uFrom(config.s1uPrefix()));
         for (Ip4Prefix uePool : config.uePools()) {
             upfProgrammable.addInterface(UpfInterface.createUePoolFrom(uePool));
         }
