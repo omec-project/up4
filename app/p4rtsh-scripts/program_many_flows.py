@@ -116,8 +116,10 @@ def main():
 
     #========================#
     # Filter Entries
+    #  Filter entries are now installed when the netconfig is loaded,
+    #  and do not need to be installed via P4RT.
     #========================#
-
+    """
     ## Uplink
     entry = sh.TableEntry('PreQosPipe.source_iface_lookup')(action='PreQosPipe.set_source_iface')
     entry.match['ipv4_dst_prefix'] = str(args.s1u_addr) + '/32'
@@ -131,7 +133,7 @@ def main():
     entry.action['src_iface'] = IFACE_CORE
     entry.action['direction'] = DIR_DOWNLINK
     addEntry(entry, args.action)
-
+    """
 
     # table entry parameter generators
     rule_count = args.ue_count * 2
