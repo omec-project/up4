@@ -79,10 +79,10 @@ public final class UeSession {
         String farString = "NO FAR!";
         if (far != null) {
             if (far.isUplink()) {
-                farString = String.format("FarID %d  -->  Decap()", far.localFarId());
+                farString = String.format("FarID %d  -->  Decap()", far.logicalFarId());
             } else if (far.isDownlink()) {
                 farString = String.format("FarID %d  -->  Encap(Src=%s, TEID=%s, Dst=%s)",
-                        far.localFarId(), far.tunnelSrc(), far.teid(), far.tunnelDst());
+                        far.logicalFarId(), far.tunnelSrc(), far.teid(), far.tunnelDst());
             }
         }
         String pdrString = "NO PDR!";
@@ -169,9 +169,9 @@ public final class UeSession {
             checkArgument(uplinkPdr.ueAddress().equals(downlinkPdr.ueAddress()),
                     "UE addresses of all PDRs must match!");
             // Confirm the FAR IDs match
-            checkArgument(uplinkPdr.localFarId() == uplinkFar.localFarId(),
+            checkArgument(uplinkPdr.localFarId() == uplinkFar.logicalFarId(),
                     "FAR ID of the uplink PDR and uplink FAR must match!");
-            checkArgument(downlinkPdr.localFarId() == downlinkFar.localFarId(),
+            checkArgument(downlinkPdr.localFarId() == downlinkFar.logicalFarId(),
                     "FAR ID of the downlink PDR and downlink FAR must match!");
             // Confirm they're all the same session
             checkArgument(downlinkPdr.sessionId().equals(sessionId)

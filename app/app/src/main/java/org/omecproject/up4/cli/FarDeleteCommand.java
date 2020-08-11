@@ -35,7 +35,7 @@ public class FarDeleteCommand extends AbstractShellCommand {
 
         ForwardingActionRule far = ForwardingActionRule.builder()
                 .withSessionId(sessionId)
-                .withFarId(farId)
+                .withLogicalFarId(farId)
                 .build();
         print("Deleting %s", far.toString());
         app.getUpfProgrammable().removeFar(far);

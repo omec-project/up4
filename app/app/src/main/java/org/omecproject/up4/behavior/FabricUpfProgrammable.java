@@ -281,7 +281,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             }
         }
         for (ForwardingActionRule far : fars) {
-            var builder = globalFarToSessionBuilder.getOrDefault(far.getGlobalFarId(), null);
+            var builder = globalFarToSessionBuilder.getOrDefault(far.getPhysicalFarId(), null);
             if (builder != null) {
                 builder.addFar(far);
             } else {
@@ -370,7 +370,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         log.info("Removing {}", far.toString());
 
         PiCriterion match = PiCriterion.builder()
-                .matchExact(SouthConstants.FAR_ID_KEY, far.getGlobalFarId())
+                .matchExact(SouthConstants.FAR_ID_KEY, far.getPhysicalFarId())
                 .build();
 
         removeEntry(match, SouthConstants.FAR_TBL, false);

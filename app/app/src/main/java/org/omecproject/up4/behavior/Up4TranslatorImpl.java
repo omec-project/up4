@@ -57,17 +57,15 @@ public class Up4TranslatorImpl implements Up4Translator {
     protected StorageService storageService;
     // Maps logical FAR IDs to physical FAR IDs
     private LogicalToPhysicalIdTranslator<RuleIdentifier> farIdTranslator;
-    // Maps logical counter indices to physical counter indices
-    private LogicalToPhysicalIdTranslator<Integer> counterIdxTranslator;
 
 
     class LogicalToPhysicalIdTranslator<LogicalId> {
-        HackyBiMap<LogicalId,Integer> idBiMap;
+        HackyBiMap<LogicalId, Integer> idBiMap;
         AtomicCounter nextId;
 
         public LogicalToPhysicalIdTranslator(String name,
                                              KryoNamespace.Builder serializer
-                                         ) {
+        ) {
             this.nextId = storageService.getAtomicCounter(name + "-next-id-generator");
             EventuallyConsistentMap<LogicalId, Integer> logicalToPhysicalMapper =
                     storageService.<LogicalId, Integer>eventuallyConsistentMapBuilder()
@@ -166,12 +164,7 @@ public class Up4TranslatorImpl implements Up4Translator {
         KryoNamespace.Builder globalFarIdSerializer = KryoNamespace.newBuilder()
                 .register(KryoNamespaces.API)
                 .register(RuleIdentifier.class);
-
         farIdTranslator = new LogicalToPhysicalIdTranslator<>("far-id", globalFarIdSerializer);
-
-        KryoNamespace.Builder counterIdSerializer = KryoNamespace.newBuilder()
-                .register(KryoNamespaces.API);
-        counterIdxTranslator = new LogicalToPhysicalIdTranslator<>("counter-idx", counterIdSerializer);
 
         log.info("Started");
     }
@@ -184,7 +177,6 @@ public class Up4TranslatorImpl implements Up4Translator {
     @Override
     public void reset() {
         farIdTranslator.clear();
-        counterIdxTranslator.clear();
     }
 
     /**
@@ -193,16 +185,10 @@ public class Up4TranslatorImpl implements Up4Translator {
      * @param farIdPair a RuleIdentifier instance uniquely identifying the FAR
      * @return A globally unique integer identifier
      */
-    private int globalFarIdOf(RuleIdentifier farIdPair) {
+    private int physicalFarIdOf(RuleIdentifier farIdPair) {
         int globalFarId = farIdTranslator.physicalIdOf(farIdPair);
         log.info("{} translated to GlobalFarId={}", farIdPair, globalFarId);
         return globalFarId;
-    }
-
-    private int logicalCounterIdxToPhysical(int logicalIdx) {
-        int physicalCtrIdx = counterIdxTranslator.physicalIdOf(logicalIdx);
-        log.info("Logical counter index {} translated to physical index {}", logicalIdx, physicalCtrIdx);
-        return physicalCtrIdx;
     }
 
     /**
@@ -212,18 +198,18 @@ public class Up4TranslatorImpl implements Up4Translator {
      * @param sessionLocalFarId The FAR ID.
      * @return A globally unique integer identifier
      */
-    private int globalFarIdOf(ImmutableByteSequence pfcpSessionId, int sessionLocalFarId) {
+    private int physicalFarIdOf(ImmutableByteSequence pfcpSessionId, int sessionLocalFarId) {
         RuleIdentifier farId = new RuleIdentifier(pfcpSessionId, sessionLocalFarId);
-        return globalFarIdOf(farId);
+        return physicalFarIdOf(farId);
 
     }
 
-    public void assignGlobalFarId(PacketDetectionRule pdr) {
-        pdr.setGlobalFarId(globalFarIdOf(pdr.sessionId(), pdr.localFarId()));
+    public void assignPhysicalFarId(PacketDetectionRule pdr) {
+        pdr.setGlobalFarId(physicalFarIdOf(pdr.sessionId(), pdr.localFarId()));
     }
 
-    public void assignGlobalFarId(ForwardingActionRule far) {
-        far.setGlobalFarId(globalFarIdOf(far.sessionId(), far.localFarId()));
+    public void assignPhysicalFarId(ForwardingActionRule far) {
+        far.setPhysicalFarId(physicalFarIdOf(far.sessionId(), far.logicalFarId()));
     }
 
 
@@ -234,7 +220,7 @@ public class Up4TranslatorImpl implements Up4Translator {
      * @param globalFarId globally unique FAR ID
      * @return the corresponding PFCP session ID and session-local FAR ID, as a RuleIdentifier
      */
-    private RuleIdentifier localFarIdOf(int globalFarId) {
+    private RuleIdentifier logicalFarIdOf(int globalFarId) {
         return farIdTranslator.logicalIdOf(globalFarId);
     }
 
@@ -279,7 +265,7 @@ public class Up4TranslatorImpl implements Up4Translator {
 
         // UE Address key should always be present for fabric entries
         int globalFarId = TranslatorUtil.getParamInt(action, SouthConstants.FAR_ID_PARAM);
-        RuleIdentifier farId = localFarIdOf(globalFarId);
+        RuleIdentifier farId = logicalFarIdOf(globalFarId);
 
         // So should all the action parameters
         pdrBuilder.withUeAddr(TranslatorUtil.getFieldAddress(match, SouthConstants.UE_ADDR_KEY))
@@ -324,7 +310,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             pdrBuilder.withSessionId(sessionId)
                     .withCounterId(TranslatorUtil.getParamInt(entry, NorthConstants.CTR_ID))
                     .withLocalFarId(localFarId)
-                    .withGlobalFarId(globalFarIdOf(sessionId, localFarId));
+                    .withGlobalFarId(physicalFarIdOf(sessionId, localFarId));
         }
         return pdrBuilder.build();
     }
@@ -339,15 +325,15 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiAction action = (PiAction) matchActionPair.getRight();
 
         int globalFarId = TranslatorUtil.getFieldInt(match, SouthConstants.FAR_ID_KEY);
-        RuleIdentifier farId = localFarIdOf(globalFarId);
+        RuleIdentifier farId = logicalFarIdOf(globalFarId);
 
         boolean dropFlag = TranslatorUtil.getParamInt(action, SouthConstants.DROP_FLAG) > 0;
         boolean notifyFlag = TranslatorUtil.getParamInt(action, SouthConstants.NOTIFY_FLAG) > 0;
 
         // Match keys
-        farBuilder.withGlobalFarId(globalFarId)
+        farBuilder.withPhysicalFarId(globalFarId)
                 .withSessionId(farId.getPfcpSessionId())
-                .withFarId(farId.getSessionlocalId());
+                .withLogicalFarId(farId.getSessionlocalId());
 
         // Parameters common to uplink and downlink should always be present
         farBuilder.withDropFlag(dropFlag)
@@ -375,9 +361,9 @@ public class Up4TranslatorImpl implements Up4Translator {
         ImmutableByteSequence sessionId = TranslatorUtil.getFieldValue(entry, NorthConstants.SESSION_ID_KEY);
         int localFarId = TranslatorUtil.getFieldInt(entry, NorthConstants.FAR_ID_KEY);
         var farBuilder = ForwardingActionRule.builder()
-                .withFarId(localFarId)
+                .withLogicalFarId(localFarId)
                 .withSessionId(sessionId)
-                .withGlobalFarId(globalFarIdOf(sessionId, localFarId));
+                .withPhysicalFarId(physicalFarIdOf(sessionId, localFarId));
 
         // Now get the action parameters, if they are present (entries from delete writes don't have parameters)
         PiAction action = (PiAction) entry.action();
@@ -437,9 +423,9 @@ public class Up4TranslatorImpl implements Up4Translator {
     @Override
     public FlowRule farToFabricEntry(ForwardingActionRule far, DeviceId deviceId, ApplicationId appId, int priority)
             throws Up4TranslationException {
-        if (!far.hasGlobalFarId()) {
+        if (!far.hasPhysicalFarId()) {
             log.warn("FAR received with no global FAR ID!");
-            assignGlobalFarId(far);
+            assignPhysicalFarId(far);
         }
         PiAction action;
         if (far.isUplink()) {
@@ -469,7 +455,7 @@ public class Up4TranslatorImpl implements Up4Translator {
         }
 
         PiCriterion match = PiCriterion.builder()
-                .matchExact(SouthConstants.FAR_ID_KEY, far.getGlobalFarId())
+                .matchExact(SouthConstants.FAR_ID_KEY, far.getPhysicalFarId())
                 .build();
         return DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
@@ -485,7 +471,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             throws Up4TranslationException {
         if (!pdr.hasGlobalFarId()) {
             log.warn("PDR received with no global FAR ID!");
-            assignGlobalFarId(pdr);
+            assignPhysicalFarId(pdr);
         }
         PiCriterion match;
         PiTableId tableId;

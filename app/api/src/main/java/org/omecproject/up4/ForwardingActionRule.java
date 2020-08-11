@@ -21,19 +21,20 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public final class ForwardingActionRule {
     // Match Keys
     private final ImmutableByteSequence sessionId;  // The PFCP session identifier that created this FAR
-    private final int farId;  // PFCP session-local identifier for this FAR
+    private final int logicalFarId;  // PFCP session-local identifier for this FAR
+    private Integer physicalFarId;  // Globally unique identifier of this FAR
     // Action parameters
     private final Boolean drop;  // Should this FAR drop packets?
     private final Boolean notifyCp;  // Should this FAR notify the control plane when it sees a packet?
     private final GtpTunnel tunnelDesc;  // The GTP tunnel that this FAR should encapsulate packets with (if downlink)
     private final Type type;  // Is the FAR Uplink, Downlink, etc
-    private Integer globalFarId;  // Globally unique identifier of this FAR
 
-    private ForwardingActionRule(Integer globalFarId, ImmutableByteSequence sessionId, Integer farId,
+
+    private ForwardingActionRule(Integer physicalFarId, ImmutableByteSequence sessionId, Integer farId,
                                  Boolean drop, Boolean notifyCp, GtpTunnel tunnelDesc, Type type) {
-        this.globalFarId = globalFarId;
+        this.physicalFarId = physicalFarId;
         this.sessionId = sessionId;
-        this.farId = farId;
+        this.logicalFarId = farId;
         this.drop = drop;
         this.notifyCp = notifyCp;
         this.tunnelDesc = tunnelDesc;
@@ -46,8 +47,8 @@ public final class ForwardingActionRule {
 
     @Override
     public String toString() {
-        String globalIdStr = globalFarId == null ? "None" : globalFarId.toString();
-        String matchKeys = String.format("ID:%d,SEID:%s,GID:%s", farId, sessionId.toString(), globalIdStr);
+        String globalIdStr = physicalFarId == null ? "None" : physicalFarId.toString();
+        String matchKeys = String.format("ID:%d,SEID:%s,GID:%s", logicalFarId, sessionId.toString(), globalIdStr);
         String directionString;
         String actionParams;
         if (isUplink()) {
@@ -98,8 +99,8 @@ public final class ForwardingActionRule {
      *
      * @return true if a global FAR ID has been assigned
      */
-    public boolean hasGlobalFarId() {
-        return this.globalFarId != null;
+    public boolean hasPhysicalFarId() {
+        return this.physicalFarId != null;
     }
 
     /**
@@ -107,17 +108,17 @@ public final class ForwardingActionRule {
      *
      * @return globally unique FAR ID
      */
-    public int getGlobalFarId() {
-        return this.globalFarId;
+    public int getPhysicalFarId() {
+        return this.physicalFarId;
     }
 
     /**
      * Get the globally unique identifier of this FAR.
      *
-     * @param globalFarId globally unique FAR ID
+     * @param physicalFarId globally unique FAR ID
      */
-    public void setGlobalFarId(int globalFarId) {
-        this.globalFarId = globalFarId;
+    public void setPhysicalFarId(int physicalFarId) {
+        this.physicalFarId = physicalFarId;
     }
 
     /**
@@ -134,8 +135,8 @@ public final class ForwardingActionRule {
      *
      * @return PFCP session-local FAR ID
      */
-    public int localFarId() {
-        return farId;
+    public int logicalFarId() {
+        return logicalFarId;
     }
 
     /**
@@ -218,7 +219,7 @@ public final class ForwardingActionRule {
     }
 
     public static class Builder {
-        private Integer globalFarId;
+        private Integer physicalFarId;
         private ImmutableByteSequence sessionId;
         private Integer farId;
         private Boolean drop;
@@ -226,7 +227,7 @@ public final class ForwardingActionRule {
         private GtpTunnel tunnelDesc;
 
         public Builder() {
-            globalFarId = null;
+            physicalFarId = null;
             sessionId = null;
             farId = null;
             drop = null;
@@ -262,7 +263,7 @@ public final class ForwardingActionRule {
          * @param farId PFCP session-local FAR ID
          * @return This builder object
          */
-        public Builder withFarId(int farId) {
+        public Builder withLogicalFarId(int farId) {
             this.farId = farId;
             return this;
         }
@@ -270,11 +271,11 @@ public final class ForwardingActionRule {
         /**
          * Set the globally unique ID of this FAR.
          *
-         * @param globalFarId globally unique FAR ID
+         * @param farId globally unique FAR ID
          * @return This builder object
          */
-        public Builder withGlobalFarId(int globalFarId) {
-            this.globalFarId = globalFarId;
+        public Builder withPhysicalFarId(int farId) {
+            this.physicalFarId = farId;
             return this;
         }
 
@@ -357,7 +358,7 @@ public final class ForwardingActionRule {
             } else {
                 type = Type.DOWNLINK;
             }
-            return new ForwardingActionRule(globalFarId, sessionId, farId, drop, notifyCp, tunnelDesc, type);
+            return new ForwardingActionRule(physicalFarId, sessionId, farId, drop, notifyCp, tunnelDesc, type);
         }
     }
 }

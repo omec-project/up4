@@ -51,7 +51,7 @@ public class FarInsertCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         var farBuilder = ForwardingActionRule.builder()
-                .withFarId(farId)
+                .withLogicalFarId(farId)
                 .withSessionId(sessionId)
                 .withFlags(false, false);
 
