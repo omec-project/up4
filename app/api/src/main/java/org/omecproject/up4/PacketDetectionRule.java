@@ -8,7 +8,6 @@ import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A single Packet Detection Rule (PDR), an entity described in the 3GPP specifications (although that does not mean
@@ -52,8 +51,8 @@ public final class PacketDetectionRule {
         String directionString;
         if (isUplink()) {
             directionString = "Uplink";
-            matchKeys = String.format("UE:%s,TunnelDst:%s,TEID:%s",
-                    ueAddr.toString(), tunnelDst.toString(), teid.toString());
+            matchKeys = String.format("TunnelDst:%s,TEID:%s",
+                    tunnelDst.toString(), teid.toString());
         } else {
             directionString = "Downlink";
             matchKeys = String.format("UE:%s", ueAddr.toString());
@@ -326,10 +325,9 @@ public final class PacketDetectionRule {
 
         public PacketDetectionRule build() {
             // Some match keys are required.
-            checkNotNull(ueAddr, "UE address is required");
-            checkArgument((teid == null && tunnelDst == null) ||
-                            (teid != null && tunnelDst != null),
-                    "TEID and Tunnel destination must be provided together or not at all");
+            checkArgument((ueAddr != null && teid == null && tunnelDst == null) ||
+                            (ueAddr == null && teid != null && tunnelDst != null),
+                    "Either a UE address or a TEID and Tunnel destination must be provided, but not both.");
             // Action parameters are optional but must be all provided together if they are provided
             checkArgument((sessionId != null && ctrId != null && localFarId != null) ||
                             (sessionId == null && ctrId == null && localFarId == null),
