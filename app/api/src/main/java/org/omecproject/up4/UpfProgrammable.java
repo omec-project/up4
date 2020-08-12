@@ -47,11 +47,11 @@ public interface UpfProgrammable {
     DeviceId deviceId();
 
     /**
-     * Get all UE sessions currently installed on the UPF-programmable device.
+     * Get all UE data flows currently installed on the UPF-programmable device.
      *
-     * @return a collection of installed Sessions
+     * @return a collection of installed flows
      */
-    Collection<UeSession> getSessions();
+    Collection<UpfFlow> getFlows();
 
     /**
      * Remove all interfaces currently installed on the UPF-programmable device.
@@ -59,9 +59,9 @@ public interface UpfProgrammable {
     void clearInterfaces();
 
     /**
-     * Remove all UE sessions currently installed on the UPF-programmable device.
+     * Remove all UE data flows currently installed on the UPF-programmable device.
      */
-    void clearSessions();
+    void clearFlows();
 
     /**
      * Get all ForwardingActionRules currently installed on the UPF-programmable device.

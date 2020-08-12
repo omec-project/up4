@@ -3,8 +3,8 @@ package org.omecproject.up4.behavior;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
-import org.omecproject.up4.UeSession;
 import org.omecproject.up4.Up4Translator;
+import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.impl.SouthConstants;
@@ -103,13 +103,20 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public void clearSessions() {
+    public void clearFlows() {
         log.info("Clearing all UE sessions.");
+        int pdrsCleared = 0;
+        int farsCleared = 0;
         for (FlowRule entry : flowRuleService.getFlowEntriesById(appId)) {
-            if (up4Translator.isFabricPdr(entry) || up4Translator.isFabricFar(entry)) {
+            if (up4Translator.isFabricPdr(entry)) {
+                pdrsCleared++;
+                flowRuleService.removeFlowRules(entry);
+            } else if (up4Translator.isFabricFar(entry)) {
+                farsCleared++;
                 flowRuleService.removeFlowRules(entry);
             }
         }
+        log.info("Cleared {} PDRs and {} FARS.", pdrsCleared, farsCleared);
     }
 
     @Override
@@ -245,10 +252,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         return false;
     }
 
-    public Collection<UeSession> getSessions() {
-        Map<Ip4Address, UeSession.Builder> ueAddrToSessionBuilder = new HashMap<>();
-        Map<Integer, UeSession.Builder> globalFarToSessionBuilder = new HashMap<>();
-        List<PacketDetectionRule> pdrs = new ArrayList<>();
+    public Collection<UpfFlow> getFlows() {
+        Map<Integer, UpfFlow.Builder> globalFarToSessionBuilder = new HashMap<>();
         List<ForwardingActionRule> fars = new ArrayList<>();
         for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
             if (up4Translator.isFabricFar(flowRule)) {
@@ -259,22 +264,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                     log.warn("Found what appears to be a FAR but we can't translate it?? {}", flowRule);
                 }
             } else if (up4Translator.isFabricPdr(flowRule)) {
-                // If its a PDR, add it to a session builder, or create a new session builder for it
-                // We should have one session builder per UE address.
+                // If its a PDR, create a flow builder for it
                 try {
                     PacketDetectionRule pdr = up4Translator.fabricEntryToPdr(flowRule);
-                    pdrs.add(pdr);
-                    var builder = ueAddrToSessionBuilder.compute(pdr.ueAddress(), (ueAddr, sessionBuilder) -> {
-                        if (sessionBuilder == null) {
-                            return UeSession.builder().addPdr(pdr);
-                        } else {
-                            return sessionBuilder.addPdr(pdr);
-                        }
-                    });
-                    builder.addStats(readCounter(pdr.counterId()));
-                    // Also save the builder that contains each global FAR ID, for adding FARs
-                    //  after all the session builders have been created.
-                    globalFarToSessionBuilder.put(pdr.getGlobalFarId(), builder);
+                    globalFarToSessionBuilder.put(pdr.getGlobalFarId(),
+                            UpfFlow.builder().setPdr(pdr).addStats(readCounter(pdr.counterId())));
                 } catch (Up4Translator.Up4TranslationException e) {
                     log.warn("Found what appears to be a PDR but we can't translate it?? {}", flowRule);
                 }
@@ -285,11 +279,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             if (builder != null) {
                 builder.addFar(far);
             } else {
-                log.warn("Found an FAR with no corresponding PDR: {}", far);
+                log.warn("Found a FAR with no corresponding PDR: {}", far);
             }
         }
-        List<UeSession> results = new ArrayList<>();
-        for (var builder : ueAddrToSessionBuilder.values()) {
+        List<UpfFlow> results = new ArrayList<>();
+        for (var builder : globalFarToSessionBuilder.values()) {
             results.add(builder.build());
         }
         return results;

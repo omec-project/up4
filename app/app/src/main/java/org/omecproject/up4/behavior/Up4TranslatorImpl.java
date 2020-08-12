@@ -190,23 +190,25 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiCriterion match = matchActionPair.getLeft();
         PiAction action = (PiAction) matchActionPair.getRight();
 
-        // UE Address key should always be present for fabric entries
+        // Grab keys and parameters that are present for all PDRs
         int globalFarId = TranslatorUtil.getParamInt(action, SouthConstants.FAR_ID_PARAM);
         RuleIdentifier farId = localFarIdOf(globalFarId);
-
-        // So should all the action parameters
-        pdrBuilder.withUeAddr(TranslatorUtil.getFieldAddress(match, SouthConstants.UE_ADDR_KEY))
-                .withCounterId(TranslatorUtil.getParamInt(action, SouthConstants.CTR_ID))
+        pdrBuilder.withCounterId(TranslatorUtil.getParamInt(action, SouthConstants.CTR_ID))
                 .withLocalFarId(farId.getSessionlocalId())
                 .withGlobalFarId(globalFarId)
                 .withSessionId(farId.getPfcpSessionId());
 
-        // These keys are only present for uplink entries
         if (TranslatorUtil.fieldIsPresent(match, SouthConstants.TEID_KEY)) {
+            // F-TEID is only present for uplink PDRs
             ImmutableByteSequence teid = TranslatorUtil.getFieldValue(match, SouthConstants.TEID_KEY);
             Ip4Address tunnelDst = TranslatorUtil.getFieldAddress(match, SouthConstants.TUNNEL_DST_KEY);
             pdrBuilder.withTeid(teid)
                     .withTunnelDst(tunnelDst);
+        } else if (TranslatorUtil.fieldIsPresent(match, SouthConstants.UE_ADDR_KEY)) {
+            // And UE address is only present for downlink PDRs
+            pdrBuilder.withUeAddr(TranslatorUtil.getFieldAddress(match, SouthConstants.UE_ADDR_KEY));
+        } else {
+            throw new Up4TranslationException("Read malformed PDR from dataplane!:" + entry);
         }
 
         return pdrBuilder.build();
@@ -216,15 +218,16 @@ public class Up4TranslatorImpl implements Up4Translator {
     public PacketDetectionRule up4EntryToPdr(PiTableEntry entry)
             throws Up4TranslationException {
         var pdrBuilder = PacketDetectionRule.builder();
-        // Uplink and downlink both have a UE address key
-        pdrBuilder.withUeAddr(TranslatorUtil.getFieldAddress(entry, NorthConstants.UE_ADDR_KEY));
 
         int srcInterface = TranslatorUtil.getFieldInt(entry, NorthConstants.SRC_IFACE_KEY);
         if (srcInterface == NorthConstants.IFACE_ACCESS) {
-            // uplink entries will also have a F-TEID key (tunnel destination address + TEID)
+            // Uplink entries will match on the F-TEID (tunnel destination address + TEID)
             pdrBuilder.withTunnel(TranslatorUtil.getFieldValue(entry, NorthConstants.TEID_KEY),
                     TranslatorUtil.getFieldAddress(entry, NorthConstants.TUNNEL_DST_KEY));
-        } else if (srcInterface != NorthConstants.IFACE_CORE) {
+        } else if (srcInterface == NorthConstants.IFACE_CORE) {
+            // Downlink entries will match on the UE address
+            pdrBuilder.withUeAddr(TranslatorUtil.getFieldAddress(entry, NorthConstants.UE_ADDR_KEY));
+        } else {
             throw new Up4TranslationException("Flexible PDRs not yet supported.");
         }
 
@@ -404,7 +407,6 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiTableId tableId;
         if (pdr.isUplink()) {
             match = PiCriterion.builder()
-                    .matchExact(SouthConstants.UE_ADDR_KEY, pdr.ueAddress().toInt())
                     .matchExact(SouthConstants.TEID_KEY, pdr.teid().asArray())
                     .matchExact(SouthConstants.TUNNEL_DST_KEY, pdr.tunnelDest().toInt())
                     .build();
