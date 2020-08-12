@@ -62,9 +62,9 @@ public class Up4TranslatorImpl implements Up4Translator {
     // Counter for producing new global FAR IDs
     private AtomicCounter globalFarIdCounter;
 
-    private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(32);
-    private final ImmutableByteSequence allOnes16 = ImmutableByteSequence.ofOnes(16);
-    private final ImmutableByteSequence allOnes8 = ImmutableByteSequence.ofOnes(8);
+    private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
+    private final ImmutableByteSequence allOnes16 = ImmutableByteSequence.ofOnes(2);
+    private final ImmutableByteSequence allOnes8 = ImmutableByteSequence.ofOnes(1);
 
     @Activate
     protected void activate() {
@@ -489,25 +489,28 @@ public class Up4TranslatorImpl implements Up4Translator {
     public PiTableEntry farToUp4Entry(ForwardingActionRule far) throws Up4TranslationException {
         PiMatchKey matchKey;
         PiAction action;
+        ImmutableByteSequence zeroByte = ImmutableByteSequence.ofZeros(1);
         if (far.isUplink()) {
             action = PiAction.builder()
                     .withId(NorthConstants.LOAD_FAR_NORMAL)
                     .withParameters(Arrays.asList(
-                            new PiActionParam(NorthConstants.DROP_FLAG, 0),
-                            new PiActionParam(NorthConstants.NOTIFY_FLAG, 0)
+                            new PiActionParam(NorthConstants.DROP_FLAG, zeroByte),
+                            new PiActionParam(NorthConstants.NOTIFY_FLAG, zeroByte)
                     ))
                     .build();
         } else if (far.isDownlink()) {
             action = PiAction.builder()
-                    .withId(NorthConstants.LOAD_FAR_NORMAL)
+                    .withId(NorthConstants.LOAD_FAR_TUNNEL)
                     .withParameters(Arrays.asList(
-                            new PiActionParam(NorthConstants.DROP_FLAG, 0),
-                            new PiActionParam(NorthConstants.NOTIFY_FLAG, 0),
-                            new PiActionParam(NorthConstants.TUNNEL_TYPE_PARAM, NorthConstants.TUNNEL_TYPE_GTPU),
+                            new PiActionParam(NorthConstants.DROP_FLAG, zeroByte),
+                            new PiActionParam(NorthConstants.NOTIFY_FLAG, zeroByte),
+                            new PiActionParam(NorthConstants.TUNNEL_TYPE_PARAM,
+                                    toImmutableByte(NorthConstants.TUNNEL_TYPE_GTPU)),
                             new PiActionParam(NorthConstants.TUNNEL_SRC_PARAM, far.tunnelSrc().toInt()),
                             new PiActionParam(NorthConstants.TUNNEL_DST_PARAM, far.tunnelDst().toInt()),
                             new PiActionParam(NorthConstants.TEID_PARAM, far.teid()),
-                            new PiActionParam(NorthConstants.TUNNEL_DPORT_PARAM, 0)
+                            // TODO: tunnel dport should be included in all north-south and south-north translation
+                            new PiActionParam(NorthConstants.TUNNEL_DPORT_PARAM, ImmutableByteSequence.ofZeros(2))
                     ))
                     .build();
         } else {
@@ -536,7 +539,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             decapFlag = 1;  // Decap is true for uplink
             matchKey = PiMatchKey.builder()
                     .addFieldMatch(new PiExactFieldMatch(NorthConstants.SRC_IFACE_KEY,
-                            ImmutableByteSequence.copyFrom(NorthConstants.IFACE_ACCESS)))
+                            toImmutableByte(NorthConstants.IFACE_ACCESS)))
                     .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.TEID_KEY, pdr.teid(), allOnes32))
                     .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.TUNNEL_DST_KEY,
                             ImmutableByteSequence.copyFrom(pdr.tunnelDest().toOctets()), allOnes32))
@@ -545,7 +548,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             decapFlag = 0;  // Decap is false for downlink
             matchKey = PiMatchKey.builder()
                     .addFieldMatch(new PiExactFieldMatch(NorthConstants.SRC_IFACE_KEY,
-                            ImmutableByteSequence.copyFrom(NorthConstants.IFACE_ACCESS)))
+                            toImmutableByte(NorthConstants.IFACE_ACCESS)))
                     .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.UE_ADDR_KEY,
                             ImmutableByteSequence.copyFrom(pdr.ueAddress().toOctets()), allOnes32))
                     .build();
@@ -561,7 +564,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                         new PiActionParam(NorthConstants.SESSION_ID_PARAM, pdr.sessionId()),
                         new PiActionParam(NorthConstants.CTR_ID, pdr.counterId()),
                         new PiActionParam(NorthConstants.FAR_ID_PARAM, pdr.localFarId()),
-                        new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, 1)
+                        new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, toImmutableByte(decapFlag))
                 ))
                 .build();
 
@@ -570,6 +573,15 @@ public class Up4TranslatorImpl implements Up4Translator {
                 .withMatchKey(matchKey)
                 .withAction(action)
                 .build();
+    }
+
+    private ImmutableByteSequence toImmutableByte(int value) {
+        try {
+            return ImmutableByteSequence.copyFrom(value).fit(8);
+        } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
+            log.error("Attempted to convert an integer larger than 255 to a byte!: {}", e.getMessage());
+            return ImmutableByteSequence.ofZeros(1);
+        }
     }
 
     @Override
@@ -587,8 +599,8 @@ public class Up4TranslatorImpl implements Up4Translator {
                 .withAction(PiAction.builder()
                         .withId(NorthConstants.LOAD_IFACE)
                         .withParameters(Arrays.asList(
-                                new PiActionParam(NorthConstants.SRC_IFACE_PARAM, srcIface),
-                                new PiActionParam(NorthConstants.DIRECTION, direction)
+                                new PiActionParam(NorthConstants.SRC_IFACE_PARAM, toImmutableByte(srcIface)),
+                                new PiActionParam(NorthConstants.DIRECTION, toImmutableByte(direction))
                         ))
                         .build()).build();
     }

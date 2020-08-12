@@ -378,7 +378,7 @@ public class Up4NorthComponent {
                     continue;
                 }
                 if (requestPiEntity.piEntityType() == PiEntityType.COUNTER_CELL) {
-                    log.info("Received read request for logical table entry");
+                    log.info("Received read request for logical counter cell");
                     PiCounterCell requestCell = (PiCounterCell) requestPiEntity;
 
                     int counterIndex = (int) requestCell.cellId().index();
@@ -424,8 +424,8 @@ public class Up4NorthComponent {
                     // Respond with all entries for the table of the requested entry, ignoring other entry properties
                     // TODO: return more specific responses
                     if (up4Translator.isUp4Interface(requestEntry)) {
-
                         for (UpfInterface iface : up4Service.getUpfProgrammable().getInstalledInterfaces()) {
+                            log.info("Translating an interface for a read request: {}", iface);
                             try {
                                 P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
                                         up4Translator.interfaceToUp4Entry(iface), null, pipeconf);
@@ -438,6 +438,7 @@ public class Up4NorthComponent {
                         }
                     } else if (up4Translator.isUp4Far(requestEntry)) {
                         for (ForwardingActionRule far : up4Service.getUpfProgrammable().getInstalledFars()) {
+                            log.info("Translating a FAR for a read request: {}", far);
                             try {
                                 P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
                                         up4Translator.farToUp4Entry(far), null, pipeconf);
@@ -449,6 +450,7 @@ public class Up4NorthComponent {
                         }
                     } else if (up4Translator.isUp4Pdr(requestEntry)) {
                         for (PacketDetectionRule pdr : up4Service.getUpfProgrammable().getInstalledPdrs()) {
+                            log.info("Translating a PDR for a read request: {}", pdr);
                             try {
                                 P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
                                         up4Translator.pdrToUp4Entry(pdr), null, pipeconf);
