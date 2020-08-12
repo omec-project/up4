@@ -19,6 +19,7 @@ public final class NorthConstants {
     public static final int DIRECTION_DOWNLINK = 2;
     public static final int IFACE_ACCESS = 1;
     public static final int IFACE_CORE = 2;
+    public static final int TUNNEL_TYPE_GTPU = 3;
     // Table names
     public static final PiTableId IFACE_TBL = PiTableId.of("PreQosPipe.source_iface_lookup");
     public static final PiTableId PDR_TBL = PiTableId.of("PreQosPipe.pdrs");
@@ -44,10 +45,14 @@ public final class NorthConstants {
     public static final PiActionParamId SRC_IFACE_PARAM = PiActionParamId.of("src_iface");
     public static final PiActionParamId DIRECTION = PiActionParamId.of("direction");
     //   pdr table
+    public static final PiActionParamId PDR_ID_PARAM = PiActionParamId.of("id");
+    public static final PiActionParamId DECAP_FLAG_PARAM = PiActionParamId.of("needs_gtpu_decap");
     public static final PiActionParamId CTR_ID = PiActionParamId.of("ctr_id");
     public static final PiActionParamId FAR_ID_PARAM = PiActionParamId.of("far_id");
     public static final PiActionParamId SESSION_ID_PARAM = PiActionParamId.of("fseid");
     //   far table
+    public static final PiActionParamId TUNNEL_TYPE_PARAM = PiActionParamId.of("tunnel_type");
+    public static final PiActionParamId TUNNEL_DPORT_PARAM = PiActionParamId.of("dport");
     public static final PiActionParamId TEID_PARAM = PiActionParamId.of("teid");
     public static final PiActionParamId TUNNEL_SRC_PARAM = PiActionParamId.of("src_addr");
     public static final PiActionParamId TUNNEL_DST_PARAM = PiActionParamId.of("dst_addr");
