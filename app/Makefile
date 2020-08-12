@@ -146,10 +146,11 @@ send-downlink:
 	util/mn-cmd pdn pkill "traffic.py"
 
 send-uplink:
+	docker logs onos
 	@# util/mn-cmd requires a TTY because it uses docker -it option
 	@# hence we use screen for putting it in the background
 	screen -d -m util/mn-cmd enodeb /util/traffic.py send-gtp
-	util/mn-cmd pdn /util/traffic.py recv-udp -t ${PKT_WAIT_TIME} && echo "success!" || {docker-compose logs onos; exit 1}
+	util/mn-cmd pdn /util/traffic.py recv-udp -t ${PKT_WAIT_TIME}
 	@# kill sending process
 	util/mn-cmd enodeb pkill "traffic.py"
 
