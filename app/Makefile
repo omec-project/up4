@@ -146,7 +146,6 @@ send-downlink:
 	util/mn-cmd pdn pkill "traffic.py"
 
 send-uplink:
-	docker logs onos
 	@# util/mn-cmd requires a TTY because it uses docker -it option
 	@# hence we use screen for putting it in the background
 	screen -d -m util/mn-cmd enodeb /util/traffic.py send-gtp
