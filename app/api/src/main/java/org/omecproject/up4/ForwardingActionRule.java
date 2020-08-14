@@ -252,7 +252,11 @@ public final class ForwardingActionRule {
          * @return This builder object
          */
         public Builder withSessionId(long sessionId) {
-            this.sessionId = ImmutableByteSequence.copyFrom(sessionId);
+            try {
+                this.sessionId = ImmutableByteSequence.copyFrom(sessionId).fit(96);
+            } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
+                // This error is literally impossible
+            }
             return this;
         }
 

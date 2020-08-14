@@ -20,33 +20,29 @@ import org.onosproject.cli.AbstractShellCommand;
         description = "Delete a packet detection rule from the UP4 dataplane")
 public class PdrDeleteCommand extends AbstractShellCommand {
 
-    @Argument(index = 0, name = "ue-ipv4-addr",
-            description = "Address of the UE for which this PDR applies",
+    @Argument(index = 0, name = "address",
+            description = "Address of the UE for downlink PDRs, or the tunnel endpoint for uplink.",
             required = true, multiValued = false)
-    String ueAddr = null;
+    String address = null;
 
     @Argument(index = 1, name = "teid",
-            description = "Tunnel ID of the tunnel to/from the base station",
+            description = "Tunnel ID of the tunnel to/from the base station."
+                    + " The presence of this argument implies an uplink PDR. An absence implies downlink.",
             required = false, multiValued = false)
     int teid = -1;
-
-    @Argument(index = 2, name = "s1u-ip",
-            description = "IP address of the S1U interface (endpoint of the tunnel to the base station)",
-            required = false, multiValued = false)
-    String s1uAddr = null;
 
     @Override
     protected void doExecute() {
         Up4Service app = get(Up4Service.class);
 
-        var pdrBuilder = PacketDetectionRule.builder()
-                .withUeAddr(Ip4Address.valueOf(this.ueAddr));
+        var pdrBuilder = PacketDetectionRule.builder();
+        Ip4Address address = Ip4Address.valueOf(this.address);
 
         if (teid != -1) {
-            pdrBuilder.withTeid(teid);
-        }
-        if (s1uAddr != null) {
-            pdrBuilder.withTunnelDst(Ip4Address.valueOf(s1uAddr));
+            pdrBuilder.withTunnelDst(address)
+                    .withTeid(teid);
+        } else {
+            pdrBuilder.withUeAddr(address);
         }
 
         PacketDetectionRule pdr = pdrBuilder.build();
