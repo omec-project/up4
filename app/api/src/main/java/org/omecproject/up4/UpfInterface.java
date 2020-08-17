@@ -3,6 +3,8 @@ package org.omecproject.up4;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 
+import java.util.Objects;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -24,6 +26,27 @@ public final class UpfInterface {
     @Override
     public String toString() {
         return String.format("Interface{%s, %s}", isUplink() ? "Uplink" : "Downlink", prefix);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        UpfInterface that = (UpfInterface) obj;
+        return (this.type.equals(that.type) &&
+                this.prefix.equals(that.prefix));
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(prefix, type);
     }
 
     /**

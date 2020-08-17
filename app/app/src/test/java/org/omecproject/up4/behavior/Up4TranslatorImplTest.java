@@ -6,24 +6,11 @@ import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
-import org.omecproject.up4.impl.NorthConstants;
-import org.onlab.packet.Ip4Address;
-import org.onlab.util.ImmutableByteSequence;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 
 public class Up4TranslatorImplTest {
-    private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
-    private final ImmutableByteSequence sessionId = toSessionId(1);
-    private final int counterId = 1;
-    private final int pdrId = 1;
-    private final int farId = 1;
-    private final ImmutableByteSequence teid = ImmutableByteSequence.copyFrom(0xff);
-    private final Ip4Address ueAddr = Ip4Address.valueOf("10.0.0.1");
-    private final Ip4Address s1uAddr = Ip4Address.valueOf("192.168.0.1");
-    private final Ip4Address enbAddr = Ip4Address.valueOf("192.168.0.2");
-    private final ImmutableByteSequence tunnelDPort = ImmutableByteSequence.copyFrom((short) 1024);
-
 
     private final Up4TranslatorImpl up4Translator = new Up4TranslatorImpl();
 
@@ -32,96 +19,92 @@ public class Up4TranslatorImplTest {
         up4Translator.activate();
     }
 
-
-    private static ImmutableByteSequence toImmutableByte(int value) {
-        try {
-            return ImmutableByteSequence.copyFrom(value).fit(8);
-        } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
-            return ImmutableByteSequence.ofZeros(1);
-        }
-    }
-
-    private static ImmutableByteSequence toSessionId(long value) {
-        try {
-            return ImmutableByteSequence.copyFrom(value).fit(NorthConstants.SESSION_ID_BITWIDTH);
-        } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
-            return ImmutableByteSequence.ofZeros(NorthConstants.SESSION_ID_BITWIDTH / 8);
-        }
-    }
-
     @Test
     public void up4EntryToUplinkPdrTest() {
+        PacketDetectionRule expectedPdr = TestConstants.getUplinkPdr();
         PacketDetectionRule translatedPdr;
         try {
-            translatedPdr = up4Translator.up4EntryToPdr(TestConstants.UP4_UPLINK_PDR);
+            translatedPdr = up4Translator.up4EntryToPdr(TestConstants.getUp4UplinkPdr());
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("UP4 uplink PDR should translate to abstract PDR without error.", false);
             return;
         }
         assertThat("Translated PDR should be uplink.", translatedPdr.isUplink());
+        assertThat(translatedPdr, equalTo(expectedPdr));
     }
 
     @Test
     public void up4EntryToDownlinkPdrTest() {
-        PacketDetectionRule pdr;
+        PacketDetectionRule expectedPdr = TestConstants.getDownlinkPdr();
+        PacketDetectionRule translatedPdr;
         try {
-            pdr = up4Translator.up4EntryToPdr(TestConstants.UP4_DOWNLINK_PDR);
+            translatedPdr = up4Translator.up4EntryToPdr(TestConstants.getUp4DownlinkPdr());
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("UP4 downlink PDR should translate to abstract PDR without error.", false);
             return;
         }
-        assertThat("Translated PDR should be downlink.", pdr.isDownlink());
+
+        assertThat("Translated PDR should be downlink.", translatedPdr.isDownlink());
+        assertThat(translatedPdr, equalTo(expectedPdr));
     }
 
     @Test
     public void up4EntryToUplinkFarTest() {
-        ForwardingActionRule far;
+        ForwardingActionRule translatedFar;
+        ForwardingActionRule expectedFar = TestConstants.getUplinkFar();
         try {
-            far = up4Translator.up4EntryToFar(TestConstants.UP4_UPLINK_FAR);
+            translatedFar = up4Translator.up4EntryToFar(TestConstants.getUp4UplinkFar());
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("UP4 uplink FAR should correctly translate to abstract FAR without error",
                     false);
             return;
         }
-        assertThat("Translated FAR should be uplink.", far.isUplink());
+        assertThat("Translated FAR should be uplink.", translatedFar.isUplink());
+        assertThat(translatedFar, equalTo(expectedFar));
     }
 
     @Test
     public void up4EntryToDownlinkFarTest() {
-        ForwardingActionRule far;
+        ForwardingActionRule translatedFar;
+        ForwardingActionRule expectedFar = TestConstants.getDownlinkFar();
         try {
-            far = up4Translator.up4EntryToFar(TestConstants.UP4_DOWNLINK_FAR);
+            translatedFar = up4Translator.up4EntryToFar(TestConstants.getUp4DownlinkFar());
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("UP4 downlink FAR should correctly translate to abstract FAR without error",
                     false);
             return;
         }
-        assertThat("Translated FAR should be downlink.", far.isDownlink());
+        assertThat("Translated FAR should be downlink.", translatedFar.isDownlink());
+        assertThat(translatedFar, equalTo(expectedFar));
     }
 
     @Test
     public void up4EntryToUplinkInterfaceTest() {
-        UpfInterface upfInterface;
+        UpfInterface translatedInterface;
+        UpfInterface expectedInterface = TestConstants.getUplinkInterface();
         try {
-            upfInterface = up4Translator.up4EntryToInterface(TestConstants.UP4_UPLINK_INTERFACE);
+            translatedInterface = up4Translator.up4EntryToInterface(TestConstants.getUp4UplinkInterface());
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("UP4 uplink interface should correctly translate to abstract interface without error",
                     false);
             return;
         }
-        assertThat("Translated interface should be uplink.", upfInterface.isUplink());
+        assertThat("Translated interface should be uplink.", translatedInterface.isUplink());
+        assertThat(translatedInterface, equalTo(expectedInterface));
     }
 
     @Test
     public void up4EntryToDownlinkInterfaceTest() {
-        UpfInterface upfInterface;
+        UpfInterface translatedInterface;
+        UpfInterface expectedInterface = TestConstants.getDownlinkInterface();
         try {
-            upfInterface = up4Translator.up4EntryToInterface(TestConstants.UP4_DOWNLINK_INTERFACE);
+            translatedInterface = up4Translator.up4EntryToInterface(TestConstants.getUp4DownlinkInterface());
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("UP4 downlink interface should correctly translate to abstract interface without error",
                     false);
             return;
         }
-        assertThat("Translated interface should be downlink.", upfInterface.isDownlink());
+        assertThat("Translated interface should be downlink.", translatedInterface.isDownlink());
+        assertThat(translatedInterface, equalTo(expectedInterface));
     }
 }

@@ -49,7 +49,7 @@ public class Up4TranslatorImpl implements Up4Translator {
     private final Logger log = LoggerFactory.getLogger(getClass());
     // Maps local FAR IDs to global FAR IDs
     private BiMap<RuleIdentifier, Integer> farIdMapper;
-    private int nextGlobalFarId;
+    private int nextGlobalFarId = 1;
 
     private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
     private final ImmutableByteSequence allOnes16 = ImmutableByteSequence.ofOnes(2);

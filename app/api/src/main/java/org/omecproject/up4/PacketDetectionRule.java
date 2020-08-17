@@ -7,6 +7,8 @@ package org.omecproject.up4;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 
+import java.util.Objects;
+
 import static com.google.common.base.Preconditions.checkArgument;
 
 /**
@@ -65,6 +67,34 @@ public final class PacketDetectionRule {
         }
 
         return String.format("%s-PDR{ Keys:(%s) -> Params (%s) }", directionString, matchKeys, actionParams);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        PacketDetectionRule that = (PacketDetectionRule) obj;
+
+        // Safe comparisons between potentially null objects
+        return (this.type.equals(that.type) &&
+                Objects.equals(this.teid, that.teid) &&
+                Objects.equals(this.tunnelDst, that.tunnelDst) &&
+                Objects.equals(this.ueAddr, that.ueAddr) &&
+                Objects.equals(this.ctrId, that.ctrId) &&
+                Objects.equals(this.sessionId, that.sessionId) &&
+                Objects.equals(this.localFarId, that.localFarId));
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(ueAddr, teid, tunnelDst, sessionId, ctrId, localFarId, type, globalFarId);
     }
 
     /**

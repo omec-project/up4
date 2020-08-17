@@ -252,6 +252,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         return false;
     }
 
+    @Override
     public Collection<UpfFlow> getFlows() {
         Map<Integer, UpfFlow.Builder> globalFarToSessionBuilder = new HashMap<>();
         List<ForwardingActionRule> fars = new ArrayList<>();
@@ -319,6 +320,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         return fars;
     }
 
+    @Override
     public Collection<UpfInterface> getInstalledInterfaces() {
         ArrayList<UpfInterface> ifaces = new ArrayList<>();
         for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {

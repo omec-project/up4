@@ -7,6 +7,8 @@ package org.omecproject.up4;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 
+import java.util.Objects;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -62,6 +64,33 @@ public final class ForwardingActionRule {
         }
 
         return String.format("%s-FAR{ Keys:(%s) -> Params (%s) }", directionString, matchKeys, actionParams);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        ForwardingActionRule that = (ForwardingActionRule) obj;
+
+        // Safe comparisons between potentially null objects
+        return (this.type.equals(that.type) &&
+                (this.farId == that.farId) &&
+                Objects.equals(this.tunnelDesc, that.tunnelDesc) &&
+                Objects.equals(this.drop, that.drop) &&
+                Objects.equals(this.notifyCp, that.notifyCp) &&
+                Objects.equals(this.sessionId, that.sessionId));
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(sessionId, farId, drop, notifyCp, tunnelDesc, type);
     }
 
     /**
