@@ -29,6 +29,8 @@ public final class ForwardingActionRule {
     private final Type type;  // Is the FAR Uplink, Downlink, etc
     private Integer globalFarId;  // Globally unique identifier of this FAR
 
+    private static final int SESSION_ID_BITWIDTH = 96;
+
     private ForwardingActionRule(Integer globalFarId, ImmutableByteSequence sessionId, Integer farId,
                                  Boolean drop, Boolean notifyCp, GtpTunnel tunnelDesc, Type type) {
         this.globalFarId = globalFarId;
@@ -253,7 +255,7 @@ public final class ForwardingActionRule {
          */
         public Builder withSessionId(long sessionId) {
             try {
-                this.sessionId = ImmutableByteSequence.copyFrom(sessionId).fit(96);
+                this.sessionId = ImmutableByteSequence.copyFrom(sessionId).fit(SESSION_ID_BITWIDTH);
             } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
                 // This error is literally impossible
             }
