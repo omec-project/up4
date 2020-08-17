@@ -1,5 +1,7 @@
 package org.omecproject.up4.behavior;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
@@ -11,7 +13,6 @@ import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
-import org.onlab.util.KryoNamespace;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.flow.DefaultFlowRule;
@@ -29,16 +30,9 @@ import org.onosproject.net.pi.runtime.PiMatchKey;
 import org.onosproject.net.pi.runtime.PiTableAction;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
-import org.onosproject.store.serializers.KryoNamespaces;
-import org.onosproject.store.service.AtomicCounter;
-import org.onosproject.store.service.EventuallyConsistentMap;
-import org.onosproject.store.service.StorageService;
-import org.onosproject.store.service.WallClockTimestamp;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,14 +47,9 @@ import java.util.Objects;
         service = {Up4Translator.class})
 public class Up4TranslatorImpl implements Up4Translator {
     private final Logger log = LoggerFactory.getLogger(getClass());
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected StorageService storageService;
     // Maps local FAR IDs to global FAR IDs
-    private EventuallyConsistentMap<RuleIdentifier, Integer> localToGlobalFarId;
-    // Maps global FAR IDs to local FAR IDs
-    private EventuallyConsistentMap<Integer, RuleIdentifier> globalToLocalFarId;
-    // Counter for producing new global FAR IDs
-    private AtomicCounter globalFarIdCounter;
+    private BiMap<RuleIdentifier, Integer> farIdMapper;
+    private int nextGlobalFarId;
 
     private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
     private final ImmutableByteSequence allOnes16 = ImmutableByteSequence.ofOnes(2);
@@ -68,22 +57,7 @@ public class Up4TranslatorImpl implements Up4Translator {
 
     @Activate
     protected void activate() {
-        log.info("Starting...");
-        globalFarIdCounter = storageService.getAtomicCounter("global-far-id-counter");
-
-        KryoNamespace.Builder globalFarIdSerializer = KryoNamespace.newBuilder()
-                .register(KryoNamespaces.API)
-                .register(RuleIdentifier.class);
-        localToGlobalFarId = storageService.<RuleIdentifier, Integer>eventuallyConsistentMapBuilder()
-                .withName("global-to-local-far-ids")
-                .withSerializer(globalFarIdSerializer)
-                .withTimestampProvider((k, v) -> new WallClockTimestamp())
-                .build();
-        globalToLocalFarId = storageService.<Integer, RuleIdentifier>eventuallyConsistentMapBuilder()
-                .withName("local-to-global-far-ids")
-                .withSerializer(globalFarIdSerializer)
-                .withTimestampProvider((k, v) -> new WallClockTimestamp())
-                .build();
+        farIdMapper = HashBiMap.create();
         log.info("Started");
     }
 
@@ -94,9 +68,8 @@ public class Up4TranslatorImpl implements Up4Translator {
 
     @Override
     public void reset() {
-        localToGlobalFarId.clear();
-        globalFarIdCounter.set(0);
-        globalToLocalFarId.clear();
+        farIdMapper.clear();
+        nextGlobalFarId = 0;
     }
 
     /**
@@ -106,22 +79,9 @@ public class Up4TranslatorImpl implements Up4Translator {
      * @return A globally unique integer identifier
      */
     private int globalFarIdOf(RuleIdentifier farIdPair) {
-        int globalFarId = localToGlobalFarId.compute(farIdPair,
+        int globalFarId = farIdMapper.compute(farIdPair,
                 (k, existingId) -> {
-                    if (existingId == null) {
-                        return (int) globalFarIdCounter.incrementAndGet();
-                    } else {
-                        return existingId;
-                    }
-                });
-        // use compute to avoid unnecessary writes, even though we ignore the return value
-        globalToLocalFarId.compute(globalFarId,
-                (k, existingId) -> {
-                    if (existingId == null) {
-                        return farIdPair;
-                    } else {
-                        return existingId;
-                    }
+                    return Objects.requireNonNullElseGet(existingId, () -> nextGlobalFarId++);
                 });
         log.info("{} translated to GlobalFarId={}", farIdPair, globalFarId);
         return globalFarId;
@@ -156,7 +116,7 @@ public class Up4TranslatorImpl implements Up4Translator {
      * @return the corresponding PFCP session ID and session-local FAR ID, as a RuleIdentifier
      */
     private RuleIdentifier localFarIdOf(int globalFarId) {
-        return globalToLocalFarId.get(globalFarId);
+        return farIdMapper.inverse().get(globalFarId);
     }
 
     @Override

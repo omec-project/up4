@@ -63,7 +63,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    private Up4Translator up4Translator;
+    protected Up4Translator up4Translator;
     DeviceId deviceId;
     private ApplicationId appId;
 

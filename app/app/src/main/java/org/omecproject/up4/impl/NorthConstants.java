@@ -14,12 +14,13 @@ public final class NorthConstants {
     // Counters
     public static final PiCounterId INGRESS_COUNTER_ID = PiCounterId.of("PreQosPipe.pre_qos_pdr_counter");
     public static final PiCounterId EGRESS_COUNTER_ID = PiCounterId.of("PostQosPipe.post_qos_pdr_counter");
-    // P4 enums
-    public static final int DIRECTION_UPLINK = 1;
-    public static final int DIRECTION_DOWNLINK = 2;
-    public static final int IFACE_ACCESS = 1;
-    public static final int IFACE_CORE = 2;
-    public static final int TUNNEL_TYPE_GTPU = 3;
+    // P4 enums and constants
+    public static final int SESSION_ID_BITWIDTH = 96;
+    public static final byte DIRECTION_UPLINK = 1;
+    public static final byte DIRECTION_DOWNLINK = 2;
+    public static final byte IFACE_ACCESS = 1;
+    public static final byte IFACE_CORE = 2;
+    public static final byte TUNNEL_TYPE_GTPU = 3;
     // Table names
     public static final PiTableId IFACE_TBL = PiTableId.of("PreQosPipe.source_iface_lookup");
     public static final PiTableId PDR_TBL = PiTableId.of("PreQosPipe.pdrs");
