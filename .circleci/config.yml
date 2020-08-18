@@ -16,6 +16,10 @@ jobs:
           name: App integration test
           command: cd app && make check-slow
       - run:
+          name: Print ONOS logs
+          command: cd app && docker logs onos
+          when: on_fail
+      - run:
           name: Upload coverage
           command: cd app && bash <(curl -s https://codecov.io/bash)
           environment:
