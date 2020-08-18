@@ -508,7 +508,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             decapFlag = 0;  // Decap is false for downlink
             matchKey = PiMatchKey.builder()
                     .addFieldMatch(new PiExactFieldMatch(NorthConstants.SRC_IFACE_KEY,
-                            toImmutableByte(NorthConstants.IFACE_ACCESS)))
+                            toImmutableByte(NorthConstants.IFACE_CORE)))
                     .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.UE_ADDR_KEY,
                             ImmutableByteSequence.copyFrom(pdr.ueAddress().toOctets()), allOnes32))
                     .build();
