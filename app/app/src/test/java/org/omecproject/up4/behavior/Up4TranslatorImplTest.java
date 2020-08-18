@@ -19,6 +19,16 @@ public class Up4TranslatorImplTest {
     @Before
     public void setUp() throws Exception {
         up4Translator.activate();
+        setTranslationState();
+    }
+
+    private void setTranslationState() {
+        up4Translator.farIdMapper.put(
+                new Up4TranslatorImpl.RuleIdentifier(TestConstants.SESSION_ID, TestConstants.UPLINK_FAR_ID),
+                TestConstants.UPLINK_PHYSICAL_FAR_ID);
+        up4Translator.farIdMapper.put(
+                new Up4TranslatorImpl.RuleIdentifier(TestConstants.SESSION_ID, TestConstants.DOWNLINK_FAR_ID),
+                TestConstants.DOWNLINK_PHYSICAL_FAR_ID);
     }
 
     @Test
@@ -39,7 +49,6 @@ public class Up4TranslatorImplTest {
     public void fabricEntryToUplinkPdrTest() {
         PacketDetectionRule expectedPdr = TestConstants.UPLINK_PDR;
         PacketDetectionRule translatedPdr;
-        up4Translator.assignGlobalFarId(expectedPdr);  // Generate translation state
         try {
             translatedPdr = up4Translator.fabricEntryToPdr(TestConstants.FABRIC_UPLINK_PDR);
         } catch (Up4Translator.Up4TranslationException e) {
@@ -69,7 +78,6 @@ public class Up4TranslatorImplTest {
     public void fabricEntryToDownlinkPdrTest() {
         PacketDetectionRule expectedPdr = TestConstants.DOWNLINK_PDR;
         PacketDetectionRule translatedPdr;
-        up4Translator.assignGlobalFarId(expectedPdr);  // Generate translation state
         try {
             translatedPdr = up4Translator.fabricEntryToPdr(TestConstants.FABRIC_DOWNLINK_PDR);
         } catch (Up4Translator.Up4TranslationException e) {
@@ -100,7 +108,6 @@ public class Up4TranslatorImplTest {
     public void fabricEntryToUplinkFarTest() {
         ForwardingActionRule translatedFar;
         ForwardingActionRule expectedFar = TestConstants.UPLINK_FAR;
-        up4Translator.assignGlobalFarId(expectedFar);  // Generate translation state
         try {
             translatedFar = up4Translator.fabricEntryToFar(TestConstants.FABRIC_UPLINK_FAR);
         } catch (Up4Translator.Up4TranslationException e) {
@@ -131,7 +138,6 @@ public class Up4TranslatorImplTest {
     public void fabricEntryToDownlinkFarTest() {
         ForwardingActionRule translatedFar;
         ForwardingActionRule expectedFar = TestConstants.DOWNLINK_FAR;
-        up4Translator.assignGlobalFarId(expectedFar);  // Generate translation state
         try {
             translatedFar = up4Translator.fabricEntryToFar(TestConstants.FABRIC_DOWNLINK_FAR);
         } catch (Up4Translator.Up4TranslationException e) {

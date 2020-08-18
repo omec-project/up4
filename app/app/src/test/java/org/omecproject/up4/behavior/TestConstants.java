@@ -35,8 +35,10 @@ public final class TestConstants {
             ImmutableByteSequence.ofOnes(NorthConstants.SESSION_ID_BITWIDTH / 8);
     public static final int COUNTER_ID = 1;
     public static final int PDR_ID = 0;  // TODO: PDR ID currently not stored on writes, so all reads are 0
-    public static final int FAR_ID = 1;
-    public static final int PHYSICAL_FAR_ID = 1;
+    public static final int UPLINK_FAR_ID = 1;
+    public static final int UPLINK_PHYSICAL_FAR_ID = 4;
+    public static final int DOWNLINK_FAR_ID = 2;
+    public static final int DOWNLINK_PHYSICAL_FAR_ID = 5;
     public static final ImmutableByteSequence TEID = ImmutableByteSequence.copyFrom(0xff);
     public static final Ip4Address UE_ADDR = Ip4Address.valueOf("17.0.0.1");
     public static final Ip4Address S1U_ADDR = Ip4Address.valueOf("192.168.0.1");
@@ -52,29 +54,29 @@ public final class TestConstants {
     public static final PacketDetectionRule UPLINK_PDR = PacketDetectionRule.builder()
                 .withTunnelDst(S1U_ADDR)
                 .withTeid(TEID)
-                .withLocalFarId(FAR_ID)
-                .withGlobalFarId(PHYSICAL_FAR_ID)
+                .withLocalFarId(UPLINK_FAR_ID)
+                .withGlobalFarId(UPLINK_PHYSICAL_FAR_ID)
                 .withSessionId(SESSION_ID)
                 .withCounterId(COUNTER_ID)
                 .build();
 
     public static final PacketDetectionRule DOWNLINK_PDR = PacketDetectionRule.builder()
                 .withUeAddr(UE_ADDR)
-                .withLocalFarId(FAR_ID)
-                .withGlobalFarId(PHYSICAL_FAR_ID)
+                .withLocalFarId(DOWNLINK_FAR_ID)
+                .withGlobalFarId(DOWNLINK_PHYSICAL_FAR_ID)
                 .withSessionId(SESSION_ID)
                 .withCounterId(COUNTER_ID)
                 .build();
 
     public static final ForwardingActionRule UPLINK_FAR = ForwardingActionRule.builder()
-                .withFarId(FAR_ID)
-                .withGlobalFarId(PHYSICAL_FAR_ID)
+                .withFarId(UPLINK_FAR_ID)
+                .withGlobalFarId(UPLINK_PHYSICAL_FAR_ID)
                 .withFlags(false, false)
                 .withSessionId(SESSION_ID).build();
 
     public static final ForwardingActionRule DOWNLINK_FAR = ForwardingActionRule.builder()
-                .withFarId(FAR_ID)
-                .withGlobalFarId(PHYSICAL_FAR_ID)
+                .withFarId(DOWNLINK_FAR_ID)
+                .withGlobalFarId(DOWNLINK_PHYSICAL_FAR_ID)
                 .withFlags(false, false)
                 .withSessionId(SESSION_ID)
                 .withTunnel(S1U_ADDR, ENB_ADDR, TEID)
@@ -99,7 +101,7 @@ public final class TestConstants {
                                 new PiActionParam(NorthConstants.PDR_ID_PARAM, PDR_ID),
                                 new PiActionParam(NorthConstants.SESSION_ID_PARAM, SESSION_ID),
                                 new PiActionParam(NorthConstants.CTR_ID, COUNTER_ID),
-                                new PiActionParam(NorthConstants.FAR_ID_PARAM, FAR_ID),
+                                new PiActionParam(NorthConstants.FAR_ID_PARAM, UPLINK_FAR_ID),
                                 new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, TRUE_BYTE)
                         ))
                         .build())
@@ -119,7 +121,7 @@ public final class TestConstants {
                                 new PiActionParam(NorthConstants.PDR_ID_PARAM, PDR_ID),
                                 new PiActionParam(NorthConstants.SESSION_ID_PARAM, SESSION_ID),
                                 new PiActionParam(NorthConstants.CTR_ID, COUNTER_ID),
-                                new PiActionParam(NorthConstants.FAR_ID_PARAM, FAR_ID),
+                                new PiActionParam(NorthConstants.FAR_ID_PARAM, DOWNLINK_FAR_ID),
                                 new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, FALSE_BYTE)
                         ))
                         .build())
@@ -129,7 +131,7 @@ public final class TestConstants {
                 .forTable(NorthConstants.FAR_TBL)
                 .withMatchKey(PiMatchKey.builder()
                         .addFieldMatch(new PiExactFieldMatch(NorthConstants.FAR_ID_KEY,
-                                ImmutableByteSequence.copyFrom(FAR_ID)))
+                                ImmutableByteSequence.copyFrom(UPLINK_FAR_ID)))
                         .addFieldMatch(new PiExactFieldMatch(NorthConstants.SESSION_ID_KEY, SESSION_ID))
                         .build())
                 .withAction(PiAction.builder()
@@ -145,7 +147,7 @@ public final class TestConstants {
                 .forTable(NorthConstants.FAR_TBL)
                 .withMatchKey(PiMatchKey.builder()
                         .addFieldMatch(new PiExactFieldMatch(NorthConstants.FAR_ID_KEY,
-                                ImmutableByteSequence.copyFrom(FAR_ID)))
+                                ImmutableByteSequence.copyFrom(DOWNLINK_FAR_ID)))
                         .addFieldMatch(new PiExactFieldMatch(NorthConstants.SESSION_ID_KEY, SESSION_ID))
                         .build())
                 .withAction(PiAction.builder()
@@ -204,7 +206,7 @@ public final class TestConstants {
                         .withId(SouthConstants.LOAD_PDR)
                         .withParameters(Arrays.asList(
                                 new PiActionParam(SouthConstants.CTR_ID, COUNTER_ID),
-                                new PiActionParam(SouthConstants.FAR_ID_PARAM, PHYSICAL_FAR_ID),
+                                new PiActionParam(SouthConstants.FAR_ID_PARAM, UPLINK_PHYSICAL_FAR_ID),
                                 new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP_PARAM, 1)
                         ))
                         .build()).build())
@@ -221,7 +223,7 @@ public final class TestConstants {
                         .withId(SouthConstants.LOAD_PDR)
                         .withParameters(Arrays.asList(
                                 new PiActionParam(SouthConstants.CTR_ID, COUNTER_ID),
-                                new PiActionParam(SouthConstants.FAR_ID_PARAM, PHYSICAL_FAR_ID),
+                                new PiActionParam(SouthConstants.FAR_ID_PARAM, DOWNLINK_PHYSICAL_FAR_ID),
                                 new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP_PARAM, 0)
                         ))
                         .build()).build())
@@ -232,7 +234,7 @@ public final class TestConstants {
                 .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
                 .forTable(SouthConstants.FAR_TBL)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchExact(SouthConstants.FAR_ID_KEY, PHYSICAL_FAR_ID)
+                        .matchExact(SouthConstants.FAR_ID_KEY, UPLINK_PHYSICAL_FAR_ID)
                         .build()).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
                         .withId(SouthConstants.LOAD_FAR_NORMAL)
@@ -248,7 +250,7 @@ public final class TestConstants {
                 .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
                 .forTable(SouthConstants.FAR_TBL)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchExact(SouthConstants.FAR_ID_KEY, PHYSICAL_FAR_ID)
+                        .matchExact(SouthConstants.FAR_ID_KEY, DOWNLINK_PHYSICAL_FAR_ID)
                         .build()).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
                         .withId(SouthConstants.LOAD_FAR_TUNNEL)

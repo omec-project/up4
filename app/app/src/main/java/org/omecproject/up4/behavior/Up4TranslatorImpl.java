@@ -48,7 +48,7 @@ import java.util.Objects;
 public class Up4TranslatorImpl implements Up4Translator {
     private final Logger log = LoggerFactory.getLogger(getClass());
     // Maps local FAR IDs to global FAR IDs
-    private BiMap<RuleIdentifier, Integer> farIdMapper;
+    protected final BiMap<RuleIdentifier, Integer> farIdMapper = HashBiMap.create();;
     private int nextGlobalFarId = 1;
 
     private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
@@ -57,7 +57,6 @@ public class Up4TranslatorImpl implements Up4Translator {
 
     @Activate
     protected void activate() {
-        farIdMapper = HashBiMap.create();
         log.info("Started");
     }
 

@@ -8,7 +8,6 @@ import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.impl.SouthConstants;
-import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
@@ -215,17 +214,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         }
     }
 
-    @Override
-    public void addS1uInterface(Ip4Address s1uAddr) {
-        addInterface(UpfInterface.createS1uFrom(s1uAddr));
-    }
-
-    @Override
-    public void addUePool(Ip4Prefix poolPrefix) {
-        addInterface(UpfInterface.createUePoolFrom(poolPrefix));
-    }
-
-
     private boolean removeEntry(PiCriterion match, PiTableId tableId, boolean failSilent) {
         FlowRule entry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
@@ -343,7 +331,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         PiTableId tableId;
         if (pdr.isUplink()) {
             match = PiCriterion.builder()
-                    .matchExact(SouthConstants.UE_ADDR_KEY, pdr.ueAddress().toInt())
                     .matchExact(SouthConstants.TEID_KEY, pdr.teid().asArray())
                     .matchExact(SouthConstants.TUNNEL_DST_KEY, pdr.tunnelDest().toInt())
                     .build();
@@ -373,45 +360,23 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public void removeUePool(Ip4Prefix poolPrefix) {
-        log.info("Removing S1U interface table entry");
-        PiCriterion match = PiCriterion.builder()
-                .matchLpm(SouthConstants.IPV4_DST_ADDR, poolPrefix.address().toInt(), poolPrefix.prefixLength())
-                .matchExact(SouthConstants.GTPU_IS_VALID, 0)
-                .build();
-        removeEntry(match, SouthConstants.INTERFACE_LOOKUP, false);
-    }
-
-    @Override
-    public void removeS1uInterface(Ip4Address s1uAddr) {
-        log.info("Removing S1U interface table entry");
-        PiCriterion match = PiCriterion.builder()
-                .matchLpm(SouthConstants.IPV4_DST_ADDR, s1uAddr.toInt(), 32)
-                .matchExact(SouthConstants.GTPU_IS_VALID, 1)
-                .build();
-        removeEntry(match, SouthConstants.INTERFACE_LOOKUP, false);
-    }
-
-    @Override
-    public void removeUnknownInterface(Ip4Prefix ifacePrefix) {
-        // For when you don't know if its a uePool or s1uInterface table entry
-        // Try removing an S1U entry
-        PiCriterion match1 = PiCriterion.builder()
-                .matchLpm(SouthConstants.IPV4_DST_ADDR, ifacePrefix.address().toInt(), 32)
-                .matchExact(SouthConstants.GTPU_IS_VALID, 1)
-                .build();
-        if (removeEntry(match1, SouthConstants.INTERFACE_LOOKUP, true)) {
-            return;
+    public void removeInterface(UpfInterface upfInterface) {
+        Ip4Prefix ifacePrefix = upfInterface.prefix();
+        // If it isn't a downlink interface (so it is either uplink or unknown), try removing uplink
+        if (!upfInterface.isDownlink()) {
+            PiCriterion match1 = PiCriterion.builder()
+                    .matchLpm(SouthConstants.IPV4_DST_ADDR, ifacePrefix.address().toInt(), ifacePrefix.prefixLength())
+                    .matchExact(SouthConstants.GTPU_IS_VALID, 1)
+                    .build();
+            if (removeEntry(match1, SouthConstants.INTERFACE_LOOKUP, true)) {
+                return;
+            }
         }
-        // If that didn't work, try removing a UE pool entry
+        // If that didn't work or didn't execute, try removing downlink
         PiCriterion match2 = PiCriterion.builder()
                 .matchLpm(SouthConstants.IPV4_DST_ADDR, ifacePrefix.address().toInt(), ifacePrefix.prefixLength())
                 .matchExact(SouthConstants.GTPU_IS_VALID, 0)
                 .build();
-        if (!removeEntry(match2, SouthConstants.INTERFACE_LOOKUP, true)) {
-            log.error("Could not remove interface! No matching entry found!");
-        }
+        removeEntry(match2, SouthConstants.INTERFACE_LOOKUP, false);
     }
-
-
 }
