@@ -230,7 +230,7 @@ public final class PacketDetectionRule {
          */
         public Builder withSessionId(long sessionId) {
             try {
-                this.sessionId = ImmutableByteSequence.copyFrom(sessionId).fit(96);
+                this.sessionId = ImmutableByteSequence.copyFrom(sessionId).fit(SESSION_ID_BITWIDTH);
             } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
                 // This error is literally impossible
             }
