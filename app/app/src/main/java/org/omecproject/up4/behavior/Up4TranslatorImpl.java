@@ -23,8 +23,12 @@ import org.onosproject.net.pi.model.PiActionId;
 import org.onosproject.net.pi.model.PiTableId;
 import org.onosproject.net.pi.runtime.PiAction;
 import org.onosproject.net.pi.runtime.PiActionParam;
+import org.onosproject.net.pi.runtime.PiExactFieldMatch;
+import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
+import org.onosproject.net.pi.runtime.PiMatchKey;
 import org.onosproject.net.pi.runtime.PiTableAction;
 import org.onosproject.net.pi.runtime.PiTableEntry;
+import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 import org.onosproject.store.serializers.KryoNamespaces;
 import org.onosproject.store.service.AtomicCounter;
 import org.onosproject.store.service.EventuallyConsistentMap;
@@ -57,6 +61,10 @@ public class Up4TranslatorImpl implements Up4Translator {
     private EventuallyConsistentMap<Integer, RuleIdentifier> globalToLocalFarId;
     // Counter for producing new global FAR IDs
     private AtomicCounter globalFarIdCounter;
+
+    private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
+    private final ImmutableByteSequence allOnes16 = ImmutableByteSequence.ofOnes(2);
+    private final ImmutableByteSequence allOnes8 = ImmutableByteSequence.ofOnes(1);
 
     @Activate
     protected void activate() {
@@ -475,6 +483,126 @@ public class Up4TranslatorImpl implements Up4Translator {
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(priority)
                 .build();
+    }
+
+    @Override
+    public PiTableEntry farToUp4Entry(ForwardingActionRule far) throws Up4TranslationException {
+        PiMatchKey matchKey;
+        PiAction action;
+        ImmutableByteSequence zeroByte = ImmutableByteSequence.ofZeros(1);
+        if (far.isUplink()) {
+            action = PiAction.builder()
+                    .withId(NorthConstants.LOAD_FAR_NORMAL)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(NorthConstants.DROP_FLAG, zeroByte),
+                            new PiActionParam(NorthConstants.NOTIFY_FLAG, zeroByte)
+                    ))
+                    .build();
+        } else if (far.isDownlink()) {
+            action = PiAction.builder()
+                    .withId(NorthConstants.LOAD_FAR_TUNNEL)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(NorthConstants.DROP_FLAG, zeroByte),
+                            new PiActionParam(NorthConstants.NOTIFY_FLAG, zeroByte),
+                            new PiActionParam(NorthConstants.TUNNEL_TYPE_PARAM,
+                                    toImmutableByte(NorthConstants.TUNNEL_TYPE_GTPU)),
+                            new PiActionParam(NorthConstants.TUNNEL_SRC_PARAM, far.tunnelSrc().toInt()),
+                            new PiActionParam(NorthConstants.TUNNEL_DST_PARAM, far.tunnelDst().toInt()),
+                            new PiActionParam(NorthConstants.TEID_PARAM, far.teid()),
+                            // TODO: tunnel dport should be included in all north-south and south-north translation
+                            new PiActionParam(NorthConstants.TUNNEL_DPORT_PARAM, ImmutableByteSequence.ofZeros(2))
+                    ))
+                    .build();
+        } else {
+            throw new Up4TranslationException(
+                    "FARs that are not uplink or downlink cannot yet be translated northward!");
+        }
+        matchKey = PiMatchKey.builder()
+                .addFieldMatch(new PiExactFieldMatch(NorthConstants.FAR_ID_KEY,
+                        ImmutableByteSequence.copyFrom(far.localFarId())))
+                .addFieldMatch(new PiExactFieldMatch(NorthConstants.SESSION_ID_KEY, far.sessionId()))
+                .build();
+
+        return PiTableEntry.builder()
+                .forTable(NorthConstants.FAR_TBL)
+                .withMatchKey(matchKey)
+                .withAction(action)
+                .build();
+    }
+
+    @Override
+    public PiTableEntry pdrToUp4Entry(PacketDetectionRule pdr) throws Up4TranslationException {
+        PiMatchKey matchKey;
+        PiAction action;
+        int decapFlag;
+        if (pdr.isUplink()) {
+            decapFlag = 1;  // Decap is true for uplink
+            matchKey = PiMatchKey.builder()
+                    .addFieldMatch(new PiExactFieldMatch(NorthConstants.SRC_IFACE_KEY,
+                            toImmutableByte(NorthConstants.IFACE_ACCESS)))
+                    .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.TEID_KEY, pdr.teid(), allOnes32))
+                    .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.TUNNEL_DST_KEY,
+                            ImmutableByteSequence.copyFrom(pdr.tunnelDest().toOctets()), allOnes32))
+                    .build();
+        } else if (pdr.isDownlink()) {
+            decapFlag = 0;  // Decap is false for downlink
+            matchKey = PiMatchKey.builder()
+                    .addFieldMatch(new PiExactFieldMatch(NorthConstants.SRC_IFACE_KEY,
+                            toImmutableByte(NorthConstants.IFACE_ACCESS)))
+                    .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.UE_ADDR_KEY,
+                            ImmutableByteSequence.copyFrom(pdr.ueAddress().toOctets()), allOnes32))
+                    .build();
+        } else {
+            throw new Up4TranslationException(
+                    "PDRs that are not uplink or downlink cannot yet be translated northward!");
+        }
+        // FIXME: pdr_id is not yet stored on writes so it cannot be read
+        action = PiAction.builder()
+                .withId(NorthConstants.LOAD_PDR)
+                .withParameters(Arrays.asList(
+                        new PiActionParam(NorthConstants.PDR_ID_PARAM, 0),
+                        new PiActionParam(NorthConstants.SESSION_ID_PARAM, pdr.sessionId()),
+                        new PiActionParam(NorthConstants.CTR_ID, pdr.counterId()),
+                        new PiActionParam(NorthConstants.FAR_ID_PARAM, pdr.localFarId()),
+                        new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, toImmutableByte(decapFlag))
+                ))
+                .build();
+
+        return PiTableEntry.builder()
+                .forTable(NorthConstants.PDR_TBL)
+                .withMatchKey(matchKey)
+                .withAction(action)
+                .build();
+    }
+
+    private ImmutableByteSequence toImmutableByte(int value) {
+        try {
+            return ImmutableByteSequence.copyFrom(value).fit(8);
+        } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
+            log.error("Attempted to convert an integer larger than 255 to a byte!: {}", e.getMessage());
+            return ImmutableByteSequence.ofZeros(1);
+        }
+    }
+
+    @Override
+    public PiTableEntry interfaceToUp4Entry(UpfInterface upfInterface) throws Up4TranslationException {
+        int srcIface = upfInterface.isUplink() ? NorthConstants.IFACE_ACCESS : NorthConstants.IFACE_CORE;
+        int direction = upfInterface.isUplink() ? NorthConstants.DIRECTION_UPLINK : NorthConstants.DIRECTION_DOWNLINK;
+        return PiTableEntry.builder()
+                .forTable(NorthConstants.IFACE_TBL)
+                .withMatchKey(PiMatchKey.builder()
+                        .addFieldMatch(new PiLpmFieldMatch(
+                                NorthConstants.IFACE_DST_PREFIX_KEY,
+                                ImmutableByteSequence.copyFrom(upfInterface.prefix().address().toOctets()),
+                                upfInterface.prefix().prefixLength()))
+                        .build())
+                .withAction(PiAction.builder()
+                        .withId(NorthConstants.LOAD_IFACE)
+                        .withParameters(Arrays.asList(
+                                new PiActionParam(NorthConstants.SRC_IFACE_PARAM, toImmutableByte(srcIface)),
+                                new PiActionParam(NorthConstants.DIRECTION, toImmutableByte(direction))
+                        ))
+                        .build()).build();
     }
 
     /**
