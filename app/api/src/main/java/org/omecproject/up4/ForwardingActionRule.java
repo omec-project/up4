@@ -29,13 +29,11 @@ public final class ForwardingActionRule {
     private final Boolean notifyCp;  // Should this FAR notify the control plane when it sees a packet?
     private final GtpTunnel tunnelDesc;  // The GTP tunnel that this FAR should encapsulate packets with (if downlink)
     private final Type type;  // Is the FAR Uplink, Downlink, etc
-    private Integer globalFarId;  // Globally unique identifier of this FAR
 
     private static final int SESSION_ID_BITWIDTH = 96;
 
-    private ForwardingActionRule(Integer globalFarId, ImmutableByteSequence sessionId, Integer farId,
+    private ForwardingActionRule(ImmutableByteSequence sessionId, Integer farId,
                                  Boolean drop, Boolean notifyCp, GtpTunnel tunnelDesc, Type type) {
-        this.globalFarId = globalFarId;
         this.sessionId = sessionId;
         this.farId = farId;
         this.drop = drop;
@@ -50,8 +48,7 @@ public final class ForwardingActionRule {
 
     @Override
     public String toString() {
-        String globalIdStr = globalFarId == null ? "None" : globalFarId.toString();
-        String matchKeys = String.format("ID:%d,SEID:%s,GID:%s", farId, sessionId.toString(), globalIdStr);
+        String matchKeys = String.format("ID:%d,SEID:%s", farId, sessionId.toString());
         String directionString;
         String actionParams;
         if (isUplink()) {
@@ -124,34 +121,6 @@ public final class ForwardingActionRule {
     }
 
     /**
-     * Check whether a global FAR ID has been assigned, which is necessary for an entry to be written
-     * to the fabric.p4 pipeline.
-     *
-     * @return true if a global FAR ID has been assigned
-     */
-    public boolean hasGlobalFarId() {
-        return this.globalFarId != null;
-    }
-
-    /**
-     * Set the globally unique identifier of this FAR.
-     *
-     * @return globally unique FAR ID
-     */
-    public int getGlobalFarId() {
-        return this.globalFarId;
-    }
-
-    /**
-     * Get the globally unique identifier of this FAR.
-     *
-     * @param globalFarId globally unique FAR ID
-     */
-    public void setGlobalFarId(int globalFarId) {
-        this.globalFarId = globalFarId;
-    }
-
-    /**
      * Get the ID of the PFCP Session that produced this FAR.
      *
      * @return PFCP session ID
@@ -165,7 +134,7 @@ public final class ForwardingActionRule {
      *
      * @return PFCP session-local FAR ID
      */
-    public int localFarId() {
+    public int farId() {
         return farId;
     }
 
@@ -249,7 +218,6 @@ public final class ForwardingActionRule {
     }
 
     public static class Builder {
-        private Integer globalFarId;
         private ImmutableByteSequence sessionId;
         private Integer farId;
         private Boolean drop;
@@ -257,7 +225,6 @@ public final class ForwardingActionRule {
         private GtpTunnel tunnelDesc;
 
         public Builder() {
-            globalFarId = null;
             sessionId = null;
             farId = null;
             drop = null;
@@ -302,16 +269,6 @@ public final class ForwardingActionRule {
             return this;
         }
 
-        /**
-         * Set the globally unique ID of this FAR.
-         *
-         * @param globalFarId globally unique FAR ID
-         * @return This builder object
-         */
-        public Builder withGlobalFarId(int globalFarId) {
-            this.globalFarId = globalFarId;
-            return this;
-        }
 
         /**
          * Set flags specifying whether this FAR should drop packets and/or notify the control plane when
@@ -392,7 +349,7 @@ public final class ForwardingActionRule {
             } else {
                 type = Type.DOWNLINK;
             }
-            return new ForwardingActionRule(globalFarId, sessionId, farId, drop, notifyCp, tunnelDesc, type);
+            return new ForwardingActionRule(sessionId, farId, drop, notifyCp, tunnelDesc, type);
         }
     }
 }

@@ -55,7 +55,6 @@ public final class TestConstants {
                 .withTunnelDst(S1U_ADDR)
                 .withTeid(TEID)
                 .withLocalFarId(UPLINK_FAR_ID)
-                .withGlobalFarId(UPLINK_PHYSICAL_FAR_ID)
                 .withSessionId(SESSION_ID)
                 .withCounterId(COUNTER_ID)
                 .build();
@@ -63,20 +62,17 @@ public final class TestConstants {
     public static final PacketDetectionRule DOWNLINK_PDR = PacketDetectionRule.builder()
                 .withUeAddr(UE_ADDR)
                 .withLocalFarId(DOWNLINK_FAR_ID)
-                .withGlobalFarId(DOWNLINK_PHYSICAL_FAR_ID)
                 .withSessionId(SESSION_ID)
                 .withCounterId(COUNTER_ID)
                 .build();
 
     public static final ForwardingActionRule UPLINK_FAR = ForwardingActionRule.builder()
                 .withFarId(UPLINK_FAR_ID)
-                .withGlobalFarId(UPLINK_PHYSICAL_FAR_ID)
                 .withFlags(false, false)
                 .withSessionId(SESSION_ID).build();
 
     public static final ForwardingActionRule DOWNLINK_FAR = ForwardingActionRule.builder()
                 .withFarId(DOWNLINK_FAR_ID)
-                .withGlobalFarId(DOWNLINK_PHYSICAL_FAR_ID)
                 .withFlags(false, false)
                 .withSessionId(SESSION_ID)
                 .withTunnel(S1U_ADDR, ENB_ADDR, TEID)

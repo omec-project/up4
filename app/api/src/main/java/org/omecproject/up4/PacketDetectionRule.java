@@ -27,22 +27,20 @@ public final class PacketDetectionRule {
     // Action parameters
     private final ImmutableByteSequence sessionId;  // The ID of the PFCP session that created this PDR
     private final Integer ctrId;  // Counter ID unique to this PDR
-    private final Integer localFarId;  // The PFCP session-local ID of the FAR that should apply after this PDR hits
+    private final Integer farId;  // The PFCP session-local ID of the FAR that should apply after this PDR hits
     private final Type type; // Is the PDR Uplink, Downlink, etc.
-    private Integer globalFarId; // The non-session-local ID of the FAR that should apply to packets if this PDR hits
 
     private static final int SESSION_ID_BITWIDTH = 96;
 
-    private PacketDetectionRule(ImmutableByteSequence sessionId, Integer ctrId, Integer localFarId, Ip4Address ueAddr,
-                                ImmutableByteSequence teid, Ip4Address tunnelDst, Integer globalFarId, Type type) {
+    private PacketDetectionRule(ImmutableByteSequence sessionId, Integer ctrId, Integer farId, Ip4Address ueAddr,
+                                ImmutableByteSequence teid, Ip4Address tunnelDst, Type type) {
         this.ueAddr = ueAddr;
         this.teid = teid;
         this.tunnelDst = tunnelDst;
         this.sessionId = sessionId;
         this.ctrId = ctrId;
-        this.localFarId = localFarId;
+        this.farId = farId;
         this.type = type;
-        this.globalFarId = globalFarId;
     }
 
     public static Builder builder() {
@@ -63,9 +61,8 @@ public final class PacketDetectionRule {
         }
         String actionParams = "";
         if (hasActionParameters()) {
-            String globalIdStr = globalFarId == null ? "None" : globalFarId.toString();
-            actionParams = String.format("SEID:%s,FAR:%d,FAR-GID:%s,CtrIdx:%d",
-                    sessionId.toString(), localFarId, globalIdStr, ctrId);
+            actionParams = String.format("SEID:%s,FAR:%d,CtrIdx:%d",
+                    sessionId.toString(), farId, ctrId);
         }
 
         return String.format("%s-PDR{ Keys:(%s) -> Params (%s) }", directionString, matchKeys, actionParams);
@@ -91,12 +88,12 @@ public final class PacketDetectionRule {
                 Objects.equals(this.ueAddr, that.ueAddr) &&
                 Objects.equals(this.ctrId, that.ctrId) &&
                 Objects.equals(this.sessionId, that.sessionId) &&
-                Objects.equals(this.localFarId, that.localFarId));
+                Objects.equals(this.farId, that.farId));
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ueAddr, teid, tunnelDst, sessionId, ctrId, localFarId, type, globalFarId);
+        return Objects.hash(ueAddr, teid, tunnelDst, sessionId, ctrId, farId, type);
     }
 
     /**
@@ -125,34 +122,6 @@ public final class PacketDetectionRule {
      */
     public boolean isDownlink() {
         return type == Type.DOWNLINK || type == Type.DOWNLINK_KEYS_ONLY;
-    }
-
-    /**
-     * Check whether a global FAR ID has been assigned, which is necessary for an entry to be written
-     * to the fabric.p4 pipeline.
-     *
-     * @return true if a global FAR ID has been assigned
-     */
-    public boolean hasGlobalFarId() {
-        return this.globalFarId != null;
-    }
-
-    /**
-     * Set the globally unique identifier of the FAR that should apply to packets that match this PDR.
-     *
-     * @return globally unique FAR ID
-     */
-    public int getGlobalFarId() {
-        return this.globalFarId;
-    }
-
-    /**
-     * Get the globally unique identifier of the FAR that should apply to packets that match this PDR.
-     *
-     * @param globalFarId globally unique FAR ID
-     */
-    public void setGlobalFarId(int globalFarId) {
-        this.globalFarId = globalFarId;
     }
 
     /**
@@ -205,8 +174,8 @@ public final class PacketDetectionRule {
      *
      * @return PFCP session-local FAR ID
      */
-    public int localFarId() {
-        return localFarId;
+    public int farId() {
+        return farId;
     }
 
     public enum Type {
@@ -235,7 +204,6 @@ public final class PacketDetectionRule {
         private ImmutableByteSequence sessionId = null;
         private Integer ctrId = null;
         private Integer localFarId = null;
-        private Integer globalFarId = null;
         private Ip4Address ueAddr = null;
         private ImmutableByteSequence teid = null;
         private Ip4Address tunnelDst = null;
@@ -291,16 +259,6 @@ public final class PacketDetectionRule {
             return this;
         }
 
-        /**
-         * Set the globally unique ID of the far that should apply to packets that this PDR matches.
-         *
-         * @param globalFarId globally unique FAR ID
-         * @return This builder object
-         */
-        public Builder withGlobalFarId(int globalFarId) {
-            this.globalFarId = globalFarId;
-            return this;
-        }
 
         /**
          * Set the PFCP session-local ID of the far that should apply to packets that this PDR matches.
@@ -382,7 +340,7 @@ public final class PacketDetectionRule {
                     type = Type.DOWNLINK_KEYS_ONLY;
                 }
             }
-            return new PacketDetectionRule(sessionId, ctrId, localFarId, ueAddr, teid, tunnelDst, globalFarId, type);
+            return new PacketDetectionRule(sessionId, ctrId, localFarId, ueAddr, teid, tunnelDst, type);
         }
     }
 }

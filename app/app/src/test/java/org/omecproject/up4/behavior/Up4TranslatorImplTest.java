@@ -4,6 +4,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
+import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
 import org.onosproject.net.flow.FlowRule;
@@ -24,10 +25,10 @@ public class Up4TranslatorImplTest {
 
     private void setTranslationState() {
         up4Translator.farIdMapper.put(
-                new Up4TranslatorImpl.RuleIdentifier(TestConstants.SESSION_ID, TestConstants.UPLINK_FAR_ID),
+                new UpfRuleIdentifier(TestConstants.SESSION_ID, TestConstants.UPLINK_FAR_ID),
                 TestConstants.UPLINK_PHYSICAL_FAR_ID);
         up4Translator.farIdMapper.put(
-                new Up4TranslatorImpl.RuleIdentifier(TestConstants.SESSION_ID, TestConstants.DOWNLINK_FAR_ID),
+                new UpfRuleIdentifier(TestConstants.SESSION_ID, TestConstants.DOWNLINK_FAR_ID),
                 TestConstants.DOWNLINK_PHYSICAL_FAR_ID);
     }
 
