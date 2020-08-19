@@ -16,9 +16,6 @@ import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
 import org.onlab.util.ImmutableByteSequence;
-import org.onosproject.cfg.ComponentConfigService;
-import org.onosproject.core.CoreService;
-import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.pi.model.DefaultPiPipeconf;
 import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiPipeconf;
@@ -63,19 +60,15 @@ public class Up4NorthComponent {
     private static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
     private final Logger log = LoggerFactory.getLogger(getClass());
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected DeviceService deviceService;
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected ComponentConfigService cfgService;
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected CoreService coreService;
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Service up4Service;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Translator up4Translator;
     private Server server;
-    private P4InfoOuterClass.P4Info p4Info;
+    protected P4InfoOuterClass.P4Info p4Info;
     private long pipeconfCookie = 0xbeefbeef;
-    private PiPipeconf pipeconf;
+    protected PiPipeconf pipeconf;
+
+    protected final Up4NorthService up4NorthService = new Up4NorthService();
 
     @Activate
     protected void activate() {
@@ -91,7 +84,7 @@ public class Up4NorthComponent {
         // Start Server
         try {
             server = NettyServerBuilder.forPort(AppConstants.GRPC_SERVER_PORT)
-                    .addService(new Up4NorthService())
+                    .addService(up4NorthService)
                     .build()
                     .start();
             log.info("UP4 gRPC server started on port {}", AppConstants.GRPC_SERVER_PORT);
@@ -105,19 +98,15 @@ public class Up4NorthComponent {
     @Deactivate
     protected void deactivate() {
         log.info("Shutting down...");
-        cfgService.unregisterProperties(getClass(), false);
         if (server != null) {
             server.shutdown();
         }
         log.info("Stopped.");
     }
 
-    private PiPipeconf buildPipeconf() throws P4InfoParserException {
-
-        log.info("Looking for p4info file named {}", AppConstants.P4INFO_PATH);
+    protected static PiPipeconf buildPipeconf() throws P4InfoParserException {
         final URL p4InfoUrl = Up4NorthComponent.class.getResource(AppConstants.P4INFO_PATH);
         final PiPipelineModel pipelineModel = P4InfoParser.parse(p4InfoUrl);
-        log.info("Parsed UP4 p4info file.");
         return DefaultPiPipeconf.builder()
                 .withId(PIPECONF_ID)
                 .withPipelineModel(pipelineModel)
