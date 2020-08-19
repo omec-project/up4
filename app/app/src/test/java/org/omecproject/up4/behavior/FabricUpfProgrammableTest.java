@@ -9,6 +9,7 @@ import org.omecproject.up4.UpfInterface;
 
 import java.util.Collection;
 
+import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -35,7 +36,7 @@ public class FabricUpfProgrammableTest {
 
     @Test
     public void testUplinkPdr() {
-        assert (upfProgrammable.getInstalledPdrs().isEmpty());
+        assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
         PacketDetectionRule expectedPdr = TestConstants.UPLINK_PDR;
         upfProgrammable.addPdr(expectedPdr);
         Collection<PacketDetectionRule> installedPdrs = upfProgrammable.getInstalledPdrs();
@@ -44,12 +45,12 @@ public class FabricUpfProgrammableTest {
             assertThat(readPdr, equalTo(expectedPdr));
         }
         upfProgrammable.removePdr(expectedPdr);
-        assert (upfProgrammable.getInstalledPdrs().isEmpty());
+        assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
     }
 
     @Test
     public void testDownlinkPdr() {
-        assert (upfProgrammable.getInstalledPdrs().isEmpty());
+        assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
         PacketDetectionRule expectedPdr = TestConstants.DOWNLINK_PDR;
         upfProgrammable.addPdr(expectedPdr);
         Collection<PacketDetectionRule> installedPdrs = upfProgrammable.getInstalledPdrs();
@@ -58,12 +59,12 @@ public class FabricUpfProgrammableTest {
             assertThat(readPdr, equalTo(expectedPdr));
         }
         upfProgrammable.removePdr(expectedPdr);
-        assert (upfProgrammable.getInstalledPdrs().isEmpty());
+        assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
     }
 
     @Test
     public void testUplinkFar() {
-        assert (upfProgrammable.getInstalledFars().isEmpty());
+        assertTrue(upfProgrammable.getInstalledFars().isEmpty());
         ForwardingActionRule expectedFar = TestConstants.UPLINK_FAR;
         upfProgrammable.addFar(expectedFar);
         Collection<ForwardingActionRule> installedFars = upfProgrammable.getInstalledFars();
@@ -72,12 +73,12 @@ public class FabricUpfProgrammableTest {
             assertThat(readFar, equalTo(expectedFar));
         }
         upfProgrammable.removeFar(expectedFar);
-        assert (upfProgrammable.getInstalledFars().isEmpty());
+        assertTrue(upfProgrammable.getInstalledFars().isEmpty());
     }
 
     @Test
     public void testDownlinkFar() {
-        assert (upfProgrammable.getInstalledFars().isEmpty());
+        assertTrue(upfProgrammable.getInstalledFars().isEmpty());
         ForwardingActionRule expectedFar = TestConstants.DOWNLINK_FAR;
         upfProgrammable.addFar(expectedFar);
         Collection<ForwardingActionRule> installedFars = upfProgrammable.getInstalledFars();
@@ -86,12 +87,12 @@ public class FabricUpfProgrammableTest {
             assertThat(readFar, equalTo(expectedFar));
         }
         upfProgrammable.removeFar(expectedFar);
-        assert (upfProgrammable.getInstalledFars().isEmpty());
+        assertTrue(upfProgrammable.getInstalledFars().isEmpty());
     }
 
     @Test
     public void testUplinkInterface() {
-        assert (upfProgrammable.getInstalledInterfaces().isEmpty());
+        assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
         UpfInterface expectedInterface = TestConstants.UPLINK_INTERFACE;
         upfProgrammable.addInterface(expectedInterface);
         Collection<UpfInterface> installedInterfaces = upfProgrammable.getInstalledInterfaces();
@@ -100,12 +101,12 @@ public class FabricUpfProgrammableTest {
             assertThat(readInterface, equalTo(expectedInterface));
         }
         upfProgrammable.removeInterface(expectedInterface);
-        assert (upfProgrammable.getInstalledInterfaces().isEmpty());
+        assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
     }
 
     @Test
     public void testDownlinkInterface() {
-        assert (upfProgrammable.getInstalledInterfaces().isEmpty());
+        assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
         UpfInterface expectedInterface = TestConstants.DOWNLINK_INTERFACE;
         upfProgrammable.addInterface(expectedInterface);
         Collection<UpfInterface> installedInterfaces = upfProgrammable.getInstalledInterfaces();
@@ -114,22 +115,22 @@ public class FabricUpfProgrammableTest {
             assertThat(readInterface, equalTo(expectedInterface));
         }
         upfProgrammable.removeInterface(expectedInterface);
-        assert (upfProgrammable.getInstalledInterfaces().isEmpty());
+        assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
     }
 
     @Test
     public void testClearInterfaces() {
-        assert (upfProgrammable.getInstalledInterfaces().isEmpty());
+        assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
         upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
         upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
         assertThat(upfProgrammable.getInstalledInterfaces().size(), equalTo(2));
         upfProgrammable.clearInterfaces();
-        assert (upfProgrammable.getInstalledInterfaces().isEmpty());
+        assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
     }
 
     @Test
     public void testFlows() {
-        assert (upfProgrammable.getFlows().isEmpty());
+        assertTrue(upfProgrammable.getFlows().isEmpty());
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         upfProgrammable.addFar(TestConstants.UPLINK_FAR);
@@ -139,6 +140,6 @@ public class FabricUpfProgrammableTest {
         assertThat(upfProgrammable.getInstalledPdrs().size(), equalTo((2)));
         assertThat(upfProgrammable.getInstalledFars().size(), equalTo((2)));
         upfProgrammable.clearFlows();
-        assert (upfProgrammable.getFlows().isEmpty());
+        assertTrue(upfProgrammable.getFlows().isEmpty());
     }
 }
