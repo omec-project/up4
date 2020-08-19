@@ -1,5 +1,7 @@
 package org.omecproject.up4.impl;
 
+import com.google.rpc.Code;
+import com.google.rpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
@@ -28,10 +30,6 @@ public class Up4NorthComponentTest {
             return responsesObserved.get(responsesObserved.size() - 1);
         }
 
-        public void clearResponses() {
-            responsesObserved.clear();
-        }
-
         @Override
         public void onNext(T value) {
             responsesObserved.add(value);
@@ -56,33 +54,66 @@ public class Up4NorthComponentTest {
         up4NorthComponent.p4Info = p4Info;
     }
 
+
     @Test
-    public void pipelineConfigTest() {
-
-        MockStreamObserver<P4RuntimeOuterClass.GetForwardingPipelineConfigResponse> getPipeResponseObserver
-                = new MockStreamObserver<>();
-        MockStreamObserver<P4RuntimeOuterClass.SetForwardingPipelineConfigResponse> setPipeResponseObserver
+    public void arbitrationTest() {
+        MockStreamObserver<P4RuntimeOuterClass.StreamMessageResponse> responseObserver
                 = new MockStreamObserver<>();
 
-        var getPipeRequest = P4RuntimeOuterClass.GetForwardingPipelineConfigRequest.newBuilder()
-                .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
+        StreamObserver<P4RuntimeOuterClass.StreamMessageRequest> requestObserver
+                = up4NorthService.streamChannel(responseObserver);
+
+        var deviceId = NorthTestConstants.P4RUNTIME_DEVICE_ID;
+        var role = P4RuntimeOuterClass.Role.newBuilder().setId(0).build();
+        var electionId = P4RuntimeOuterClass.Uint128.newBuilder().setLow(1).build();
+
+        P4RuntimeOuterClass.StreamMessageRequest request = P4RuntimeOuterClass.StreamMessageRequest.newBuilder()
+                .setArbitration(P4RuntimeOuterClass.MasterArbitrationUpdate.newBuilder()
+                        .setDeviceId(deviceId)
+                        .setRole(role)
+                        .setElectionId(electionId)
+                        .build())
                 .build();
-        up4NorthService.getForwardingPipelineConfig(getPipeRequest, getPipeResponseObserver);
-        var getPipeResponse = getPipeResponseObserver.lastResponse();
-        assertThat(p4Info, equalTo(getPipeResponse.getConfig().getP4Info()));
 
-        // Write the pipeline we just read
+        requestObserver.onNext(request);
+        var response = responseObserver.lastResponse();
+        assertThat(response.getArbitration().getDeviceId(), equalTo(deviceId));
+        assertThat(response.getArbitration().getRole(), equalTo(role));
+        assertThat(response.getArbitration().getElectionId(), equalTo(electionId));
+        assertThat(response.getArbitration().getStatus(),
+                equalTo(Status.newBuilder().setCode(Code.OK.getNumber()).build()));
+    }
+
+
+    @Test
+    public void setPipelineConfigTest() {
+        MockStreamObserver<P4RuntimeOuterClass.SetForwardingPipelineConfigResponse> responseObserver
+                = new MockStreamObserver<>();
         var setPipeRequest = P4RuntimeOuterClass.SetForwardingPipelineConfigRequest.newBuilder()
                 .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
                 .setConfig(P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
                         .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
                                 .setCookie(NorthTestConstants.PIPECONF_COOKIE))
-                        .setP4Info(getPipeResponse.getConfig().getP4Info())
+                        .setP4Info(p4Info)
                         .build())
                 .build();
-        up4NorthService.setForwardingPipelineConfig(setPipeRequest, setPipeResponseObserver);
-        var setPipeResponse = setPipeResponseObserver.lastResponse();
-        assertThat(setPipeResponse,
+        up4NorthService.setForwardingPipelineConfig(setPipeRequest, responseObserver);
+        var response = responseObserver.lastResponse();
+        assertThat(response,
                 equalTo(P4RuntimeOuterClass.SetForwardingPipelineConfigResponse.getDefaultInstance()));
+    }
+
+    @Test
+    public void getPipelineConfigTest() {
+
+        MockStreamObserver<P4RuntimeOuterClass.GetForwardingPipelineConfigResponse> responseObserver
+                = new MockStreamObserver<>();
+
+        var getPipeRequest = P4RuntimeOuterClass.GetForwardingPipelineConfigRequest.newBuilder()
+                .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
+                .build();
+        up4NorthService.getForwardingPipelineConfig(getPipeRequest, responseObserver);
+        var response = responseObserver.lastResponse();
+        assertThat(p4Info, equalTo(response.getConfig().getP4Info()));
     }
 }
