@@ -242,7 +242,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public Collection<UpfFlow> getFlows() {
-        Map<Integer, UpfFlow.Builder> globalFarToSessionBuilder = new HashMap<>();
+        // A flow is made of a PDR and the FAR that should apply to packets that hit the PDR.
+        // Multiple PDRs can map to the same FAR, so create a one->many mapping of FAR ID to flow builder
+        Map<Integer, List<UpfFlow.Builder>> globalFarToSessionBuilder = new HashMap<>();
         List<ForwardingActionRule> fars = new ArrayList<>();
         for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
             if (up4Translator.isFabricFar(flowRule)) {
@@ -256,24 +258,39 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 // If its a PDR, create a flow builder for it
                 try {
                     PacketDetectionRule pdr = up4Translator.fabricEntryToPdr(flowRule);
-                    globalFarToSessionBuilder.put(pdr.getGlobalFarId(),
-                            UpfFlow.builder().setPdr(pdr).addStats(readCounter(pdr.counterId())));
+                    globalFarToSessionBuilder.compute(pdr.getGlobalFarId(), (k, existingVal) -> {
+                        final var builder = UpfFlow.builder().setPdr(pdr).addStats(readCounter(pdr.counterId()));
+                        if (existingVal == null) {
+                            return List.of(builder);
+                        } else {
+                            existingVal.add(builder);
+                            return existingVal;
+                        }
+                    });
                 } catch (Up4Translator.Up4TranslationException e) {
                     log.warn("Found what appears to be a PDR but we can't translate it?? {}", flowRule);
                 }
             }
         }
         for (ForwardingActionRule far : fars) {
-            var builder = globalFarToSessionBuilder.getOrDefault(far.getGlobalFarId(), null);
-            if (builder != null) {
-                builder.addFar(far);
-            } else {
-                log.warn("Found a FAR with no corresponding PDR: {}", far);
-            }
+            globalFarToSessionBuilder.compute(far.getGlobalFarId(), (k, builderList) -> {
+                // If no PDRs use this FAR, then create a new flow with no PDR
+                if (builderList == null) {
+                    return List.of(UpfFlow.builder().setFar(far));
+                } else {
+                    // Add the FAR to every flow with a PDR that references it
+                    for (var builder : builderList) {
+                        builder.setFar(far);
+                    }
+                    return builderList;
+                }
+            });
         }
         List<UpfFlow> results = new ArrayList<>();
-        for (var builder : globalFarToSessionBuilder.values()) {
-            results.add(builder.build());
+        for (var builderList : globalFarToSessionBuilder.values()) {
+            for (var builder : builderList) {
+                results.add(builder.build());
+            }
         }
         return results;
     }
@@ -351,6 +368,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Override
     public void removeFar(ForwardingActionRule far) {
         log.info("Removing {}", far.toString());
+        if (!far.hasGlobalFarId()) {
+            up4Translator.assignGlobalFarId(far);
+        }
 
         PiCriterion match = PiCriterion.builder()
                 .matchExact(SouthConstants.FAR_ID_KEY, far.getGlobalFarId())

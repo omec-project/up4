@@ -171,6 +171,18 @@ public interface Up4Translator {
     FlowRule interfaceToFabricEntry(UpfInterface upfInterface, DeviceId deviceId, ApplicationId appId, int priority)
             throws Up4TranslationException;
 
+    /**
+     * Assign a global FAR ID to the given Packet Detection Rule, for insertion into the dataplane.
+     * @param pdr the PDR that needs a global FAR ID
+     */
+    void assignGlobalFarId(PacketDetectionRule pdr);
+
+    /**
+     * Assign a global FAR ID to the given Forwarding Action Rule, for insertion into the dataplane.
+     * @param far the FAR that needs a global FAR ID
+     */
+    void assignGlobalFarId(ForwardingActionRule far);
+
 
     /**
      * Translate a UpfInterface to a PiTableEntry for responding to UP4 logical switch read requests.
