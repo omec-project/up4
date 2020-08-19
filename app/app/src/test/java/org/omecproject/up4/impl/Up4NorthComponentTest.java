@@ -77,6 +77,7 @@ public class Up4NorthComponentTest {
         }
 
         P4RuntimeOuterClass.WriteRequest request = P4RuntimeOuterClass.WriteRequest.newBuilder()
+                .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
                 .addUpdates(P4RuntimeOuterClass.Update.newBuilder()
                         .setEntity(entity)
                         .setType(P4RuntimeOuterClass.Update.Type.INSERT)
@@ -100,6 +101,7 @@ public class Up4NorthComponentTest {
         }
 
         P4RuntimeOuterClass.WriteRequest request = P4RuntimeOuterClass.WriteRequest.newBuilder()
+                .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
                 .addUpdates(P4RuntimeOuterClass.Update.newBuilder()
                         .setEntity(entity)
                         .setType(P4RuntimeOuterClass.Update.Type.DELETE)
@@ -112,7 +114,63 @@ public class Up4NorthComponentTest {
         assertThat(response, equalTo(P4RuntimeOuterClass.WriteResponse.getDefaultInstance()));
     }
 
+    private void readTest(PiTableEntry entryToRead) {
+        MockStreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver = new MockStreamObserver<>();
+        P4RuntimeOuterClass.Entity entity;
+        try {
+            entity = Codecs.CODECS.entity().encode(entryToRead, null, pipeconf);
+        } catch (CodecException e) {
+            fail("Unable to encode UP4 entry into a p4runtime entity.");
+            return;
+        }
 
+        P4RuntimeOuterClass.ReadRequest request = P4RuntimeOuterClass.ReadRequest.newBuilder()
+                .addEntities(entity)
+                .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
+                .build();
+
+        up4NorthService.read(request, responseObserver);
+        var response = responseObserver.lastResponse();
+
+        assertThat(response.getEntitiesCount(), equalTo(1));
+        assertThat(response.getEntitiesList().get(0), equalTo(entity));
+    }
+
+    @Test
+    public void downlinkFarReadTest() {
+        upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
+        readTest(TestConstants.UP4_DOWNLINK_FAR);
+    }
+
+    @Test
+    public void uplinkFarReadTest() {
+        upfProgrammable.addFar(TestConstants.UPLINK_FAR);
+        readTest(TestConstants.UP4_UPLINK_FAR);
+    }
+
+    @Test
+    public void downlinkPdrReadTest() {
+        upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
+        readTest(TestConstants.UP4_DOWNLINK_PDR);
+    }
+
+    @Test
+    public void uplinkPdrReadTest() {
+        upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
+        readTest(TestConstants.UP4_UPLINK_PDR);
+    }
+
+    @Test
+    public void downlinkInterfaceReadTest() {
+        upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
+        readTest(TestConstants.UP4_DOWNLINK_INTERFACE);
+    }
+
+    @Test
+    public void uplinkInterfaceReadTest() {
+        upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
+        readTest(TestConstants.UP4_UPLINK_INTERFACE);
+    }
 
     @Test
     public void downlinkFarInsertionTest() {
