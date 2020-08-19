@@ -29,6 +29,8 @@ public final class PacketDetectionRule {
     private final Type type; // Is the PDR Uplink, Downlink, etc.
     private Integer globalFarId; // The non-session-local ID of the FAR that should apply to packets if this PDR hits
 
+    private static final int SESSION_ID_BITWIDTH = 96;
+
     private PacketDetectionRule(ImmutableByteSequence sessionId, Integer ctrId, Integer localFarId, Ip4Address ueAddr,
                                 ImmutableByteSequence teid, Ip4Address tunnelDst, Integer globalFarId, Type type) {
         this.ueAddr = ueAddr;
