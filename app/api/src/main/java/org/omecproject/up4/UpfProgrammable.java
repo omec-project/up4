@@ -4,8 +4,6 @@
  */
 package org.omecproject.up4;
 
-import org.onlab.packet.Ip4Address;
-import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 
@@ -120,40 +118,11 @@ public interface UpfProgrammable {
     void addInterface(UpfInterface upfInterface);
 
     /**
-     * Register a UE IPv4 address prefix with the interface lookup tables AKA the filtering stage.
+     * Remove a previously installed UPF interface from the target device.
      *
-     * @param poolPrefix The UE IPv4 address prefix
+     * @param upfInterface the interface to be removed
      */
-    void addUePool(Ip4Prefix poolPrefix);
-
-    /**
-     * Register a S1U IPv4 address with the interface lookup tables AKA the filtering stage.
-     *
-     * @param s1uAddr The S1U IPv4 address
-     */
-    void addS1uInterface(Ip4Address s1uAddr);
-
-    /**
-     * Remove a previously installed UE IPv4 address prefix from the interface lookup tables AKA the filtering stage.
-     *
-     * @param poolPrefix The UE IPv4 address prefix
-     */
-    void removeUePool(Ip4Prefix poolPrefix);
-
-    /**
-     * Remove a previously installed S1U IPv4 address from the interface lookup tables AKA the filtering stage.
-     *
-     * @param s1uAddr The S1U IPv4 address
-     */
-    void removeS1uInterface(Ip4Address s1uAddr);
-
-    /**
-     * Remove a previously installed interface lookup table entry that can be either a UE pool or S1U address.
-     * Useful if you only know the address of the interface and not what type of interface it is.
-     *
-     * @param ifacePrefix The prefix or address of the interface entry.
-     */
-    void removeUnknownInterface(Ip4Prefix ifacePrefix);
+    void removeInterface(UpfInterface upfInterface);
 
     /**
      * Read the the given cell (Counter index) of the PDR counters from the given device.

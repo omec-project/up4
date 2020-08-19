@@ -1,9 +1,12 @@
 package org.omecproject.up4.behavior;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
+import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.impl.NorthConstants;
@@ -11,7 +14,6 @@ import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
-import org.onlab.util.KryoNamespace;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.flow.DefaultFlowRule;
@@ -29,16 +31,9 @@ import org.onosproject.net.pi.runtime.PiMatchKey;
 import org.onosproject.net.pi.runtime.PiTableAction;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
-import org.onosproject.store.serializers.KryoNamespaces;
-import org.onosproject.store.service.AtomicCounter;
-import org.onosproject.store.service.EventuallyConsistentMap;
-import org.onosproject.store.service.StorageService;
-import org.onosproject.store.service.WallClockTimestamp;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,14 +48,9 @@ import java.util.Objects;
         service = {Up4Translator.class})
 public class Up4TranslatorImpl implements Up4Translator {
     private final Logger log = LoggerFactory.getLogger(getClass());
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected StorageService storageService;
     // Maps local FAR IDs to global FAR IDs
-    private EventuallyConsistentMap<RuleIdentifier, Integer> localToGlobalFarId;
-    // Maps global FAR IDs to local FAR IDs
-    private EventuallyConsistentMap<Integer, RuleIdentifier> globalToLocalFarId;
-    // Counter for producing new global FAR IDs
-    private AtomicCounter globalFarIdCounter;
+    protected final BiMap<UpfRuleIdentifier, Integer> farIdMapper = HashBiMap.create();;
+    private int nextGlobalFarId = 1;
 
     private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
     private final ImmutableByteSequence allOnes16 = ImmutableByteSequence.ofOnes(2);
@@ -68,22 +58,6 @@ public class Up4TranslatorImpl implements Up4Translator {
 
     @Activate
     protected void activate() {
-        log.info("Starting...");
-        globalFarIdCounter = storageService.getAtomicCounter("global-far-id-counter");
-
-        KryoNamespace.Builder globalFarIdSerializer = KryoNamespace.newBuilder()
-                .register(KryoNamespaces.API)
-                .register(RuleIdentifier.class);
-        localToGlobalFarId = storageService.<RuleIdentifier, Integer>eventuallyConsistentMapBuilder()
-                .withName("global-to-local-far-ids")
-                .withSerializer(globalFarIdSerializer)
-                .withTimestampProvider((k, v) -> new WallClockTimestamp())
-                .build();
-        globalToLocalFarId = storageService.<Integer, RuleIdentifier>eventuallyConsistentMapBuilder()
-                .withName("local-to-global-far-ids")
-                .withSerializer(globalFarIdSerializer)
-                .withTimestampProvider((k, v) -> new WallClockTimestamp())
-                .build();
         log.info("Started");
     }
 
@@ -94,58 +68,25 @@ public class Up4TranslatorImpl implements Up4Translator {
 
     @Override
     public void reset() {
-        localToGlobalFarId.clear();
-        globalFarIdCounter.set(0);
-        globalToLocalFarId.clear();
+        farIdMapper.clear();
+        nextGlobalFarId = 0;
     }
 
-    /**
-     * Get a globally unique integer identifier for the FAR identified by the given (Session ID, Far ID) pair.
-     *
-     * @param farIdPair a RuleIdentifier instance uniquely identifying the FAR
-     * @return A globally unique integer identifier
-     */
-    private int globalFarIdOf(RuleIdentifier farIdPair) {
-        int globalFarId = localToGlobalFarId.compute(farIdPair,
+    @Override
+    public int globalFarIdOf(UpfRuleIdentifier farIdPair) {
+        int globalFarId = farIdMapper.compute(farIdPair,
                 (k, existingId) -> {
-                    if (existingId == null) {
-                        return (int) globalFarIdCounter.incrementAndGet();
-                    } else {
-                        return existingId;
-                    }
-                });
-        // use compute to avoid unnecessary writes, even though we ignore the return value
-        globalToLocalFarId.compute(globalFarId,
-                (k, existingId) -> {
-                    if (existingId == null) {
-                        return farIdPair;
-                    } else {
-                        return existingId;
-                    }
+                    return Objects.requireNonNullElseGet(existingId, () -> nextGlobalFarId++);
                 });
         log.info("{} translated to GlobalFarId={}", farIdPair, globalFarId);
         return globalFarId;
     }
 
-    /**
-     * Get a globally unique integer identifier for the FAR identified by the given (Session ID, Far ID) pair.
-     *
-     * @param pfcpSessionId     The ID of the PFCP session that produced the FAR ID.
-     * @param sessionLocalFarId The FAR ID.
-     * @return A globally unique integer identifier
-     */
-    private int globalFarIdOf(ImmutableByteSequence pfcpSessionId, int sessionLocalFarId) {
-        RuleIdentifier farId = new RuleIdentifier(pfcpSessionId, sessionLocalFarId);
+    @Override
+    public int globalFarIdOf(ImmutableByteSequence pfcpSessionId, int sessionLocalFarId) {
+        UpfRuleIdentifier farId = new UpfRuleIdentifier(pfcpSessionId, sessionLocalFarId);
         return globalFarIdOf(farId);
 
-    }
-
-    public void assignGlobalFarId(PacketDetectionRule pdr) {
-        pdr.setGlobalFarId(globalFarIdOf(pdr.sessionId(), pdr.localFarId()));
-    }
-
-    public void assignGlobalFarId(ForwardingActionRule far) {
-        far.setGlobalFarId(globalFarIdOf(far.sessionId(), far.localFarId()));
     }
 
     /**
@@ -155,8 +96,8 @@ public class Up4TranslatorImpl implements Up4Translator {
      * @param globalFarId globally unique FAR ID
      * @return the corresponding PFCP session ID and session-local FAR ID, as a RuleIdentifier
      */
-    private RuleIdentifier localFarIdOf(int globalFarId) {
-        return globalToLocalFarId.get(globalFarId);
+    private UpfRuleIdentifier localFarIdOf(int globalFarId) {
+        return farIdMapper.inverse().get(globalFarId);
     }
 
     @Override
@@ -200,10 +141,9 @@ public class Up4TranslatorImpl implements Up4Translator {
 
         // Grab keys and parameters that are present for all PDRs
         int globalFarId = TranslatorUtil.getParamInt(action, SouthConstants.FAR_ID_PARAM);
-        RuleIdentifier farId = localFarIdOf(globalFarId);
+        UpfRuleIdentifier farId = localFarIdOf(globalFarId);
         pdrBuilder.withCounterId(TranslatorUtil.getParamInt(action, SouthConstants.CTR_ID))
                 .withLocalFarId(farId.getSessionlocalId())
-                .withGlobalFarId(globalFarId)
                 .withSessionId(farId.getPfcpSessionId());
 
         if (TranslatorUtil.fieldIsPresent(match, SouthConstants.TEID_KEY)) {
@@ -247,8 +187,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             int localFarId = TranslatorUtil.getParamInt(entry, NorthConstants.FAR_ID_PARAM);
             pdrBuilder.withSessionId(sessionId)
                     .withCounterId(TranslatorUtil.getParamInt(entry, NorthConstants.CTR_ID))
-                    .withLocalFarId(localFarId)
-                    .withGlobalFarId(globalFarIdOf(sessionId, localFarId));
+                    .withLocalFarId(localFarId);
         }
         return pdrBuilder.build();
     }
@@ -263,14 +202,13 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiAction action = (PiAction) matchActionPair.getRight();
 
         int globalFarId = TranslatorUtil.getFieldInt(match, SouthConstants.FAR_ID_KEY);
-        RuleIdentifier farId = localFarIdOf(globalFarId);
+        UpfRuleIdentifier farId = localFarIdOf(globalFarId);
 
         boolean dropFlag = TranslatorUtil.getParamInt(action, SouthConstants.DROP_FLAG) > 0;
         boolean notifyFlag = TranslatorUtil.getParamInt(action, SouthConstants.NOTIFY_FLAG) > 0;
 
         // Match keys
-        farBuilder.withGlobalFarId(globalFarId)
-                .withSessionId(farId.getPfcpSessionId())
+        farBuilder.withSessionId(farId.getPfcpSessionId())
                 .withFarId(farId.getSessionlocalId());
 
         // Parameters common to uplink and downlink should always be present
@@ -300,8 +238,7 @@ public class Up4TranslatorImpl implements Up4Translator {
         int localFarId = TranslatorUtil.getFieldInt(entry, NorthConstants.FAR_ID_KEY);
         var farBuilder = ForwardingActionRule.builder()
                 .withFarId(localFarId)
-                .withSessionId(sessionId)
-                .withGlobalFarId(globalFarIdOf(sessionId, localFarId));
+                .withSessionId(sessionId);
 
         // Now get the action parameters, if they are present (entries from delete writes don't have parameters)
         PiAction action = (PiAction) entry.action();
@@ -361,10 +298,7 @@ public class Up4TranslatorImpl implements Up4Translator {
     @Override
     public FlowRule farToFabricEntry(ForwardingActionRule far, DeviceId deviceId, ApplicationId appId, int priority)
             throws Up4TranslationException {
-        if (!far.hasGlobalFarId()) {
-            log.warn("FAR received with no global FAR ID!");
-            assignGlobalFarId(far);
-        }
+
         PiAction action;
         if (far.isUplink()) {
             action = PiAction.builder()
@@ -391,9 +325,8 @@ public class Up4TranslatorImpl implements Up4Translator {
         } else {
             throw new Up4TranslationException("Attempting to translate a FAR of unknown direction to fabric entry!");
         }
-
         PiCriterion match = PiCriterion.builder()
-                .matchExact(SouthConstants.FAR_ID_KEY, far.getGlobalFarId())
+                .matchExact(SouthConstants.FAR_ID_KEY, globalFarIdOf(far.sessionId(), far.farId()))
                 .build();
         return DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
@@ -407,10 +340,6 @@ public class Up4TranslatorImpl implements Up4Translator {
     @Override
     public FlowRule pdrToFabricEntry(PacketDetectionRule pdr, DeviceId deviceId, ApplicationId appId, int priority)
             throws Up4TranslationException {
-        if (!pdr.hasGlobalFarId()) {
-            log.warn("PDR received with no global FAR ID!");
-            assignGlobalFarId(pdr);
-        }
         PiCriterion match;
         PiTableId tableId;
         if (pdr.isUplink()) {
@@ -432,7 +361,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 .withId(SouthConstants.LOAD_PDR)
                 .withParameters(Arrays.asList(
                         new PiActionParam(SouthConstants.CTR_ID, pdr.counterId()),
-                        new PiActionParam(SouthConstants.FAR_ID_PARAM, pdr.getGlobalFarId()),
+                        new PiActionParam(SouthConstants.FAR_ID_PARAM, globalFarIdOf(pdr.sessionId(), pdr.farId())),
                         new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP_PARAM, pdr.isUplink() ? 1 : 0)
                 ))
                 .build();
@@ -519,7 +448,7 @@ public class Up4TranslatorImpl implements Up4Translator {
         }
         matchKey = PiMatchKey.builder()
                 .addFieldMatch(new PiExactFieldMatch(NorthConstants.FAR_ID_KEY,
-                        ImmutableByteSequence.copyFrom(far.localFarId())))
+                        ImmutableByteSequence.copyFrom(far.farId())))
                 .addFieldMatch(new PiExactFieldMatch(NorthConstants.SESSION_ID_KEY, far.sessionId()))
                 .build();
 
@@ -548,7 +477,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             decapFlag = 0;  // Decap is false for downlink
             matchKey = PiMatchKey.builder()
                     .addFieldMatch(new PiExactFieldMatch(NorthConstants.SRC_IFACE_KEY,
-                            toImmutableByte(NorthConstants.IFACE_ACCESS)))
+                            toImmutableByte(NorthConstants.IFACE_CORE)))
                     .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.UE_ADDR_KEY,
                             ImmutableByteSequence.copyFrom(pdr.ueAddress().toOctets()), allOnes32))
                     .build();
@@ -563,7 +492,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                         new PiActionParam(NorthConstants.PDR_ID_PARAM, 0),
                         new PiActionParam(NorthConstants.SESSION_ID_PARAM, pdr.sessionId()),
                         new PiActionParam(NorthConstants.CTR_ID, pdr.counterId()),
-                        new PiActionParam(NorthConstants.FAR_ID_PARAM, pdr.localFarId()),
+                        new PiActionParam(NorthConstants.FAR_ID_PARAM, pdr.farId()),
                         new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, toImmutableByte(decapFlag))
                 ))
                 .build();
@@ -605,59 +534,4 @@ public class Up4TranslatorImpl implements Up4Translator {
                         .build()).build();
     }
 
-    /**
-     * Wrapper for identifying information of FARs and PDRs.
-     */
-    public static final class RuleIdentifier {
-        final int sessionlocalId;
-        final ImmutableByteSequence pfcpSessionId;
-
-        /**
-         * A PDR or FAR can be globally uniquely identified by the combination of the ID of the PFCP session that
-         * produced it, and the ID that the rule was assigned in that PFCP session.
-         *
-         * @param pfcpSessionId  The PFCP session that produced the rule ID
-         * @param sessionlocalId The rule ID
-         */
-        public RuleIdentifier(ImmutableByteSequence pfcpSessionId, int sessionlocalId) {
-            this.pfcpSessionId = pfcpSessionId;
-            this.sessionlocalId = sessionlocalId;
-        }
-
-        public int getSessionlocalId() {
-            return sessionlocalId;
-        }
-
-        public ImmutableByteSequence getPfcpSessionId() {
-            return pfcpSessionId;
-        }
-
-        @Override
-        public String toString() {
-            return "RuleIdentifier{" +
-                    "sessionlocalId=" + sessionlocalId +
-                    ", pfcpSessionId=" + pfcpSessionId +
-                    '}';
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj == this) {
-                return true;
-            }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
-            RuleIdentifier that = (RuleIdentifier) obj;
-            return (this.sessionlocalId == that.sessionlocalId) && (this.pfcpSessionId.equals(that.pfcpSessionId));
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.sessionlocalId, this.pfcpSessionId);
-        }
-    }
 }

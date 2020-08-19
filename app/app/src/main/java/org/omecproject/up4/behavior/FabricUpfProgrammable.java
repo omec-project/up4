@@ -7,8 +7,8 @@ import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
+import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.impl.SouthConstants;
-import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
@@ -63,7 +63,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    private Up4Translator up4Translator;
+    protected Up4Translator up4Translator;
     DeviceId deviceId;
     private ApplicationId appId;
 
@@ -215,17 +215,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         }
     }
 
-    @Override
-    public void addS1uInterface(Ip4Address s1uAddr) {
-        addInterface(UpfInterface.createS1uFrom(s1uAddr));
-    }
-
-    @Override
-    public void addUePool(Ip4Prefix poolPrefix) {
-        addInterface(UpfInterface.createUePoolFrom(poolPrefix));
-    }
-
-
     private boolean removeEntry(PiCriterion match, PiTableId tableId, boolean failSilent) {
         FlowRule entry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
@@ -252,10 +241,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         return false;
     }
 
+    @Override
     public Collection<UpfFlow> getFlows() {
         // A flow is made of a PDR and the FAR that should apply to packets that hit the PDR.
-        // Multiple PDRs can map to the same FAR, so create a one->many mapping of FAR ID to flow builder
-        Map<Integer, List<UpfFlow.Builder>> globalFarToSessionBuilder = new HashMap<>();
+        // Multiple PDRs can map to the same FAR, so create a one->many mapping of FAR Identifier to flow builder
+        Map<UpfRuleIdentifier, List<UpfFlow.Builder>> globalFarToSessionBuilder = new HashMap<>();
         List<ForwardingActionRule> fars = new ArrayList<>();
         for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
             if (up4Translator.isFabricFar(flowRule)) {
@@ -269,33 +259,37 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 // If its a PDR, create a flow builder for it
                 try {
                     PacketDetectionRule pdr = up4Translator.fabricEntryToPdr(flowRule);
-                    globalFarToSessionBuilder.compute(pdr.getGlobalFarId(), (k, existingVal) -> {
-                        final var builder = UpfFlow.builder().setPdr(pdr).addStats(readCounter(pdr.counterId()));
-                        if (existingVal == null) {
-                            return List.of(builder);
-                        } else {
-                            existingVal.add(builder);
-                            return existingVal;
-                        }
-                    });
+                    globalFarToSessionBuilder.compute(new UpfRuleIdentifier(pdr.sessionId(), pdr.farId()),
+                            (k, existingVal) -> {
+                                final var builder = UpfFlow.builder()
+                                        .setPdr(pdr)
+                                        .addStats(readCounter(pdr.counterId()));
+                                if (existingVal == null) {
+                                    return List.of(builder);
+                                } else {
+                                    existingVal.add(builder);
+                                    return existingVal;
+                                }
+                            });
                 } catch (Up4Translator.Up4TranslationException e) {
                     log.warn("Found what appears to be a PDR but we can't translate it?? {}", flowRule);
                 }
             }
         }
         for (ForwardingActionRule far : fars) {
-            globalFarToSessionBuilder.compute(far.getGlobalFarId(), (k, builderList) -> {
-                // If no PDRs use this FAR, then create a new flow with no PDR
-                if (builderList == null) {
-                    return List.of(UpfFlow.builder().setFar(far));
-                } else {
-                    // Add the FAR to every flow with a PDR that references it
-                    for (var builder : builderList) {
-                        builder.setFar(far);
-                    }
-                    return builderList;
-                }
-            });
+            globalFarToSessionBuilder.compute(new UpfRuleIdentifier(far.sessionId(), far.farId()),
+                    (k, builderList) -> {
+                        // If no PDRs use this FAR, then create a new flow with no PDR
+                        if (builderList == null) {
+                            return List.of(UpfFlow.builder().setFar(far));
+                        } else {
+                            // Add the FAR to every flow with a PDR that references it
+                            for (var builder : builderList) {
+                                builder.setFar(far);
+                            }
+                            return builderList;
+                        }
+                    });
         }
         List<UpfFlow> results = new ArrayList<>();
         for (var builderList : globalFarToSessionBuilder.values()) {
@@ -336,6 +330,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         return fars;
     }
 
+    @Override
     public Collection<UpfInterface> getInstalledInterfaces() {
         ArrayList<UpfInterface> ifaces = new ArrayList<>();
         for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
@@ -378,57 +373,32 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Override
     public void removeFar(ForwardingActionRule far) {
         log.info("Removing {}", far.toString());
-        if (!far.hasGlobalFarId()) {
-            up4Translator.assignGlobalFarId(far);
-        }
 
         PiCriterion match = PiCriterion.builder()
-                .matchExact(SouthConstants.FAR_ID_KEY, far.getGlobalFarId())
+                .matchExact(SouthConstants.FAR_ID_KEY, up4Translator.globalFarIdOf(far.sessionId(), far.farId()))
                 .build();
 
         removeEntry(match, SouthConstants.FAR_TBL, false);
     }
 
     @Override
-    public void removeUePool(Ip4Prefix poolPrefix) {
-        log.info("Removing S1U interface table entry");
-        PiCriterion match = PiCriterion.builder()
-                .matchLpm(SouthConstants.IPV4_DST_ADDR, poolPrefix.address().toInt(), poolPrefix.prefixLength())
-                .matchExact(SouthConstants.GTPU_IS_VALID, 0)
-                .build();
-        removeEntry(match, SouthConstants.INTERFACE_LOOKUP, false);
-    }
-
-    @Override
-    public void removeS1uInterface(Ip4Address s1uAddr) {
-        log.info("Removing S1U interface table entry");
-        PiCriterion match = PiCriterion.builder()
-                .matchLpm(SouthConstants.IPV4_DST_ADDR, s1uAddr.toInt(), 32)
-                .matchExact(SouthConstants.GTPU_IS_VALID, 1)
-                .build();
-        removeEntry(match, SouthConstants.INTERFACE_LOOKUP, false);
-    }
-
-    @Override
-    public void removeUnknownInterface(Ip4Prefix ifacePrefix) {
-        // For when you don't know if its a uePool or s1uInterface table entry
-        // Try removing an S1U entry
-        PiCriterion match1 = PiCriterion.builder()
-                .matchLpm(SouthConstants.IPV4_DST_ADDR, ifacePrefix.address().toInt(), 32)
-                .matchExact(SouthConstants.GTPU_IS_VALID, 1)
-                .build();
-        if (removeEntry(match1, SouthConstants.INTERFACE_LOOKUP, true)) {
-            return;
+    public void removeInterface(UpfInterface upfInterface) {
+        Ip4Prefix ifacePrefix = upfInterface.prefix();
+        // If it isn't a downlink interface (so it is either uplink or unknown), try removing uplink
+        if (!upfInterface.isDownlink()) {
+            PiCriterion match1 = PiCriterion.builder()
+                    .matchLpm(SouthConstants.IPV4_DST_ADDR, ifacePrefix.address().toInt(), ifacePrefix.prefixLength())
+                    .matchExact(SouthConstants.GTPU_IS_VALID, 1)
+                    .build();
+            if (removeEntry(match1, SouthConstants.INTERFACE_LOOKUP, true)) {
+                return;
+            }
         }
-        // If that didn't work, try removing a UE pool entry
+        // If that didn't work or didn't execute, try removing downlink
         PiCriterion match2 = PiCriterion.builder()
                 .matchLpm(SouthConstants.IPV4_DST_ADDR, ifacePrefix.address().toInt(), ifacePrefix.prefixLength())
                 .matchExact(SouthConstants.GTPU_IS_VALID, 0)
                 .build();
-        if (!removeEntry(match2, SouthConstants.INTERFACE_LOOKUP, true)) {
-            log.error("Could not remove interface! No matching entry found!");
-        }
+        removeEntry(match2, SouthConstants.INTERFACE_LOOKUP, false);
     }
-
-
 }

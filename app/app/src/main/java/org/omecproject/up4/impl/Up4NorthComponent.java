@@ -136,7 +136,7 @@ public class Up4NorthComponent {
         if (up4Translator.isUp4Interface(entry)) {
             try {
                 UpfInterface upfInterface = up4Translator.up4EntryToInterface(entry);
-                up4Service.getUpfProgrammable().removeUnknownInterface(upfInterface.prefix());
+                up4Service.getUpfProgrammable().removeInterface(upfInterface);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 interface in delete write! Error was: {}", e.getMessage());
             }

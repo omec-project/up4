@@ -79,13 +79,13 @@ public final class UpfFlow {
         String farString = "NO FAR!";
         if (far != null) {
             if (far.isUplink()) {
-                farString = String.format("FarID %d  -->  Decap()", far.localFarId());
+                farString = String.format("FarID %d  -->  Decap()", far.farId());
             } else if (far.isDownlink()) {
                 farString = String.format("FarID %d  -->  Encap(Src=%s, TEID=%s, Dst=%s)",
-                        far.localFarId(), far.tunnelSrc(), far.teid(), far.tunnelDst());
+                        far.farId(), far.tunnelSrc(), far.teid(), far.tunnelDst());
             } else {
                 // If the FAR is incomplete
-                farString = String.format("FarID %s -> NO_ACTION", far.localFarId());
+                farString = String.format("FarID %s -> NO_ACTION", far.farId());
             }
         }
         String pdrString = "NO PDR!";
@@ -162,7 +162,7 @@ public final class UpfFlow {
             if (pdr != null && far != null) {
                 checkArgument(pdr.sessionId().equals(far.sessionId()),
                         "PFCP session ID of PDR and FAR must match!");
-                checkArgument(pdr.localFarId() == far.localFarId(),
+                checkArgument(pdr.farId() == far.farId(),
                         "FAR ID set by PDR and read by FAR must match!");
                 checkArgument((pdr.isDownlink() && far.isDownlink()) ||
                         (pdr.isUplink() && far.isUplink()), "PDR and FAR should be the same direction!");

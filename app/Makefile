@@ -54,6 +54,12 @@ clean:
 	rm -rf target/
 	rm -rf tmp/
 
+set-app-info:
+	util/onos-cmd log:set INFO org.omecproject.up4
+
+set-app-debug:
+	util/onos-cmd log:set DEBUG org.omecproject.up4
+
 p4rt-shell:
 	docker exec -it $(shell docker-compose ps -q p4rtsh)  \
 		/p4runtime-sh/docker_entry_point.sh \

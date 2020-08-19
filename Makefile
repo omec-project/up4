@@ -55,7 +55,7 @@ app-build: _prepare_app_build
 app-build-ci: _prepare_app_build
 	docker run -it --rm -v ${CURRENT_DIR}:/root -w /root/app \
 		maven:3.6.3-openjdk-11-slim \
-		bash -c "mvn -Pci-verify clean install && \
+		bash -c "mvn -Pci-verify -Pcoverage clean install && \
 		chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
 app-check:
 	cd app && make check

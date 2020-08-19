@@ -1,5 +1,4 @@
 version: 2.1
-
 jobs:
   p4-build-and-test:
     machine: true
@@ -10,7 +9,21 @@ jobs:
     machine: true
     steps:
       - checkout
-      - run: cd app && make deps build-ci check-slow
+      - run:
+          name: Build app
+          command: cd app && make deps build-ci
+      - run:
+          name: App integration test
+          command: cd app && make check-slow
+      - run:
+          name: Print ONOS logs
+          command: cd app && docker logs onos
+          when: on_fail
+      - run:
+          name: Upload coverage
+          command: cd app && bash <(curl -s https://codecov.io/bash)
+          environment:
+            CODECOV_TOKEN: 26252f52-8c2d-4cfd-bd2f-ec00a71d2942
 
 workflows:
   main:

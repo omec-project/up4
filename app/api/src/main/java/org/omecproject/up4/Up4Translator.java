@@ -1,5 +1,6 @@
 package org.omecproject.up4;
 
+import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.flow.FlowRule;
@@ -69,6 +70,24 @@ public interface Up4Translator {
      * @return true if the entry is a fabric.p4 UPF interface
      */
     boolean isFabricInterface(FlowRule entry);
+
+    /**
+     * Get a globally unique integer identifier for the FAR identified by the given (Session ID, Far ID) pair.
+     *
+     * @param farIdPair a RuleIdentifier instance uniquely identifying the FAR
+     * @return A globally unique integer identifier
+     */
+    int globalFarIdOf(UpfRuleIdentifier farIdPair);
+
+    /**
+     * Get a globally unique integer identifier for the FAR identified by the given (Session ID, Far ID) pair.
+     *
+     * @param pfcpSessionId     The ID of the PFCP session that produced the FAR ID.
+     * @param sessionLocalFarId The FAR ID.
+     * @return A globally unique integer identifier
+     */
+    int globalFarIdOf(ImmutableByteSequence pfcpSessionId, int sessionLocalFarId);
+
 
     /**
      * Translate a fabric.p4 PDR table entry to a PacketDetectionRule instance for easier handling.
@@ -170,18 +189,6 @@ public interface Up4Translator {
      */
     FlowRule interfaceToFabricEntry(UpfInterface upfInterface, DeviceId deviceId, ApplicationId appId, int priority)
             throws Up4TranslationException;
-
-    /**
-     * Assign a global FAR ID to the given Packet Detection Rule, for insertion into the dataplane.
-     * @param pdr the PDR that needs a global FAR ID
-     */
-    void assignGlobalFarId(PacketDetectionRule pdr);
-
-    /**
-     * Assign a global FAR ID to the given Forwarding Action Rule, for insertion into the dataplane.
-     * @param far the FAR that needs a global FAR ID
-     */
-    void assignGlobalFarId(ForwardingActionRule far);
 
 
     /**

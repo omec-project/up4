@@ -7,6 +7,8 @@ package org.omecproject.up4;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 
+import java.util.Objects;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -16,11 +18,13 @@ public final class GtpTunnel {
     private final Ip4Address src;  // The source address of the unidirectional tunnel
     private final Ip4Address dst;  // The destination address of the unidirectional tunnel
     private final ImmutableByteSequence teid;  // Tunnel Endpoint Identifier
+    private final short srcPort;  // Tunnel destination port, default 2152
 
-    private GtpTunnel(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid) {
+    private GtpTunnel(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid, Short srcPort) {
         this.src = src;
         this.dst = dst;
         this.teid = teid;
+        this.srcPort = srcPort;
     }
 
     public static GtpTunnelBuilder builder() {
@@ -30,6 +34,30 @@ public final class GtpTunnel {
     @Override
     public String toString() {
         return String.format("GTP-Tunnel(%s -> %s, TEID:%s)", src.toString(), dst.toString(), teid.toString());
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        GtpTunnel that = (GtpTunnel) obj;
+
+        return (this.src.equals(that.src) &&
+                this.dst.equals(that.dst) &&
+                this.teid.equals(that.teid) &&
+                (this.srcPort == that.srcPort));
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(src, dst, teid, srcPort);
     }
 
     /**
@@ -59,10 +87,21 @@ public final class GtpTunnel {
         return this.teid;
     }
 
+
+    /**
+     * Get the source L4 port of this unidirectional GTP tunnel.
+     *
+     * @return tunnel source port
+     */
+    public Short srcPort() {
+        return this.srcPort;
+    }
+
     public static class GtpTunnelBuilder {
         private Ip4Address src;
         private Ip4Address dst;
         private ImmutableByteSequence teid;
+        private short srcPort = 2152;  // Default value is equal to GTP tunnel dst port
 
         public GtpTunnelBuilder() {
             this.src = null;
@@ -114,11 +153,22 @@ public final class GtpTunnel {
             return this;
         }
 
+        /**
+         * Set the source port of this unidirectional GTP tunnel.
+         *
+         * @param srcPort tunnel source port
+         * @return this builder object
+         */
+        public GtpTunnelBuilder setSrcPort(short srcPort) {
+            this.srcPort = srcPort;
+            return this;
+        }
+
         public GtpTunnel build() {
             checkNotNull(src, "Tunnel source address cannot be null");
             checkNotNull(dst, "Tunnel destination address cannot be null");
             checkNotNull(teid, "Tunnel TEID cannot be null");
-            return new GtpTunnel(this.src, this.dst, this.teid);
+            return new GtpTunnel(this.src, this.dst, this.teid, srcPort);
         }
     }
 
