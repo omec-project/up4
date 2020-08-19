@@ -156,25 +156,6 @@ final class TranslatorUtil {
         return Ip4Address.valueOf(getFieldValue(criterion, fieldId).asArray());
     }
 
-    static boolean fieldMaskIsZero(PiTableEntry entry, PiMatchFieldId fieldId)
-            throws Up4TranslatorImpl.Up4TranslationException {
-        Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(fieldId);
-        if (optField.isEmpty()) {
-            return true;
-        }
-        PiFieldMatch field = optField.get();
-        if (field.type() != PiMatchType.TERNARY) {
-            throw new Up4TranslatorImpl.Up4TranslationException(
-                    String.format("Attempting to check mask for non-ternary field: %s", fieldId.toString()));
-        }
-        for (byte b : ((PiTernaryFieldMatch) field).mask().asArray()) {
-            if (b != (byte) 0) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     static int byteSeqToInt(ImmutableByteSequence sequence) {
         try {
             return sequence.fit(32).asReadOnlyBuffer().getInt();
