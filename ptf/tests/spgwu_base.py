@@ -17,6 +17,7 @@ from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
 from time import sleep
 from enum import Enum
 import random
+
 random.seed(123456)  # for reproducible PTF tests
 
 UDP_GTP_PORT = 2152
