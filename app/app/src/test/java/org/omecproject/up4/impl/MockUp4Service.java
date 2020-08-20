@@ -131,8 +131,10 @@ public class MockUp4Service implements Up4Service {
         @Override
         public PdrStats readCounter(int cellId) {
             return PdrStats.builder()
-                    .setEgress(1, 1)
-                    .setIngress(1, 1).build();
+                    .withCellId(cellId)
+                    .setEgress(NorthTestConstants.EGRESS_COUNTER_PKTS, NorthTestConstants.EGRESS_COUNTER_BYTES)
+                    .setIngress(NorthTestConstants.INGRESS_COUNTER_PKTS, NorthTestConstants.INGRESS_COUNTER_BYTES)
+                    .build();
         }
     };
 }

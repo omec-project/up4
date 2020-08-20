@@ -8,7 +8,10 @@ import org.junit.Test;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.behavior.TestConstants;
 import org.omecproject.up4.behavior.Up4TranslatorImpl;
+import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiPipeconf;
+import org.onosproject.net.pi.runtime.PiCounterCell;
+import org.onosproject.net.pi.runtime.PiCounterCellId;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.p4runtime.ctl.codec.CodecException;
 import org.onosproject.p4runtime.ctl.codec.Codecs;
@@ -136,6 +139,52 @@ public class Up4NorthComponentTest {
         assertThat(response.getEntitiesList().get(0), equalTo(entity));
     }
 
+    private void readCounterTest(PiCounterId counterId, long expectedPackets, long expectedBytes) {
+        MockStreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver = new MockStreamObserver<>();
+        int cellIndex = 1;
+        PiCounterCell requestedCell = new PiCounterCell(
+                PiCounterCellId.ofIndirect(counterId, cellIndex), 0, 0);
+        P4RuntimeOuterClass.Entity entity;
+        try {
+            entity = Codecs.CODECS.entity().encode(requestedCell, null, pipeconf);
+        } catch (CodecException e) {
+            fail("Unable to encode counter cell to p4runtime entity!");
+            return;
+        }
+
+        P4RuntimeOuterClass.ReadRequest request = P4RuntimeOuterClass.ReadRequest.newBuilder()
+                .addEntities(entity)
+                .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
+                .build();
+
+        up4NorthService.read(request, responseObserver);
+        var response = responseObserver.lastResponse();
+
+        PiCounterCell expectedCell = new PiCounterCell(
+                PiCounterCellId.ofIndirect(counterId, cellIndex), expectedPackets, expectedBytes);
+        P4RuntimeOuterClass.Entity expectedEntity;
+        try {
+            expectedEntity = Codecs.CODECS.entity().encode(expectedCell, null, pipeconf);
+        } catch (CodecException e) {
+            fail("Unable to encode counter cell to p4runtime entity!");
+            return;
+        }
+        assertThat(response.getEntitiesCount(), equalTo(1));
+        assertThat(response.getEntitiesList().get(0), equalTo(expectedEntity));
+    }
+
+    @Test
+    public void readIngressCounterTest() {
+        readCounterTest(NorthConstants.INGRESS_COUNTER_ID,
+                NorthTestConstants.INGRESS_COUNTER_PKTS, NorthTestConstants.INGRESS_COUNTER_BYTES);
+    }
+
+    @Test
+    public void readEgressCounterTest() {
+        readCounterTest(NorthConstants.EGRESS_COUNTER_ID,
+                NorthTestConstants.EGRESS_COUNTER_PKTS, NorthTestConstants.EGRESS_COUNTER_BYTES);
+    }
+
     @Test
     public void downlinkFarReadTest() {
         upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
@@ -224,8 +273,6 @@ public class Up4NorthComponentTest {
         deletionTest(TestConstants.UP4_UPLINK_PDR);
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
     }
-
-
 
     @Test
     public void downlinkInterfaceInsertionTest() {
