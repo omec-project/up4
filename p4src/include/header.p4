@@ -114,9 +114,12 @@ struct pdr_metadata_t {
     counter_index_t ctr_idx;
 }
 
-// Data assocaited with a BAR entry
-struct bar_metadata_t {
-    bar_id_t id; // unused
+// Data associated with Buffering nad QoS
+struct shaping_metadata_t {
+    bar_id_t bar_id;
+    qer_id_t qer_id;
+    bool needs_buffering;
+    bool needs_qos;
 }
 
 
@@ -137,12 +140,6 @@ struct far_metadata_t {
     teid_t      tunnel_out_teid;
 
     ipv4_addr_t next_hop_ip;
-}
-
-// QoS related metadata
-struct qos_metadata_t {
-    qer_id_t qer_id; // unused
-    qfi_t    qfi;    // unused
 }
 
 // The primary metadata structure.
@@ -175,10 +172,9 @@ struct local_metadata_t {
 
     net_instance_t net_instance;
 
+    shaping_metadata_t shaping;
     far_metadata_t far;
-    qos_metadata_t qos;
     pdr_metadata_t pdr;
-    bar_metadata_t bar;
 }
 
 

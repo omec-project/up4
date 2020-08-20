@@ -201,11 +201,15 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         // Currently a no-op due to forwarding being logically separated
     }
 
-    /*
     action do_buffer() {
         // Buffering cannot be expressed in the logical pipeline. This
         // is a placeholder for an actual implementation.
-    }*/
+    }
+
+    action do_qos() {
+        // QoS cannot be expressed in the logical pipeline. This
+        // is a placeholder for an actual implementation.
+    }
 
     action do_drop() {
         mark_to_drop(std_meta);
@@ -220,18 +224,17 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         if (local_meta.far.notify_cp) {
             do_notify_cp();
         }
-        /*
-        if (local_meta.far.needs_buffering) {
+        if (local_meta.shaping.needs_buffering) {
             do_buffer();
         }
-        */
-
+        if (local_meta.shaping.needs_qos) {
+            do_qos();
+        }
         if (local_meta.far.needs_tunneling) {
             if (local_meta.far.tunnel_out_type == TunnelType.GTPU) {
                 do_gtpu_tunnel();
             }
         }
-
         if (local_meta.far.needs_dropping) {
             do_drop();
         } else {
@@ -323,18 +326,24 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     }
 
     action load_normal_far_attributes(bit<1> needs_dropping,
-                                      bit<1> notify_cp) {
+                                      bit<1> notify_cp,
+                                      bit<1> needs_buffering,
+                                      qer_id_t       qer_id,
+                                      bar_id_t       bar_id) {
         local_meta.far.needs_tunneling = false;
         local_meta.far.needs_dropping    = (bool)needs_dropping;
         local_meta.far.notify_cp = (bool)notify_cp;
     }
     action load_tunnel_far_attributes(bit<1> needs_dropping,
                                     bit<1> notify_cp,
+                                    bit<1> needs_buffering,
                                     TunnelType     tunnel_type,
                                     ipv4_addr_t    src_addr,
                                     ipv4_addr_t    dst_addr,
                                     teid_t         teid,
-                                    L4Port         dport) {
+                                    L4Port         dport,
+                                    qer_id_t       qer_id,
+                                    bar_id_t       bar_id) {
         local_meta.far.needs_tunneling = true;
         local_meta.far.needs_dropping = (bool)needs_dropping;
         local_meta.far.notify_cp = (bool)notify_cp;
@@ -343,6 +352,9 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.far.tunnel_out_dst_ipv4_addr = dst_addr;
         local_meta.far.tunnel_out_teid          = teid;
         local_meta.far.tunnel_out_udp_dport     = dport;
+        local_meta.shaping.needs_buffering = (bool)needs_buffering;
+        local_meta.shaping.qer_id = qer_id;
+        local_meta.shaping.bar_id = bar_id;
     }
     table load_far_attributes {
         key = {
