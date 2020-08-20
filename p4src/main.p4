@@ -201,13 +201,13 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         // Currently a no-op due to forwarding being logically separated
     }
 
-    action do_buffer() {
-        // Buffering cannot be expressed in the logical pipeline. This
+    action do_qos() {
+        // QoS cannot be expressed in the logical pipeline. This
         // is a placeholder for an actual implementation.
     }
 
-    action do_qos() {
-        // QoS cannot be expressed in the logical pipeline. This
+    action do_buffer() {
+        // Buffering cannot be expressed in the logical pipeline. This
         // is a placeholder for an actual implementation.
     }
 
@@ -224,11 +224,11 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         if (local_meta.far.notify_cp) {
             do_notify_cp();
         }
-        if (local_meta.shaping.needs_buffering) {
-            do_buffer();
-        }
         if (local_meta.shaping.needs_qos) {
             do_qos();
+        }
+        if (local_meta.shaping.needs_buffering) {
+            do_buffer();
         }
         if (local_meta.far.needs_tunneling) {
             if (local_meta.far.tunnel_out_type == TunnelType.GTPU) {
