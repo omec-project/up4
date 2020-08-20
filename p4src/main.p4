@@ -326,10 +326,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     }
 
     action load_normal_far_attributes(bit<1> needs_dropping,
-                                      bit<1> notify_cp,
-                                      bit<1> needs_buffering,
-                                      qer_id_t       qer_id,
-                                      bar_id_t       bar_id) {
+                                      bit<1> notify_cp) {
         local_meta.far.needs_tunneling = false;
         local_meta.far.needs_dropping    = (bool)needs_dropping;
         local_meta.far.notify_cp = (bool)notify_cp;
