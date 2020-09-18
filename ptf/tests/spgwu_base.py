@@ -372,7 +372,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
         self.insert(
             self.helper.build_table_entry(
-                table_name="PreQosPipe.load_far_attributes", match_fields={
+                table_name="PreQosPipe.fars", match_fields={
                     "far_id": far_id,
                     "session_id": session_id,
                 }, action_name=action_name, action_params=action_params))

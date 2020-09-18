@@ -24,7 +24,7 @@ public final class NorthConstants {
     // Table names
     public static final PiTableId IFACE_TBL = PiTableId.of("PreQosPipe.source_iface_lookup");
     public static final PiTableId PDR_TBL = PiTableId.of("PreQosPipe.pdrs");
-    public static final PiTableId FAR_TBL = PiTableId.of("PreQosPipe.load_far_attributes");
+    public static final PiTableId FAR_TBL = PiTableId.of("PreQosPipe.fars");
     // Action names
     public static final PiActionId LOAD_IFACE = PiActionId.of("PreQosPipe.set_source_iface");
     public static final PiActionId LOAD_PDR = PiActionId.of("PreQosPipe.set_pdr_attributes");

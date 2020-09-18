@@ -266,6 +266,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.src_iface = src_iface;
         local_meta.direction = direction;
     }
+
     table source_iface_lookup {
         key = {
             hdr.ipv4.dst_addr : lpm @name("ipv4_dst_prefix");
@@ -328,6 +329,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.far.needs_dropping    = (bool)needs_dropping;
         local_meta.far.notify_cp = (bool)notify_cp;
     }
+
     action load_tunnel_far_attributes(bit<1> needs_dropping,
                                     bit<1> notify_cp,
                                     TunnelType     tunnel_type,
@@ -344,7 +346,8 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.far.tunnel_out_teid          = teid;
         local_meta.far.tunnel_out_udp_dport     = dport;
     }
-    table load_far_attributes {
+
+    table fars {
         key = {
             local_meta.far.id : exact      @name("far_id");
             local_meta.fseid  : exact      @name("session_id");
@@ -427,7 +430,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         }
 
         // Look up FAR info using the FAR-ID loaded by the PDR table.
-        load_far_attributes.apply();
+        fars.apply();
         // Execute the loaded FAR
         ExecuteFar.apply(hdr, local_meta, std_meta);
 

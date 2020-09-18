@@ -193,7 +193,7 @@ def main():
         #========================#
 
         ## Uplink
-        entry = sh.TableEntry('PreQosPipe.load_far_attributes')(action='PreQosPipe.load_normal_far_attributes')
+        entry = sh.TableEntry('PreQosPipe.fars')(action='PreQosPipe.load_normal_far_attributes')
         # Match fields
         entry.match['far_id'] = str(far_uplink)
         entry.match['session_id'] = str(args.session_id)
@@ -203,7 +203,7 @@ def main():
         addEntry(entry, args.action)
 
         ## Downlink
-        entry = sh.TableEntry('PreQosPipe.load_far_attributes')(action='PreQosPipe.load_tunnel_far_attributes')
+        entry = sh.TableEntry('PreQosPipe.fars')(action='PreQosPipe.load_tunnel_far_attributes')
         # Match fields
         entry.match['far_id'] = str(far_downlink)
         entry.match['session_id'] = str(args.session_id)

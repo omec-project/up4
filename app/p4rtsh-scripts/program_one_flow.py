@@ -130,7 +130,7 @@ def main():
     #========================#
 
     ## Uplink
-    uplinkFar = sh.TableEntry('PreQosPipe.load_far_attributes')(action='PreQosPipe.load_normal_far_attributes')
+    uplinkFar = sh.TableEntry('PreQosPipe.fars')(action='PreQosPipe.load_normal_far_attributes')
     # Match fields
     uplinkFar.match['far_id'] = FAR_UPLINK
     uplinkFar.match['session_id'] = SESSION_ID
@@ -140,7 +140,7 @@ def main():
     addEntry(uplinkFar)
 
     ## Downlink
-    downlinkFar = sh.TableEntry('PreQosPipe.load_far_attributes')(action='PreQosPipe.load_tunnel_far_attributes')
+    downlinkFar = sh.TableEntry('PreQosPipe.fars')(action='PreQosPipe.load_tunnel_far_attributes')
     # Match fields
     downlinkFar.match['far_id'] = FAR_DOWNLINK
     downlinkFar.match['session_id'] = SESSION_ID
