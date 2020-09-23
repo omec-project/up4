@@ -201,11 +201,10 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         // Currently a no-op due to forwarding being logically separated
     }
 
-    /*
     action do_buffer() {
         // Buffering cannot be expressed in the logical pipeline. This
         // is a placeholder for an actual implementation.
-    }*/
+    }
 
     action do_drop() {
         mark_to_drop(std_meta);
@@ -220,11 +219,10 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         if (local_meta.far.notify_cp) {
             do_notify_cp();
         }
-        /*
+
         if (local_meta.far.needs_buffering) {
             do_buffer();
         }
-        */
 
         if (local_meta.far.needs_tunneling) {
             if (local_meta.far.tunnel_out_type == TunnelType.GTPU) {
@@ -326,17 +324,19 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     action load_normal_far_attributes(bit<1> needs_dropping,
                                       bit<1> notify_cp) {
         local_meta.far.needs_tunneling = false;
-        local_meta.far.needs_dropping    = (bool)needs_dropping;
-        local_meta.far.notify_cp = (bool)notify_cp;
+        local_meta.far.needs_dropping  = (bool)needs_dropping;
+        local_meta.far.notify_cp       = (bool)notify_cp;
     }
 
-    action load_tunnel_far_attributes(bit<1> needs_dropping,
-                                    bit<1> notify_cp,
-                                    TunnelType     tunnel_type,
-                                    ipv4_addr_t    src_addr,
-                                    ipv4_addr_t    dst_addr,
-                                    teid_t         teid,
-                                    L4Port         dport) {
+    action load_tunnel_far_attributes(bit<1>      needs_dropping,
+                                      bit<1>      notify_cp,
+                                      TunnelType  tunnel_type,
+                                      ipv4_addr_t src_addr,
+                                      ipv4_addr_t dst_addr,
+                                      teid_t      teid,
+                                      L4Port      dport,
+                                      bit<1>      needs_buffering,
+                                      bar_id_t    bar_id) {
         local_meta.far.needs_tunneling = true;
         local_meta.far.needs_dropping = (bool)needs_dropping;
         local_meta.far.notify_cp = (bool)notify_cp;
@@ -345,6 +345,9 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.far.tunnel_out_dst_ipv4_addr = dst_addr;
         local_meta.far.tunnel_out_teid          = teid;
         local_meta.far.tunnel_out_udp_dport     = dport;
+
+        local_meta.far.needs_buffering = (bool)needs_buffering;
+        local_meta.bar.id = bar_id;
     }
 
     table fars {
@@ -358,6 +361,21 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         }
     }
 
+    action load_bar_attributes(buff_ddn_delay_t ddn_delay,
+                               buff_pkt_count_t max_pkt_count) {
+        local_meta.bar.ddn_delay = ddn_delay;
+        local_meta.bar.max_pkt_count = max_pkt_count;
+    }
+
+    table bars {
+        key = {
+            local_meta.bar.id : exact      @name("bar_id");
+            local_meta.fseid  : exact      @name("session_id");
+        }
+        actions = {
+            load_bar_attributes;
+        }
+    }
 
     //----------------------------------------
     // INGRESS APPLY BLOCK
@@ -431,6 +449,8 @@ control PreQosPipe (inout parsed_headers_t    hdr,
 
         // Look up FAR info using the FAR-ID loaded by the PDR table.
         fars.apply();
+        // Look up BAR info using the BAR-ID loaded by the FAR table.
+        bars.apply();
         // Execute the loaded FAR
         ExecuteFar.apply(hdr, local_meta, std_meta);
 

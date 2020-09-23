@@ -116,7 +116,12 @@ struct pdr_metadata_t {
 
 // Data assocaited with a BAR entry
 struct bar_metadata_t {
-    bar_id_t id; // unused
+    bar_id_t id;
+    // Downlink Data Notification Delay
+    // Delay Value in integer multiples of 50 millisecs, or zero
+    buff_ddn_delay_t ddn_delay;
+    // Suggested Buffering Packets Count
+    buff_pkt_count_t max_pkt_count;
 }
 
 
@@ -128,6 +133,7 @@ struct far_metadata_t {
     // Hence, they should be flags and not different action types.
     bool needs_dropping;
     bool needs_tunneling;
+    bool needs_buffering;
     bool notify_cp;
 
     TunnelType  tunnel_out_type;

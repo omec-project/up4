@@ -239,6 +239,34 @@ tables {
   }
   size: 1024
 }
+tables {
+  preamble {
+    id: 34127948
+    name: "PreQosPipe.bars"
+    alias: "bars"
+  }
+  match_fields {
+    id: 1
+    name: "bar_id"
+    bitwidth: 32
+    match_type: EXACT
+  }
+  match_fields {
+    id: 2
+    name: "session_id"
+    bitwidth: 96
+    match_type: EXACT
+  }
+  action_refs {
+    id: 30755558
+  }
+  action_refs {
+    id: 21257015
+    annotations: "@defaultonly"
+    scope: DEFAULT_ONLY
+  }
+  size: 1024
+}
 actions {
   preamble {
     id: 21257015
@@ -259,6 +287,13 @@ actions {
     id: 30425873
     name: "PreQosPipe.ExecuteFar.do_forward"
     alias: "do_forward"
+  }
+}
+actions {
+  preamble {
+    id: 28085271
+    name: "PreQosPipe.ExecuteFar.do_buffer"
+    alias: "do_buffer"
   }
 }
 actions {
@@ -438,6 +473,33 @@ actions {
     id: 7
     name: "dport"
     bitwidth: 16
+  }
+  params {
+    id: 8
+    name: "needs_buffering"
+    bitwidth: 1
+  }
+  params {
+    id: 9
+    name: "bar_id"
+    bitwidth: 32
+  }
+}
+actions {
+  preamble {
+    id: 30755558
+    name: "PreQosPipe.load_bar_attributes"
+    alias: "load_bar_attributes"
+  }
+  params {
+    id: 1
+    name: "ddn_delay"
+    bitwidth: 8
+  }
+  params {
+    id: 2
+    name: "max_pkt_count"
+    bitwidth: 8
   }
 }
 action_profiles {

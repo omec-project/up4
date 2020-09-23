@@ -48,6 +48,8 @@ typedef bit<32> bar_id_t;
 typedef bit<32> qfi_t;
 typedef bit<32> net_instance_t;
 typedef bit<32> counter_index_t;
+typedef bit<8> buff_ddn_delay_t;
+typedef bit<8> buff_pkt_count_t;
 
 
 typedef bit<32> teid_t;
