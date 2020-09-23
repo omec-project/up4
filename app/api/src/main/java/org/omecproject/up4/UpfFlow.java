@@ -164,8 +164,6 @@ public final class UpfFlow {
                         "PFCP session ID of PDR and FAR must match!");
                 checkArgument(pdr.farId() == far.farId(),
                         "FAR ID set by PDR and read by FAR must match!");
-                checkArgument((pdr.isDownlink() && far.isDownlink()) ||
-                        (pdr.isUplink() && far.isUplink()), "PDR and FAR should be the same direction!");
             }
             if (pdr != null) {
                 if (flowStats != null) {
