@@ -294,7 +294,12 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         List<UpfFlow> results = new ArrayList<>();
         for (var builderList : globalFarToSessionBuilder.values()) {
             for (var builder : builderList) {
-                results.add(builder.build());
+                try {
+                    UpfFlow flow = builder.build();
+                    results.add(builder.build());
+                } catch (java.lang.IllegalArgumentException e) {
+                    log.warn("Corrupt UPF flow found in dataplane. Error was {}", e.getMessage());
+                }
             }
         }
         return results;
