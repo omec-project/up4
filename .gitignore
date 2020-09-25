@@ -10,6 +10,7 @@ tmp/
 target/
 onos-tools/
 app/app/src/main/resources/p4info.txt
+app/app/src/main/java/org/omecproject/dbuf/grpc/
 app/mvn_settings.xml
 app/dependencies.xml
 .m2/
