@@ -17,7 +17,6 @@ _docker_pull_all:
 	docker tag ${PTF_IMG}@${PTF_SHA} ${PTF_IMG}
 
 deps: _docker_pull_all
-	cd app && make deps
 
 clean:
 	-rm -rf p4src/build
@@ -27,6 +26,10 @@ clean:
 	-rm -rf app/target
 	-rm -rf app/app/target
 	-rm -rf app/api/target
+
+# Required by tost build scripts - do not remove!
+_prepare_app_build:
+	cd app && make _build_resources
 
 local-app-build:
 	cd app && make local-build
