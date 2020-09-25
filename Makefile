@@ -2,6 +2,9 @@
 #
 # SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
 
+MKFILE_PATH              := $(abspath $(lastword $(MAKEFILE_LIST)))
+CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
+
 main_file := p4src/main.p4
 
 include util/docker/Makefile.vars
