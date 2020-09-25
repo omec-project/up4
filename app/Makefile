@@ -48,6 +48,7 @@ onos-tools:
 	rm tools.tar.gz
 
 app/src/main/resources/p4info.txt: ../p4src/build/p4info.txt
+	mkdir -p app/src/main/resources
 	cp ../p4src/build/p4info.txt app/src/main/resources/p4info.txt
 
 app/external/dbuf/dbuf.proto:
