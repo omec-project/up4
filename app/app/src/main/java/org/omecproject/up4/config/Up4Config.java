@@ -25,6 +25,7 @@ public class Up4Config extends Config<ApplicationId> {
     public static final String DEVICE_ID = "deviceId";
     public static final String UE_POOLS = "uePools";
     public static final String S1U_PREFIX = "s1uPrefix";
+    public static final String DBUF_ADDR = "dbufServiceAddr";
 
     @Override
     public boolean isValid() {
@@ -94,5 +95,14 @@ public class Up4Config extends Config<ApplicationId> {
             uePools.add(Ip4Prefix.valueOf(uePoolString));
         }
         return ImmutableList.copyOf(uePools);
+    }
+
+    /**
+     * Returns the address of the dbuf service (in the form of host:port). Or null if not configured.
+     *
+     * @return he address of the dbuf service
+     */
+    public String dbufAddr() {
+        return get(DBUF_ADDR, null);
     }
 }
