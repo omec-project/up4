@@ -170,6 +170,7 @@ _check:
 	sleep ${ONOS_BOOT_TIME}
 	make onos-config
 	sleep ${CONFIG_WAIT_TIME}
+	make check-dbuf-ready
 	make p4rtsh-program
 	sleep 1
 	@echo "*** Sending downlink..."
@@ -196,6 +197,9 @@ send-uplink:
 	util/mn-cmd pdn /util/traffic.py recv-udp -t ${PKT_WAIT_TIME}
 	@# kill sending process
 	util/mn-cmd enodeb pkill "traffic.py"
+
+check-dbuf-ready:
+	docker-compose logs onos | grep -q "Dbuf service at dbuf:10000 is READY=true"
 
 netcfg:
 	$(info *** Pushing ./util/netcfg.json to ONOS...)
