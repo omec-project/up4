@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
+import static org.glassfish.jersey.internal.guava.Preconditions.checkArgument;
 import static org.omecproject.dbuf.grpc.Dbuf.ModifyQueueRequest.QueueAction.QUEUE_ACTION_RELEASE_AND_PASSTHROUGH;
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -43,10 +44,19 @@ public final class DefaultDbufClient implements DbufClient {
     private final ManagedChannel channel;
     private final DbufSubscribeManager subscribeManager;
 
-    public DefaultDbufClient(String serverHost, int serverPort) {
-        this.serverAddr = String.format("%s:%s", serverHost, serverPort);
+    /**
+     * Creates a new client for the given server address (in the form of host:port), immediately
+     * triggering a connection and Subscribe RPC.
+     *
+     * @param serverAddr server address
+     */
+    public DefaultDbufClient(String serverAddr) {
+        checkArgument(serverAddr != null && !serverAddr.isBlank(), "serverAddr cannot be null or blank");
+        var pieces = serverAddr.split(":");
+        checkArgument(pieces.length == 2, "Invalid serverAddr");
+        this.serverAddr = serverAddr;
         this.channel = NettyChannelBuilder
-                .forAddress(serverHost, serverPort)
+                .forAddress(pieces[0], Integer.parseInt(pieces[1]))
                 .nameResolverFactory(DNS_NAME_RESOLVER_PROVIDER)
                 .defaultLoadBalancingPolicy(LOAD_BALANCING_POLICY)
                 .usePlaintext()
@@ -58,7 +68,13 @@ public final class DefaultDbufClient implements DbufClient {
         // - avoid going IDLE
         channel.getState(true);
         channel.notifyWhenStateChanged(
-                ConnectivityState.CONNECTING, this::channelStateCallback);
+                ConnectivityState.IDLE, this::channelStateCallback);
+        log.info("Created new dbuf client for {}", serverAddr);
+    }
+
+    @Override
+    public String serverAddr() {
+        return this.serverAddr;
     }
 
     @Override
@@ -134,6 +150,7 @@ public final class DefaultDbufClient implements DbufClient {
             log.warn("Client to {} is already shutdown", serverAddr);
             return;
         }
+        log.info("Shutting down client for {}", serverAddr);
         channel.shutdown();
     }
 
@@ -141,16 +158,17 @@ public final class DefaultDbufClient implements DbufClient {
         switch (notification.getMessageTypeCase()) {
             case READY:
                 // TODO: Store dataplane IPv4 and UDP addr
-                log.info("Received READY: {}", notification.getReady());
+                log.info("Dbuf service at {} is READY={} [{}]", serverAddr,
+                        isReady(), TextFormat.shortDebugString(notification.getReady()));
                 break;
             case FIRST_BUFFER:
                 // TODO: notify PFCP agent (DDN)
-                log.info("Received FIRST_BUFFER: {}", notification.getFirstBuffer());
+                log.info("Received FIRST_BUFFER: {}", TextFormat.shortDebugString(notification.getFirstBuffer()));
                 break;
             case DROPPED_PACKET:
                 // Not sure what to do with this. Drop stats should already be reported to Aether
                 // monitoring.
-                log.info("Received DROPPED_PACKET: {}", notification.getDroppedPacket());
+                log.info("Received DROPPED_PACKET: {}", TextFormat.shortDebugString(notification.getDroppedPacket()));
                 break;
             case MESSAGETYPE_NOT_SET:
                 break;
@@ -179,6 +197,7 @@ public final class DefaultDbufClient implements DbufClient {
     // as the channel is not shut down.
     private void channelStateCallback() {
         final ConnectivityState newState = channel.getState(false);
+        log.trace("Channel to {} is in state {}", serverAddr, newState);
         switch (newState) {
             case READY:
                 subscribeManager.subscribe();
@@ -225,9 +244,5 @@ public final class DefaultDbufClient implements DbufClient {
 
     Channel channel() {
         return this.channel;
-    }
-
-    public String serverAddr() {
-        return this.serverAddr;
     }
 }

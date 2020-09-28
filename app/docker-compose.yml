@@ -42,10 +42,19 @@ services:
       - "8181:8181" # HTTP
       - "8101:8101" # SSH (CLI)
       - "51001:51001" # the UP4 app's gRPC server port
+      - "5005:5005" # Java debugger
     volumes:
       - ./tmp/onos:/root/onos/apache-karaf-4.2.8/data/tmp
       - ./tmp/pcaps:/pcaps
     environment:
       - ONOS_APPS=gui2,drivers.bmv2,lldpprovider,hostprovider,pipelines.fabric,segmentrouting,netcfghostprovider,protocols.grpc
+      - JAVA_DEBUG_PORT=0.0.0.0:5005
+    entrypoint: "./bin/onos-service"
+    command: ["debug"]
     links:
       - mininet
+      - dbuf
+  dbuf:
+    image: registry.aetherproject.org/tost/dbuf
+    hostname: dbuf
+    container_name: dbuf

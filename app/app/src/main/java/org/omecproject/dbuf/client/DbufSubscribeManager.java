@@ -4,6 +4,7 @@
  */
 package org.omecproject.dbuf.client;
 
+import com.google.protobuf.TextFormat;
 import io.grpc.Context;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -57,7 +58,7 @@ final class DbufSubscribeManager {
             }
             // Async spawn periodic task start Subscribe RPC, and to make sure
             // it is restarted in case of failures.
-            if (checkTask != null) {
+            if (checkTask == null) {
                 checkTask = streamCheckerExecutor.scheduleAtFixedRate(
                         this::checkSubscription, 0,
                         DEFAULT_RECONNECT_DELAY, TimeUnit.SECONDS);
@@ -123,7 +124,7 @@ final class DbufSubscribeManager {
             try {
                 if (log.isTraceEnabled()) {
                     log.trace("Received Notification from {}: {}",
-                            client.serverAddr(), notification.toString());
+                            client.serverAddr(), TextFormat.shortDebugString(notification));
                 }
                 if (notification.hasReady()) {
                     readyReceived.set(true);

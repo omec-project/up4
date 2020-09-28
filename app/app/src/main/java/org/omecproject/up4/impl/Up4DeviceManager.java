@@ -4,6 +4,8 @@
  */
 package org.omecproject.up4.impl;
 
+import org.omecproject.dbuf.client.DbufClient;
+import org.omecproject.dbuf.client.DefaultDbufClient;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
@@ -76,6 +78,7 @@ public class Up4DeviceManager implements Up4Service {
     private UpfProgrammable upfProgrammable;
     private DeviceId upfDeviceId;
     private Up4Config config;
+    private DbufClient dbufClient;
 
     @Activate
     protected void activate() {
@@ -96,12 +99,13 @@ public class Up4DeviceManager implements Up4Service {
     @Deactivate
     protected void deactivate() {
         log.info("Stopping...");
-        if (upfProgrammableAvailable()) {
-            upfProgrammable.cleanUp(appId);
-        }
         deviceService.removeListener(deviceListener);
         netCfgService.removeListener(netCfgListener);
         netCfgService.unregisterConfigFactory(appConfigFactory);
+        if (upfProgrammableAvailable()) {
+            upfProgrammable.cleanUp(appId);
+        }
+        unsetDbufClient();
         upfInitialized.set(false);
         log.info("Stopped.");
     }
@@ -190,6 +194,7 @@ public class Up4DeviceManager implements Up4Service {
                 upfProgrammable = null;
                 upfInitialized.set(false);
             }
+            unsetDbufClient();
         }
     }
 
@@ -198,8 +203,33 @@ public class Up4DeviceManager implements Up4Service {
             upfDeviceId = config.up4DeviceId();
             this.config = config;
             setUpfDevice(upfDeviceId);
+            setUpDbufClient(config.dbufServiceAddr());
         }
 
+    }
+
+    private void setUpDbufClient(String dbufServiceAddr) {
+        synchronized (this) {
+            if (dbufServiceAddr != null) {
+                if (dbufClient != null && !dbufClient.serverAddr().equals(dbufServiceAddr)) {
+                    log.info("Detected updated address for dbuf service ({}), replacing client",
+                            dbufServiceAddr);
+                    unsetDbufClient();
+                }
+                if (dbufClient == null) {
+                    dbufClient = new DefaultDbufClient(dbufServiceAddr);
+                }
+            }
+        }
+    }
+
+    private void unsetDbufClient() {
+        synchronized (this) {
+            if (dbufClient != null) {
+                dbufClient.shutdown();
+                dbufClient = null;
+            }
+        }
     }
 
     private void updateConfig() {
@@ -210,8 +240,8 @@ public class Up4DeviceManager implements Up4Service {
     }
 
     /**
-     * React to new devices. The first device recognized to have UPF
-     * functionality is taken as the UPF device.
+     * React to new devices. The first device recognized to have UPF functionality is taken as the
+     * UPF device.
      */
     private class InternalDeviceListener implements DeviceListener {
         @Override

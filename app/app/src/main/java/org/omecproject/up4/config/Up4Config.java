@@ -29,7 +29,7 @@ public class Up4Config extends Config<ApplicationId> {
 
     @Override
     public boolean isValid() {
-        return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_PREFIX) &&
+        return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_PREFIX, DBUF_ADDR) &&
                 up4DeviceId() != null &&
                 s1uPrefix() != null &&
                 uePools() != null && !uePools().isEmpty();
@@ -102,7 +102,7 @@ public class Up4Config extends Config<ApplicationId> {
      *
      * @return he address of the dbuf service
      */
-    public String dbufAddr() {
+    public String dbufServiceAddr() {
         return get(DBUF_ADDR, null);
     }
 }
