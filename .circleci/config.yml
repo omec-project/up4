@@ -5,6 +5,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Docker login
+          command: echo ${AETHER_DOCKER_PASSWORD} | docker login registry.aetherproject.org --username ${AETHER_DOCKER_USER}
+      - run:
           name: Dependencies
           command: make deps && cd app && make deps
       - run:
