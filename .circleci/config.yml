@@ -1,20 +1,35 @@
 version: 2.1
 jobs:
-  p4-build-and-test:
-    machine: true
-    steps:
-      - checkout
-      - run: make deps build check
-  app-build-and-test:
+  build-and-test:
     machine: true
     steps:
       - checkout
       - run:
-          name: Build app
-          command: cd app && make deps build-ci
+          name: Dependencies
+          command: make deps && cd app && make deps
+      - run:
+          name: Build P4 program
+          command: make build
+      - run:
+          name: Check if P4Info is up-to-date
+          command: |
+            modified=$(git status --porcelain)
+            if [ -n "$modified" ]; then
+              echo "The following P4 build artifacts do not correspond to the expected ones,"
+              echo "please run the build locally and commit any changes to these files:"
+              echo "$modified"
+              exit 1
+            fi
+      - run:
+          name: Run PTF tests
+          command: make check
+      - run:
+          name: Build ONOS app
+          command: cd app && make build-ci
       - run:
           name: App integration test
           command: cd app && make check-slow
+      # FIXME: Should upload as build artifacts instead of printing on screen
       - run:
           name: Print ONOS logs
           command: cd app && docker logs onos
@@ -28,5 +43,4 @@ jobs:
 workflows:
   main:
     jobs:
-      - p4-build-and-test
-      - app-build-and-test
+      - build-and-test

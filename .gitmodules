@@ -1,0 +1,3 @@
+[submodule "app/app/external/dbuf"]
+	path = app/app/external/dbuf
+	url = git@github.com:omec-project/dbuf.git

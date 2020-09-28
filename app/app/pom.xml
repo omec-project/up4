@@ -3,7 +3,8 @@
  ~ SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
  ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
   -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -202,8 +203,25 @@
                         <Karaf-Commands>org.omecproject.up4.cli</Karaf-Commands>
                         <!-- If using an ONOS X.Y.Z.SNAPSHOT version during development, the variable
                            ~ ${onos.version} must be changed to the literal X.Y.Z -->
-                        <Import-Package>com.google.protobuf;version=${onos.version},*</Import-Package>
+                        <Import-Package>com.google.protobuf;version=${onos.version},*
+                        </Import-Package>
                     </instructions>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <configuration>
+                    <excludes>org/omecproject/dbuf/grpc/*</excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <excludePackageNames>
+                        org.omecproject.dbuf.grpc
+                    </excludePackageNames>
                 </configuration>
             </plugin>
         </plugins>
@@ -220,6 +238,7 @@
                         <configuration>
                             <excludes>
                                 <exclude>org/omecproject/up4/cli/*</exclude>
+                                <exclude>org/omecproject/dbuf/grpc/*</exclude>
                             </excludes>
                         </configuration>
                         <executions>
