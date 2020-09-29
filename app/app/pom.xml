@@ -35,6 +35,8 @@
             org.onosproject.protocols.grpc,
             org.onosproject.protocols.p4runtime
         </onos.app.requires>
+        <!-- Make sure grpc version is in sync with onos/tools/build/bazel/grpc_workspace.bzl-->
+        <onos.grpc.version>1.22.1</onos.grpc.version>
     </properties>
 
     <dependencies>
@@ -106,6 +108,28 @@
             <artifactId>io_grpc_grpc_protobuf</artifactId>
             <version>${onos.version}</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.onosproject</groupId>
+            <artifactId>io_grpc_grpc_protobuf_lite</artifactId>
+            <version>${onos.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.onosproject</groupId>
+            <artifactId>io_grpc_grpc_core_inprocess</artifactId>
+            <version>${onos.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- FIXME: use onos artifact of grpc-testing when one will be added to the build -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-testing</artifactId>
+            <version>${onos.grpc.version}</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -185,6 +209,12 @@
             <classifier>tests</classifier>
         </dependency>
 
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>3.5.13</version>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
 

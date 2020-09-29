@@ -4,6 +4,7 @@
  */
 package org.omecproject.dbuf.client;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.TextFormat;
 import io.grpc.Channel;
 import io.grpc.ConnectivityState;
@@ -51,16 +52,32 @@ public final class DefaultDbufClient implements DbufClient {
      * @param serverAddr server address
      */
     public DefaultDbufClient(String serverAddr) {
+        this(serverAddr, buildChannel(serverAddr));
+    }
+
+    @VisibleForTesting
+    static ManagedChannel buildChannel(String serverAddr) {
         checkArgument(serverAddr != null && !serverAddr.isBlank(), "serverAddr cannot be null or blank");
         var pieces = serverAddr.split(":");
         checkArgument(pieces.length == 2, "Invalid serverAddr");
-        this.serverAddr = serverAddr;
-        this.channel = NettyChannelBuilder
+        return NettyChannelBuilder
                 .forAddress(pieces[0], Integer.parseInt(pieces[1]))
                 .nameResolverFactory(DNS_NAME_RESOLVER_PROVIDER)
                 .defaultLoadBalancingPolicy(LOAD_BALANCING_POLICY)
                 .usePlaintext()
                 .build();
+    }
+
+    /**
+     * Creates a new client for the given channel instance.
+     *
+     * @param serverAddr server address (for logging)
+     * @param channel channel instance
+     */
+    @VisibleForTesting
+    DefaultDbufClient(String serverAddr, ManagedChannel channel) {
+        this.serverAddr = serverAddr;
+        this.channel = channel;
         this.subscribeManager = new DbufSubscribeManager(this);
 
         // Force channel to establish connection to server now, and follow channel state to:
@@ -99,7 +116,7 @@ public final class DefaultDbufClient implements DbufClient {
     }
 
     @Override
-    public CompletableFuture<Boolean> drain(Ip4Address ueAddr, Ip4Address dstAddr, short udpPort) {
+    public CompletableFuture<Boolean> drain(Ip4Address ueAddr, Ip4Address dstAddr, int udpPort) {
         if (!isReady()) {
             log.warn("Client to {} is not ready, cannot drain buffer", serverAddr);
             return CompletableFuture.completedFuture(false);

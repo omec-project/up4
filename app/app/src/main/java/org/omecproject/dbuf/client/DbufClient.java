@@ -54,7 +54,7 @@ public interface DbufClient {
      * @return a completable future of a boolean indicating whether the drain was initiated
      * successfully (true), or not.
      */
-    CompletableFuture<Boolean> drain(Ip4Address ueAddr, Ip4Address dstAddr, short udpPort);
+    CompletableFuture<Boolean> drain(Ip4Address ueAddr, Ip4Address dstAddr, int udpPort);
 
     /**
      * Triggers shutdown of this client, destroy any resources associated to it.
