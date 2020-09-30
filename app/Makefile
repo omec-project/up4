@@ -201,7 +201,7 @@ send-uplink:
 	util/mn-cmd enodeb pkill "traffic.py"
 
 check-dbuf-ready:
-	docker-compose logs onos | grep -q "Dbuf service at dbuf:10000 is READY=true"
+	docker-compose logs onos | grep -q "Dbuf service at mininet:10000 is READY=true"
 
 netcfg:
 	$(info *** Pushing ./util/netcfg.json to ONOS...)
