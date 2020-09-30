@@ -7,5 +7,5 @@ FROM registry.aetherproject.org/tost/dbuf as dbuf
 RUN mkdir /output
 RUN cp $(which dbuf) /output/dbuf
 
-FROM opennetworking/mn-stratum:lates
+FROM opennetworking/mn-stratum:latest
 COPY --from=dbuf /output/dbuf /usr/local/bin
