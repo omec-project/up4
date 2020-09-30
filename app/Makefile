@@ -236,7 +236,7 @@ test-onos-start:
 		-p 8101:8101 \
 		-p 8181:8181 \
 		-p 51001:51001 \
-		onosproject/onos:2.2-latest
+		onosproject/onos:2.2.6-b2
 
 
 test-sw-start:

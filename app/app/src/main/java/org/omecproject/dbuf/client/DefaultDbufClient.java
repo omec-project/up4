@@ -214,7 +214,7 @@ public final class DefaultDbufClient implements DbufClient {
     // as the channel is not shut down.
     private void channelStateCallback() {
         final ConnectivityState newState = channel.getState(false);
-        log.trace("Channel to {} is in state {}", serverAddr, newState);
+        log.info("Channel to {} is in state {}", serverAddr, newState);
         switch (newState) {
             case READY:
                 subscribeManager.subscribe();
