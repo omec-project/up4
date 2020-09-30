@@ -21,7 +21,7 @@ public interface DbufClient {
     String serviceAddr();
 
     /**
-     * Returns true if the dbuf instance is deemed reachable and ready to store buffered packets.
+     * Returns true if the dbuf instance is deemed reachable and ready to buffer packets.
      *
      * @return true if ready, false otherwise
      */
@@ -32,13 +32,13 @@ public interface DbufClient {
      * Data plane packets sent to this address and {@link #dataplaneUdpPort()} will be buffered by
      * dbuf.
      *
-     * @return Pv4 address
+     * @return IPv4 address
      */
     Ip4Address dataplaneIp4Addr();
 
     /**
      * Returns the UDP port used by dbuf to listen for packets to be buffered. Data plane packets
-     * sent to {@link #dataplaneUdpPort()} and this UDP port will be buffered by dbuf.
+     * sent to {@link #dataplaneIp4Addr()} and this UDP port will be buffered by dbuf.
      *
      * @return UDP port
      */
@@ -57,7 +57,7 @@ public interface DbufClient {
     CompletableFuture<Boolean> drain(Ip4Address ueAddr, Ip4Address dstAddr, int udpPort);
 
     /**
-     * Triggers shutdown of this client, destroy any resources associated to it.
+     * Triggers shutdown of this client, destroying any resources associated to it.
      */
     void shutdown();
 
