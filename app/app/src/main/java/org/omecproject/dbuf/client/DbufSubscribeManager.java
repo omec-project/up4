@@ -27,6 +27,9 @@ import static org.slf4j.LoggerFactory.getLogger;
  * A manager for the dbuf Subscribe RPC that opportunistically starts new RPC (e.g. when one fails
  * because of errors) and relays notification to the client.
  */
+// TODO: create ONOS abstract class to manage gRPC stream RPCS.
+//  There's enough commonality between this one and ONOS's GnmiSubscriptionManager to justify such
+//  common abstract class.
 final class DbufSubscribeManager {
 
     private static final long DEFAULT_RECONNECT_DELAY = 5; // Seconds
@@ -129,7 +132,8 @@ final class DbufSubscribeManager {
                 if (notification.hasReady()) {
                     readyReceived.set(true);
                 }
-                client.handleNotification(notification);
+                client.
+                        handleNotification(notification);
             } catch (Throwable ex) {
                 log.error("Exception processing Notification from " + client.serviceAddr(),
                         ex);

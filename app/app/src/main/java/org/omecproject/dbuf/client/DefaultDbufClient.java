@@ -215,7 +215,7 @@ public final class DefaultDbufClient implements DbufClient {
                 subscribeManager.subscribe();
                 break;
             case IDLE:
-                log.info("Forcing channel to {} to exist state IDLE...", serviceAddr);
+                log.info("Forcing channel to {} to exit state IDLE...", serviceAddr);
                 channel.getState(true);
                 break;
             case SHUTDOWN:
