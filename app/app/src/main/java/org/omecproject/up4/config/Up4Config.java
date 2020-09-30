@@ -8,10 +8,12 @@ package org.omecproject.up4.config;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.collect.ImmutableList;
+import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.config.Config;
+import org.onosproject.net.config.InvalidFieldException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,15 +27,28 @@ public class Up4Config extends Config<ApplicationId> {
     public static final String DEVICE_ID = "deviceId";
     public static final String UE_POOLS = "uePools";
     public static final String S1U_PREFIX = "s1uPrefix";
-    public static final String DBUF_ADDR = "dbufServiceAddr";
+    // Eventually, we will have to support multiple dbuf instances, in which case it might make more
+    // sense to have a dedicated config class with an array of dbuf instances.
+    public static final String DBUF_SERVICE_ADDR = "dbufServiceAddr";
+    public static final String DBUF_DATAPLANE_ADDR = "dbufDataplaneAddr";
 
     @Override
     public boolean isValid() {
-        return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_PREFIX, DBUF_ADDR) &&
-                up4DeviceId() != null &&
-                s1uPrefix() != null &&
-                uePools() != null && !uePools().isEmpty();
+        return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_PREFIX, DBUF_SERVICE_ADDR, DBUF_DATAPLANE_ADDR) &&
+                // Mandatory fields.
+                hasFields(DEVICE_ID, UE_POOLS, S1U_PREFIX) &&
+                !uePools().isEmpty() &&
+                isDbufConfigValid();
+    }
 
+    private boolean isDbufConfigValid() {
+        // Both fields must null or present and valid.
+        if (dbufServiceAddr() == null && dbufDataplaneAddr() == null) {
+            return true;
+        }
+        return hasFields(DBUF_SERVICE_ADDR, DBUF_DATAPLANE_ADDR) &&
+                isValidAddrString(dbufServiceAddr(), false) &&
+                isValidAddrString(dbufDataplaneAddr(), true);
     }
 
     /**
@@ -89,7 +104,7 @@ public class Up4Config extends Config<ApplicationId> {
         ArrayNode uePoolsNode = (ArrayNode) object.path(UE_POOLS);
         for (JsonNode uePoolNode : uePoolsNode) {
             String uePoolString = uePoolNode.asText("");
-            if (uePoolString == "") {
+            if (uePoolString.equals("")) {
                 return null;
             }
             uePools.add(Ip4Prefix.valueOf(uePoolString));
@@ -98,11 +113,48 @@ public class Up4Config extends Config<ApplicationId> {
     }
 
     /**
-     * Returns the address of the dbuf service (in the form of host:port). Or null if not configured.
+     * Returns the address of the dbuf service (in the form of host:port). Or null if not
+     * configured.
      *
-     * @return he address of the dbuf service
+     * @return the address of the dbuf service
      */
     public String dbufServiceAddr() {
-        return get(DBUF_ADDR, null);
+        return get(DBUF_SERVICE_ADDR, null);
+    }
+
+    /**
+     * Returns the address of the dbuf dataplane interface (in the form of host:port). Or null if
+     * not configured. The host part is guaranteed to be a valid IPv4 address.
+     *
+     * @return the address of the dbuf dataplane interface
+     */
+    public String dbufDataplaneAddr() {
+        return get(DBUF_DATAPLANE_ADDR, null);
+    }
+
+    static boolean isValidAddrString(String addr, boolean mustBeIp4Addr) {
+        if (addr.isBlank()) {
+            throw new InvalidFieldException(addr, "address string cannot be blank");
+        }
+        final var pieces = addr.split(":");
+        if (pieces.length != 2) {
+            throw new InvalidFieldException(addr, "invalid address, must be host:port");
+        }
+        if (mustBeIp4Addr) {
+            try {
+                Ip4Address.valueOf(pieces[0]);
+            } catch (IllegalArgumentException e) {
+                throw new InvalidFieldException(addr, "invalid IPv4 address");
+            }
+        }
+        try {
+            final int port = Integer.parseInt(pieces[1]);
+            if (port <= 0) {
+                throw new InvalidFieldException(addr, "invalid port number");
+            }
+        } catch (NumberFormatException e) {
+            throw new InvalidFieldException(addr, "invalid port number");
+        }
+        return true;
     }
 }

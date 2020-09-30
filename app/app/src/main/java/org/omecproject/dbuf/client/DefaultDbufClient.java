@@ -23,7 +23,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
-import static org.glassfish.jersey.internal.guava.Preconditions.checkArgument;
 import static org.omecproject.dbuf.grpc.Dbuf.ModifyQueueRequest.QueueAction.QUEUE_ACTION_RELEASE_AND_PASSTHROUGH;
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -41,25 +40,30 @@ public final class DefaultDbufClient implements DbufClient {
             Dbuf.ModifyQueueResponse.getDefaultInstance();
 
     private final Logger log = getLogger(getClass());
-    private final String serverAddr;
+    private final String serviceAddr;
     private final ManagedChannel channel;
     private final DbufSubscribeManager subscribeManager;
+    private final Ip4Address dataplaneIp4Addr;
+    private final int dataplaneUdpPort;
 
     /**
-     * Creates a new client for the given server address (in the form of host:port), immediately
-     * triggering a connection and Subscribe RPC.
+     * Creates a new client for the given gRPC service address and dataplane address (both in the
+     * form of host:port), immediately triggering a connection to the gRPC service and Subscribe
+     * RPC.
+     * <p>
+     * The host part of dataplaneAddr must be a valid IPv4 address.
      *
-     * @param serverAddr server address
+     * @param serviceAddr   service address
+     * @param dataplaneAddr dataplane address
      */
-    public DefaultDbufClient(String serverAddr) {
-        this(serverAddr, buildChannel(serverAddr));
+    public DefaultDbufClient(String serviceAddr, String dataplaneAddr) {
+        this(serviceAddr, buildChannel(serviceAddr), dataplaneAddr);
     }
 
     @VisibleForTesting
-    static ManagedChannel buildChannel(String serverAddr) {
-        checkArgument(serverAddr != null && !serverAddr.isBlank(), "serverAddr cannot be null or blank");
-        var pieces = serverAddr.split(":");
-        checkArgument(pieces.length == 2, "Invalid serverAddr");
+    static ManagedChannel buildChannel(String serviceAddr) {
+        // Address string is validated at netcfg-level (see Up4Config)
+        final var pieces = serviceAddr.split(":");
         return NettyChannelBuilder
                 .forAddress(pieces[0], Integer.parseInt(pieces[1]))
                 .nameResolverFactory(DNS_NAME_RESOLVER_PROVIDER)
@@ -68,17 +72,14 @@ public final class DefaultDbufClient implements DbufClient {
                 .build();
     }
 
-    /**
-     * Creates a new client for the given channel instance.
-     *
-     * @param serverAddr server address (for logging)
-     * @param channel channel instance
-     */
     @VisibleForTesting
-    DefaultDbufClient(String serverAddr, ManagedChannel channel) {
-        this.serverAddr = serverAddr;
+    DefaultDbufClient(String serviceAddr, ManagedChannel channel, String dataplaneAddr) {
+        this.serviceAddr = serviceAddr;
         this.channel = channel;
         this.subscribeManager = new DbufSubscribeManager(this);
+        final var pieces = dataplaneAddr.split(":");
+        this.dataplaneIp4Addr = Ip4Address.valueOf(pieces[0]);
+        this.dataplaneUdpPort = Integer.parseInt(pieces[1]);
 
         // Force channel to establish connection to server now, and follow channel state to:
         // - start Subscribe RPC once channel is READY
@@ -86,12 +87,12 @@ public final class DefaultDbufClient implements DbufClient {
         channel.getState(true);
         channel.notifyWhenStateChanged(
                 ConnectivityState.IDLE, this::channelStateCallback);
-        log.info("Created new dbuf client for {}", serverAddr);
+        log.info("Created new dbuf client for {}", serviceAddr);
     }
 
     @Override
-    public String serverAddr() {
-        return this.serverAddr;
+    public String serviceAddr() {
+        return this.serviceAddr;
     }
 
     @Override
@@ -101,24 +102,18 @@ public final class DefaultDbufClient implements DbufClient {
 
     @Override
     public Ip4Address dataplaneIp4Addr() {
-        // TODO: implement once we find a way to expose the data plane IP address from the dbuf
-        // service.
-        log.error("dataplaneIp4Addr(): unimplemented");
-        return null;
+        return this.dataplaneIp4Addr;
     }
 
     @Override
     public int dataplaneUdpPort() {
-        // TODO: implement once we find a way to expose the data plane IP address from the dbuf
-        // service.
-        log.error("dataplaneUdpPort(): unimplemented");
-        return 0;
+        return this.dataplaneUdpPort;
     }
 
     @Override
     public CompletableFuture<Boolean> drain(Ip4Address ueAddr, Ip4Address dstAddr, int udpPort) {
         if (!isReady()) {
-            log.warn("Client to {} is not ready, cannot drain buffer", serverAddr);
+            log.warn("Client to {} is not ready, cannot drain buffer", serviceAddr);
             return CompletableFuture.completedFuture(false);
         }
 
@@ -135,7 +130,7 @@ public final class DefaultDbufClient implements DbufClient {
             public void onNext(Dbuf.ModifyQueueResponse value) {
                 if (!DEFAULT_MODIFY_QUEUE_RESPONSE.equals(value)) {
                     log.warn("Received invalid ModifyQueueResponse from {} [{}]",
-                            serverAddr,
+                            serviceAddr,
                             TextFormat.shortDebugString(value));
                     future.complete(false);
                 }
@@ -164,10 +159,10 @@ public final class DefaultDbufClient implements DbufClient {
     @Override
     public void shutdown() {
         if (channel.isShutdown()) {
-            log.warn("Client to {} is already shutdown", serverAddr);
+            log.warn("Client to {} is already shutdown", serviceAddr);
             return;
         }
-        log.info("Shutting down client for {}", serverAddr);
+        log.info("Shutting down client for {}", serviceAddr);
         channel.shutdown();
     }
 
@@ -175,7 +170,7 @@ public final class DefaultDbufClient implements DbufClient {
         switch (notification.getMessageTypeCase()) {
             case READY:
                 // TODO: Store dataplane IPv4 and UDP addr
-                log.info("Dbuf service at {} is READY={} [{}]", serverAddr,
+                log.info("Dbuf service at {} is READY={} [{}]", serviceAddr,
                         isReady(), TextFormat.shortDebugString(notification.getReady()));
                 break;
             case FIRST_BUFFER:
@@ -214,13 +209,13 @@ public final class DefaultDbufClient implements DbufClient {
     // as the channel is not shut down.
     private void channelStateCallback() {
         final ConnectivityState newState = channel.getState(false);
-        log.info("Channel to {} is in state {}", serverAddr, newState);
+        log.info("Channel to {} is in state {}", serviceAddr, newState);
         switch (newState) {
             case READY:
                 subscribeManager.subscribe();
                 break;
             case IDLE:
-                log.info("Forcing channel to {} to exist state IDLE...", serverAddr);
+                log.info("Forcing channel to {} to exist state IDLE...", serviceAddr);
                 channel.getState(true);
                 break;
             case SHUTDOWN:
@@ -251,12 +246,12 @@ public final class DefaultDbufClient implements DbufClient {
                 logMsg = format("%s (%s)", sre.getMessage(), sre.getCause().toString());
             }
             log.warn("Error while performing {} on {}: {}",
-                    opDescription, serverAddr, logMsg);
+                    opDescription, serviceAddr, logMsg);
             log.debug("", throwable);
             return;
         }
         log.error(format("Exception while performing %s on %s",
-                opDescription, serverAddr), throwable);
+                opDescription, serviceAddr), throwable);
     }
 
     Channel channel() {

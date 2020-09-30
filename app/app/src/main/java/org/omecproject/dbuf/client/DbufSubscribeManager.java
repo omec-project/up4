@@ -53,7 +53,7 @@ final class DbufSubscribeManager {
             subscribeRequested.set(true);
             if (!isCancelled()) {
                 log.debug("Cancelling existing subscription for {} before " +
-                        "starting a new one", client.serverAddr());
+                        "starting a new one", client.serviceAddr());
                 cancel();
             }
             // Async spawn periodic task start Subscribe RPC, and to make sure
@@ -70,14 +70,14 @@ final class DbufSubscribeManager {
         synchronized (this) {
             if (subscribeRequested.get() && isCancelled()) {
                 if (client.isServerReachable()) {
-                    log.info("Starting Subscribe RPC for {}...", client.serverAddr());
+                    log.info("Starting Subscribe RPC for {}...", client.serviceAddr());
                     rpcContext = Context.current().withCancellation();
                     rpcContext.run(() -> DbufServiceGrpc.newStub(client.channel())
                             .subscribe(Dbuf.SubscribeRequest.getDefaultInstance(),
                                     responseObserver));
                 } else {
                     log.debug("Not starting Subscribe RPC for {}, server is NOT reachable",
-                            client.serverAddr());
+                            client.serviceAddr());
                 }
             }
         }
@@ -103,7 +103,7 @@ final class DbufSubscribeManager {
 
     public void shutdown() {
         synchronized (this) {
-            log.debug("Shutting down subscription manager for {}", client.serverAddr());
+            log.debug("Shutting down subscription manager for {}", client.serviceAddr());
             subscribeRequested.set(false);
             if (checkTask != null) {
                 checkTask.cancel(false);
@@ -124,14 +124,14 @@ final class DbufSubscribeManager {
             try {
                 if (log.isTraceEnabled()) {
                     log.trace("Received Notification from {}: {}",
-                            client.serverAddr(), TextFormat.shortDebugString(notification));
+                            client.serviceAddr(), TextFormat.shortDebugString(notification));
                 }
                 if (notification.hasReady()) {
                     readyReceived.set(true);
                 }
                 client.handleNotification(notification);
             } catch (Throwable ex) {
-                log.error("Exception processing Notification from " + client.serverAddr(),
+                log.error("Exception processing Notification from " + client.serviceAddr(),
                         ex);
             }
         }
@@ -142,21 +142,21 @@ final class DbufSubscribeManager {
                 StatusRuntimeException sre = (StatusRuntimeException) throwable;
                 if (sre.getStatus().getCause() instanceof ConnectException) {
                     log.warn("{} is unreachable ({})",
-                            client.serverAddr(), sre.getCause().getMessage());
+                            client.serviceAddr(), sre.getCause().getMessage());
                 } else {
                     log.warn("Error on Subscribe RPC for {}: {}",
-                            client.serverAddr(), throwable.getMessage());
+                            client.serviceAddr(), throwable.getMessage());
                 }
             } else {
                 log.error(format("Exception on Subscribe RPC for %s",
-                        client.serverAddr()), throwable);
+                        client.serviceAddr()), throwable);
             }
             cancel();
         }
 
         @Override
         public void onCompleted() {
-            log.warn("Subscribe RPC for {} has completed", client.serverAddr());
+            log.warn("Subscribe RPC for {} has completed", client.serviceAddr());
             cancel();
         }
     }

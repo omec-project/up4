@@ -14,11 +14,11 @@ import java.util.concurrent.CompletableFuture;
 public interface DbufClient {
 
     /**
-     * Returns the address of the server associated with this client.
+     * Returns the address of the gRPC service associated with this client.
      *
-     * @return server address in the form host:port
+     * @return gRPC server address in the form host:port
      */
-    String serverAddr();
+    String serviceAddr();
 
     /**
      * Returns true if the dbuf instance is deemed reachable and ready to store buffered packets.

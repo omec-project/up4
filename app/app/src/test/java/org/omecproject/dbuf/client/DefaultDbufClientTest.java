@@ -33,11 +33,14 @@ import static org.mockito.Mockito.verify;
  */
 public class DefaultDbufClientTest {
 
-    private static final Ip4Address UE_ADDR = Ip4Address.valueOf("1.1.1.1");
-    private static final Ip4Address INVALID_UE_ADDR = Ip4Address.valueOf("0.0.0.0");
-    private static final Ip4Address UPF_GTP_ADDR = Ip4Address.valueOf("2.2.2.2");
+    private static final Ip4Address UE_IP4_ADDR = Ip4Address.valueOf("1.1.1.1");
+    private static final Ip4Address INVALID_UE_IP4_ADDR = Ip4Address.valueOf("0.0.0.0");
+    private static final Ip4Address UPF_GTP_IP4_ADDR = Ip4Address.valueOf("2.2.2.2");
     private static final int UPF_GTP_UDP_PORT = 2152;
-    private static final String UPF_GTP_DST_ADDR = "2.2.2.2:2152";
+    private static final String UPF_GTP_ADDR_STRING = "2.2.2.2:2152";
+    private static final Ip4Address DBUF_DATAPLANE_IP4_ADDR = Ip4Address.valueOf("3.3.3.3");
+    private static final int DBUF_DATAPLANE_UDP_PORT = 2152;
+    private static final String DBUF_DATAPLANE_ADDR_STRING = "3.3.3.3:2152";
 
     // This rule manages automatic graceful shutdown for the registered servers and channels at the
     // end of test.
@@ -53,7 +56,7 @@ public class DefaultDbufClientTest {
                         public void modifyQueue(
                                 Dbuf.ModifyQueueRequest request,
                                 StreamObserver<Dbuf.ModifyQueueResponse> responseObserver) {
-                            if (request.getQueueId() == UE_ADDR.toInt()) {
+                            if (request.getQueueId() == UE_IP4_ADDR.toInt()) {
                                 responseObserver.onNext(Dbuf.ModifyQueueResponse.getDefaultInstance());
                                 responseObserver.onCompleted();
                             } else {
@@ -90,7 +93,7 @@ public class DefaultDbufClientTest {
                 InProcessChannelBuilder.forName(serverName).directExecutor().build());
 
         // Create a client using the in-process channel;
-        client = new DefaultDbufClient("dummy", channel);
+        client = new DefaultDbufClient("dummy", channel, DBUF_DATAPLANE_ADDR_STRING);
 
         // Wait for channel to be ready.
         Thread.sleep(500);
@@ -105,53 +108,44 @@ public class DefaultDbufClientTest {
         Assert.assertTrue(client.isReady());
     }
 
-
     @Test
     public void testDrain() throws ExecutionException, InterruptedException {
-        final var future = client.drain(UE_ADDR, UPF_GTP_ADDR, UPF_GTP_UDP_PORT);
+        final var future = client.drain(UE_IP4_ADDR, UPF_GTP_IP4_ADDR, UPF_GTP_UDP_PORT);
         // Verify message delivered to server.
         ArgumentCaptor<Dbuf.ModifyQueueRequest> requestCaptor =
                 ArgumentCaptor.forClass(Dbuf.ModifyQueueRequest.class);
         verify(serviceImpl).modifyQueue(requestCaptor.capture(), ArgumentMatchers.any());
-        Assert.assertEquals(UPF_GTP_DST_ADDR, requestCaptor.getValue().getDestinationAddress());
-        Assert.assertEquals(UE_ADDR.toInt(), requestCaptor.getValue().getQueueId());
+        Assert.assertEquals(UPF_GTP_ADDR_STRING, requestCaptor.getValue().getDestinationAddress());
+        Assert.assertEquals(UE_IP4_ADDR.toInt(), requestCaptor.getValue().getQueueId());
         // Return result should be true.
         Assert.assertTrue(future.get());
     }
 
     @Test
     public void testDrainInvalidUeAddr() throws ExecutionException, InterruptedException {
-        final var future = client.drain(INVALID_UE_ADDR, UPF_GTP_ADDR, UPF_GTP_UDP_PORT);
+        final var future = client.drain(INVALID_UE_IP4_ADDR, UPF_GTP_IP4_ADDR, UPF_GTP_UDP_PORT);
         ArgumentCaptor<Dbuf.ModifyQueueRequest> requestCaptor =
                 ArgumentCaptor.forClass(Dbuf.ModifyQueueRequest.class);
         verify(serviceImpl).modifyQueue(requestCaptor.capture(), ArgumentMatchers.any());
-        Assert.assertEquals(UPF_GTP_DST_ADDR, requestCaptor.getValue().getDestinationAddress());
-        Assert.assertEquals(INVALID_UE_ADDR.toInt(), requestCaptor.getValue().getQueueId());
+        Assert.assertEquals(UPF_GTP_ADDR_STRING, requestCaptor.getValue().getDestinationAddress());
+        Assert.assertEquals(INVALID_UE_IP4_ADDR.toInt(), requestCaptor.getValue().getQueueId());
         Assert.assertFalse(future.get());
     }
 
     @Test
     public void testDataplaneIp4Addr() {
-        // TODO: unimplemented
-        Assert.assertNull(client.dataplaneIp4Addr());
+        Assert.assertEquals(DBUF_DATAPLANE_IP4_ADDR, client.dataplaneIp4Addr());
     }
 
     @Test
     public void testDataplaneUdpPort() {
-        // TODO: unimplemented
-        Assert.assertEquals(0, client.dataplaneUdpPort());
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testBuildChannelInvalidAddr() {
-        final var channel = DefaultDbufClient.buildChannel("not-a-valid-addr");
-        Assert.assertNotNull(channel);
-        channel.shutdown();
-        Assert.assertTrue(channel.isShutdown());
+        Assert.assertEquals(DBUF_DATAPLANE_UDP_PORT, client.dataplaneUdpPort());
     }
 
     @After
     public void tearDown() {
-        client.shutdown();
+        if (client != null) {
+            client.shutdown();
+        }
     }
 }

@@ -105,7 +105,7 @@ public class Up4DeviceManager implements Up4Service {
         if (upfProgrammableAvailable()) {
             upfProgrammable.cleanUp(appId);
         }
-        unsetDbufClient();
+        teardownDbufClient();
         upfInitialized.set(false);
         log.info("Stopped.");
     }
@@ -194,7 +194,7 @@ public class Up4DeviceManager implements Up4Service {
                 upfProgrammable = null;
                 upfInitialized.set(false);
             }
-            unsetDbufClient();
+            teardownDbufClient();
         }
     }
 
@@ -203,27 +203,27 @@ public class Up4DeviceManager implements Up4Service {
             upfDeviceId = config.up4DeviceId();
             this.config = config;
             setUpfDevice(upfDeviceId);
-            setUpDbufClient(config.dbufServiceAddr());
+            setUpDbufClient(config.dbufServiceAddr(), config.dbufDataplaneAddr());
         }
 
     }
 
-    private void setUpDbufClient(String dbufServiceAddr) {
+    private void setUpDbufClient(String serviceAddr, String dataplaneAddr) {
         synchronized (this) {
-            if (dbufServiceAddr != null) {
-                if (dbufClient != null && !dbufClient.serverAddr().equals(dbufServiceAddr)) {
+            if (serviceAddr != null) {
+                if (dbufClient != null && !dbufClient.serviceAddr().equals(serviceAddr)) {
                     log.info("Detected updated address for dbuf service ({}), replacing client",
-                            dbufServiceAddr);
-                    unsetDbufClient();
+                            serviceAddr);
+                    teardownDbufClient();
                 }
                 if (dbufClient == null) {
-                    dbufClient = new DefaultDbufClient(dbufServiceAddr);
+                    dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr);
                 }
             }
         }
     }
 
-    private void unsetDbufClient() {
+    private void teardownDbufClient() {
         synchronized (this) {
             if (dbufClient != null) {
                 dbufClient.shutdown();
