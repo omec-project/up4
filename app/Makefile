@@ -38,6 +38,7 @@ _docker_pull_all:
 	docker pull ${PROTOC_IMG}
 
 deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto
+	docker-compose build
 
 onos-ui:
 	open ${onos_url}/ui

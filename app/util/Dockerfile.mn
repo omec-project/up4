@@ -7,5 +7,6 @@ FROM registry.aetherproject.org/tost/dbuf as dbuf
 RUN mkdir /output
 RUN cp $(which dbuf) /output/dbuf
 
-FROM opennetworking/mn-stratum:latest
+# Why are we not using opennetworking/mn-stratum:latest?
+FROM opennetworking/ngsdn-tutorial:stratum_bmv2
 COPY --from=dbuf /output/dbuf /usr/local/bin
