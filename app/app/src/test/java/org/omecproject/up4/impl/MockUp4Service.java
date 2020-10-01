@@ -31,6 +31,10 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
+    public void installInterfaces() {
+    }
+
+    @Override
     public boolean isUpfDevice(DeviceId deviceId) {
         return true;
     }
