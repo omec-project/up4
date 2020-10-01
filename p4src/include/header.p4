@@ -114,11 +114,17 @@ struct pdr_metadata_t {
     counter_index_t ctr_idx;
 }
 
-// Data associated with Buffering nad QoS
-struct shaping_metadata_t {
+struct bar_metadata_t {
     bar_id_t bar_id;
-    qer_id_t qer_id;
+    bit<32> ddn_delay_ms;
+    bit<32> buffering_duration;
+    bit<32> suggest_pkt_count;
     bool needs_buffering;
+}
+
+// Data associated with Buffering nad QoS
+struct qer_metadata_t {
+    qer_id_t qer_id;
     bool needs_qos;
 }
 
@@ -172,9 +178,10 @@ struct local_metadata_t {
 
     net_instance_t net_instance;
 
-    shaping_metadata_t shaping;
-    far_metadata_t far;
     pdr_metadata_t pdr;
+    far_metadata_t far;
+    bar_metadata_t bar;
+    qer_metadata_t qer;
 }
 
 
