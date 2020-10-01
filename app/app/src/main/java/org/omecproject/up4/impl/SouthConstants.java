@@ -37,6 +37,8 @@ public final class SouthConstants {
             PiActionId.of("FabricIngress.spgw_ingress.load_normal_far_attributes");
     public static final PiActionId LOAD_FAR_TUNNEL =
             PiActionId.of("FabricIngress.spgw_ingress.load_tunnel_far_attributes");
+    public static final PiActionId LOAD_FAR_BUFFER =
+            PiActionId.of("FabricIngress.spgw_ingress.load_dbuf_far_attributes");
     // Match key names
     //   interface lookup
     public static final PiMatchFieldId GTPU_IS_VALID = PiMatchFieldId.of("gtpu_is_valid");

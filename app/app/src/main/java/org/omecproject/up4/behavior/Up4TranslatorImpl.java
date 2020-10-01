@@ -6,9 +6,9 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
-import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
+import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.impl.NorthConstants;
 import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
@@ -49,7 +49,8 @@ import java.util.Objects;
 public class Up4TranslatorImpl implements Up4Translator {
     private final Logger log = LoggerFactory.getLogger(getClass());
     // Maps local FAR IDs to global FAR IDs
-    protected final BiMap<UpfRuleIdentifier, Integer> farIdMapper = HashBiMap.create();;
+    protected final BiMap<UpfRuleIdentifier, Integer> farIdMapper = HashBiMap.create();
+    ;
     private int nextGlobalFarId = 1;
 
     private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
@@ -215,17 +216,23 @@ public class Up4TranslatorImpl implements Up4Translator {
         farBuilder.withDropFlag(dropFlag)
                 .withNotifyFlag(notifyFlag);
 
-        if (TranslatorUtil.paramIsPresent(action, SouthConstants.TEID_PARAM)) {
+        PiActionId actionId = action.id();
+
+        if (actionId.equals(SouthConstants.LOAD_FAR_TUNNEL) || actionId.equals(SouthConstants.LOAD_FAR_BUFFER)) {
             // Grab parameters specific to downlink FARs if they're present
             Ip4Address tunnelSrc = TranslatorUtil.getParamAddress(action, SouthConstants.TUNNEL_SRC_PARAM);
             Ip4Address tunnelDst = TranslatorUtil.getParamAddress(action, SouthConstants.TUNNEL_DST_PARAM);
             ImmutableByteSequence teid = TranslatorUtil.getParamValue(action, SouthConstants.TEID_PARAM);
 
-            farBuilder.withTunnel(GtpTunnel.builder()
-                    .setSrc(tunnelSrc)
-                    .setDst(tunnelDst)
-                    .setTeid(teid)
-                    .build());
+            boolean farBuffers = actionId.equals(SouthConstants.LOAD_FAR_BUFFER);
+
+            farBuilder.withTunnel(
+                    GtpTunnel.builder()
+                            .setSrc(tunnelSrc)
+                            .setDst(tunnelDst)
+                            .setTeid(teid)
+                            .build())
+                    .withBufferFlag(farBuffers);
         }
         return farBuilder.build();
     }
@@ -250,9 +257,10 @@ public class Up4TranslatorImpl implements Up4Translator {
             if (actionId.equals(NorthConstants.LOAD_FAR_TUNNEL)) {
                 // Parameters exclusive to a downlink FAR
                 farBuilder.withTunnel(
-                        TranslatorUtil.getParamAddress(entry, NorthConstants.TUNNEL_SRC_PARAM),
-                        TranslatorUtil.getParamAddress(entry, NorthConstants.TUNNEL_DST_PARAM),
-                        TranslatorUtil.getParamValue(entry, NorthConstants.TEID_PARAM));
+                                TranslatorUtil.getParamAddress(entry, NorthConstants.TUNNEL_SRC_PARAM),
+                                TranslatorUtil.getParamAddress(entry, NorthConstants.TUNNEL_DST_PARAM),
+                                TranslatorUtil.getParamValue(entry, NorthConstants.TEID_PARAM))
+                        .withBufferFlag(TranslatorUtil.getParamInt(entry, NorthConstants.BUFFER_FLAG) > 0);
             }
         }
         return farBuilder.build();
@@ -311,8 +319,9 @@ public class Up4TranslatorImpl implements Up4Translator {
 
         } else if (far.isDownlink()) {
             // TODO: copy tunnel destination port from logical switch write requests, instead of hardcoding 2152
+            PiActionId actionId = far.bufferFlag() ? SouthConstants.LOAD_FAR_BUFFER : SouthConstants.LOAD_FAR_TUNNEL;
             action = PiAction.builder()
-                    .withId(SouthConstants.LOAD_FAR_TUNNEL)
+                    .withId(actionId)
                     .withParameters(Arrays.asList(
                             new PiActionParam(SouthConstants.DROP_FLAG, far.dropFlag() ? 1 : 0),
                             new PiActionParam(SouthConstants.NOTIFY_FLAG, far.notifyCpFlag() ? 1 : 0),
@@ -419,20 +428,22 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiMatchKey matchKey;
         PiAction action;
         ImmutableByteSequence zeroByte = ImmutableByteSequence.ofZeros(1);
+        ImmutableByteSequence oneByte = ImmutableByteSequence.ofOnes(1);
         if (far.isUplink()) {
             action = PiAction.builder()
                     .withId(NorthConstants.LOAD_FAR_NORMAL)
                     .withParameters(Arrays.asList(
-                            new PiActionParam(NorthConstants.DROP_FLAG, zeroByte),
-                            new PiActionParam(NorthConstants.NOTIFY_FLAG, zeroByte)
+                            new PiActionParam(NorthConstants.DROP_FLAG, far.dropFlag() ? oneByte : zeroByte),
+                            new PiActionParam(NorthConstants.NOTIFY_FLAG, far.notifyCpFlag() ? oneByte : zeroByte)
                     ))
                     .build();
         } else if (far.isDownlink()) {
             action = PiAction.builder()
                     .withId(NorthConstants.LOAD_FAR_TUNNEL)
                     .withParameters(Arrays.asList(
-                            new PiActionParam(NorthConstants.DROP_FLAG, zeroByte),
-                            new PiActionParam(NorthConstants.NOTIFY_FLAG, zeroByte),
+                            new PiActionParam(NorthConstants.DROP_FLAG, far.dropFlag() ? oneByte : zeroByte),
+                            new PiActionParam(NorthConstants.NOTIFY_FLAG, far.notifyCpFlag() ? oneByte : zeroByte),
+                            new PiActionParam(NorthConstants.BUFFER_FLAG, far.bufferFlag() ? oneByte : zeroByte),
                             new PiActionParam(NorthConstants.TUNNEL_TYPE_PARAM,
                                     toImmutableByte(NorthConstants.TUNNEL_TYPE_GTPU)),
                             new PiActionParam(NorthConstants.TUNNEL_SRC_PARAM, far.tunnelSrc().toInt()),

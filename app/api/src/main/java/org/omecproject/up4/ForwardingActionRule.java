@@ -27,16 +27,18 @@ public final class ForwardingActionRule {
     // Action parameters
     private final Boolean drop;  // Should this FAR drop packets?
     private final Boolean notifyCp;  // Should this FAR notify the control plane when it sees a packet?
+    private final boolean buffer;   // Should this FAR buffer incoming packets?
     private final GtpTunnel tunnelDesc;  // The GTP tunnel that this FAR should encapsulate packets with (if downlink)
     private final Type type;  // Is the FAR Uplink, Downlink, etc
 
     private static final int SESSION_ID_BITWIDTH = 96;
 
     private ForwardingActionRule(ImmutableByteSequence sessionId, Integer farId,
-                                 Boolean drop, Boolean notifyCp, GtpTunnel tunnelDesc, Type type) {
+                                 Boolean drop, Boolean notifyCp, boolean buffer, GtpTunnel tunnelDesc, Type type) {
         this.sessionId = sessionId;
         this.farId = farId;
         this.drop = drop;
+        this.buffer = buffer;
         this.notifyCp = notifyCp;
         this.tunnelDesc = tunnelDesc;
         this.type = type;
@@ -156,6 +158,16 @@ public final class ForwardingActionRule {
         return notifyCp;
     }
 
+
+    /**
+     * Returns true if this FAR buffers incoming packets, and false otherwise.
+     *
+     * @return true if this FAR buffers
+     */
+    public boolean bufferFlag() {
+        return buffer;
+    }
+
     /**
      * A description of the tunnel that this FAR will encapsulate packets with, if it is a downlink FAR. If the FAR
      * is uplink, there will be no such tunnel and this method wil return null.
@@ -222,6 +234,7 @@ public final class ForwardingActionRule {
         private Integer farId;
         private Boolean drop;
         private Boolean notifyCp;
+        private boolean buffer;
         private GtpTunnel tunnelDesc;
 
         public Builder() {
@@ -230,6 +243,7 @@ public final class ForwardingActionRule {
             drop = null;
             notifyCp = null;
             tunnelDesc = null;
+            buffer = false;
         }
 
         /**
@@ -307,6 +321,17 @@ public final class ForwardingActionRule {
         }
 
         /**
+         * Set a flag specifying if this FAR should buffer incoming packets.
+         *
+         * @param buffer true if this FAR buffers packets
+         * @return This builder object
+         */
+        public Builder withBufferFlag(boolean buffer) {
+            this.buffer = buffer;
+            return this;
+        }
+
+        /**
          * Set the GTP tunnel that this FAR should encapsulate packets with.
          *
          * @param tunnel GTP tunnel
@@ -349,7 +374,7 @@ public final class ForwardingActionRule {
             } else {
                 type = Type.DOWNLINK;
             }
-            return new ForwardingActionRule(sessionId, farId, drop, notifyCp, tunnelDesc, type);
+            return new ForwardingActionRule(sessionId, farId, drop, notifyCp, buffer, tunnelDesc, type);
         }
     }
 }
