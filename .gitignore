@@ -10,9 +10,15 @@ tmp/
 target/
 onos-tools/
 app/app/src/main/resources/p4info.txt
+app/app/src/main/java/org/omecproject/dbuf/grpc/*
 app/mvn_settings.xml
 app/dependencies.xml
 .m2/
+
+# FIXME: .bin format of P4info changes accross builds
+#  Ignore for now to avoid breaking CI (which makes sure
+#  the p4c out is up-to-date)
+p4src/build/p4info.bin
 
 *.class
 *.DS_Store

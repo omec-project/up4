@@ -3,7 +3,8 @@
  ~ SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
  ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
   -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -34,6 +35,8 @@
             org.onosproject.protocols.grpc,
             org.onosproject.protocols.p4runtime
         </onos.app.requires>
+        <!-- Make sure grpc version is in sync with onos/tools/build/bazel/grpc_workspace.bzl-->
+        <onos.grpc.version>1.22.1</onos.grpc.version>
     </properties>
 
     <dependencies>
@@ -105,6 +108,28 @@
             <artifactId>io_grpc_grpc_protobuf</artifactId>
             <version>${onos.version}</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.onosproject</groupId>
+            <artifactId>io_grpc_grpc_protobuf_lite</artifactId>
+            <version>${onos.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.onosproject</groupId>
+            <artifactId>io_grpc_grpc_core_inprocess</artifactId>
+            <version>${onos.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- FIXME: use onos artifact of grpc-testing when one will be added to the build -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-testing</artifactId>
+            <version>${onos.grpc.version}</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -184,6 +209,12 @@
             <classifier>tests</classifier>
         </dependency>
 
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>3.5.13</version>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
 
@@ -202,8 +233,26 @@
                         <Karaf-Commands>org.omecproject.up4.cli</Karaf-Commands>
                         <!-- If using an ONOS X.Y.Z.SNAPSHOT version during development, the variable
                            ~ ${onos.version} must be changed to the literal X.Y.Z -->
-                        <Import-Package>com.google.protobuf;version=${onos.version},*</Import-Package>
+                        <!-- FIXME: revert to ${onos.version} when onos 2.2.6 will be released -->
+                        <!--<Import-Package>com.google.protobuf;version=${onos.version},*</Import-Package>-->
+                        <Import-Package>com.google.protobuf;version=2.2.6,*</Import-Package>
                     </instructions>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <configuration>
+                    <excludes>org/omecproject/dbuf/grpc/*</excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <excludePackageNames>
+                        org.omecproject.dbuf.grpc
+                    </excludePackageNames>
                 </configuration>
             </plugin>
         </plugins>
@@ -220,6 +269,7 @@
                         <configuration>
                             <excludes>
                                 <exclude>org/omecproject/up4/cli/*</exclude>
+                                <exclude>org/omecproject/dbuf/grpc/*</exclude>
                             </excludes>
                         </configuration>
                         <executions>

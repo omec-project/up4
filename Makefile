@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
 
-CURRENT_UID              := $(shell id -u)
-CURRENT_GID              := $(shell id -g)
 MKFILE_PATH              := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 
@@ -14,16 +12,12 @@ include util/docker/Makefile.vars
 default: build check
 
 _docker_pull_all:
-	docker pull ${P4RT_SH_IMG}@${P4RT_SH_SHA}
-	docker tag ${P4RT_SH_IMG}@${P4RT_SH_SHA} ${P4RT_SH_IMG}
 	docker pull ${P4C_IMG}@${P4C_SHA}
 	docker tag ${P4C_IMG}@${P4C_SHA} ${P4C_IMG}
 	docker pull ${MN_STRATUM_IMG}@${MN_STRATUM_SHA}
 	docker tag ${MN_STRATUM_IMG}@${MN_STRATUM_SHA} ${MN_STRATUM_IMG}
 	docker pull ${PTF_IMG}@${PTF_SHA}
 	docker tag ${PTF_IMG}@${PTF_SHA} ${PTF_IMG}
-	docker pull ${MAVEN_IMG}@${MAVEN_SHA}
-	docker tag ${MAVEN_IMG}@${MAVEN_SHA} ${MAVEN_IMG}
 
 deps: _docker_pull_all
 
@@ -36,27 +30,19 @@ clean:
 	-rm -rf app/app/target
 	-rm -rf app/api/target
 
+# Required by tost build scripts - do not remove!
 _prepare_app_build:
-	mkdir -p app/app/src/main/resources
-	cp p4src/build/p4info.txt app/app/src/main/resources/
+	cd app && make _build_resources
 
-local-app-build: _prepare_app_build
-	cd app && mvn clean install
+local-app-build:
+	cd app && make local-build
 
-app-build: _prepare_app_build
-	docker run -it --rm -v ${CURRENT_DIR}:/root -w /root/app \
-		maven:3.6.3-openjdk-11-slim \
-		bash -c "mvn clean install; \
-		chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
+app-build:
+	cd app && make build
 
-# ci-verify is a build profile specified in onos-dependencies's pom.xml
-# It's used to run javadoc validation and other checks that should not
-# run on local build, but during CI.
-app-build-ci: _prepare_app_build
-	docker run -it --rm -v ${CURRENT_DIR}:/root -w /root/app \
-		maven:3.6.3-openjdk-11-slim \
-		bash -c "mvn -Pci-verify -Pcoverage clean install && \
-		chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
+app-build-ci:
+	cd app && make build-ci
+
 app-check:
 	cd app && make check
 

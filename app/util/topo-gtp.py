@@ -38,6 +38,16 @@ class IPv4Host(Host):
         self.defaultIntf().updateIP = updateIP
 
 
+class DbufHost(IPv4Host):
+
+    def __init__(self, name, inNamespace=False, **params):
+        super(DbufHost, self).__init__(name, inNamespace, **params)
+
+    def config(self, mac=None, ip=None, defaultRoute=None, lo='up', gw=None, **_params):
+        super(DbufHost, self).config(mac, ip, defaultRoute, lo, gw, **_params)
+        self.cmd('/usr/local/bin/dbuf > /tmp/dbuf_%s.log 2>&1 &' % self.name)
+
+
 class TutorialTopo(Topo):
     """2x2 fabric topology for GTP encap exercise with 2 IPv4 hosts emulating an
        enodeb (base station) and a gateway to a Packet Data Metwork (PDN)
@@ -65,12 +75,24 @@ class TutorialTopo(Topo):
         self.addLink(spine2, leaf1)
         self.addLink(spine2, leaf2)
 
-        # IPv4 hosts attached to leaf 1
+        # enodeb IPv4 host attached to leaf 1
         enodeb = self.addHost('enodeb', cls=IPv4Host, mac='00:00:00:00:00:10', ip='140.0.100.1/24',
                               gw='140.0.100.254')
         self.addLink(enodeb, leaf1)  # port 3
 
-        # IPv4 hosts attached to leaf 2
+        # dbuf IPv4 host attached to leaf 1
+        # DbufHost exists on the root net namespace (inNamespace=False) such
+        # that onos can communicate with its grpc service port. However, by
+        # running on the root namespace, the default route for docker
+        # networking prevents dbuf from pinging hosts on subnets other than the
+        # dbuf one (ip=...). However, dbuf can still ping the switch gateway
+        # address (gw=...) which is all we need to receive and send buffered
+        # packets.
+        dbuf1 = self.addHost('dbuf1', cls=DbufHost, mac='00:00:00:00:db:0f', ip='140.0.99.1/24',
+                             gw='140.0.99.254')
+        self.addLink(dbuf1, leaf1)  # port 4
+
+        # pdn IPv4 host attached to leaf 2
         pdn = self.addHost('pdn', cls=IPv4Host, mac='00:00:00:00:00:20', ip='140.0.200.1/24',
                            gw='140.0.200.254')
         self.addLink(pdn, leaf2)  # port 3
