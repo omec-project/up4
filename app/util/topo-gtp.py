@@ -89,7 +89,7 @@ class TutorialTopo(Topo):
         # address (gw=...) which is all we need to receive and send buffered
         # packets.
         dbuf1 = self.addHost('dbuf1', cls=DbufHost, mac='00:00:00:00:db:0f', ip='140.0.99.1/24',
-                              gw='140.0.99.254')
+                             gw='140.0.99.254')
         self.addLink(dbuf1, leaf1)  # port 4
 
         # pdn IPv4 host attached to leaf 2
