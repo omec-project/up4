@@ -74,6 +74,7 @@ public final class TestConstants {
     public static final ForwardingActionRule DOWNLINK_FAR = ForwardingActionRule.builder()
                 .withFarId(DOWNLINK_FAR_ID)
                 .withFlags(false, false)
+                .withBufferFlag(false)
                 .withSessionId(SESSION_ID)
                 .withTunnel(S1U_ADDR, ENB_ADDR, TEID)
                 .build();
@@ -151,6 +152,7 @@ public final class TestConstants {
                         .withParameters(Arrays.asList(
                                 new PiActionParam(NorthConstants.DROP_FLAG, FALSE_BYTE),
                                 new PiActionParam(NorthConstants.NOTIFY_FLAG, FALSE_BYTE),
+                                new PiActionParam(NorthConstants.BUFFER_FLAG, FALSE_BYTE),
                                 new PiActionParam(NorthConstants.TUNNEL_TYPE_PARAM, NorthConstants.TUNNEL_TYPE_GTPU),
                                 new PiActionParam(NorthConstants.TUNNEL_SRC_PARAM, S1U_ADDR.toInt()),
                                 new PiActionParam(NorthConstants.TUNNEL_DST_PARAM, ENB_ADDR.toInt()),

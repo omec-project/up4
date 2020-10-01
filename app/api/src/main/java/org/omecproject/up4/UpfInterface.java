@@ -25,7 +25,17 @@ public final class UpfInterface {
 
     @Override
     public String toString() {
-        return String.format("Interface{%s, %s}", isUplink() ? "Uplink" : "Downlink", prefix);
+        String typeStr;
+        if (type.equals(Type.ACCESS)) {
+            typeStr = "Uplink";
+        } else if (type.equals(Type.CORE)) {
+            typeStr = "Downlink";
+        } else if (type.equals(Type.DBUF)) {
+            typeStr = "Dbuf-Receiver";
+        } else {
+            typeStr = "UNKNOWN";
+        }
+        return String.format("Interface{%s, %s}", typeStr, prefix);
     }
 
     @Override
@@ -80,6 +90,16 @@ public final class UpfInterface {
     }
 
     /**
+     * Create a dbuf-receiving UPF interface from the given IP address.
+     *
+     * @param address the address of the dbuf-receiving interface
+     * @return a new UPF interface
+     */
+    public static UpfInterface createDbufReceiverFrom(Ip4Address address) {
+        return UpfInterface.builder().setDbuf().setAddress(address).build();
+    }
+
+    /**
      * Get the IP prefix of this interface.
      *
      * @return the interface prefix
@@ -108,6 +128,17 @@ public final class UpfInterface {
         return type == Type.CORE;
     }
 
+
+    /**
+     * Check if this UPF interface is for receiving buffered packets as they are released from the dbuf
+     * buffering device.
+     *
+     * @return true if interface receives from dbuf
+     */
+    public boolean isDbufReceiver() {
+        return type == Type.DBUF;
+    }
+
     /**
      * Get the IPv4 prefix of this UPF interface.
      *
@@ -133,7 +164,12 @@ public final class UpfInterface {
          * Downlink interface that receives unencapsulated packets from the core of the network.
          * This is the type of UE IP address pool interfaces.
          */
-        CORE
+        CORE,
+
+        /**
+         * Interface that receives buffered packets as they are drained from a dbuf device.
+         */
+        DBUF
     }
 
     public static class Builder {
@@ -156,6 +192,17 @@ public final class UpfInterface {
         }
 
         /**
+         * Set the IPv4 prefix of this interface, by turning the given address into a /32 prefix.
+         *
+         * @param address the interface address that will become a /32 prefix
+         * @return this builder object
+         */
+        public Builder setAddress(Ip4Address address) {
+            this.prefix = Ip4Prefix.valueOf(address, 32);
+            return this;
+        }
+
+        /**
          * Make this an uplink interface.
          *
          * @return this builder object
@@ -172,6 +219,16 @@ public final class UpfInterface {
          */
         public Builder setDownlink() {
             this.type = Type.CORE;
+            return this;
+        }
+
+        /**
+         * Make this a dbuf-facing interface.
+         *
+         * @return this builder object
+         */
+        public Builder setDbuf() {
+            this.type = Type.DBUF;
             return this;
         }
 

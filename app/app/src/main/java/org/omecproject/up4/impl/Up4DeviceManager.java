@@ -10,6 +10,7 @@ import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.config.Up4Config;
+import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
@@ -38,6 +39,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FACTORY;
@@ -189,6 +191,10 @@ public class Up4DeviceManager implements Up4Service {
         for (Ip4Prefix uePool : config.uePools()) {
             interfaces.add(UpfInterface.createUePoolFrom(uePool));
         }
+        Ip4Address dbufDrainAddr = config.dbufDrainAddr();
+        if (dbufDrainAddr != null) {
+            interfaces.add(UpfInterface.createDbufReceiverFrom(dbufDrainAddr));
+        }
         return interfaces;
     }
 
@@ -237,8 +243,26 @@ public class Up4DeviceManager implements Up4Service {
             this.config = config;
             setUpfDevice(upfDeviceId);
             setUpDbufClient(config.dbufServiceAddr(), config.dbufDataplaneAddr());
+            addDbufStateToUpfProgrammable();
         }
 
+    }
+
+    private void addDbufStateToUpfProgrammable() {
+        upfProgrammable.setDbufTunnel(config.dbufDrainAddr(), dbufClient.dataplaneIp4Addr());
+        upfProgrammable.setBufferDrainer(new UpfProgrammable.BufferDrainer() {
+            @Override
+            public void drain(Ip4Address ueAddr) {
+                CompletableFuture<Boolean> retVal = dbufClient.drain(ueAddr, config.dbufDrainAddr(), 2152);
+                try {
+                    if (!retVal.get()) {
+                        throw new Exception("A dbuf client drain call returned False!");
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to drain buffer for UE {} because of error: {}", ueAddr, e.getMessage());
+                }
+            }
+        });
     }
 
     private void setUpDbufClient(String serviceAddr, String dataplaneAddr) {

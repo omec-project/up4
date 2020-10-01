@@ -53,7 +53,10 @@ public final class ForwardingActionRule {
         String matchKeys = String.format("ID:%d,SEID:%s", farId, sessionId.toString());
         String directionString;
         String actionParams;
-        if (isUplink()) {
+        if (bufferFlag()) {
+            directionString = "Buffering";
+            actionParams = "";
+        } else if (isUplink()) {
             directionString = "Uplink";
             actionParams = String.format("Drop:%b,Notify:%b", drop, notifyCp);
         } else if (isDownlink()) {
@@ -176,6 +179,15 @@ public final class ForwardingActionRule {
      */
     public GtpTunnel tunnelDesc() {
         return tunnelDesc;
+    }
+
+    /**
+     * Get the source UDP port of the GTP tunnel that this FAR will encapsulate packets with.
+     *
+     * @return GTP tunnel source UDP port
+     */
+    public Short tunnelSrcPort() {
+        return tunnelDesc != null ? tunnelDesc.srcPort() : null;
     }
 
     /**

@@ -50,12 +50,12 @@ public class Up4TranslatorImpl implements Up4Translator {
     private final Logger log = LoggerFactory.getLogger(getClass());
     // Maps local FAR IDs to global FAR IDs
     protected final BiMap<UpfRuleIdentifier, Integer> farIdMapper = HashBiMap.create();
-    ;
     private int nextGlobalFarId = 1;
 
     private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
     private final ImmutableByteSequence allOnes16 = ImmutableByteSequence.ofOnes(2);
     private final ImmutableByteSequence allOnes8 = ImmutableByteSequence.ofOnes(1);
+
 
     @Activate
     protected void activate() {
@@ -306,7 +306,6 @@ public class Up4TranslatorImpl implements Up4Translator {
     @Override
     public FlowRule farToFabricEntry(ForwardingActionRule far, DeviceId deviceId, ApplicationId appId, int priority)
             throws Up4TranslationException {
-
         PiAction action;
         if (far.isUplink()) {
             action = PiAction.builder()
@@ -317,7 +316,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                     ))
                     .build();
 
-        } else if (far.isDownlink()) {
+        } else if (far.isDownlink() || far.bufferFlag()) {
             // TODO: copy tunnel destination port from logical switch write requests, instead of hardcoding 2152
             PiActionId actionId = far.bufferFlag() ? SouthConstants.LOAD_FAR_BUFFER : SouthConstants.LOAD_FAR_TUNNEL;
             action = PiAction.builder()
@@ -390,7 +389,11 @@ public class Up4TranslatorImpl implements Up4Translator {
         int interfaceTypeInt;
         int gtpuValidity;
         int direction;
-        if (upfInterface.isUplink()) {
+        if (upfInterface.isDbufReceiver())  {
+            interfaceTypeInt = SouthConstants.INTERFACE_DBUF;
+            gtpuValidity = 1;
+            direction = SouthConstants.DIRECTION_DOWNLINK;
+        } else if (upfInterface.isUplink()) {
             interfaceTypeInt = SouthConstants.INTERFACE_ACCESS;
             gtpuValidity = 1;
             direction = SouthConstants.DIRECTION_UPLINK;

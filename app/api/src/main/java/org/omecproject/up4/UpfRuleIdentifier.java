@@ -23,6 +23,10 @@ public final class UpfRuleIdentifier {
         this.sessionlocalId = sessionlocalId;
     }
 
+    public static UpfRuleIdentifier of(ImmutableByteSequence pfcpSessionId, int sessionlocalId) {
+        return new UpfRuleIdentifier(pfcpSessionId, sessionlocalId);
+    }
+
     public int getSessionlocalId() {
         return sessionlocalId;
     }

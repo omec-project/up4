@@ -1,6 +1,7 @@
 package org.omecproject.up4.behavior;
 
 import org.omecproject.up4.ForwardingActionRule;
+import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
 import org.omecproject.up4.Up4Translator;
@@ -9,6 +10,7 @@ import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.impl.SouthConstants;
+import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
@@ -37,9 +39,11 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.onosproject.net.pi.model.PiCounterType.INDIRECT;
 
@@ -67,6 +71,12 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     DeviceId deviceId;
     private ApplicationId appId;
 
+    private BufferDrainer bufferDrainer;
+
+
+    private Set<UpfRuleIdentifier> bufferFarIds;
+    private Map<UpfRuleIdentifier, Set<PacketDetectionRule>> farIdToPdrs;
+
     @Activate
     protected void activate() {
         log.info("Started");
@@ -79,10 +89,40 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public boolean init(ApplicationId appId, DeviceId deviceId) {
+        this.bufferFarIds = new HashSet<>();
+        this.farIdToPdrs = new HashMap<>();
         this.appId = appId;
         this.deviceId = deviceId;
         log.info("UpfProgrammable initialized for appId {} and deviceId {}", appId, deviceId);
         return true;
+    }
+
+    @Override
+    public void setBufferDrainer(BufferDrainer drainer) {
+        this.bufferDrainer = drainer;
+    }
+
+    private GtpTunnel dbufTunnel;
+
+    @Override
+    public void setDbufTunnel(Ip4Address switchAddr, Ip4Address dbufAddr) {
+        this.dbufTunnel = GtpTunnel.builder()
+                .setSrc(switchAddr)
+                .setDst(dbufAddr)
+                .setSrcPort((short) 2152)
+                .setTeid(0)
+                .build();
+    }
+
+    private ForwardingActionRule convertToDbufFar(ForwardingActionRule far) {
+        return ForwardingActionRule.builder()
+                .withFarId(far.farId())
+                .withSessionId(far.sessionId())
+                .withDropFlag(far.dropFlag())
+                .withNotifyFlag(far.notifyCpFlag())
+                .withBufferFlag(true)
+                .withTunnel(dbufTunnel)
+                .build();
     }
 
     @Override
@@ -185,6 +225,19 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             log.info("Installing {}", pdr.toString());
             flowRuleService.applyFlowRules(fabricPdr);
             log.debug("FAR added with flowID {}", fabricPdr.id().value());
+
+            // If the flow rule was applied, add the PDR to the farID->PDR mapping
+            UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(pdr.sessionId(), pdr.farId());
+            farIdToPdrs.compute(ruleId, (k, existingSet) -> {
+                if (existingSet == null) {
+                    Set<PacketDetectionRule> newSet = new HashSet<>();
+                    newSet.add(pdr);
+                    return newSet;
+                } else {
+                    existingSet.add(pdr);
+                    return existingSet;
+                }
+            });
         } catch (Up4Translator.Up4TranslationException e) {
             log.warn("Unable to insert malformed FAR to dataplane! {}", pdr.toString());
         }
@@ -194,10 +247,24 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Override
     public void addFar(ForwardingActionRule far) {
         try {
+            UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(far.sessionId(), far.farId());
+            if (far.bufferFlag()) {
+                // If the far has the buffer flag, modify its tunnel so it directs to dbuf
+                far = convertToDbufFar(far);
+                bufferFarIds.add(ruleId);
+            }
             FlowRule fabricFar = up4Translator.farToFabricEntry(far, deviceId, appId, DEFAULT_PRIORITY);
             log.info("Installing {}", far.toString());
             flowRuleService.applyFlowRules(fabricFar);
             log.debug("FAR added with flowID {}", fabricFar.id().value());
+            if (!far.bufferFlag() && bufferFarIds.contains(ruleId)) {
+                // If this FAR does not buffer but used to, then drain all relevant buffers
+                bufferFarIds.remove(ruleId);
+                for (var pdr : farIdToPdrs.getOrDefault(ruleId, Set.of())) {
+                    // Drain the buffer for every UE address that hits this FAR
+                    bufferDrainer.drain(pdr.ueAddress());
+                }
+            }
         } catch (Up4Translator.Up4TranslationException e) {
             log.warn("Unable to insert FAR {} to dataplane! Error was: {}", far, e.getMessage());
         }
@@ -373,6 +440,17 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         }
         log.info("Removing {}", pdr.toString());
         removeEntry(match, tableId, false);
+
+        // Remove the PDR from the farID->PDR mapping
+        UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(pdr.sessionId(), pdr.farId());
+        farIdToPdrs.compute(ruleId, (k, existingSet) -> {
+            if (existingSet == null) {
+                return null;
+            } else {
+                existingSet.remove(pdr);
+                return existingSet;
+            }
+        });
     }
 
     @Override
