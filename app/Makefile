@@ -32,10 +32,13 @@ _docker_pull_all:
 	docker tag ${MN_TUTORIAL_IMG}@${MN_TUTORIAL_SHA} ${MN_TUTORIAL_IMG}
 	docker pull ${ONOS_IMG}@${ONOS_SHA}
 	docker tag ${ONOS_IMG}@${ONOS_SHA} ${ONOS_IMG}
+	docker pull ${DBUF_IMG}@${DBUF_SHA}
+	docker tag ${DBUF_IMG}@${DBUF_SHA} ${DBUF_IMG}
 	docker pull ${MAVEN_IMG}
 	docker pull ${PROTOC_IMG}
 
 deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto
+	docker-compose build
 
 onos-ui:
 	open ${onos_url}/ui
@@ -170,6 +173,7 @@ _check:
 	sleep ${ONOS_BOOT_TIME}
 	make onos-config
 	sleep ${CONFIG_WAIT_TIME}
+	make check-dbuf-ready
 	make p4rtsh-program
 	sleep 1
 	@echo "*** Sending downlink..."
@@ -196,6 +200,9 @@ send-uplink:
 	util/mn-cmd pdn /util/traffic.py recv-udp -t ${PKT_WAIT_TIME}
 	@# kill sending process
 	util/mn-cmd enodeb pkill "traffic.py"
+
+check-dbuf-ready:
+	docker-compose logs onos | grep -q "Dbuf service at mininet:10000 is READY=true"
 
 netcfg:
 	$(info *** Pushing ./util/netcfg.json to ONOS...)
@@ -232,7 +239,7 @@ test-onos-start:
 		-p 8101:8101 \
 		-p 8181:8181 \
 		-p 51001:51001 \
-		onosproject/onos:2.2-latest
+		onosproject/onos:2.2.6-b2
 
 
 test-sw-start:
