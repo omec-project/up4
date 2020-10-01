@@ -220,7 +220,7 @@ public class Up4DeviceManager implements Up4Service {
     private void unsetUpfDevice() {
         synchronized (upfInitialized) {
             if (upfProgrammable != null) {
-                log.info("UPF was removed or became unavailable. Cleaning up.");
+                log.info("UPF was removed. Cleaning up.");
                 if (deviceService.isAvailable(upfDeviceId)) {
                     upfProgrammable.cleanUp(appId);
                 }
