@@ -148,6 +148,7 @@ public class Up4DeviceManager implements Up4Service {
         synchronized (upfInitialized) {
             if (upfInitialized.get()) {
                 log.info("UPF {} already initialized, skipping setup.", deviceId);
+                // FIXME: this is merely a hotfix for interface entries disappearing when a device becomes available.
                 ensureInterfacesInstalled();
                 return;
             }
@@ -199,7 +200,7 @@ public class Up4DeviceManager implements Up4Service {
         Set<UpfInterface> installedInterfaces = new HashSet<>(upfProgrammable.getInstalledInterfaces());
         for (UpfInterface iface : configFileInterfaces()) {
             if (!installedInterfaces.contains(iface)) {
-                log.info("{} is missing from device! Installing", iface);
+                log.warn("{} is missing from device! Installing", iface);
                 upfProgrammable.addInterface(iface);
             }
         }
@@ -287,9 +288,6 @@ public class Up4DeviceManager implements Up4Service {
                         if (deviceService.isAvailable(deviceId)) {
                             log.debug("Event: {}, setting UPF", event.type());
                             setUpfDevice(deviceId);
-                        } else {
-                            log.debug("Event: {}, unsetting UPF", event.type());
-                            unsetUpfDevice();
                         }
                         break;
                     case DEVICE_REMOVED:
