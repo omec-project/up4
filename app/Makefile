@@ -37,7 +37,7 @@ _docker_pull_all:
 	docker pull ${MAVEN_IMG}
 	docker pull ${PROTOC_IMG}
 
-deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto
+deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java
 	docker-compose build
 
 onos-ui:
@@ -59,7 +59,7 @@ app/external/dbuf/dbuf.proto:
 
 # TODO (carmelo): it would be nice to have mvn invoke protoc
 #  and treat generated sources the mvn way
-make app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java: app/external/dbuf/dbuf.proto
+app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java: app/external/dbuf/dbuf.proto
 	docker run --rm -v ${CURRENT_DIR}/app/external/dbuf:/root/dbuf \
 		-v ${CURRENT_DIR}/app/src/main/java:/java_out -w /root/dbuf \
 		${PROTOC_IMG} -I=/root/dbuf --java_out=/java_out \

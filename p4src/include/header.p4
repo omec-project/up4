@@ -114,15 +114,16 @@ struct pdr_metadata_t {
     counter_index_t ctr_idx;
 }
 
+// Data associated with Buffering and BARs
 struct bar_metadata_t {
+    bool needs_buffering;
     bar_id_t bar_id;
     bit<32> ddn_delay_ms;
     bit<32> buffering_duration;
     bit<32> suggest_pkt_count;
-    bool needs_buffering;
 }
 
-// Data associated with Buffering nad QoS
+// Data associated with QoS Enforcement Rules. Current unused
 struct qer_metadata_t {
     qer_id_t qer_id;
     bool needs_qos;
