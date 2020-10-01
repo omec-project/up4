@@ -13,9 +13,9 @@ import org.onosproject.cli.AbstractShellCommand;
  * UP4 clear table entries command.
  */
 @Service
-@Command(scope = "up4", name = "clear-entries",
-        description = "Clear all dataplane table entries installed by this app")
-public class ClearEntriesCommand extends AbstractShellCommand {
+@Command(scope = "up4", name = "reset-entries",
+        description = "Remove all dataplane entries and then reinstall the interfaces present in the UP4 config.")
+public class ResetEntriesCommand extends AbstractShellCommand {
 
     @Override
     protected void doExecute() {
@@ -23,6 +23,8 @@ public class ClearEntriesCommand extends AbstractShellCommand {
 
         print("Clearing all UP4 dataplane table entries.");
         app.clearUpfProgrammable();
+        print("Reinstalling UP4 interfaces from app configuration.");
+        app.installInterfaces();
     }
 }
 

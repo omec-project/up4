@@ -33,7 +33,11 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FACTORY;
@@ -144,6 +148,8 @@ public class Up4DeviceManager implements Up4Service {
         synchronized (upfInitialized) {
             if (upfInitialized.get()) {
                 log.info("UPF {} already initialized, skipping setup.", deviceId);
+                // FIXME: this is merely a hotfix for interface entries disappearing when a device becomes available.
+                ensureInterfacesInstalled();
                 return;
             }
             if (!deviceService.isAvailable(deviceId)) {
@@ -165,7 +171,7 @@ public class Up4DeviceManager implements Up4Service {
             upfProgrammable.cleanUp(appId);
             upfProgrammable.init(appId, deviceId);
 
-            setInterfaces();
+            installInterfaces();
 
             upfInitialized.set(true);
             log.info("UPF device setup successful!");
@@ -173,13 +179,38 @@ public class Up4DeviceManager implements Up4Service {
     }
 
     /**
-     * Install the UPF dataplane interfaces.
+     * Gets the collection of interfaces present in the UP4 config file.
+     *
+     * @return an interface collection
      */
-    private void setInterfaces() {
-        log.info("Installing interfaces from config.");
-        upfProgrammable.addInterface(UpfInterface.createS1uFrom(config.s1uPrefix()));
+    private Collection<UpfInterface> configFileInterfaces() {
+        Collection<UpfInterface> interfaces = new ArrayList<>();
+        interfaces.add(UpfInterface.createS1uFrom(config.s1uPrefix()));
         for (Ip4Prefix uePool : config.uePools()) {
-            upfProgrammable.addInterface(UpfInterface.createUePoolFrom(uePool));
+            interfaces.add(UpfInterface.createUePoolFrom(uePool));
+        }
+        return interfaces;
+    }
+
+    /**
+     * Ensure that all interfaces present in the UP4 config file are installed in the UPF device.
+     */
+    private void ensureInterfacesInstalled() {
+        log.info("Ensuring all interfaces present in app config are present on device.");
+        Set<UpfInterface> installedInterfaces = new HashSet<>(upfProgrammable.getInstalledInterfaces());
+        for (UpfInterface iface : configFileInterfaces()) {
+            if (!installedInterfaces.contains(iface)) {
+                log.warn("{} is missing from device! Installing", iface);
+                upfProgrammable.addInterface(iface);
+            }
+        }
+    }
+
+    @Override
+    public void installInterfaces() {
+        log.info("Installing interfaces from config.");
+        for (UpfInterface iface : configFileInterfaces()) {
+            upfProgrammable.addInterface(iface);
         }
     }
 
@@ -189,8 +220,10 @@ public class Up4DeviceManager implements Up4Service {
     private void unsetUpfDevice() {
         synchronized (upfInitialized) {
             if (upfProgrammable != null) {
-                log.info("UPF cleanup");
-                upfProgrammable.cleanUp(appId);
+                log.info("UPF was removed. Cleaning up.");
+                if (deviceService.isAvailable(upfDeviceId)) {
+                    upfProgrammable.cleanUp(appId);
+                }
                 upfProgrammable = null;
                 upfInitialized.set(false);
             }
@@ -259,6 +292,7 @@ public class Up4DeviceManager implements Up4Service {
                         break;
                     case DEVICE_REMOVED:
                     case DEVICE_SUSPENDED:
+                        log.debug("Event: {}, unsetting UPF", event.type());
                         unsetUpfDevice();
                         break;
                     case PORT_ADDED:

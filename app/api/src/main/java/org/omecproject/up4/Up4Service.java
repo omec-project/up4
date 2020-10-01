@@ -33,6 +33,12 @@ public interface Up4Service {
      */
     void clearUpfProgrammable();
 
+
+    /**
+     * Install all UPF dataplane interfaces present in the app configuration.
+     */
+    void installInterfaces();
+
     /**
      * Check if the device is registered and is a valid UPF dataplane.
      *
