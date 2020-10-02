@@ -28,6 +28,9 @@ TUNNEL_TYPE_GPDU = '3'
 def get_args():
     parser = argparse.ArgumentParser(
             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--buffer", action='store_true',
+            help="If this argument is present, downlink fars will have" + \
+                    " the buffering flag set to true")
     parser.add_argument("--ue-count", type=int, default=1,
             help="The number of UE flows for which table entries should be created.")
     parser.add_argument("--ue-pool", type=IPv4Network,
@@ -210,7 +213,7 @@ def main():
         # Action params
         entry.action['needs_dropping'] = FALSE
         entry.action['notify_cp'] = FALSE
-        entry.action['needs_buffering'] = FALSE
+        entry.action['needs_buffering'] = TRUE if args.buffer else FALSE
         entry.action['tunnel_type'] = TUNNEL_TYPE_GPDU
         entry.action['src_addr'] = str(args.s1u_addr)
         entry.action['dst_addr'] = str(args.enb_addr)
