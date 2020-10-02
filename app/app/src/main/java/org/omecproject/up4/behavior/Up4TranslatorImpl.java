@@ -298,6 +298,8 @@ public class Up4TranslatorImpl implements Up4Translator {
             ifaceBuilder.setUplink();
         } else if (interfaceType == SouthConstants.INTERFACE_CORE) {
             ifaceBuilder.setDownlink();
+        } else if (interfaceType == SouthConstants.INTERFACE_DBUF) {
+            ifaceBuilder.setDbufReceiver();
         }
         return ifaceBuilder.build();
     }
