@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
 
 import argparse
+import socket
+import struct
 
 from mininet.cli import CLI
 from mininet.log import setLogLevel
@@ -12,6 +14,21 @@ from mininet.topo import Topo
 from stratum import StratumBmv2Switch
 
 CPU_PORT = 255
+
+
+def ip2long(ip):
+    """
+    Convert an IP string to long
+    """
+    packedIP = socket.inet_aton(ip)
+    return struct.unpack("!L", packedIP)[0]
+
+
+# 17.0.0.1 comes from util/traffic.py
+# FIXME: https://github.com/omec-project/dbuf/issues/3
+DBUF_QUEUUE_ID_LOW = ip2long('17.0.0.1')  # included
+DBUF_QUEUUE_ID_HIGH = ip2long('17.0.0.4')  # excluded
+DBUF_DROP_TIMEOUT_SEC = "30s"
 
 
 class IPv4Host(Host):
@@ -45,7 +62,16 @@ class DbufHost(IPv4Host):
 
     def config(self, mac=None, ip=None, defaultRoute=None, lo='up', gw=None, **_params):
         super(DbufHost, self).config(mac, ip, defaultRoute, lo, gw, **_params)
-        self.cmd('/usr/local/bin/dbuf > /tmp/dbuf_%s.log 2>&1 &' % self.name)
+        args = map(str, [
+            "-queue_id_high", DBUF_QUEUUE_ID_HIGH,
+            "-queue_id_low", DBUF_QUEUUE_ID_LOW,
+            "-queue_drop_timeout", DBUF_DROP_TIMEOUT_SEC,
+        ])
+        # Send to background
+        cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
+              % (" ".join(args), self.name)
+        print(cmd)
+        self.cmd(cmd)
 
 
 class TutorialTopo(Topo):

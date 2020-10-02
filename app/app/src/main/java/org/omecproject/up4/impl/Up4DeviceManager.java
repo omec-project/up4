@@ -255,12 +255,12 @@ public class Up4DeviceManager implements Up4Service {
         upfProgrammable.setBufferDrainer(new UpfProgrammable.BufferDrainer() {
             @Override
             public void drain(Ip4Address ueAddr) {
-                log.info("Draining buffer for {}", ueAddr);
+                log.info("Started dbuf drain for {}", ueAddr);
                 dbufClient.drain(ueAddr, config.dbufDrainAddr(), 2152).whenComplete((result, ex) -> {
                     if (ex != null) {
                         log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
                     } else if (result) {
-                        log.info("dbuf drained for {}", ueAddr);
+                        log.info("Dbuf drain completed for {}", ueAddr);
                     } else {
                         log.warn("Unknown error while draining dbuf for {}", ueAddr);
                     }

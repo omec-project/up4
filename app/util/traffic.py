@@ -23,21 +23,17 @@ TEID = 255
 pkt_count = 0
 
 exitOnSuccess = False
-pktSendCount = None
 
 
 def prep_brief_test(timeout):
-    global pktSendCount
     global exitOnSuccess
     exitOnSuccess = True
-    pktSendCount = 5
     # wait timeout seconds or exit
     signal.signal(signal.SIGALRM, handle_timeout)
     signal.alarm(timeout)
 
 
-def send_gtp():
-    global pktSendCount
+def send_gtp(send_count=None):
     pkt =   IP(src=ENB_ADDR, dst=S1U_ADDR) / \
             UDP(dport=GPDU_PORT) / \
             gtp.GTPHeader(version=1, gtp_type=0xff, teid=TEID) / \
@@ -45,16 +41,19 @@ def send_gtp():
             UDP(sport=UE_PORT, dport=PDN_PORT) / \
             ' '.join(['P4 is inevitable!'] * 50)
 
-    send(pkt, inter=1.0 / RATE, loop=True, count=pktSendCount, verbose=True)
+    send(pkt, inter=1.0 / RATE, loop=send_count is None, count=send_count, verbose=True)
 
 
-def send_udp():
-    global pktSendCount
+def send_udp(send_count=None):
     pkt =   IP(src=PDN_ADDR, dst=UE_ADDR) / \
             UDP(sport=PDN_PORT, dport=UE_PORT) / \
             ' '.join(['P4 is great!'] * 50)
 
-    send(pkt, inter=1.0 / RATE, loop=True, count=pktSendCount, verbose=True)
+    send(pkt, inter=1.0 / RATE, loop=send_count is None, count=send_count, verbose=True)
+
+
+def send_udp_10():
+    send_udp(10)
 
 
 def handle_pkt(pkt, kind):
@@ -112,6 +111,7 @@ if __name__ == "__main__":
     funcs = {
         "send-gtp": send_gtp,
         "send-udp": send_udp,
+        "send-udp-10": send_udp_10,
         "recv-gtp": sniff_gtp,
         "recv-udp": sniff_udp
     }

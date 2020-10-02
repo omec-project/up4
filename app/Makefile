@@ -174,21 +174,45 @@ _check:
 	make start
 	@echo "*** Giving ONOS time to warm up..."
 	sleep ${ONOS_BOOT_TIME}
+	make check-dbuf-started
 	make onos-config
 	sleep ${CONFIG_WAIT_TIME}
 	make check-dbuf-ready
-	make p4rtsh-program
-	sleep 1
-	@echo "*** Sending downlink..."
-	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-downlink
-	@echo "*** Sending uplink..."
-	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-uplink
+	make check-forwarding
+	make check-buffering
 	@echo "**********************************"
 	@echo "** Integration checks passed :D **"
 	@echo "**********************************"
 	make stop STOP_ARGS=${STOP_ARGS}
 
-send-downlink:
+check-forwarding:
+	@echo "*** Setting forwarding FAR..."
+	make p4rtsh-program
+	sleep 1
+	@echo "*** Sending downlink..."
+	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-and-recv-downlink
+	@echo "*** Sending uplink..."
+	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-and-recv-uplink
+
+check-buffering:
+	@echo "*** Setting buffering FAR..."
+	make p4rtsh-program-buf
+	sleep 1
+	@echo "*** Sending 10 downlink pkts..."
+	util/mn-cmd pdn /util/traffic.py send-udp-10
+	docker-compose logs onos | grep "Received FIRST_BUFFER: new_buffer_id: 285212673"
+	rm -f screenlog.0
+	screen -L -d -m util/mn-cmd enodeb /util/traffic.py recv-gtp -t ${PKT_WAIT_TIME}
+	sleep 1
+	@echo "*** Setting forwarding FAR (drain)..."
+	make p4rtsh-program
+	sleep 2
+	docker-compose logs onos | grep "Started dbuf drain for 17.0.0.1"
+	docker-compose logs onos | grep "Dbuf drain completed for 17.0.0.1"
+	@echo "*** Verify delivery of at least one drained pkt..."
+	cat screenlog.0 | grep "140.0.100.254 -> 140.0.100.1, is_gtp_encap=True"
+
+send-and-recv-downlink:
 	@# util/mn-cmd requires a TTY because it uses docker -it option
 	@# hence we use screen for putting it in the background
 	screen -d -m util/mn-cmd pdn /util/traffic.py send-udp
@@ -196,7 +220,7 @@ send-downlink:
 	@# kill sending process
 	util/mn-cmd pdn pkill "traffic.py"
 
-send-uplink:
+send-and-recv-uplink:
 	@# util/mn-cmd requires a TTY because it uses docker -it option
 	@# hence we use screen for putting it in the background
 	screen -d -m util/mn-cmd enodeb /util/traffic.py send-gtp
@@ -204,8 +228,11 @@ send-uplink:
 	@# kill sending process
 	util/mn-cmd enodeb pkill "traffic.py"
 
+check-dbuf-started:
+	cat tmp/dbuf_dbuf1.log | grep "Listening for gRPC requests on 0.0.0.0:10000"
+
 check-dbuf-ready:
-	docker-compose logs onos | grep -q "Dbuf service at mininet:10000 is READY=true"
+	docker-compose logs onos | grep "Dbuf service at mininet:10000 is READY=true"
 
 netcfg:
 	$(info *** Pushing ./util/netcfg.json to ONOS...)
@@ -242,7 +269,7 @@ test-onos-start:
 		-p 8101:8101 \
 		-p 8181:8181 \
 		-p 51001:51001 \
-		onosproject/onos:2.2.6-b2
+		onosproject/onos:2.2-latest
 
 
 test-sw-start:
