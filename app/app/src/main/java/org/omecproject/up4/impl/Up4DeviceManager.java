@@ -39,7 +39,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FACTORY;
@@ -253,14 +252,16 @@ public class Up4DeviceManager implements Up4Service {
         upfProgrammable.setBufferDrainer(new UpfProgrammable.BufferDrainer() {
             @Override
             public void drain(Ip4Address ueAddr) {
-                CompletableFuture<Boolean> retVal = dbufClient.drain(ueAddr, config.dbufDrainAddr(), 2152);
-                try {
-                    if (!retVal.get()) {
-                        throw new Exception("A dbuf client drain call returned False!");
+                log.info("Draining buffer for {}", ueAddr);
+                dbufClient.drain(ueAddr, config.dbufDrainAddr(), 2152).whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
+                    } else if (result) {
+                        log.info("dbuf drained for {}", ueAddr);
+                    } else {
+                        log.warn("Unknown error while draining dbuf for {}", ueAddr);
                     }
-                } catch (Exception e) {
-                    log.warn("Failed to drain buffer for UE {} because of error: {}", ueAddr, e.getMessage());
-                }
+                });
             }
         });
     }

@@ -118,15 +118,8 @@ struct pdr_metadata_t {
 struct bar_metadata_t {
     bool needs_buffering;
     bar_id_t bar_id;
-    bit<32> ddn_delay_ms;
-    bit<32> buffering_duration;
-    bit<32> suggest_pkt_count;
-}
-
-// Data associated with QoS Enforcement Rules. Current unused
-struct qer_metadata_t {
-    qer_id_t qer_id;
-    bool needs_qos;
+    bit<32> ddn_delay_ms; // unused so far
+    bit<32> suggest_pkt_count; // unused so far
 }
 
 
