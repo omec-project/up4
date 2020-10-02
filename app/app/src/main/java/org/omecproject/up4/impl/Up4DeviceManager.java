@@ -174,6 +174,10 @@ public class Up4DeviceManager implements Up4Service {
 
             installInterfaces();
 
+            if (dbufClient != null) {
+                addDbufStateToUpfProgrammable();
+            }
+
             upfInitialized.set(true);
             log.info("UPF device setup successful!");
         }
@@ -242,7 +246,6 @@ public class Up4DeviceManager implements Up4Service {
             this.config = config;
             setUpfDevice(upfDeviceId);
             setUpDbufClient(config.dbufServiceAddr(), config.dbufDataplaneAddr());
-            addDbufStateToUpfProgrammable();
         }
 
     }
@@ -276,6 +279,9 @@ public class Up4DeviceManager implements Up4Service {
                 }
                 if (dbufClient == null) {
                     dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr);
+                }
+                if (upfProgrammable != null) {
+                    addDbufStateToUpfProgrammable();
                 }
             }
         }

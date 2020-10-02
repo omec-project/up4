@@ -36,11 +36,7 @@
         ["userMetadata._bar_needs_buffering28", 1, false],
         ["userMetadata._bar_bar_id29", 32, false],
         ["userMetadata._bar_ddn_delay_ms30", 32, false],
-        ["userMetadata._bar_buffering_duration31", 32, false],
-        ["userMetadata._bar_suggest_pkt_count32", 32, false],
-        ["userMetadata._qer_qer_id33", 32, false],
-        ["userMetadata._qer_needs_qos34", 1, false],
-        ["_padding_0", 7, false]
+        ["userMetadata._bar_suggest_pkt_count31", 32, false]
       ]
     },
     {

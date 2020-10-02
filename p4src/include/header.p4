@@ -175,7 +175,6 @@ struct local_metadata_t {
     pdr_metadata_t pdr;
     far_metadata_t far;
     bar_metadata_t bar;
-    qer_metadata_t qer;
 }
 
 

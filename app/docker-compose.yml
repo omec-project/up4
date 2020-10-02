@@ -38,7 +38,7 @@ services:
       - "10000:10000" # dbuf service
     entrypoint: "/util/mininet-entry.sh"
   onos:
-    image: onosproject/onos:2.2.6-b2
+    image: onosproject/onos:2.2-latest
     hostname: onos
     container_name: onos
     ports:
