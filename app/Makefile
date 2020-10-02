@@ -107,16 +107,16 @@ p4rt-shell:
 		-v --grpc-addr onos:51001 \
 		--device-id 0 --election-id 0,1
 
-p4rtsh-program:
+p4rt-set-forwarding:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh ${ARGS} program
 
-p4rtsh-program-buf:
+p4rt-set-buffering:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh --buffer ${ARGS} program
 
-p4rtsh-clear:
+p4rt-clear:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh ${ARGS} clear
 
-p4rtsh-bash:
+p4rt-bash:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /bin/bash
 
 iface-clear:
@@ -187,7 +187,7 @@ _check:
 
 check-forwarding:
 	@echo "*** Setting forwarding FAR..."
-	make p4rtsh-program
+	make p4rt-set-forwarding
 	sleep 1
 	@echo "*** Sending downlink..."
 	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-and-recv-downlink
@@ -196,7 +196,7 @@ check-forwarding:
 
 check-buffering:
 	@echo "*** Setting buffering FAR..."
-	make p4rtsh-program-buf
+	make p4rt-set-buffering
 	sleep 1
 	@echo "*** Sending 10 downlink pkts..."
 	util/mn-cmd pdn /util/traffic.py send-udp-10
@@ -205,7 +205,7 @@ check-buffering:
 	screen -L -d -m util/mn-cmd enodeb /util/traffic.py recv-gtp -t ${PKT_WAIT_TIME}
 	sleep 1
 	@echo "*** Setting forwarding FAR (drain)..."
-	make p4rtsh-program
+	make p4rt-set-forwarding
 	sleep 2
 	docker-compose logs onos | grep "Started dbuf drain for 17.0.0.1"
 	docker-compose logs onos | grep "Dbuf drain completed for 17.0.0.1"
