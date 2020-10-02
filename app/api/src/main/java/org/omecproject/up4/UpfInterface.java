@@ -96,7 +96,7 @@ public final class UpfInterface {
      * @return a new UPF interface
      */
     public static UpfInterface createDbufReceiverFrom(Ip4Address address) {
-        return UpfInterface.builder().setDbuf().setAddress(address).build();
+        return UpfInterface.builder().setDbufReceiver().setAddress(address).build();
     }
 
     /**
@@ -227,7 +227,7 @@ public final class UpfInterface {
          *
          * @return this builder object
          */
-        public Builder setDbuf() {
+        public Builder setDbufReceiver() {
             this.type = Type.DBUF;
             return this;
         }

@@ -114,7 +114,16 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .build();
     }
 
+    /**
+     * Convert the given buffering FAR to a FAR that tunnels the packet to dbuf.
+     *
+     * @param far the FAR to convert
+     * @return the converted FAR
+     */
     private ForwardingActionRule convertToDbufFar(ForwardingActionRule far) {
+        if (!far.bufferFlag()) {
+            log.error("Converting a non-buffering FAR to a dbuf FAR! This shouldn't happen.");
+        }
         return ForwardingActionRule.builder()
                 .withFarId(far.farId())
                 .withSessionId(far.sessionId())

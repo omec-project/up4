@@ -144,7 +144,7 @@ public class Up4TranslatorImpl implements Up4Translator {
         int globalFarId = TranslatorUtil.getParamInt(action, SouthConstants.FAR_ID_PARAM);
         UpfRuleIdentifier farId = localFarIdOf(globalFarId);
         pdrBuilder.withCounterId(TranslatorUtil.getParamInt(action, SouthConstants.CTR_ID))
-                .withLocalFarId(farId.getSessionlocalId())
+                .withLocalFarId(farId.getSessionLocalId())
                 .withSessionId(farId.getPfcpSessionId());
 
         if (TranslatorUtil.fieldIsPresent(match, SouthConstants.TEID_KEY)) {
@@ -210,7 +210,7 @@ public class Up4TranslatorImpl implements Up4Translator {
 
         // Match keys
         farBuilder.withSessionId(farId.getPfcpSessionId())
-                .withFarId(farId.getSessionlocalId());
+                .withFarId(farId.getSessionLocalId());
 
         // Parameters common to uplink and downlink should always be present
         farBuilder.withDropFlag(dropFlag)

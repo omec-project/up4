@@ -28,19 +28,19 @@ public final class ForwardingActionRule {
     private final Boolean drop;  // Should this FAR drop packets?
     private final Boolean notifyCp;  // Should this FAR notify the control plane when it sees a packet?
     private final boolean buffer;   // Should this FAR buffer incoming packets?
-    private final GtpTunnel tunnelDesc;  // The GTP tunnel that this FAR should encapsulate packets with (if downlink)
+    private final GtpTunnel tunnel;  // The GTP tunnel that this FAR should encapsulate packets with (if downlink)
     private final Type type;  // Is the FAR Uplink, Downlink, etc
 
     private static final int SESSION_ID_BITWIDTH = 96;
 
     private ForwardingActionRule(ImmutableByteSequence sessionId, Integer farId,
-                                 Boolean drop, Boolean notifyCp, boolean buffer, GtpTunnel tunnelDesc, Type type) {
+                                 Boolean drop, Boolean notifyCp, boolean buffer, GtpTunnel tunnel, Type type) {
         this.sessionId = sessionId;
         this.farId = farId;
         this.drop = drop;
         this.buffer = buffer;
         this.notifyCp = notifyCp;
-        this.tunnelDesc = tunnelDesc;
+        this.tunnel = tunnel;
         this.type = type;
     }
 
@@ -61,7 +61,7 @@ public final class ForwardingActionRule {
             actionParams = String.format("Drop:%b,Notify:%b", drop, notifyCp);
         } else if (isDownlink()) {
             directionString = "Downlink";
-            actionParams = String.format("Drop:%b,Notify:%b,Tunnel:%s", drop, notifyCp, tunnelDesc.toString());
+            actionParams = String.format("Drop:%b,Notify:%b,Tunnel:%s", drop, notifyCp, tunnel.toString());
         } else {
             directionString = "Blank";
             actionParams = "";
@@ -86,7 +86,7 @@ public final class ForwardingActionRule {
         // Safe comparisons between potentially null objects
         return (this.type.equals(that.type) &&
                 (this.farId == that.farId) &&
-                Objects.equals(this.tunnelDesc, that.tunnelDesc) &&
+                Objects.equals(this.tunnel, that.tunnel) &&
                 Objects.equals(this.drop, that.drop) &&
                 Objects.equals(this.notifyCp, that.notifyCp) &&
                 Objects.equals(this.sessionId, that.sessionId));
@@ -94,7 +94,7 @@ public final class ForwardingActionRule {
 
     @Override
     public int hashCode() {
-        return Objects.hash(sessionId, farId, drop, notifyCp, tunnelDesc, type);
+        return Objects.hash(sessionId, farId, drop, notifyCp, tunnel, type);
     }
 
     /**
@@ -177,8 +177,8 @@ public final class ForwardingActionRule {
      *
      * @return A GtpTunnel instance containing a tunnel sourceIP, destIP, and GTPU TEID, or null if the FAR is uplink.
      */
-    public GtpTunnel tunnelDesc() {
-        return tunnelDesc;
+    public GtpTunnel tunnel() {
+        return tunnel;
     }
 
     /**
@@ -187,7 +187,7 @@ public final class ForwardingActionRule {
      * @return GTP tunnel source UDP port
      */
     public Short tunnelSrcPort() {
-        return tunnelDesc != null ? tunnelDesc.srcPort() : null;
+        return tunnel != null ? tunnel.srcPort() : null;
     }
 
     /**
@@ -196,10 +196,10 @@ public final class ForwardingActionRule {
      * @return GTP tunnel source IP
      */
     public Ip4Address tunnelSrc() {
-        if (tunnelDesc == null) {
+        if (tunnel == null) {
             return null;
         }
-        return tunnelDesc.src();
+        return tunnel.src();
     }
 
     /**
@@ -208,10 +208,10 @@ public final class ForwardingActionRule {
      * @return GTP tunnel destination IP
      */
     public Ip4Address tunnelDst() {
-        if (tunnelDesc == null) {
+        if (tunnel == null) {
             return null;
         }
-        return tunnelDesc.dst();
+        return tunnel.dst();
     }
 
     /**
@@ -220,10 +220,10 @@ public final class ForwardingActionRule {
      * @return GTP tunnel ID
      */
     public ImmutableByteSequence teid() {
-        if (tunnelDesc == null) {
+        if (tunnel == null) {
             return null;
         }
-        return tunnelDesc.teid();
+        return tunnel.teid();
     }
 
     public enum Type {
@@ -247,14 +247,14 @@ public final class ForwardingActionRule {
         private Boolean drop;
         private Boolean notifyCp;
         private boolean buffer;
-        private GtpTunnel tunnelDesc;
+        private GtpTunnel tunnel;
 
         public Builder() {
             sessionId = null;
             farId = null;
             drop = null;
             notifyCp = null;
-            tunnelDesc = null;
+            tunnel = null;
             buffer = false;
         }
 
@@ -350,7 +350,7 @@ public final class ForwardingActionRule {
          * @return This builder object
          */
         public Builder withTunnel(GtpTunnel tunnel) {
-            this.tunnelDesc = tunnel;
+            this.tunnel = tunnel;
             return this;
         }
 
@@ -376,17 +376,17 @@ public final class ForwardingActionRule {
             checkNotNull(farId, "FAR ID is required");
             // Action parameters are optional. If the tunnel desc is provided, the flags must also be provided.
             checkArgument((drop != null && notifyCp != null) ||
-                            (drop == null && notifyCp == null && tunnelDesc == null),
+                            (drop == null && notifyCp == null && tunnel == null),
                     "FAR Arguments must be provided together or not at all.");
             Type type;
             if (drop == null && notifyCp == null) {
                 type = Type.KEYS_ONLY;
-            } else if (tunnelDesc == null) {
+            } else if (tunnel == null) {
                 type = Type.UPLINK;
             } else {
                 type = Type.DOWNLINK;
             }
-            return new ForwardingActionRule(sessionId, farId, drop, notifyCp, buffer, tunnelDesc, type);
+            return new ForwardingActionRule(sessionId, farId, drop, notifyCp, buffer, tunnel, type);
         }
     }
 }

@@ -150,7 +150,16 @@ public interface UpfProgrammable {
      */
     void setBufferDrainer(BufferDrainer drainer);
 
+    /**
+     * Used by the UpfProgrammable to trigger buffer draining as needed.
+     * Install an instance using {@link UpfProgrammable#setBufferDrainer(BufferDrainer)}
+     */
     interface BufferDrainer {
+        /**
+         * Drain the buffer that contains packets for the UE with the given address.
+         *
+         * @param ueAddr the address of the UE for which we should drain a buffer
+         */
         public void drain(Ip4Address ueAddr);
     }
 }
