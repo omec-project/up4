@@ -210,6 +210,7 @@ def main():
         # Action params
         entry.action['needs_dropping'] = FALSE
         entry.action['notify_cp'] = FALSE
+        entry.action['needs_buffering'] = FALSE
         entry.action['tunnel_type'] = TUNNEL_TYPE_GPDU
         entry.action['src_addr'] = str(args.s1u_addr)
         entry.action['dst_addr'] = str(args.enb_addr)
