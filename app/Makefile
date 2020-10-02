@@ -113,7 +113,6 @@ p4rtsh-program:
 p4rtsh-program-buf:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh --buffer ${ARGS} program
 
-
 p4rtsh-clear:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh ${ARGS} clear
 

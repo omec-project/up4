@@ -347,7 +347,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 }))
 
     def add_far(self, far_id, session_id, drop=False, notify_cp=False, tunnel=False,
-                tunnel_type="GTPU", teid=None, src_addr=None, dst_addr=None, dport=2152):
+                tunnel_type="GTPU", teid=None, src_addr=None, dst_addr=None, dport=2152, buffer=False):
 
         if tunnel:
             if (None in [src_addr, dst_addr, dport]):
@@ -358,6 +358,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
             action_params = {
                 "needs_dropping": drop,
+                "needs_buffering": buffer,
                 "notify_cp": notify_cp,
                 "tunnel_type": _tunnel_type,
                 "src_addr": src_addr,
