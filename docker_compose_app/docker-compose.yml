@@ -1,0 +1,74 @@
+version: "2"
+
+services:
+  mininet:
+    image: opennetworking/ngsdn-tutorial:stratum_bmv2 
+    hostname: mininet
+    container_name: mininet
+    privileged: true
+    tty: true
+    stdin_open: true
+    restart: always
+    volumes:
+      - ./tmp:/tmp
+      - ./util:/util
+    ports:
+      - "50001:50001"
+      - "50002:50002"
+      - "50003:50003"
+      - "50004:50004"
+    # NGSDN_TOPO_PY is a Python-based Mininet script defining the topology. Its
+    # value is passed to docker-compose as an environment variable, defined in
+    # the Makefile.
+    entrypoint: "/util/mininet-entry.sh"
+  pfcp:
+    #image: registry.central.aetherproject.net/pfcp-upf-2.0-bad
+    image: upf-epc-pfcpiface:0.2.0-dev
+    hostname: pfcp
+    container_name: pfcp
+    tty: true
+    stdin_open: true
+    ports:
+      - "8805:8805" # SSH (CLI)
+    volumes:
+      - ./tmp:/tmp
+    links:
+      - mininet
+      - onos
+    entrypoint: "/bin/sh"
+    working_dir: /bin/
+    depends_on:
+      - mininet
+  scapy:
+    image: pfcp-tool:0.1.0
+    hostname: scapy
+    container_name: scapy
+    tty: true
+    stdin_open: true
+    ports:
+      - "8282:8282" # HTTP
+      - "8202:8202" # SSH (CLI)
+    volumes:
+      - ./tmp:/tmp
+      - ./util:/util/
+    links:
+      - pfcp
+    entrypoint: "/bin/sh"
+    depends_on:
+      - pfcp
+      - mininet
+  onos:
+    image: onosproject/onos:2.2-latest
+    hostname: onos
+    container_name: onos
+    ports:
+      - "8181:8181" # HTTP
+      - "8101:8101" # SSH (CLI)
+    volumes:
+      - ./tmp/onos:/root/onos/apache-karaf-4.2.8/data/tmp
+    environment:
+      - ONOS_APPS=gui2,drivers.bmv2,lldpprovider,hostprovider,fabric,segmentrouting,netcfghostprovider
+    links:
+      - mininet
+
+
