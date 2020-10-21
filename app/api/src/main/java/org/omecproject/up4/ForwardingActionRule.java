@@ -370,6 +370,24 @@ public final class ForwardingActionRule {
                     .build());
         }
 
+        /**
+         * Set the unidirectional GTP tunnel that this FAR should encapsulate packets with.
+         *
+         * @param src  GTP tunnel source IP
+         * @param dst  GTP tunnel destination IP
+         * @param teid GTP tunnel ID
+         * @param srcPort GTP tunnel UDP source port (destination port is hardcoded as 2152)
+         * @return This builder object
+         */
+        public Builder withTunnel(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid, short srcPort) {
+            return this.withTunnel(GtpTunnel.builder()
+                    .setSrc(src)
+                    .setDst(dst)
+                    .setTeid(teid)
+                    .setSrcPort(srcPort)
+                    .build());
+        }
+
         public ForwardingActionRule build() {
             // All match keys are required
             checkNotNull(sessionId, "Session ID is required");

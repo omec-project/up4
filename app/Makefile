@@ -25,6 +25,8 @@ CONFIG_WAIT_TIME := 10
 PKT_WAIT_TIME := 10
 STOP_ARGS := -t0
 
+CONSTANTS_PATH := src/main/java/org/stratumproject/fabric/tna/behaviour
+
 _docker_pull_all:
 	docker pull ${P4RT_SH_IMG}@${P4RT_SH_SHA}
 	docker tag ${P4RT_SH_IMG}@${P4RT_SH_SHA} ${P4RT_SH_IMG}
@@ -37,7 +39,7 @@ _docker_pull_all:
 	docker pull ${MAVEN_IMG}
 	docker pull ${PROTOC_IMG}
 
-deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java
+deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java constants
 	docker-compose build
 
 onos-ui:
@@ -49,6 +51,15 @@ onos-tools:
 	tar xf tools.tar.gz
 	mv onos-admin-2.2.2 onos-tools
 	rm tools.tar.gz
+
+# TODO (robert): switch to using org.onosproject:onos-pipelines-fabric-api
+#  once the artifact contains the new namespace
+constants:
+	git clone https://github.com/stratum/fabric-tna.git app/external/fabric-tna 2> /dev/null || (cd app/external/fabric-tna; git pull)
+	rm -rf ${CONSTANTS_PATH}
+	mkdir -p app/${CONSTANTS_PATH}/
+	cp -r app/external/fabric-tna/${CONSTANTS_PATH}/package-info.java app/${CONSTANTS_PATH}/
+	cp -r app/external/fabric-tna/${CONSTANTS_PATH}/P4InfoConstants.java app/${CONSTANTS_PATH}/
 
 app/src/main/resources/p4info.txt: ../p4src/build/p4info.txt
 	mkdir -p app/src/main/resources

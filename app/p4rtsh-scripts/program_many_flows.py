@@ -15,7 +15,7 @@ from ipaddress import IPv4Network, IPv4Address
 FALSE = '0'
 TRUE='1'
 
-TUNNEL_DPORT = '2152'
+TUNNEL_SPORT = '2152'
 
 DIR_UPLINK = '1'
 DIR_DOWNLINK = '2'
@@ -218,7 +218,7 @@ def main():
         entry.action['src_addr'] = str(args.s1u_addr)
         entry.action['dst_addr'] = str(args.enb_addr)
         entry.action['teid'] = str(teid)
-        entry.action['dport'] = TUNNEL_DPORT
+        entry.action['sport'] = TUNNEL_SPORT
         addEntry(entry, args.action)
 
     if args.action == "program":

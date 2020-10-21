@@ -448,7 +448,7 @@ actions {
   }
   params {
     id: 8
-    name: "dport"
+    name: "sport"
     bitwidth: 16
   }
 }

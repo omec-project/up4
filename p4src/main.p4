@@ -192,7 +192,7 @@ control ExecuteFar (inout parsed_headers_t    hdr,
     action do_gtpu_tunnel() {
         gtpu_encap(local_meta.far.tunnel_out_src_ipv4_addr,
                    local_meta.far.tunnel_out_dst_ipv4_addr,
-                   local_meta.far.tunnel_out_udp_dport,
+                   local_meta.far.tunnel_out_udp_sport,
                    local_meta.far.tunnel_out_teid);
     }
 
@@ -330,7 +330,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                                     ipv4_addr_t    src_addr,
                                     ipv4_addr_t    dst_addr,
                                     teid_t         teid,
-                                    L4Port         dport) {
+                                    L4Port         sport) {
         local_meta.far.needs_tunneling = true;
         local_meta.far.needs_dropping = (bool)needs_dropping;
         local_meta.far.notify_cp = (bool)notify_cp;
@@ -338,7 +338,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.far.tunnel_out_src_ipv4_addr = src_addr;
         local_meta.far.tunnel_out_dst_ipv4_addr = dst_addr;
         local_meta.far.tunnel_out_teid          = teid;
-        local_meta.far.tunnel_out_udp_dport     = dport;
+        local_meta.far.tunnel_out_udp_sport     = sport;
         local_meta.bar.needs_buffering = (bool)needs_buffering;
     }
     table load_far_attributes {

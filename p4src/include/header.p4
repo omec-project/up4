@@ -136,7 +136,7 @@ struct far_metadata_t {
     TunnelType  tunnel_out_type;
     ipv4_addr_t tunnel_out_src_ipv4_addr;
     ipv4_addr_t tunnel_out_dst_ipv4_addr;
-    L4Port      tunnel_out_udp_dport;
+    L4Port      tunnel_out_udp_sport;
     teid_t      tunnel_out_teid;
 
     ipv4_addr_t next_hop_ip;

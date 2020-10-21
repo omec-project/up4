@@ -30,7 +30,7 @@
         ["userMetadata._far_tunnel_out_type22", 8, false],
         ["userMetadata._far_tunnel_out_src_ipv4_addr23", 32, false],
         ["userMetadata._far_tunnel_out_dst_ipv4_addr24", 32, false],
-        ["userMetadata._far_tunnel_out_udp_dport25", 16, false],
+        ["userMetadata._far_tunnel_out_udp_sport25", 16, false],
         ["userMetadata._far_tunnel_out_teid26", 32, false],
         ["userMetadata._far_next_hop_ip27", 32, false],
         ["userMetadata._bar_needs_buffering28", 1, false],
@@ -1487,7 +1487,7 @@
             },
             {
               "type" : "field",
-              "value" : ["scalars", "userMetadata._far_tunnel_out_udp_dport25"]
+              "value" : ["scalars", "userMetadata._far_tunnel_out_udp_sport25"]
             }
           ],
           "source_info" : {
@@ -2450,7 +2450,7 @@
           "bitwidth" : 32
         },
         {
-          "name" : "dport",
+          "name" : "sport",
           "bitwidth" : 16
         }
       ],
@@ -2643,7 +2643,7 @@
           "parameters" : [
             {
               "type" : "field",
-              "value" : ["scalars", "userMetadata._far_tunnel_out_udp_dport25"]
+              "value" : ["scalars", "userMetadata._far_tunnel_out_udp_sport25"]
             },
             {
               "type" : "runtime_data",
@@ -2654,7 +2654,7 @@
             "filename" : "p4src/main.p4",
             "line" : 341,
             "column" : 8,
-            "source_fragment" : "local_meta.far.tunnel_out_udp_dport = dport"
+            "source_fragment" : "local_meta.far.tunnel_out_udp_sport = sport"
           }
         },
         {

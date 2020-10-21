@@ -23,6 +23,7 @@ import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
 import org.onosproject.net.pi.runtime.PiMatchKey;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
+import org.stratumproject.fabric.tna.behaviour.P4InfoConstants;
 
 import java.util.Arrays;
 
@@ -46,7 +47,7 @@ public final class TestConstants {
     public static final Ip4Prefix S1U_IFACE = Ip4Prefix.valueOf(S1U_ADDR, 24);
     public static final Ip4Prefix UE_POOL = Ip4Prefix.valueOf("17.0.0.0/16");
     // TODO: tunnel source port currently not stored on writes, so all reads are 0
-    public static final ImmutableByteSequence TUNNEL_SPORT = ImmutableByteSequence.copyFrom((short) 0);
+    public static final short TUNNEL_SPORT = 2160;
 
     public static final ImmutableByteSequence FALSE_BYTE = ImmutableByteSequence.copyFrom((byte) 0);
     public static final ImmutableByteSequence TRUE_BYTE = ImmutableByteSequence.copyFrom((byte) 1);
@@ -76,7 +77,7 @@ public final class TestConstants {
                 .withFlags(false, false)
                 .withBufferFlag(false)
                 .withSessionId(SESSION_ID)
-                .withTunnel(S1U_ADDR, ENB_ADDR, TEID)
+                .withTunnel(S1U_ADDR, ENB_ADDR, TEID, TUNNEL_SPORT)
                 .build();
 
     public static final UpfInterface UPLINK_INTERFACE = UpfInterface.createS1uFrom(S1U_IFACE);
@@ -157,7 +158,7 @@ public final class TestConstants {
                                 new PiActionParam(NorthConstants.TUNNEL_SRC_PARAM, S1U_ADDR.toInt()),
                                 new PiActionParam(NorthConstants.TUNNEL_DST_PARAM, ENB_ADDR.toInt()),
                                 new PiActionParam(NorthConstants.TEID_PARAM, TEID),
-                                new PiActionParam(NorthConstants.TUNNEL_DPORT_PARAM, TUNNEL_SPORT)))
+                                new PiActionParam(NorthConstants.TUNNEL_SPORT_PARAM, TUNNEL_SPORT)))
                         .build())
                 .build();
 
@@ -195,17 +196,17 @@ public final class TestConstants {
 
     public static final FlowRule FABRIC_UPLINK_PDR = DefaultFlowRule.builder()
                 .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
-                .forTable(SouthConstants.PDR_UPLINK_TBL)
+                .forTable(P4InfoConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchExact(SouthConstants.TEID_KEY, TEID.asArray())
-                        .matchExact(SouthConstants.TUNNEL_DST_KEY, S1U_ADDR.toInt())
+                        .matchExact(P4InfoConstants.HDR_TEID, TEID.asArray())
+                        .matchExact(P4InfoConstants.HDR_TUNNEL_IPV4_DST, S1U_ADDR.toInt())
                         .build()).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
-                        .withId(SouthConstants.LOAD_PDR)
+                        .withId(P4InfoConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
                         .withParameters(Arrays.asList(
-                                new PiActionParam(SouthConstants.CTR_ID, COUNTER_ID),
-                                new PiActionParam(SouthConstants.FAR_ID_PARAM, UPLINK_PHYSICAL_FAR_ID),
-                                new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP_PARAM, 1)
+                                new PiActionParam(P4InfoConstants.CTR_ID, COUNTER_ID),
+                                new PiActionParam(P4InfoConstants.FAR_ID, UPLINK_PHYSICAL_FAR_ID),
+                                new PiActionParam(P4InfoConstants.NEEDS_GTPU_DECAP, 1)
                         ))
                         .build()).build())
                 .withPriority(DEFAULT_PRIORITY)
@@ -213,16 +214,16 @@ public final class TestConstants {
 
     public static final FlowRule FABRIC_DOWNLINK_PDR = DefaultFlowRule.builder()
                 .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
-                .forTable(SouthConstants.PDR_DOWNLINK_TBL)
+                .forTable(P4InfoConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchExact(SouthConstants.UE_ADDR_KEY, UE_ADDR.toInt())
+                        .matchExact(P4InfoConstants.HDR_UE_ADDR, UE_ADDR.toInt())
                         .build()).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
-                        .withId(SouthConstants.LOAD_PDR)
+                        .withId(P4InfoConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
                         .withParameters(Arrays.asList(
-                                new PiActionParam(SouthConstants.CTR_ID, COUNTER_ID),
-                                new PiActionParam(SouthConstants.FAR_ID_PARAM, DOWNLINK_PHYSICAL_FAR_ID),
-                                new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP_PARAM, 0)
+                                new PiActionParam(P4InfoConstants.CTR_ID, COUNTER_ID),
+                                new PiActionParam(P4InfoConstants.FAR_ID, DOWNLINK_PHYSICAL_FAR_ID),
+                                new PiActionParam(P4InfoConstants.NEEDS_GTPU_DECAP, 0)
                         ))
                         .build()).build())
                 .withPriority(DEFAULT_PRIORITY)
@@ -230,15 +231,15 @@ public final class TestConstants {
 
     public static final FlowRule FABRIC_UPLINK_FAR = DefaultFlowRule.builder()
                 .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
-                .forTable(SouthConstants.FAR_TBL)
+                .forTable(P4InfoConstants.FABRIC_INGRESS_SPGW_FARS)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchExact(SouthConstants.FAR_ID_KEY, UPLINK_PHYSICAL_FAR_ID)
+                        .matchExact(P4InfoConstants.HDR_FAR_ID, UPLINK_PHYSICAL_FAR_ID)
                         .build()).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
-                        .withId(SouthConstants.LOAD_FAR_NORMAL)
+                        .withId(P4InfoConstants.FABRIC_INGRESS_SPGW_LOAD_NORMAL_FAR)
                         .withParameters(Arrays.asList(
-                                new PiActionParam(SouthConstants.DROP_FLAG, 0),
-                                new PiActionParam(SouthConstants.NOTIFY_FLAG, 0)
+                                new PiActionParam(P4InfoConstants.DROP, 0),
+                                new PiActionParam(P4InfoConstants.NOTIFY_CP, 0)
                         ))
                         .build()).build())
                 .withPriority(DEFAULT_PRIORITY)
@@ -246,19 +247,19 @@ public final class TestConstants {
 
     public static final FlowRule FABRIC_DOWNLINK_FAR = DefaultFlowRule.builder()
                 .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
-                .forTable(SouthConstants.FAR_TBL)
+                .forTable(P4InfoConstants.FABRIC_INGRESS_SPGW_FARS)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchExact(SouthConstants.FAR_ID_KEY, DOWNLINK_PHYSICAL_FAR_ID)
+                        .matchExact(P4InfoConstants.HDR_FAR_ID, DOWNLINK_PHYSICAL_FAR_ID)
                         .build()).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
-                        .withId(SouthConstants.LOAD_FAR_TUNNEL)
+                        .withId(P4InfoConstants.FABRIC_INGRESS_SPGW_LOAD_TUNNEL_FAR)
                         .withParameters(Arrays.asList(
-                                new PiActionParam(SouthConstants.DROP_FLAG, 0),
-                                new PiActionParam(SouthConstants.NOTIFY_FLAG, 0),
-                                new PiActionParam(SouthConstants.TEID_PARAM, TEID),
-                                new PiActionParam(SouthConstants.TUNNEL_SRC_PARAM, S1U_ADDR.toInt()),
-                                new PiActionParam(SouthConstants.TUNNEL_DST_PARAM, ENB_ADDR.toInt()),
-                                new PiActionParam(SouthConstants.TUNNEL_DST_PORT_PARAM, TUNNEL_SPORT)
+                                new PiActionParam(P4InfoConstants.DROP, 0),
+                                new PiActionParam(P4InfoConstants.NOTIFY_CP, 0),
+                                new PiActionParam(P4InfoConstants.TEID, TEID),
+                                new PiActionParam(P4InfoConstants.TUNNEL_SRC_ADDR, S1U_ADDR.toInt()),
+                                new PiActionParam(P4InfoConstants.TUNNEL_DST_ADDR, ENB_ADDR.toInt()),
+                                new PiActionParam(P4InfoConstants.TUNNEL_SRC_PORT, TUNNEL_SPORT)
                         ))
                         .build()).build())
                 .withPriority(DEFAULT_PRIORITY)
@@ -266,40 +267,32 @@ public final class TestConstants {
 
     public static final FlowRule FABRIC_UPLINK_INTERFACE = DefaultFlowRule.builder()
                 .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
-                .forTable(SouthConstants.INTERFACE_LOOKUP)
+                .forTable(P4InfoConstants.FABRIC_INGRESS_SPGW_INTERFACES)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchLpm(SouthConstants.IPV4_DST_ADDR,
+                        .matchLpm(P4InfoConstants.HDR_IPV4_DST_ADDR,
                                 S1U_IFACE.address().toInt(),
                                 S1U_IFACE.prefixLength())
-                        .matchExact(SouthConstants.GTPU_IS_VALID, 1)
+                        .matchExact(P4InfoConstants.HDR_GTPU_IS_VALID, 1)
                         .build()).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
-                        .withId(SouthConstants.SET_SOURCE_IFACE)
-                        .withParameters(Arrays.asList(
-                                new PiActionParam(SouthConstants.SRC_IFACE_PARAM, SouthConstants.INTERFACE_ACCESS),
-                                new PiActionParam(SouthConstants.DIRECTION_PARAM, SouthConstants.DIRECTION_UPLINK),
-                                new PiActionParam(SouthConstants.SKIP_SPGW_PARAM, 0)
-                        ))
+                        .withId(P4InfoConstants.FABRIC_INGRESS_SPGW_LOAD_IFACE)
+                        .withParameter(new PiActionParam(P4InfoConstants.SRC_IFACE, SouthConstants.INTERFACE_ACCESS))
                         .build()).build())
                 .withPriority(DEFAULT_PRIORITY)
                 .build();
 
     public static final FlowRule FABRIC_DOWNLINK_INTERFACE = DefaultFlowRule.builder()
                 .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
-                .forTable(SouthConstants.INTERFACE_LOOKUP)
+                .forTable(P4InfoConstants.FABRIC_INGRESS_SPGW_INTERFACES)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchLpm(SouthConstants.IPV4_DST_ADDR,
+                        .matchLpm(P4InfoConstants.HDR_IPV4_DST_ADDR,
                                 UE_POOL.address().toInt(),
                                 UE_POOL.prefixLength())
-                        .matchExact(SouthConstants.GTPU_IS_VALID, 0)
+                        .matchExact(P4InfoConstants.HDR_GTPU_IS_VALID, 0)
                         .build()).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
-                        .withId(SouthConstants.SET_SOURCE_IFACE)
-                        .withParameters(Arrays.asList(
-                                new PiActionParam(SouthConstants.SRC_IFACE_PARAM, SouthConstants.INTERFACE_CORE),
-                                new PiActionParam(SouthConstants.DIRECTION_PARAM, SouthConstants.DIRECTION_DOWNLINK),
-                                new PiActionParam(SouthConstants.SKIP_SPGW_PARAM, 0)
-                        ))
+                        .withId(P4InfoConstants.FABRIC_INGRESS_SPGW_LOAD_IFACE)
+                        .withParameter(new PiActionParam(P4InfoConstants.SRC_IFACE, SouthConstants.INTERFACE_CORE))
                         .build()).build())
                 .withPriority(DEFAULT_PRIORITY)
                 .build();

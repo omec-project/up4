@@ -9,7 +9,6 @@ import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.UpfRuleIdentifier;
-import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
@@ -35,6 +34,7 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.stratumproject.fabric.tna.behaviour.P4InfoConstants;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -195,9 +195,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         // Make list of cell handles we want to read.
         List<PiCounterCellHandle> counterCellHandles = List.of(
                 PiCounterCellHandle.of(deviceId,
-                        PiCounterCellId.ofIndirect(SouthConstants.INGRESS_COUNTER_ID, cellId)),
+                        PiCounterCellId.ofIndirect(P4InfoConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER, cellId)),
                 PiCounterCellHandle.of(deviceId,
-                        PiCounterCellId.ofIndirect(SouthConstants.EGRESS_COUNTER_ID, cellId)));
+                        PiCounterCellId.ofIndirect(P4InfoConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER, cellId)));
 
         // Query the device.
         Collection<PiCounterCell> counterEntryResponse = client.read(
@@ -215,9 +215,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 log.warn("Unrecognized counter index {}, skipping", counterCell);
                 return;
             }
-            if (counterCell.cellId().counterId().equals(SouthConstants.INGRESS_COUNTER_ID)) {
+            if (counterCell.cellId().counterId().equals(P4InfoConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER)) {
                 stats.setIngress(counterCell.data().packets(), counterCell.data().bytes());
-            } else if (counterCell.cellId().counterId().equals(SouthConstants.EGRESS_COUNTER_ID)) {
+            } else if (counterCell.cellId().counterId().equals(P4InfoConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER)) {
                 stats.setEgress(counterCell.data().packets(), counterCell.data().bytes());
             } else {
                 log.warn("Unrecognized counter ID {}, skipping", counterCell);
@@ -434,15 +434,15 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         PiTableId tableId;
         if (pdr.isUplink()) {
             match = PiCriterion.builder()
-                    .matchExact(SouthConstants.TEID_KEY, pdr.teid().asArray())
-                    .matchExact(SouthConstants.TUNNEL_DST_KEY, pdr.tunnelDest().toInt())
+                    .matchExact(P4InfoConstants.HDR_TEID, pdr.teid().asArray())
+                    .matchExact(P4InfoConstants.HDR_TUNNEL_IPV4_DST, pdr.tunnelDest().toInt())
                     .build();
-            tableId = SouthConstants.PDR_UPLINK_TBL;
+            tableId = P4InfoConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS;
         } else if (pdr.isDownlink()) {
             match = PiCriterion.builder()
-                    .matchExact(SouthConstants.UE_ADDR_KEY, pdr.ueAddress().toInt())
+                    .matchExact(P4InfoConstants.HDR_UE_ADDR, pdr.ueAddress().toInt())
                     .build();
-            tableId = SouthConstants.PDR_DOWNLINK_TBL;
+            tableId = P4InfoConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS;
         } else {
             log.error("Removal of flexible PDRs not yet supported.");
             return;
@@ -467,10 +467,10 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         log.info("Removing {}", far.toString());
 
         PiCriterion match = PiCriterion.builder()
-                .matchExact(SouthConstants.FAR_ID_KEY, up4Translator.globalFarIdOf(far.sessionId(), far.farId()))
+                .matchExact(P4InfoConstants.HDR_FAR_ID, up4Translator.globalFarIdOf(far.sessionId(), far.farId()))
                 .build();
 
-        removeEntry(match, SouthConstants.FAR_TBL, false);
+        removeEntry(match, P4InfoConstants.FABRIC_INGRESS_SPGW_FARS, false);
     }
 
     @Override
@@ -479,18 +479,20 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         // If it isn't a downlink interface (so it is either uplink or unknown), try removing uplink
         if (!upfInterface.isDownlink()) {
             PiCriterion match1 = PiCriterion.builder()
-                    .matchLpm(SouthConstants.IPV4_DST_ADDR, ifacePrefix.address().toInt(), ifacePrefix.prefixLength())
-                    .matchExact(SouthConstants.GTPU_IS_VALID, 1)
+                    .matchLpm(P4InfoConstants.HDR_IPV4_DST_ADDR, ifacePrefix.address().toInt(),
+                            ifacePrefix.prefixLength())
+                    .matchExact(P4InfoConstants.HDR_GTPU_IS_VALID, 1)
                     .build();
-            if (removeEntry(match1, SouthConstants.INTERFACE_LOOKUP, true)) {
+            if (removeEntry(match1, P4InfoConstants.FABRIC_INGRESS_SPGW_INTERFACES, true)) {
                 return;
             }
         }
         // If that didn't work or didn't execute, try removing downlink
         PiCriterion match2 = PiCriterion.builder()
-                .matchLpm(SouthConstants.IPV4_DST_ADDR, ifacePrefix.address().toInt(), ifacePrefix.prefixLength())
-                .matchExact(SouthConstants.GTPU_IS_VALID, 0)
+                .matchLpm(P4InfoConstants.HDR_IPV4_DST_ADDR, ifacePrefix.address().toInt(),
+                        ifacePrefix.prefixLength())
+                .matchExact(P4InfoConstants.HDR_GTPU_IS_VALID, 0)
                 .build();
-        removeEntry(match2, SouthConstants.INTERFACE_LOOKUP, false);
+        removeEntry(match2, P4InfoConstants.FABRIC_INGRESS_SPGW_INTERFACES, false);
     }
 }

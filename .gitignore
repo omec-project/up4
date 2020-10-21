@@ -3,9 +3,13 @@
 *.iml
 *.swp
 /.idea/
+/app/.idea/
 /.yapf/
+/.m2/
 /app/**/target/
 /app/app/src/main/java/org/omecproject/dbuf/grpc/*
+/app/app/src/main/java/org/stratumproject/*
+/app/app/external/fabric-tna/
 /app/app/src/main/resources/p4info.txt
 /app/dependencies.xml
 /app/mvn_settings.xml
