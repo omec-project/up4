@@ -23,7 +23,6 @@ import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
 import org.onosproject.net.pi.runtime.PiMatchKey;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
-import org.stratumproject.fabric.tna.behaviour.P4InfoConstants;
 
 import java.util.Arrays;
 
@@ -53,249 +52,249 @@ public final class TestConstants {
     public static final ImmutableByteSequence TRUE_BYTE = ImmutableByteSequence.copyFrom((byte) 1);
 
     public static final PacketDetectionRule UPLINK_PDR = PacketDetectionRule.builder()
-                .withTunnelDst(S1U_ADDR)
-                .withTeid(TEID)
-                .withLocalFarId(UPLINK_FAR_ID)
-                .withSessionId(SESSION_ID)
-                .withCounterId(COUNTER_ID)
-                .build();
+            .withTunnelDst(S1U_ADDR)
+            .withTeid(TEID)
+            .withLocalFarId(UPLINK_FAR_ID)
+            .withSessionId(SESSION_ID)
+            .withCounterId(COUNTER_ID)
+            .build();
 
     public static final PacketDetectionRule DOWNLINK_PDR = PacketDetectionRule.builder()
-                .withUeAddr(UE_ADDR)
-                .withLocalFarId(DOWNLINK_FAR_ID)
-                .withSessionId(SESSION_ID)
-                .withCounterId(COUNTER_ID)
-                .build();
+            .withUeAddr(UE_ADDR)
+            .withLocalFarId(DOWNLINK_FAR_ID)
+            .withSessionId(SESSION_ID)
+            .withCounterId(COUNTER_ID)
+            .build();
 
     public static final ForwardingActionRule UPLINK_FAR = ForwardingActionRule.builder()
-                .withFarId(UPLINK_FAR_ID)
-                .withFlags(false, false)
-                .withSessionId(SESSION_ID).build();
+            .withFarId(UPLINK_FAR_ID)
+            .withFlags(false, false)
+            .withSessionId(SESSION_ID).build();
 
     public static final ForwardingActionRule DOWNLINK_FAR = ForwardingActionRule.builder()
-                .withFarId(DOWNLINK_FAR_ID)
-                .withFlags(false, false)
-                .withBufferFlag(false)
-                .withSessionId(SESSION_ID)
-                .withTunnel(S1U_ADDR, ENB_ADDR, TEID, TUNNEL_SPORT)
-                .build();
+            .withFarId(DOWNLINK_FAR_ID)
+            .withFlags(false, false)
+            .withBufferFlag(false)
+            .withSessionId(SESSION_ID)
+            .withTunnel(S1U_ADDR, ENB_ADDR, TEID, TUNNEL_SPORT)
+            .build();
 
     public static final UpfInterface UPLINK_INTERFACE = UpfInterface.createS1uFrom(S1U_IFACE);
 
     public static final UpfInterface DOWNLINK_INTERFACE = UpfInterface.createUePoolFrom(UE_POOL);
 
     public static final PiTableEntry UP4_UPLINK_PDR = PiTableEntry.builder()
-                .forTable(NorthConstants.PDR_TBL)
-                .withMatchKey(PiMatchKey.builder()
-                        .addFieldMatch(new PiExactFieldMatch(NorthConstants.SRC_IFACE_KEY,
-                                ImmutableByteSequence.copyFrom(NorthConstants.IFACE_ACCESS)))
-                        .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.TEID_KEY, TEID, ALL_ONES_32))
-                        .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.TUNNEL_DST_KEY,
-                                ImmutableByteSequence.copyFrom(S1U_ADDR.toOctets()), ALL_ONES_32))
-                        .build())
-                .withAction(PiAction.builder()
-                        .withId(NorthConstants.LOAD_PDR)
-                        .withParameters(Arrays.asList(
-                                new PiActionParam(NorthConstants.PDR_ID_PARAM, PDR_ID),
-                                new PiActionParam(NorthConstants.SESSION_ID_PARAM, SESSION_ID),
-                                new PiActionParam(NorthConstants.CTR_ID, COUNTER_ID),
-                                new PiActionParam(NorthConstants.FAR_ID_PARAM, UPLINK_FAR_ID),
-                                new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, TRUE_BYTE)
-                        ))
-                        .build())
-                .build();
+            .forTable(NorthConstants.PDR_TBL)
+            .withMatchKey(PiMatchKey.builder()
+                    .addFieldMatch(new PiExactFieldMatch(NorthConstants.SRC_IFACE_KEY,
+                            ImmutableByteSequence.copyFrom(NorthConstants.IFACE_ACCESS)))
+                    .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.TEID_KEY, TEID, ALL_ONES_32))
+                    .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.TUNNEL_DST_KEY,
+                            ImmutableByteSequence.copyFrom(S1U_ADDR.toOctets()), ALL_ONES_32))
+                    .build())
+            .withAction(PiAction.builder()
+                    .withId(NorthConstants.LOAD_PDR)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(NorthConstants.PDR_ID_PARAM, PDR_ID),
+                            new PiActionParam(NorthConstants.SESSION_ID_PARAM, SESSION_ID),
+                            new PiActionParam(NorthConstants.CTR_ID, COUNTER_ID),
+                            new PiActionParam(NorthConstants.FAR_ID_PARAM, UPLINK_FAR_ID),
+                            new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, TRUE_BYTE)
+                    ))
+                    .build())
+            .build();
 
     public static final PiTableEntry UP4_DOWNLINK_PDR = PiTableEntry.builder()
-                .forTable(NorthConstants.PDR_TBL)
-                .withMatchKey(PiMatchKey.builder()
-                        .addFieldMatch(new PiExactFieldMatch(NorthConstants.SRC_IFACE_KEY,
-                                ImmutableByteSequence.copyFrom((byte) NorthConstants.IFACE_CORE)))
-                        .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.UE_ADDR_KEY,
-                                ImmutableByteSequence.copyFrom(UE_ADDR.toOctets()), ALL_ONES_32))
-                        .build())
-                .withAction(PiAction.builder()
-                        .withId(NorthConstants.LOAD_PDR)
-                        .withParameters(Arrays.asList(
-                                new PiActionParam(NorthConstants.PDR_ID_PARAM, PDR_ID),
-                                new PiActionParam(NorthConstants.SESSION_ID_PARAM, SESSION_ID),
-                                new PiActionParam(NorthConstants.CTR_ID, COUNTER_ID),
-                                new PiActionParam(NorthConstants.FAR_ID_PARAM, DOWNLINK_FAR_ID),
-                                new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, FALSE_BYTE)
-                        ))
-                        .build())
-                .build();
+            .forTable(NorthConstants.PDR_TBL)
+            .withMatchKey(PiMatchKey.builder()
+                    .addFieldMatch(new PiExactFieldMatch(NorthConstants.SRC_IFACE_KEY,
+                            ImmutableByteSequence.copyFrom((byte) NorthConstants.IFACE_CORE)))
+                    .addFieldMatch(new PiTernaryFieldMatch(NorthConstants.UE_ADDR_KEY,
+                            ImmutableByteSequence.copyFrom(UE_ADDR.toOctets()), ALL_ONES_32))
+                    .build())
+            .withAction(PiAction.builder()
+                    .withId(NorthConstants.LOAD_PDR)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(NorthConstants.PDR_ID_PARAM, PDR_ID),
+                            new PiActionParam(NorthConstants.SESSION_ID_PARAM, SESSION_ID),
+                            new PiActionParam(NorthConstants.CTR_ID, COUNTER_ID),
+                            new PiActionParam(NorthConstants.FAR_ID_PARAM, DOWNLINK_FAR_ID),
+                            new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, FALSE_BYTE)
+                    ))
+                    .build())
+            .build();
 
     public static final PiTableEntry UP4_UPLINK_FAR = PiTableEntry.builder()
-                .forTable(NorthConstants.FAR_TBL)
-                .withMatchKey(PiMatchKey.builder()
-                        .addFieldMatch(new PiExactFieldMatch(NorthConstants.FAR_ID_KEY,
-                                ImmutableByteSequence.copyFrom(UPLINK_FAR_ID)))
-                        .addFieldMatch(new PiExactFieldMatch(NorthConstants.SESSION_ID_KEY, SESSION_ID))
-                        .build())
-                .withAction(PiAction.builder()
-                        .withId(NorthConstants.LOAD_FAR_NORMAL)
-                        .withParameters(Arrays.asList(
-                                new PiActionParam(NorthConstants.DROP_FLAG, FALSE_BYTE),
-                                new PiActionParam(NorthConstants.NOTIFY_FLAG, FALSE_BYTE)
-                        ))
-                        .build())
-                .build();
+            .forTable(NorthConstants.FAR_TBL)
+            .withMatchKey(PiMatchKey.builder()
+                    .addFieldMatch(new PiExactFieldMatch(NorthConstants.FAR_ID_KEY,
+                            ImmutableByteSequence.copyFrom(UPLINK_FAR_ID)))
+                    .addFieldMatch(new PiExactFieldMatch(NorthConstants.SESSION_ID_KEY, SESSION_ID))
+                    .build())
+            .withAction(PiAction.builder()
+                    .withId(NorthConstants.LOAD_FAR_NORMAL)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(NorthConstants.DROP_FLAG, FALSE_BYTE),
+                            new PiActionParam(NorthConstants.NOTIFY_FLAG, FALSE_BYTE)
+                    ))
+                    .build())
+            .build();
 
     public static final PiTableEntry UP4_DOWNLINK_FAR = PiTableEntry.builder()
-                .forTable(NorthConstants.FAR_TBL)
-                .withMatchKey(PiMatchKey.builder()
-                        .addFieldMatch(new PiExactFieldMatch(NorthConstants.FAR_ID_KEY,
-                                ImmutableByteSequence.copyFrom(DOWNLINK_FAR_ID)))
-                        .addFieldMatch(new PiExactFieldMatch(NorthConstants.SESSION_ID_KEY, SESSION_ID))
-                        .build())
-                .withAction(PiAction.builder()
-                        .withId(NorthConstants.LOAD_FAR_TUNNEL)
-                        .withParameters(Arrays.asList(
-                                new PiActionParam(NorthConstants.DROP_FLAG, FALSE_BYTE),
-                                new PiActionParam(NorthConstants.NOTIFY_FLAG, FALSE_BYTE),
-                                new PiActionParam(NorthConstants.BUFFER_FLAG, FALSE_BYTE),
-                                new PiActionParam(NorthConstants.TUNNEL_TYPE_PARAM, NorthConstants.TUNNEL_TYPE_GTPU),
-                                new PiActionParam(NorthConstants.TUNNEL_SRC_PARAM, S1U_ADDR.toInt()),
-                                new PiActionParam(NorthConstants.TUNNEL_DST_PARAM, ENB_ADDR.toInt()),
-                                new PiActionParam(NorthConstants.TEID_PARAM, TEID),
-                                new PiActionParam(NorthConstants.TUNNEL_SPORT_PARAM, TUNNEL_SPORT)))
-                        .build())
-                .build();
+            .forTable(NorthConstants.FAR_TBL)
+            .withMatchKey(PiMatchKey.builder()
+                    .addFieldMatch(new PiExactFieldMatch(NorthConstants.FAR_ID_KEY,
+                            ImmutableByteSequence.copyFrom(DOWNLINK_FAR_ID)))
+                    .addFieldMatch(new PiExactFieldMatch(NorthConstants.SESSION_ID_KEY, SESSION_ID))
+                    .build())
+            .withAction(PiAction.builder()
+                    .withId(NorthConstants.LOAD_FAR_TUNNEL)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(NorthConstants.DROP_FLAG, FALSE_BYTE),
+                            new PiActionParam(NorthConstants.NOTIFY_FLAG, FALSE_BYTE),
+                            new PiActionParam(NorthConstants.BUFFER_FLAG, FALSE_BYTE),
+                            new PiActionParam(NorthConstants.TUNNEL_TYPE_PARAM, NorthConstants.TUNNEL_TYPE_GTPU),
+                            new PiActionParam(NorthConstants.TUNNEL_SRC_PARAM, S1U_ADDR.toInt()),
+                            new PiActionParam(NorthConstants.TUNNEL_DST_PARAM, ENB_ADDR.toInt()),
+                            new PiActionParam(NorthConstants.TEID_PARAM, TEID),
+                            new PiActionParam(NorthConstants.TUNNEL_SPORT_PARAM, TUNNEL_SPORT)))
+                    .build())
+            .build();
 
     public static final PiTableEntry UP4_UPLINK_INTERFACE = PiTableEntry.builder()
-                .forTable(NorthConstants.IFACE_TBL)
-                .withMatchKey(PiMatchKey.builder()
-                        .addFieldMatch(new PiLpmFieldMatch(
-                                NorthConstants.IFACE_DST_PREFIX_KEY,
-                                ImmutableByteSequence.copyFrom(S1U_IFACE.address().toOctets()),
-                                S1U_IFACE.prefixLength()))
-                        .build())
-                .withAction(PiAction.builder()
-                        .withId(NorthConstants.LOAD_IFACE)
-                        .withParameters(Arrays.asList(
-                                new PiActionParam(NorthConstants.SRC_IFACE_PARAM, NorthConstants.IFACE_ACCESS),
-                                new PiActionParam(NorthConstants.DIRECTION, NorthConstants.DIRECTION_UPLINK)
-                        ))
-                        .build()).build();
+            .forTable(NorthConstants.IFACE_TBL)
+            .withMatchKey(PiMatchKey.builder()
+                    .addFieldMatch(new PiLpmFieldMatch(
+                            NorthConstants.IFACE_DST_PREFIX_KEY,
+                            ImmutableByteSequence.copyFrom(S1U_IFACE.address().toOctets()),
+                            S1U_IFACE.prefixLength()))
+                    .build())
+            .withAction(PiAction.builder()
+                    .withId(NorthConstants.LOAD_IFACE)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(NorthConstants.SRC_IFACE_PARAM, NorthConstants.IFACE_ACCESS),
+                            new PiActionParam(NorthConstants.DIRECTION, NorthConstants.DIRECTION_UPLINK)
+                    ))
+                    .build()).build();
 
     public static final PiTableEntry UP4_DOWNLINK_INTERFACE = PiTableEntry.builder()
-                .forTable(NorthConstants.IFACE_TBL)
-                .withMatchKey(PiMatchKey.builder()
-                        .addFieldMatch(new PiLpmFieldMatch(
-                                NorthConstants.IFACE_DST_PREFIX_KEY,
-                                ImmutableByteSequence.copyFrom(UE_POOL.address().toOctets()),
-                                UE_POOL.prefixLength()))
-                        .build())
-                .withAction(PiAction.builder()
-                        .withId(NorthConstants.LOAD_IFACE)
-                        .withParameters(Arrays.asList(
-                                new PiActionParam(NorthConstants.SRC_IFACE_PARAM, NorthConstants.IFACE_CORE),
-                                new PiActionParam(NorthConstants.DIRECTION, NorthConstants.DIRECTION_DOWNLINK)
-                        ))
-                        .build()).build();
+            .forTable(NorthConstants.IFACE_TBL)
+            .withMatchKey(PiMatchKey.builder()
+                    .addFieldMatch(new PiLpmFieldMatch(
+                            NorthConstants.IFACE_DST_PREFIX_KEY,
+                            ImmutableByteSequence.copyFrom(UE_POOL.address().toOctets()),
+                            UE_POOL.prefixLength()))
+                    .build())
+            .withAction(PiAction.builder()
+                    .withId(NorthConstants.LOAD_IFACE)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(NorthConstants.SRC_IFACE_PARAM, NorthConstants.IFACE_CORE),
+                            new PiActionParam(NorthConstants.DIRECTION, NorthConstants.DIRECTION_DOWNLINK)
+                    ))
+                    .build()).build();
 
     public static final FlowRule FABRIC_UPLINK_PDR = DefaultFlowRule.builder()
-                .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
-                .forTable(P4InfoConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)
-                .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchExact(P4InfoConstants.HDR_TEID, TEID.asArray())
-                        .matchExact(P4InfoConstants.HDR_TUNNEL_IPV4_DST, S1U_ADDR.toInt())
-                        .build()).build())
-                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
-                        .withId(P4InfoConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
-                        .withParameters(Arrays.asList(
-                                new PiActionParam(P4InfoConstants.CTR_ID, COUNTER_ID),
-                                new PiActionParam(P4InfoConstants.FAR_ID, UPLINK_PHYSICAL_FAR_ID),
-                                new PiActionParam(P4InfoConstants.NEEDS_GTPU_DECAP, 1)
-                        ))
-                        .build()).build())
-                .withPriority(DEFAULT_PRIORITY)
-                .build();
+            .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
+            .forTable(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)
+            .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
+                    .matchExact(SouthConstants.HDR_TEID, TEID.asArray())
+                    .matchExact(SouthConstants.HDR_TUNNEL_IPV4_DST, S1U_ADDR.toInt())
+                    .build()).build())
+            .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
+                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(SouthConstants.CTR_ID, COUNTER_ID),
+                            new PiActionParam(SouthConstants.FAR_ID, UPLINK_PHYSICAL_FAR_ID),
+                            new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, 1)
+                    ))
+                    .build()).build())
+            .withPriority(DEFAULT_PRIORITY)
+            .build();
 
     public static final FlowRule FABRIC_DOWNLINK_PDR = DefaultFlowRule.builder()
-                .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
-                .forTable(P4InfoConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)
-                .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchExact(P4InfoConstants.HDR_UE_ADDR, UE_ADDR.toInt())
-                        .build()).build())
-                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
-                        .withId(P4InfoConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
-                        .withParameters(Arrays.asList(
-                                new PiActionParam(P4InfoConstants.CTR_ID, COUNTER_ID),
-                                new PiActionParam(P4InfoConstants.FAR_ID, DOWNLINK_PHYSICAL_FAR_ID),
-                                new PiActionParam(P4InfoConstants.NEEDS_GTPU_DECAP, 0)
-                        ))
-                        .build()).build())
-                .withPriority(DEFAULT_PRIORITY)
-                .build();
+            .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
+            .forTable(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)
+            .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
+                    .matchExact(SouthConstants.HDR_UE_ADDR, UE_ADDR.toInt())
+                    .build()).build())
+            .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
+                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(SouthConstants.CTR_ID, COUNTER_ID),
+                            new PiActionParam(SouthConstants.FAR_ID, DOWNLINK_PHYSICAL_FAR_ID),
+                            new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, 0)
+                    ))
+                    .build()).build())
+            .withPriority(DEFAULT_PRIORITY)
+            .build();
 
     public static final FlowRule FABRIC_UPLINK_FAR = DefaultFlowRule.builder()
-                .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
-                .forTable(P4InfoConstants.FABRIC_INGRESS_SPGW_FARS)
-                .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchExact(P4InfoConstants.HDR_FAR_ID, UPLINK_PHYSICAL_FAR_ID)
-                        .build()).build())
-                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
-                        .withId(P4InfoConstants.FABRIC_INGRESS_SPGW_LOAD_NORMAL_FAR)
-                        .withParameters(Arrays.asList(
-                                new PiActionParam(P4InfoConstants.DROP, 0),
-                                new PiActionParam(P4InfoConstants.NOTIFY_CP, 0)
-                        ))
-                        .build()).build())
-                .withPriority(DEFAULT_PRIORITY)
-                .build();
+            .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
+            .forTable(SouthConstants.FABRIC_INGRESS_SPGW_FARS)
+            .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
+                    .matchExact(SouthConstants.HDR_FAR_ID, UPLINK_PHYSICAL_FAR_ID)
+                    .build()).build())
+            .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
+                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_NORMAL_FAR)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(SouthConstants.DROP, 0),
+                            new PiActionParam(SouthConstants.NOTIFY_CP, 0)
+                    ))
+                    .build()).build())
+            .withPriority(DEFAULT_PRIORITY)
+            .build();
 
     public static final FlowRule FABRIC_DOWNLINK_FAR = DefaultFlowRule.builder()
-                .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
-                .forTable(P4InfoConstants.FABRIC_INGRESS_SPGW_FARS)
-                .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchExact(P4InfoConstants.HDR_FAR_ID, DOWNLINK_PHYSICAL_FAR_ID)
-                        .build()).build())
-                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
-                        .withId(P4InfoConstants.FABRIC_INGRESS_SPGW_LOAD_TUNNEL_FAR)
-                        .withParameters(Arrays.asList(
-                                new PiActionParam(P4InfoConstants.DROP, 0),
-                                new PiActionParam(P4InfoConstants.NOTIFY_CP, 0),
-                                new PiActionParam(P4InfoConstants.TEID, TEID),
-                                new PiActionParam(P4InfoConstants.TUNNEL_SRC_ADDR, S1U_ADDR.toInt()),
-                                new PiActionParam(P4InfoConstants.TUNNEL_DST_ADDR, ENB_ADDR.toInt()),
-                                new PiActionParam(P4InfoConstants.TUNNEL_SRC_PORT, TUNNEL_SPORT)
-                        ))
-                        .build()).build())
-                .withPriority(DEFAULT_PRIORITY)
-                .build();
+            .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
+            .forTable(SouthConstants.FABRIC_INGRESS_SPGW_FARS)
+            .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
+                    .matchExact(SouthConstants.HDR_FAR_ID, DOWNLINK_PHYSICAL_FAR_ID)
+                    .build()).build())
+            .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
+                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_TUNNEL_FAR)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(SouthConstants.DROP, 0),
+                            new PiActionParam(SouthConstants.NOTIFY_CP, 0),
+                            new PiActionParam(SouthConstants.TEID, TEID),
+                            new PiActionParam(SouthConstants.TUNNEL_SRC_ADDR, S1U_ADDR.toInt()),
+                            new PiActionParam(SouthConstants.TUNNEL_DST_ADDR, ENB_ADDR.toInt()),
+                            new PiActionParam(SouthConstants.TUNNEL_SRC_PORT, TUNNEL_SPORT)
+                    ))
+                    .build()).build())
+            .withPriority(DEFAULT_PRIORITY)
+            .build();
 
     public static final FlowRule FABRIC_UPLINK_INTERFACE = DefaultFlowRule.builder()
-                .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
-                .forTable(P4InfoConstants.FABRIC_INGRESS_SPGW_INTERFACES)
-                .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchLpm(P4InfoConstants.HDR_IPV4_DST_ADDR,
-                                S1U_IFACE.address().toInt(),
-                                S1U_IFACE.prefixLength())
-                        .matchExact(P4InfoConstants.HDR_GTPU_IS_VALID, 1)
-                        .build()).build())
-                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
-                        .withId(P4InfoConstants.FABRIC_INGRESS_SPGW_LOAD_IFACE)
-                        .withParameter(new PiActionParam(P4InfoConstants.SRC_IFACE, SouthConstants.INTERFACE_ACCESS))
-                        .build()).build())
-                .withPriority(DEFAULT_PRIORITY)
-                .build();
+            .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
+            .forTable(SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES)
+            .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
+                    .matchLpm(SouthConstants.HDR_IPV4_DST_ADDR,
+                            S1U_IFACE.address().toInt(),
+                            S1U_IFACE.prefixLength())
+                    .matchExact(SouthConstants.HDR_GTPU_IS_VALID, 1)
+                    .build()).build())
+            .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
+                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_IFACE)
+                    .withParameter(new PiActionParam(SouthConstants.SRC_IFACE, SouthConstants.INTERFACE_ACCESS))
+                    .build()).build())
+            .withPriority(DEFAULT_PRIORITY)
+            .build();
 
     public static final FlowRule FABRIC_DOWNLINK_INTERFACE = DefaultFlowRule.builder()
-                .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
-                .forTable(P4InfoConstants.FABRIC_INGRESS_SPGW_INTERFACES)
-                .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
-                        .matchLpm(P4InfoConstants.HDR_IPV4_DST_ADDR,
-                                UE_POOL.address().toInt(),
-                                UE_POOL.prefixLength())
-                        .matchExact(P4InfoConstants.HDR_GTPU_IS_VALID, 0)
-                        .build()).build())
-                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
-                        .withId(P4InfoConstants.FABRIC_INGRESS_SPGW_LOAD_IFACE)
-                        .withParameter(new PiActionParam(P4InfoConstants.SRC_IFACE, SouthConstants.INTERFACE_CORE))
-                        .build()).build())
-                .withPriority(DEFAULT_PRIORITY)
-                .build();
+            .forDevice(DEVICE_ID).fromApp(APP_ID).makePermanent()
+            .forTable(SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES)
+            .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
+                    .matchLpm(SouthConstants.HDR_IPV4_DST_ADDR,
+                            UE_POOL.address().toInt(),
+                            UE_POOL.prefixLength())
+                    .matchExact(SouthConstants.HDR_GTPU_IS_VALID, 0)
+                    .build()).build())
+            .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
+                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_IFACE)
+                    .withParameter(new PiActionParam(SouthConstants.SRC_IFACE, SouthConstants.INTERFACE_CORE))
+                    .build()).build())
+            .withPriority(DEFAULT_PRIORITY)
+            .build();
 
     private static ImmutableByteSequence toSessionId(long value) {
         try {
