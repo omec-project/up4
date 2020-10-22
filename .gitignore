@@ -1,24 +1,26 @@
-.idea
-ptf/*.log
-ptf/*.pcap
 **/*.pyc
-.yapf/
-*.swp
 *.code-workspace
 *.iml
-tmp/
-target/
-onos-tools/
-app/app/src/main/resources/p4info.txt
-app/app/src/main/java/org/omecproject/dbuf/grpc/*
-app/mvn_settings.xml
-app/dependencies.xml
-.m2/
+*.swp
+/.idea/
+/app/.idea/
+/.yapf/
+/.m2/
+/app/**/target/
+/app/app/src/main/java/org/omecproject/dbuf/grpc/*
+/app/app/src/main/resources/p4info.txt
+/app/dependencies.xml
+/app/mvn_settings.xml
+/app/onos-tools/
+/app/screenlog.0
+/app/tmp/
+/ptf/*.log
+/ptf/*.pcap
 
 # FIXME: .bin format of P4info changes accross builds
 #  Ignore for now to avoid breaking CI (which makes sure
 #  the p4c out is up-to-date)
-p4src/build/p4info.bin
+/p4src/build/p4info.bin
 
 *.class
 *.DS_Store

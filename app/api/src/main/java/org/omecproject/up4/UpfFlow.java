@@ -78,7 +78,9 @@ public final class UpfFlow {
     public String toString() {
         String farString = "NO FAR!";
         if (far != null) {
-            if (far.isUplink()) {
+            if (far.bufferFlag()) {
+                farString = String.format("FarID %d  -->  Buffer()", far.farId());
+            } else if (far.isUplink()) {
                 farString = String.format("FarID %d  -->  Decap()", far.farId());
             } else if (far.isDownlink()) {
                 farString = String.format("FarID %d  -->  Encap(Src=%s, TEID=%s, Dst=%s)",

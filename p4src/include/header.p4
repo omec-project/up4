@@ -114,9 +114,12 @@ struct pdr_metadata_t {
     counter_index_t ctr_idx;
 }
 
-// Data assocaited with a BAR entry
+// Data associated with Buffering and BARs
 struct bar_metadata_t {
-    bar_id_t id; // unused
+    bool needs_buffering;
+    bar_id_t bar_id;
+    bit<32> ddn_delay_ms; // unused so far
+    bit<32> suggest_pkt_count; // unused so far
 }
 
 
@@ -133,16 +136,10 @@ struct far_metadata_t {
     TunnelType  tunnel_out_type;
     ipv4_addr_t tunnel_out_src_ipv4_addr;
     ipv4_addr_t tunnel_out_dst_ipv4_addr;
-    L4Port      tunnel_out_udp_dport;
+    L4Port      tunnel_out_udp_sport;
     teid_t      tunnel_out_teid;
 
     ipv4_addr_t next_hop_ip;
-}
-
-// QoS related metadata
-struct qos_metadata_t {
-    qer_id_t qer_id; // unused
-    qfi_t    qfi;    // unused
 }
 
 // The primary metadata structure.
@@ -175,9 +172,8 @@ struct local_metadata_t {
 
     net_instance_t net_instance;
 
-    far_metadata_t far;
-    qos_metadata_t qos;
     pdr_metadata_t pdr;
+    far_metadata_t far;
     bar_metadata_t bar;
 }
 

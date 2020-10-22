@@ -25,6 +25,7 @@ CONFIG_WAIT_TIME := 10
 PKT_WAIT_TIME := 10
 STOP_ARGS := -t0
 
+
 _docker_pull_all:
 	docker pull ${P4RT_SH_IMG}@${P4RT_SH_SHA}
 	docker tag ${P4RT_SH_IMG}@${P4RT_SH_SHA} ${P4RT_SH_IMG}
@@ -37,7 +38,7 @@ _docker_pull_all:
 	docker pull ${MAVEN_IMG}
 	docker pull ${PROTOC_IMG}
 
-deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto
+deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java
 	docker-compose build
 
 onos-ui:
@@ -59,7 +60,7 @@ app/external/dbuf/dbuf.proto:
 
 # TODO (carmelo): it would be nice to have mvn invoke protoc
 #  and treat generated sources the mvn way
-make app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java: app/external/dbuf/dbuf.proto
+app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java: app/external/dbuf/dbuf.proto
 	docker run --rm -v ${CURRENT_DIR}/app/external/dbuf:/root/dbuf \
 		-v ${CURRENT_DIR}/app/src/main/java:/java_out -w /root/dbuf \
 		${PROTOC_IMG} -I=/root/dbuf --java_out=/java_out \
@@ -107,13 +108,16 @@ p4rt-shell:
 		-v --grpc-addr onos:51001 \
 		--device-id 0 --election-id 0,1
 
-p4rtsh-program:
+p4rt-set-forwarding:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh ${ARGS} program
 
-p4rtsh-clear:
+p4rt-set-buffering:
+	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh --buffer ${ARGS} program
+
+p4rt-clear:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh ${ARGS} clear
 
-p4rtsh-bash:
+p4rt-bash:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /bin/bash
 
 iface-clear:
@@ -171,21 +175,45 @@ _check:
 	make start
 	@echo "*** Giving ONOS time to warm up..."
 	sleep ${ONOS_BOOT_TIME}
+	make check-dbuf-started
 	make onos-config
 	sleep ${CONFIG_WAIT_TIME}
 	make check-dbuf-ready
-	make p4rtsh-program
-	sleep 1
-	@echo "*** Sending downlink..."
-	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-downlink
-	@echo "*** Sending uplink..."
-	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-uplink
+	make check-forwarding
+	make check-buffering
 	@echo "**********************************"
 	@echo "** Integration checks passed :D **"
 	@echo "**********************************"
 	make stop STOP_ARGS=${STOP_ARGS}
 
-send-downlink:
+check-forwarding:
+	@echo "*** Setting forwarding FAR..."
+	make p4rt-set-forwarding
+	sleep 1
+	@echo "*** Sending downlink..."
+	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-and-recv-downlink
+	@echo "*** Sending uplink..."
+	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-and-recv-uplink
+
+check-buffering:
+	@echo "*** Setting buffering FAR..."
+	make p4rt-set-buffering
+	sleep 1
+	@echo "*** Sending 10 downlink pkts..."
+	util/mn-cmd pdn /util/traffic.py send-udp-10
+	docker-compose logs onos | grep "Received FIRST_BUFFER: new_buffer_id: 285212673"
+	rm -f screenlog.0
+	screen -L -d -m util/mn-cmd enodeb /util/traffic.py recv-gtp -t ${PKT_WAIT_TIME}
+	sleep 1
+	@echo "*** Setting forwarding FAR (drain)..."
+	make p4rt-set-forwarding
+	sleep 2
+	docker-compose logs onos | grep "Started dbuf drain for 17.0.0.1"
+	docker-compose logs onos | grep "Dbuf drain completed for 17.0.0.1"
+	@echo "*** Verify delivery of at least one drained pkt..."
+	cat screenlog.0 | grep "140.0.100.254 -> 140.0.100.1, is_gtp_encap=True"
+
+send-and-recv-downlink:
 	@# util/mn-cmd requires a TTY because it uses docker -it option
 	@# hence we use screen for putting it in the background
 	screen -d -m util/mn-cmd pdn /util/traffic.py send-udp
@@ -193,7 +221,7 @@ send-downlink:
 	@# kill sending process
 	util/mn-cmd pdn pkill "traffic.py"
 
-send-uplink:
+send-and-recv-uplink:
 	@# util/mn-cmd requires a TTY because it uses docker -it option
 	@# hence we use screen for putting it in the background
 	screen -d -m util/mn-cmd enodeb /util/traffic.py send-gtp
@@ -201,8 +229,11 @@ send-uplink:
 	@# kill sending process
 	util/mn-cmd enodeb pkill "traffic.py"
 
+check-dbuf-started:
+	cat tmp/dbuf_dbuf1.log | grep "Listening for gRPC requests on 0.0.0.0:10000"
+
 check-dbuf-ready:
-	docker-compose logs onos | grep -q "Dbuf service at mininet:10000 is READY=true"
+	docker-compose logs onos | grep "Dbuf service at mininet:10000 is READY=true"
 
 netcfg:
 	$(info *** Pushing ./util/netcfg.json to ONOS...)
@@ -239,7 +270,7 @@ test-onos-start:
 		-p 8101:8101 \
 		-p 8181:8181 \
 		-p 51001:51001 \
-		onosproject/onos:2.2.6-b2
+		onosproject/onos:2.2-latest
 
 
 test-sw-start:

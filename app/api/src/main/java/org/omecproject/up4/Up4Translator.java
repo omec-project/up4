@@ -193,6 +193,7 @@ public interface Up4Translator {
 
     /**
      * Translate a UpfInterface to a PiTableEntry for responding to UP4 logical switch read requests.
+     *
      * @param upfInterface The interface to be translated
      * @return the UPF interface translated to a PiTableEntry
      * @throws Up4TranslationException if the interface cannot be translated
@@ -201,6 +202,7 @@ public interface Up4Translator {
 
     /**
      * Translate a PacketDetectionRule to a PiTableEntry for responding to UP4 logical switch read requests.
+     *
      * @param pdr the packet detection rule to be translated
      * @return the PDR translated to a PiTableEntry
      * @throws Up4TranslationException if the PDR cannot be translated
@@ -209,6 +211,7 @@ public interface Up4Translator {
 
     /**
      * Translate a ForwardingActionRule to a PiTableEntry for responding to UP4 logical switch read requests.
+     *
      * @param far the forwarding action rule to be translated
      * @return the FAR translated to a PiTableEntry
      * @throws Up4TranslationException if the FAR cannot be translated

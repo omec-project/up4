@@ -203,6 +203,10 @@ public class Up4NorthComponent {
         // TODO: return more specific responses
         if (up4Translator.isUp4Interface(requestedEntry)) {
             for (UpfInterface iface : up4Service.getUpfProgrammable().getInstalledInterfaces()) {
+                if (iface.isDbufReceiver()) {
+                    // Don't expose the dbuf interface to the logical switch
+                    continue;
+                }
                 log.debug("Translating an interface for a read request: {}", iface);
                 try {
                     P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(

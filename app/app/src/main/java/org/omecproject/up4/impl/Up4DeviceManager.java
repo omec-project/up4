@@ -10,6 +10,7 @@ import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.config.Up4Config;
+import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
@@ -173,6 +174,10 @@ public class Up4DeviceManager implements Up4Service {
 
             installInterfaces();
 
+            if (dbufClient != null) {
+                addDbufStateToUpfProgrammable();
+            }
+
             upfInitialized.set(true);
             log.info("UPF device setup successful!");
         }
@@ -188,6 +193,10 @@ public class Up4DeviceManager implements Up4Service {
         interfaces.add(UpfInterface.createS1uFrom(config.s1uPrefix()));
         for (Ip4Prefix uePool : config.uePools()) {
             interfaces.add(UpfInterface.createUePoolFrom(uePool));
+        }
+        Ip4Address dbufDrainAddr = config.dbufDrainAddr();
+        if (dbufDrainAddr != null) {
+            interfaces.add(UpfInterface.createDbufReceiverFrom(dbufDrainAddr));
         }
         return interfaces;
     }
@@ -241,6 +250,25 @@ public class Up4DeviceManager implements Up4Service {
 
     }
 
+    private void addDbufStateToUpfProgrammable() {
+        upfProgrammable.setDbufTunnel(config.dbufDrainAddr(), dbufClient.dataplaneIp4Addr());
+        upfProgrammable.setBufferDrainer(new UpfProgrammable.BufferDrainer() {
+            @Override
+            public void drain(Ip4Address ueAddr) {
+                log.info("Started dbuf drain for {}", ueAddr);
+                dbufClient.drain(ueAddr, config.dbufDrainAddr(), 2152).whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
+                    } else if (result) {
+                        log.info("Dbuf drain completed for {}", ueAddr);
+                    } else {
+                        log.warn("Unknown error while draining dbuf for {}", ueAddr);
+                    }
+                });
+            }
+        });
+    }
+
     private void setUpDbufClient(String serviceAddr, String dataplaneAddr) {
         synchronized (this) {
             if (serviceAddr != null) {
@@ -251,6 +279,9 @@ public class Up4DeviceManager implements Up4Service {
                 }
                 if (dbufClient == null) {
                     dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr);
+                }
+                if (upfProgrammable != null) {
+                    addDbufStateToUpfProgrammable();
                 }
             }
         }

@@ -347,23 +347,24 @@ class GtpuBaseTest(P4RuntimeTest):
                 }))
 
     def add_far(self, far_id, session_id, drop=False, notify_cp=False, tunnel=False,
-                tunnel_type="GTPU", teid=None, src_addr=None, dst_addr=None, dport=2152):
+                tunnel_type="GTPU", teid=None, src_addr=None, dst_addr=None, sport=2152, buffer=False):
 
         if tunnel:
-            if (None in [src_addr, dst_addr, dport]):
-                raise Exception("src_addr, dst_addr, and dport cannot be None for a tunnel FAR")
+            if (None in [src_addr, dst_addr, sport]):
+                raise Exception("src_addr, dst_addr, and sport cannot be None for a tunnel FAR")
             if tunnel_type == "GTPU" and teid is None:
                 raise Exception("TEID cannot be None for GTPU tunnel")
             _tunnel_type = self.helper.get_enum_member_val("TunnelType", tunnel_type)
 
             action_params = {
                 "needs_dropping": drop,
+                "needs_buffering": buffer,
                 "notify_cp": notify_cp,
                 "tunnel_type": _tunnel_type,
                 "src_addr": src_addr,
                 "dst_addr": dst_addr,
                 "teid": teid,
-                "dport": dport
+                "sport": sport
             }
             action_name = "PreQosPipe.load_tunnel_far_attributes"
         else:

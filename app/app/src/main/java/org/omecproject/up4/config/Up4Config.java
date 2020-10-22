@@ -31,10 +31,12 @@ public class Up4Config extends Config<ApplicationId> {
     // sense to have a dedicated config class with an array of dbuf instances.
     public static final String DBUF_SERVICE_ADDR = "dbufServiceAddr";
     public static final String DBUF_DATAPLANE_ADDR = "dbufDataplaneAddr";
+    public static final String DBUF_DRAIN_ADDR = "dbufDrainAddr";
 
     @Override
     public boolean isValid() {
-        return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_PREFIX, DBUF_SERVICE_ADDR, DBUF_DATAPLANE_ADDR) &&
+        return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_PREFIX, DBUF_SERVICE_ADDR,
+                DBUF_DATAPLANE_ADDR, DBUF_DRAIN_ADDR) &&
                 // Mandatory fields.
                 hasFields(DEVICE_ID, UE_POOLS, S1U_PREFIX) &&
                 !uePools().isEmpty() &&
@@ -43,10 +45,17 @@ public class Up4Config extends Config<ApplicationId> {
 
     private boolean isDbufConfigValid() {
         // Both fields must null or present and valid.
-        if (dbufServiceAddr() == null && dbufDataplaneAddr() == null) {
+        if (dbufServiceAddr() == null && dbufDataplaneAddr() == null && dbufDrainAddr() == null) {
             return true;
         }
-        return hasFields(DBUF_SERVICE_ADDR, DBUF_DATAPLANE_ADDR) &&
+        try {
+            // Force the drain address string to be parsed
+            dbufDrainAddr();
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+
+        return hasFields(DBUF_SERVICE_ADDR, DBUF_DATAPLANE_ADDR, DBUF_DRAIN_ADDR) &&
                 isValidAddrString(dbufServiceAddr(), false) &&
                 isValidAddrString(dbufDataplaneAddr(), true);
     }
@@ -132,6 +141,17 @@ public class Up4Config extends Config<ApplicationId> {
         return get(DBUF_DATAPLANE_ADDR, null);
     }
 
+    /**
+     * Returns the address of the UPF interface that the dbuf device will drain packets towards, or null
+     * if not configured.
+     *
+     * @return the address of the upf interface that receives packets drained from dbuf
+     */
+    public Ip4Address dbufDrainAddr() {
+        String addr = get(DBUF_DRAIN_ADDR, null);
+        return addr != null ? Ip4Address.valueOf(addr) : null;
+    }
+
     static boolean isValidAddrString(String addr, boolean mustBeIp4Addr) {
         if (addr.isBlank()) {
             throw new InvalidFieldException(addr, "address string cannot be blank");
@@ -158,3 +178,4 @@ public class Up4Config extends Config<ApplicationId> {
         return true;
     }
 }
+
