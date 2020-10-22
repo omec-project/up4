@@ -62,11 +62,14 @@ class DbufHost(IPv4Host):
 
     def config(self, mac=None, ip=None, defaultRoute=None, lo='up', gw=None, **_params):
         super(DbufHost, self).config(mac, ip, defaultRoute, lo, gw, **_params)
-        args = map(str, [
-            #"-queue_id_high", DBUF_QUEUUE_ID_HIGH,
-            #"-queue_id_low", DBUF_QUEUUE_ID_LOW,
-            "-queue_drop_timeout", DBUF_DROP_TIMEOUT_SEC,
-        ])
+        args = map(
+            str,
+            [
+                #"-queue_id_high", DBUF_QUEUUE_ID_HIGH,
+                #"-queue_id_low", DBUF_QUEUUE_ID_LOW,
+                "-queue_drop_timeout",
+                DBUF_DROP_TIMEOUT_SEC,
+            ])
         # Send to background
         cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
               % (" ".join(args), self.name)
