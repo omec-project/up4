@@ -26,6 +26,8 @@ PKT_WAIT_TIME := 10
 STOP_ARGS := -t0
 
 
+# TODO: start the pfcp generating script with screen, and then feed commands into the running session
+
 _docker_pull_all:
 	docker pull ${P4RT_SH_IMG}@${P4RT_SH_SHA}
 	docker tag ${P4RT_SH_IMG}@${P4RT_SH_SHA} ${P4RT_SH_IMG}
@@ -38,8 +40,12 @@ _docker_pull_all:
 	docker pull ${MAVEN_IMG}
 	docker pull ${PROTOC_IMG}
 
-deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java
+deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java pfcp-scapy
 	docker-compose build
+	docker-compose -f docker-compose-pfcp.yml build
+
+pfcp-scapy:
+	git clone https://github.com/thakurajayL/pfcp_tool.git pfcp-scapy
 
 onos-ui:
 	open ${onos_url}/ui
@@ -87,9 +93,11 @@ build-ci: MVN_FLAGS := -Pci-verify -Pcoverage
 build-ci: build
 
 start:
-	$(info *** Starting ONOS and Mininet (topo-gtp.py)... )
+	$(info *** Starting UP4 integration testing containers... )
 	@mkdir -p tmp/onos
 	@docker-compose up -d
+
+
 
 clean:
 	rm -rf target/
@@ -120,14 +128,6 @@ p4rt-clear:
 p4rt-bash:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /bin/bash
 
-iface-clear:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh filter
-
-pdr-clear:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh pdr
-
-far-clear:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh far
 
 stop2: STOP_ARGS :=
 stop2: stop
@@ -245,59 +245,33 @@ onos-cli:
 	echo "Password: rocks"
 	ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o LogLevel=ERROR -p 8101 onos@localhost
 
+pfcp-topo-start:
+	$(info *** Starting UP4+PFCP Agent integration testing containers... )
+	@mkdir -p tmp/onos
+	@docker-compose -f docker-compose-pfcp.yml up -d
 
-test-onos-netcfg:
-	${onos_curl} -X POST -H 'Content-Type:application/json' \
-    	${onos_url}/v1/network/configuration -d@./util/ptf-netcfg.json
+pfcp-topo-stop2: STOP_ARGS :=
+pfcp-topo-stop2: pfcp-topo-stop
 
-test-onos-config:
-	#util/onos-cmd app deactivate lldpprovider # the packet injects ruin tests
-	#util/onos-cmd app activate segmentrouting
-	#util/onos-cmd app activate pipelines.fabric
-	#util/onos-cmd app activate netcfghostprovider
-	#util/onos-cmd app activate org.onosproject.protocols.grpc
-	#sleep 1
-	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1
-	sleep 1
-	make test-onos-netcfg
-	sleep 3
-	onos-tools/onos-app localhost install! ./target/up4-app-0.1.oar
+pfcp-topo-stop:
+	$(info *** Stopping ONOS and Mininet...)
+	docker-compose -f docker-compose-pfcp.yml down ${STOP_ARGS}
 
+pfcp-messenger-start:
+	docker exec -it scapy screen -d -m -S Messenger /util/pfcp-message.py pfcp
 
-test-onos-start:
-	docker run --name test-onos-img -d -it --privileged --rm \
-		-e ONOS_APPS=gui2,drivers.bmv2,segmentrouting,pipelines.fabric,hostprovider,netcfghostprovider,org.onosproject.protocols.grpc,fwd \
-		-p 8101:8101 \
-		-p 8181:8181 \
-		-p 51001:51001 \
-		onosproject/onos:2.2-latest
+pfcp-messenger-associate:
+	docker exec -it scapy screen -S Messenger -p 0 -X stuff "1"
 
+pfcp-messenger-create-session:
+	docker exec -it scapy screen -S Messenger -p 0 -X stuff "2"
 
-test-sw-start:
-	docker run --name test-bmv2-img -d --privileged --rm \
-	  -v "/Users/macdavid/Code/up4/ptf":/ptf -w /ptf \
-	  -v "/Users/macdavid/Code/up4/p4src/build":/p4c-out \
-	  -v "/Users/macdavid/Code/up4/app/util":/util \
-	  --network "container:test-onos-img" \
-	  ccasconeonf/up4-ptf:latest \
-	  ./lib/start_bmv2.sh > /dev/null
+pfcp-messenger-modify-session:
+	docker exec -it $(shell docker-compose ps -q scapy)	screen -S Messenger -p 0 -X stuff "3"
 
-test-onos-logs:
-	docker logs -f test-onos-img
+pfcp-messenger-release-session:
+	docker exec -it $(shell docker-compose ps -q scapy)	screen -S Messenger -p 0 -X stuff "4"
 
-test-onos-stop:
-	docker stop -t0 test-onos-img > /dev/null
-
-test-sw-stop:
-	docker stop -t0 test-bmv2-img > /dev/null
-
-test-run-ptf:
-	docker exec test-bmv2-img ./lib/runner.py \
-    --bmv2-json /p4c-out/bmv2.json \
-    --p4info /p4c-out/p4info.bin \
-    --grpc-addr localhost:51001 \
-    --device-id 1 \
-    --ptf-dir ./tests \
-    --cpu-port 255 \
-    --port-map /ptf/lib/port_map.json ${TEST}
+pfcp-messenger-stop:
+	docker exec -it $(shell docker-compose ps -q scapy)	screen -S Messenger -p 0 -X stuff "5"
 
