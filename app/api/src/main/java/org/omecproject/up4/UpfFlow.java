@@ -78,7 +78,9 @@ public final class UpfFlow {
     public String toString() {
         String farString = "NO FAR!";
         if (far != null) {
-            if (far.isUplink()) {
+            if (far.bufferFlag()) {
+                farString = String.format("FarID %d  -->  Buffer()", far.farId());
+            } else if (far.isUplink()) {
                 farString = String.format("FarID %d  -->  Decap()", far.farId());
             } else if (far.isDownlink()) {
                 farString = String.format("FarID %d  -->  Encap(Src=%s, TEID=%s, Dst=%s)",
@@ -164,8 +166,6 @@ public final class UpfFlow {
                         "PFCP session ID of PDR and FAR must match!");
                 checkArgument(pdr.farId() == far.farId(),
                         "FAR ID set by PDR and read by FAR must match!");
-                checkArgument((pdr.isDownlink() && far.isDownlink()) ||
-                        (pdr.isUplink() && far.isUplink()), "PDR and FAR should be the same direction!");
             }
             if (pdr != null) {
                 if (flowStats != null) {

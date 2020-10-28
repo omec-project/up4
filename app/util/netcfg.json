@@ -85,6 +85,17 @@
         }
       ]
     },
+    "device:leaf1/4": {
+      "interfaces": [
+        {
+          "name": "leaf1-4",
+          "ips": [
+            "140.0.99.254/24"
+          ],
+          "vlan-untagged": 99
+        }
+      ]
+    },
     "device:leaf2/3": {
       "interfaces": [
         {
@@ -112,6 +123,20 @@
         ]
       }
     },
+    "00:00:00:00:db:0f/None": {
+      "basic": {
+        "name": "dbuf1",
+        "gridX": 400,
+        "gridY": 700,
+        "locType": "grid",
+        "ips": [
+          "140.0.99.1"
+        ],
+        "locations": [
+          "device:leaf1/4"
+        ]
+      }
+    },
     "00:00:00:00:00:20/None": {
       "basic": {
         "name": "pdn",
@@ -134,10 +159,13 @@
         "s1uPrefix": "140.0.100.254/24",
         "uePools": [
           "17.0.0.0/24"
-        ]
+        ],
+        "dbufDrainAddr": "140.0.99.254", 
+        "dbufServiceAddr": "mininet:10000",
+        "dbufDataplaneAddr": "140.0.99.1:2152"
       },
-      "up4server" : {
-        "grpcPort" : 51001,
+      "up4server": {
+        "grpcPort": 51001,
         "p4RuntimeDeviceId": 1
       }
     }

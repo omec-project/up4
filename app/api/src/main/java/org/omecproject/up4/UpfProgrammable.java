@@ -4,6 +4,7 @@
  */
 package org.omecproject.up4;
 
+import org.onlab.packet.Ip4Address;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 
@@ -28,6 +29,7 @@ public interface UpfProgrammable {
      * @return True if initialized, false otherwise.
      */
     boolean init(ApplicationId appId, DeviceId deviceId);
+
 
     /**
      * Remove any state previously created by this API for the given application
@@ -131,4 +133,33 @@ public interface UpfProgrammable {
      * @return A structure containing ingress and egress packet and byte counts for the given cellId.
      */
     PdrStats readCounter(int cellId);
+
+    /**
+     * Set the source and destination of the GTPU tunnel used to send packets to a dbuf buffering device.
+     *
+     * @param switchAddr the address on the switch that sends and receives packets to and from dbuf
+     * @param dbufAddr   the dataplane address of dbuf
+     */
+    void setDbufTunnel(Ip4Address switchAddr, Ip4Address dbufAddr);
+
+    /**
+     * Install a BufferDrainer reference that can be used to trigger the draining of a specific dbuf buffer
+     * back into the UPF device.
+     *
+     * @param drainer the BufferDrainer reference
+     */
+    void setBufferDrainer(BufferDrainer drainer);
+
+    /**
+     * Used by the UpfProgrammable to trigger buffer draining as needed.
+     * Install an instance using {@link UpfProgrammable#setBufferDrainer(BufferDrainer)}
+     */
+    interface BufferDrainer {
+        /**
+         * Drain the buffer that contains packets for the UE with the given address.
+         *
+         * @param ueAddr the address of the UE for which we should drain a buffer
+         */
+        public void drain(Ip4Address ueAddr);
+    }
 }

@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
 
 import argparse
+import socket
+import struct
 
 from mininet.cli import CLI
 from mininet.log import setLogLevel
@@ -12,6 +14,21 @@ from mininet.topo import Topo
 from stratum import StratumBmv2Switch
 
 CPU_PORT = 255
+
+
+def ip2long(ip):
+    """
+    Convert an IP string to long
+    """
+    packedIP = socket.inet_aton(ip)
+    return struct.unpack("!L", packedIP)[0]
+
+
+# 17.0.0.1 comes from util/traffic.py
+# FIXME: https://github.com/omec-project/dbuf/issues/3
+DBUF_QUEUUE_ID_LOW = ip2long('17.0.0.1')  # included
+DBUF_QUEUUE_ID_HIGH = ip2long('17.0.0.4')  # excluded
+DBUF_DROP_TIMEOUT_SEC = "30s"
 
 
 class IPv4Host(Host):
@@ -36,6 +53,28 @@ class IPv4Host(Host):
             return ip.split('/')[0]
 
         self.defaultIntf().updateIP = updateIP
+
+
+class DbufHost(IPv4Host):
+
+    def __init__(self, name, inNamespace=False, **params):
+        super(DbufHost, self).__init__(name, inNamespace, **params)
+
+    def config(self, mac=None, ip=None, defaultRoute=None, lo='up', gw=None, **_params):
+        super(DbufHost, self).config(mac, ip, defaultRoute, lo, gw, **_params)
+        args = map(
+            str,
+            [
+                #"-queue_id_high", DBUF_QUEUUE_ID_HIGH,
+                #"-queue_id_low", DBUF_QUEUUE_ID_LOW,
+                "-queue_drop_timeout",
+                DBUF_DROP_TIMEOUT_SEC,
+            ])
+        # Send to background
+        cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
+              % (" ".join(args), self.name)
+        print(cmd)
+        self.cmd(cmd)
 
 
 class TutorialTopo(Topo):
@@ -65,12 +104,24 @@ class TutorialTopo(Topo):
         self.addLink(spine2, leaf1)
         self.addLink(spine2, leaf2)
 
-        # IPv4 hosts attached to leaf 1
+        # enodeb IPv4 host attached to leaf 1
         enodeb = self.addHost('enodeb', cls=IPv4Host, mac='00:00:00:00:00:10', ip='140.0.100.1/24',
                               gw='140.0.100.254')
         self.addLink(enodeb, leaf1)  # port 3
 
-        # IPv4 hosts attached to leaf 2
+        # dbuf IPv4 host attached to leaf 1
+        # DbufHost exists on the root net namespace (inNamespace=False) such
+        # that onos can communicate with its grpc service port. However, by
+        # running on the root namespace, the default route for docker
+        # networking prevents dbuf from pinging hosts on subnets other than the
+        # dbuf one (ip=...). However, dbuf can still ping the switch gateway
+        # address (gw=...) which is all we need to receive and send buffered
+        # packets.
+        dbuf1 = self.addHost('dbuf1', cls=DbufHost, mac='00:00:00:00:db:0f', ip='140.0.99.1/24',
+                             gw='140.0.99.254')
+        self.addLink(dbuf1, leaf1)  # port 4
+
+        # pdn IPv4 host attached to leaf 2
         pdn = self.addHost('pdn', cls=IPv4Host, mac='00:00:00:00:00:20', ip='140.0.200.1/24',
                            gw='140.0.200.254')
         self.addLink(pdn, leaf2)  # port 3

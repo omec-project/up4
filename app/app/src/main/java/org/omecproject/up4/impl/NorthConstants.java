@@ -53,12 +53,13 @@ public final class NorthConstants {
     public static final PiActionParamId SESSION_ID_PARAM = PiActionParamId.of("fseid");
     //   far table
     public static final PiActionParamId TUNNEL_TYPE_PARAM = PiActionParamId.of("tunnel_type");
-    public static final PiActionParamId TUNNEL_DPORT_PARAM = PiActionParamId.of("dport");
+    public static final PiActionParamId TUNNEL_SPORT_PARAM = PiActionParamId.of("sport");
     public static final PiActionParamId TEID_PARAM = PiActionParamId.of("teid");
     public static final PiActionParamId TUNNEL_SRC_PARAM = PiActionParamId.of("src_addr");
     public static final PiActionParamId TUNNEL_DST_PARAM = PiActionParamId.of("dst_addr");
     public static final PiActionParamId DROP_FLAG = PiActionParamId.of("needs_dropping");
     public static final PiActionParamId NOTIFY_FLAG = PiActionParamId.of("notify_cp");
+    public static final PiActionParamId BUFFER_FLAG = PiActionParamId.of("needs_buffering");
 
     // hide default constructor
     private NorthConstants() {

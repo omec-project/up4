@@ -2,11 +2,23 @@
 #
 # SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
 
+
+CURRENT_UID              := $(shell id -u)
+CURRENT_GID              := $(shell id -g)
+MKFILE_PATH              := $(abspath $(lastword $(MAKEFILE_LIST)))
+CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
+
+# By default use docker volume to persist mvn cache,
+# but allow passing a directory, e.g., local ~/.m2
+mvn_cache_docker_volume := mvn-cache-${curr_dir_sha}
+MVN_CACHE ?= ${mvn_cache_docker_volume}
+
+MVN_FLAGS ?=
+
 onos_url := http://localhost:8181/onos
 onos_curl := curl --fail -sSL --user onos:rocks --noproxy localhost
 
 include ../util/docker/Makefile.vars
-
 
 ONOS_BOOT_TIME := 45
 CONFIG_WAIT_TIME := 10
@@ -21,29 +33,58 @@ _docker_pull_all:
 	docker tag ${MN_TUTORIAL_IMG}@${MN_TUTORIAL_SHA} ${MN_TUTORIAL_IMG}
 	docker pull ${ONOS_IMG}@${ONOS_SHA}
 	docker tag ${ONOS_IMG}@${ONOS_SHA} ${ONOS_IMG}
-	docker pull ${MAVEN_IMG}@${MAVEN_SHA}
-	docker tag ${MAVEN_IMG}@${MAVEN_SHA} ${MAVEN_IMG}
+	docker pull ${DBUF_IMG}@${DBUF_SHA}
+	docker tag ${DBUF_IMG}@${DBUF_SHA} ${DBUF_IMG}
+	docker pull ${MAVEN_IMG}
+	docker pull ${PROTOC_IMG}
 
-deps: _docker_pull_all get-onos-tools
+deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java
+	docker-compose build
 
 onos-ui:
 	open ${onos_url}/ui
 
-get-onos-tools:
+onos-tools:
 	curl -sS --fail https://repo1.maven.org/maven2/org/onosproject/onos-releases/2.2.2/onos-admin-2.2.2.tar.gz \
   > tools.tar.gz
 	tar xf tools.tar.gz
 	mv onos-admin-2.2.2 onos-tools
 	rm tools.tar.gz
 
-local-build:
-	cd .. && make local-app-build
+app/src/main/resources/p4info.txt: ../p4src/build/p4info.txt
+	mkdir -p app/src/main/resources
+	cp ../p4src/build/p4info.txt app/src/main/resources/p4info.txt
 
-build:
-	cd .. && make app-build
+app/external/dbuf/dbuf.proto:
+	git submodule update --init app/external/dbuf
 
-build-ci:
-	cd .. && make app-build-ci
+# TODO (carmelo): it would be nice to have mvn invoke protoc
+#  and treat generated sources the mvn way
+app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java: app/external/dbuf/dbuf.proto
+	docker run --rm -v ${CURRENT_DIR}/app/external/dbuf:/root/dbuf \
+		-v ${CURRENT_DIR}/app/src/main/java:/java_out -w /root/dbuf \
+		${PROTOC_IMG} -I=/root/dbuf --java_out=/java_out \
+		--plugin=protoc-gen-grpc-java=/usr/bin/protoc-gen-grpc-java --grpc-java_out=/java_out \
+		dbuf.proto
+
+_build_resources: \
+	app/src/main/resources/p4info.txt \
+	app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java
+
+# Is this still needed if we allow passing a local mvn cache to make build?
+local-build: _build_resources
+	mvn ${MVN_FLAGS} clean install
+
+build: _build_resources
+	docker run -it --rm -v ${CURRENT_DIR}:/root -v ${MVN_CACHE}:/root/.m2 -w /root \
+		${MAVEN_IMG} bash -c "mvn ${MVN_FLAGS} clean install; \
+		chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
+
+# ci-verify is a build profile specified in onos-dependencies's pom.xml
+# It's used to run javadoc validation and other checks that should not
+# run on local build, but during CI.
+build-ci: MVN_FLAGS := -Pci-verify -Pcoverage
+build-ci: build
 
 start:
 	$(info *** Starting ONOS and Mininet (topo-gtp.py)... )
@@ -53,6 +94,7 @@ start:
 clean:
 	rm -rf target/
 	rm -rf tmp/
+	rm -rf app/src/main/java/org/omecproject/dbuf/grpc/
 
 set-app-info:
 	util/onos-cmd log:set INFO org.omecproject.up4
@@ -66,13 +108,16 @@ p4rt-shell:
 		-v --grpc-addr onos:51001 \
 		--device-id 0 --election-id 0,1
 
-p4rtsh-program:
+p4rt-set-forwarding:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh ${ARGS} program
 
-p4rtsh-clear:
+p4rt-set-buffering:
+	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh --buffer ${ARGS} program
+
+p4rt-clear:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh ${ARGS} clear
 
-p4rtsh-bash:
+p4rt-bash:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /bin/bash
 
 iface-clear:
@@ -130,20 +175,45 @@ _check:
 	make start
 	@echo "*** Giving ONOS time to warm up..."
 	sleep ${ONOS_BOOT_TIME}
+	make check-dbuf-started
 	make onos-config
 	sleep ${CONFIG_WAIT_TIME}
-	make p4rtsh-program
-	sleep 1
-	@echo "*** Sending downlink..."
-	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-downlink
-	@echo "*** Sending uplink..."
-	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-uplink
+	make check-dbuf-ready
+	make check-forwarding
+	make check-buffering
 	@echo "**********************************"
 	@echo "** Integration checks passed :D **"
 	@echo "**********************************"
 	make stop STOP_ARGS=${STOP_ARGS}
 
-send-downlink:
+check-forwarding:
+	@echo "*** Setting forwarding FAR..."
+	make p4rt-set-forwarding
+	sleep 1
+	@echo "*** Sending downlink..."
+	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-and-recv-downlink
+	@echo "*** Sending uplink..."
+	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-and-recv-uplink
+
+check-buffering:
+	@echo "*** Setting buffering FAR..."
+	make p4rt-set-buffering
+	sleep 1
+	@echo "*** Sending 10 downlink pkts..."
+	util/mn-cmd pdn /util/traffic.py send-udp-10
+	docker-compose logs onos | grep "Received FIRST_BUFFER: new_buffer_id: 285212673"
+	rm -f screenlog.0
+	screen -L -d -m util/mn-cmd enodeb /util/traffic.py recv-gtp -t ${PKT_WAIT_TIME}
+	sleep 1
+	@echo "*** Setting forwarding FAR (drain)..."
+	make p4rt-set-forwarding
+	sleep 2
+	docker-compose logs onos | grep "Started dbuf drain for 17.0.0.1"
+	docker-compose logs onos | grep "Dbuf drain completed for 17.0.0.1"
+	@echo "*** Verify delivery of at least one drained pkt..."
+	cat screenlog.0 | grep "140.0.100.254 -> 140.0.100.1, is_gtp_encap=True"
+
+send-and-recv-downlink:
 	@# util/mn-cmd requires a TTY because it uses docker -it option
 	@# hence we use screen for putting it in the background
 	screen -d -m util/mn-cmd pdn /util/traffic.py send-udp
@@ -151,13 +221,19 @@ send-downlink:
 	@# kill sending process
 	util/mn-cmd pdn pkill "traffic.py"
 
-send-uplink:
+send-and-recv-uplink:
 	@# util/mn-cmd requires a TTY because it uses docker -it option
 	@# hence we use screen for putting it in the background
 	screen -d -m util/mn-cmd enodeb /util/traffic.py send-gtp
 	util/mn-cmd pdn /util/traffic.py recv-udp -t ${PKT_WAIT_TIME}
 	@# kill sending process
 	util/mn-cmd enodeb pkill "traffic.py"
+
+check-dbuf-started:
+	cat tmp/dbuf_dbuf1.log | grep "Listening for gRPC requests on 0.0.0.0:10000"
+
+check-dbuf-ready:
+	docker-compose logs onos | grep "Dbuf service at mininet:10000 is READY=true"
 
 netcfg:
 	$(info *** Pushing ./util/netcfg.json to ONOS...)

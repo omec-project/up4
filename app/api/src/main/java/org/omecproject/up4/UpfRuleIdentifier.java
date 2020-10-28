@@ -23,10 +23,31 @@ public final class UpfRuleIdentifier {
         this.sessionlocalId = sessionlocalId;
     }
 
-    public int getSessionlocalId() {
+    /**
+     * Create an instance of this class from the given PFCP session ID and the session-local Rule ID.
+     *
+     * @param pfcpSessionId  PFCP session ID of the rule to identify
+     * @param sessionlocalId session-local Rule ID of the rule to identify
+     * @return a new rule identifier
+     */
+    public static UpfRuleIdentifier of(ImmutableByteSequence pfcpSessionId, int sessionlocalId) {
+        return new UpfRuleIdentifier(pfcpSessionId, sessionlocalId);
+    }
+
+    /**
+     * Get the PFCP session-local rule ID.
+     *
+     * @return session-local rule ID
+     */
+    public int getSessionLocalId() {
         return sessionlocalId;
     }
 
+    /**
+     * Get the PFCP session ID.
+     *
+     * @return PFCP session ID
+     */
     public ImmutableByteSequence getPfcpSessionId() {
         return pfcpSessionId;
     }

@@ -6,9 +6,9 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
-import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
+import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.impl.NorthConstants;
 import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
@@ -47,14 +47,14 @@ import java.util.Objects;
 @Component(immediate = true,
         service = {Up4Translator.class})
 public class Up4TranslatorImpl implements Up4Translator {
+
     private final Logger log = LoggerFactory.getLogger(getClass());
     // Maps local FAR IDs to global FAR IDs
-    protected final BiMap<UpfRuleIdentifier, Integer> farIdMapper = HashBiMap.create();;
+    protected final BiMap<UpfRuleIdentifier, Integer> farIdMapper = HashBiMap.create();
     private int nextGlobalFarId = 1;
 
     private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
-    private final ImmutableByteSequence allOnes16 = ImmutableByteSequence.ofOnes(2);
-    private final ImmutableByteSequence allOnes8 = ImmutableByteSequence.ofOnes(1);
+
 
     @Activate
     protected void activate() {
@@ -107,8 +107,8 @@ public class Up4TranslatorImpl implements Up4Translator {
 
     @Override
     public boolean isFabricPdr(FlowRule entry) {
-        return entry.table().equals(SouthConstants.PDR_UPLINK_TBL)
-                || entry.table().equals(SouthConstants.PDR_DOWNLINK_TBL);
+        return entry.table().equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)
+                || entry.table().equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS);
     }
 
     @Override
@@ -118,12 +118,12 @@ public class Up4TranslatorImpl implements Up4Translator {
 
     @Override
     public boolean isFabricFar(FlowRule entry) {
-        return entry.table().equals(SouthConstants.FAR_TBL);
+        return entry.table().equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS);
     }
 
     @Override
     public boolean isFabricInterface(FlowRule entry) {
-        return entry.table().equals(SouthConstants.INTERFACE_LOOKUP);
+        return entry.table().equals(SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES);
     }
 
     @Override
@@ -140,21 +140,21 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiAction action = (PiAction) matchActionPair.getRight();
 
         // Grab keys and parameters that are present for all PDRs
-        int globalFarId = TranslatorUtil.getParamInt(action, SouthConstants.FAR_ID_PARAM);
+        int globalFarId = TranslatorUtil.getParamInt(action, SouthConstants.FAR_ID);
         UpfRuleIdentifier farId = localFarIdOf(globalFarId);
         pdrBuilder.withCounterId(TranslatorUtil.getParamInt(action, SouthConstants.CTR_ID))
-                .withLocalFarId(farId.getSessionlocalId())
+                .withLocalFarId(farId.getSessionLocalId())
                 .withSessionId(farId.getPfcpSessionId());
 
-        if (TranslatorUtil.fieldIsPresent(match, SouthConstants.TEID_KEY)) {
+        if (TranslatorUtil.fieldIsPresent(match, SouthConstants.HDR_TEID)) {
             // F-TEID is only present for uplink PDRs
-            ImmutableByteSequence teid = TranslatorUtil.getFieldValue(match, SouthConstants.TEID_KEY);
-            Ip4Address tunnelDst = TranslatorUtil.getFieldAddress(match, SouthConstants.TUNNEL_DST_KEY);
+            ImmutableByteSequence teid = TranslatorUtil.getFieldValue(match, SouthConstants.HDR_TEID);
+            Ip4Address tunnelDst = TranslatorUtil.getFieldAddress(match, SouthConstants.HDR_TUNNEL_IPV4_DST);
             pdrBuilder.withTeid(teid)
                     .withTunnelDst(tunnelDst);
-        } else if (TranslatorUtil.fieldIsPresent(match, SouthConstants.UE_ADDR_KEY)) {
+        } else if (TranslatorUtil.fieldIsPresent(match, SouthConstants.HDR_UE_ADDR)) {
             // And UE address is only present for downlink PDRs
-            pdrBuilder.withUeAddr(TranslatorUtil.getFieldAddress(match, SouthConstants.UE_ADDR_KEY));
+            pdrBuilder.withUeAddr(TranslatorUtil.getFieldAddress(match, SouthConstants.HDR_UE_ADDR));
         } else {
             throw new Up4TranslationException("Read malformed PDR from dataplane!:" + entry);
         }
@@ -201,31 +201,40 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiCriterion match = matchActionPair.getLeft();
         PiAction action = (PiAction) matchActionPair.getRight();
 
-        int globalFarId = TranslatorUtil.getFieldInt(match, SouthConstants.FAR_ID_KEY);
+        int globalFarId = TranslatorUtil.getFieldInt(match, SouthConstants.HDR_FAR_ID);
         UpfRuleIdentifier farId = localFarIdOf(globalFarId);
 
-        boolean dropFlag = TranslatorUtil.getParamInt(action, SouthConstants.DROP_FLAG) > 0;
-        boolean notifyFlag = TranslatorUtil.getParamInt(action, SouthConstants.NOTIFY_FLAG) > 0;
+        boolean dropFlag = TranslatorUtil.getParamInt(action, SouthConstants.DROP) > 0;
+        boolean notifyFlag = TranslatorUtil.getParamInt(action, SouthConstants.NOTIFY_CP) > 0;
 
         // Match keys
         farBuilder.withSessionId(farId.getPfcpSessionId())
-                .withFarId(farId.getSessionlocalId());
+                .withFarId(farId.getSessionLocalId());
 
         // Parameters common to uplink and downlink should always be present
         farBuilder.withDropFlag(dropFlag)
                 .withNotifyFlag(notifyFlag);
 
-        if (TranslatorUtil.paramIsPresent(action, SouthConstants.TEID_PARAM)) {
-            // Grab parameters specific to downlink FARs if they're present
-            Ip4Address tunnelSrc = TranslatorUtil.getParamAddress(action, SouthConstants.TUNNEL_SRC_PARAM);
-            Ip4Address tunnelDst = TranslatorUtil.getParamAddress(action, SouthConstants.TUNNEL_DST_PARAM);
-            ImmutableByteSequence teid = TranslatorUtil.getParamValue(action, SouthConstants.TEID_PARAM);
+        PiActionId actionId = action.id();
 
-            farBuilder.withTunnel(GtpTunnel.builder()
-                    .setSrc(tunnelSrc)
-                    .setDst(tunnelDst)
-                    .setTeid(teid)
-                    .build());
+        if (actionId.equals(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_TUNNEL_FAR)
+                || actionId.equals(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_DBUF_FAR)) {
+            // Grab parameters specific to downlink FARs if they're present
+            Ip4Address tunnelSrc = TranslatorUtil.getParamAddress(action, SouthConstants.TUNNEL_SRC_ADDR);
+            Ip4Address tunnelDst = TranslatorUtil.getParamAddress(action, SouthConstants.TUNNEL_DST_ADDR);
+            ImmutableByteSequence teid = TranslatorUtil.getParamValue(action, SouthConstants.TEID);
+            short tunnelSrcPort = (short) TranslatorUtil.getParamInt(action, SouthConstants.TUNNEL_SRC_PORT);
+
+            boolean farBuffers = actionId.equals(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_DBUF_FAR);
+
+            farBuilder.withTunnel(
+                    GtpTunnel.builder()
+                            .setSrc(tunnelSrc)
+                            .setDst(tunnelDst)
+                            .setTeid(teid)
+                            .setSrcPort(tunnelSrcPort)
+                            .build())
+                    .withBufferFlag(farBuffers);
         }
         return farBuilder.build();
     }
@@ -252,7 +261,9 @@ public class Up4TranslatorImpl implements Up4Translator {
                 farBuilder.withTunnel(
                         TranslatorUtil.getParamAddress(entry, NorthConstants.TUNNEL_SRC_PARAM),
                         TranslatorUtil.getParamAddress(entry, NorthConstants.TUNNEL_DST_PARAM),
-                        TranslatorUtil.getParamValue(entry, NorthConstants.TEID_PARAM));
+                        TranslatorUtil.getParamValue(entry, NorthConstants.TEID_PARAM),
+                        (short) TranslatorUtil.getParamInt(entry, NorthConstants.TUNNEL_SPORT_PARAM))
+                        .withBufferFlag(TranslatorUtil.getParamInt(entry, NorthConstants.BUFFER_FLAG) > 0);
             }
         }
         return farBuilder.build();
@@ -283,13 +294,15 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiAction action = (PiAction) matchActionPair.getRight();
 
         var ifaceBuilder = UpfInterface.builder()
-                .setPrefix(TranslatorUtil.getFieldPrefix(match, SouthConstants.IPV4_DST_ADDR));
+                .setPrefix(TranslatorUtil.getFieldPrefix(match, SouthConstants.HDR_IPV4_DST_ADDR));
 
-        int interfaceType = TranslatorUtil.getParamInt(action, SouthConstants.SRC_IFACE_PARAM);
+        int interfaceType = TranslatorUtil.getParamInt(action, SouthConstants.SRC_IFACE);
         if (interfaceType == SouthConstants.INTERFACE_ACCESS) {
             ifaceBuilder.setUplink();
         } else if (interfaceType == SouthConstants.INTERFACE_CORE) {
             ifaceBuilder.setDownlink();
+        } else if (interfaceType == SouthConstants.INTERFACE_DBUF) {
+            ifaceBuilder.setDbufReceiver();
         }
         return ifaceBuilder.build();
     }
@@ -298,39 +311,45 @@ public class Up4TranslatorImpl implements Up4Translator {
     @Override
     public FlowRule farToFabricEntry(ForwardingActionRule far, DeviceId deviceId, ApplicationId appId, int priority)
             throws Up4TranslationException {
-
         PiAction action;
         if (far.isUplink()) {
             action = PiAction.builder()
-                    .withId(SouthConstants.LOAD_FAR_NORMAL)
+                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_NORMAL_FAR)
                     .withParameters(Arrays.asList(
-                            new PiActionParam(SouthConstants.DROP_FLAG, far.dropFlag() ? 1 : 0),
-                            new PiActionParam(SouthConstants.NOTIFY_FLAG, far.notifyCpFlag() ? 1 : 0)
+                            new PiActionParam(SouthConstants.DROP, far.dropFlag() ? 1 : 0),
+                            new PiActionParam(SouthConstants.NOTIFY_CP, far.notifyCpFlag() ? 1 : 0)
                     ))
                     .build();
 
-        } else if (far.isDownlink()) {
+        } else if (far.isDownlink() || far.bufferFlag()) {
+            if (far.tunnelSrc() == null || far.tunnelDst() == null
+                    || far.teid() == null || far.tunnel().srcPort() == null) {
+                throw new Up4TranslationException(
+                    "Not all action parameters present when translating intermediate downlink FAR to physical FAR!");
+            }
             // TODO: copy tunnel destination port from logical switch write requests, instead of hardcoding 2152
+            PiActionId actionId = far.bufferFlag() ? SouthConstants.FABRIC_INGRESS_SPGW_LOAD_DBUF_FAR :
+                    SouthConstants.FABRIC_INGRESS_SPGW_LOAD_TUNNEL_FAR;
             action = PiAction.builder()
-                    .withId(SouthConstants.LOAD_FAR_TUNNEL)
+                    .withId(actionId)
                     .withParameters(Arrays.asList(
-                            new PiActionParam(SouthConstants.DROP_FLAG, far.dropFlag() ? 1 : 0),
-                            new PiActionParam(SouthConstants.NOTIFY_FLAG, far.notifyCpFlag() ? 1 : 0),
-                            new PiActionParam(SouthConstants.TEID_PARAM, far.teid()),
-                            new PiActionParam(SouthConstants.TUNNEL_SRC_PARAM, far.tunnelSrc().toInt()),
-                            new PiActionParam(SouthConstants.TUNNEL_DST_PARAM, far.tunnelDst().toInt()),
-                            new PiActionParam(SouthConstants.TUNNEL_DST_PORT_PARAM, 2152)
+                            new PiActionParam(SouthConstants.DROP, far.dropFlag() ? 1 : 0),
+                            new PiActionParam(SouthConstants.NOTIFY_CP, far.notifyCpFlag() ? 1 : 0),
+                            new PiActionParam(SouthConstants.TEID, far.teid()),
+                            new PiActionParam(SouthConstants.TUNNEL_SRC_ADDR, far.tunnelSrc().toInt()),
+                            new PiActionParam(SouthConstants.TUNNEL_DST_ADDR, far.tunnelDst().toInt()),
+                            new PiActionParam(SouthConstants.TUNNEL_SRC_PORT, far.tunnel().srcPort())
                     ))
                     .build();
         } else {
             throw new Up4TranslationException("Attempting to translate a FAR of unknown direction to fabric entry!");
         }
         PiCriterion match = PiCriterion.builder()
-                .matchExact(SouthConstants.FAR_ID_KEY, globalFarIdOf(far.sessionId(), far.farId()))
+                .matchExact(SouthConstants.HDR_FAR_ID, globalFarIdOf(far.sessionId(), far.farId()))
                 .build();
         return DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(SouthConstants.FAR_TBL)
+                .forTable(SouthConstants.FABRIC_INGRESS_SPGW_FARS)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(priority)
@@ -344,25 +363,25 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiTableId tableId;
         if (pdr.isUplink()) {
             match = PiCriterion.builder()
-                    .matchExact(SouthConstants.TEID_KEY, pdr.teid().asArray())
-                    .matchExact(SouthConstants.TUNNEL_DST_KEY, pdr.tunnelDest().toInt())
+                    .matchExact(SouthConstants.HDR_TEID, pdr.teid().asArray())
+                    .matchExact(SouthConstants.HDR_TUNNEL_IPV4_DST, pdr.tunnelDest().toInt())
                     .build();
-            tableId = SouthConstants.PDR_UPLINK_TBL;
+            tableId = SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS;
         } else if (pdr.isDownlink()) {
             match = PiCriterion.builder()
-                    .matchExact(SouthConstants.UE_ADDR_KEY, pdr.ueAddress().toInt())
+                    .matchExact(SouthConstants.HDR_UE_ADDR, pdr.ueAddress().toInt())
                     .build();
-            tableId = SouthConstants.PDR_DOWNLINK_TBL;
+            tableId = SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS;
         } else {
             throw new Up4TranslationException("Flexible PDRs not yet supported! Cannot translate " + pdr.toString());
         }
 
         PiAction action = PiAction.builder()
-                .withId(SouthConstants.LOAD_PDR)
+                .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
                 .withParameters(Arrays.asList(
                         new PiActionParam(SouthConstants.CTR_ID, pdr.counterId()),
-                        new PiActionParam(SouthConstants.FAR_ID_PARAM, globalFarIdOf(pdr.sessionId(), pdr.farId())),
-                        new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP_PARAM, pdr.isUplink() ? 1 : 0)
+                        new PiActionParam(SouthConstants.FAR_ID, globalFarIdOf(pdr.sessionId(), pdr.farId())),
+                        new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, pdr.isUplink() ? 1 : 0)
                 ))
                 .build();
 
@@ -380,34 +399,30 @@ public class Up4TranslatorImpl implements Up4Translator {
                                            ApplicationId appId, int priority) throws Up4TranslationException {
         int interfaceTypeInt;
         int gtpuValidity;
-        int direction;
-        if (upfInterface.isUplink()) {
+        if (upfInterface.isDbufReceiver()) {
+            interfaceTypeInt = SouthConstants.INTERFACE_DBUF;
+            gtpuValidity = 1;
+        } else if (upfInterface.isUplink()) {
             interfaceTypeInt = SouthConstants.INTERFACE_ACCESS;
             gtpuValidity = 1;
-            direction = SouthConstants.DIRECTION_UPLINK;
         } else {
             interfaceTypeInt = SouthConstants.INTERFACE_CORE;
             gtpuValidity = 0;
-            direction = SouthConstants.DIRECTION_DOWNLINK;
         }
 
         PiCriterion match = PiCriterion.builder()
-                .matchLpm(SouthConstants.IPV4_DST_ADDR,
+                .matchLpm(SouthConstants.HDR_IPV4_DST_ADDR,
                         upfInterface.prefix().address().toInt(),
                         upfInterface.prefix().prefixLength())
-                .matchExact(SouthConstants.GTPU_IS_VALID, gtpuValidity)
+                .matchExact(SouthConstants.HDR_GTPU_IS_VALID, gtpuValidity)
                 .build();
         PiAction action = PiAction.builder()
-                .withId(SouthConstants.SET_SOURCE_IFACE)
-                .withParameters(Arrays.asList(
-                        new PiActionParam(SouthConstants.SRC_IFACE_PARAM, interfaceTypeInt),
-                        new PiActionParam(SouthConstants.DIRECTION_PARAM, direction),
-                        new PiActionParam(SouthConstants.SKIP_SPGW_PARAM, 0)
-                ))
+                .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_IFACE)
+                .withParameter(new PiActionParam(SouthConstants.SRC_IFACE, interfaceTypeInt))
                 .build();
         return DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(SouthConstants.INTERFACE_LOOKUP)
+                .forTable(SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(priority)
@@ -419,27 +434,33 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiMatchKey matchKey;
         PiAction action;
         ImmutableByteSequence zeroByte = ImmutableByteSequence.ofZeros(1);
+        ImmutableByteSequence oneByte = ImmutableByteSequence.ofOnes(1);
         if (far.isUplink()) {
             action = PiAction.builder()
                     .withId(NorthConstants.LOAD_FAR_NORMAL)
                     .withParameters(Arrays.asList(
-                            new PiActionParam(NorthConstants.DROP_FLAG, zeroByte),
-                            new PiActionParam(NorthConstants.NOTIFY_FLAG, zeroByte)
+                            new PiActionParam(NorthConstants.DROP_FLAG, far.dropFlag() ? oneByte : zeroByte),
+                            new PiActionParam(NorthConstants.NOTIFY_FLAG, far.notifyCpFlag() ? oneByte : zeroByte)
                     ))
                     .build();
         } else if (far.isDownlink()) {
+            if (far.tunnelSrc() == null || far.tunnelDst() == null
+                    || far.teid() == null || far.tunnel().srcPort() == null) {
+                throw new Up4TranslationException(
+                        "Not all action parameters present when translating intermediate downlink FAR to logical FAR!");
+            }
             action = PiAction.builder()
                     .withId(NorthConstants.LOAD_FAR_TUNNEL)
                     .withParameters(Arrays.asList(
-                            new PiActionParam(NorthConstants.DROP_FLAG, zeroByte),
-                            new PiActionParam(NorthConstants.NOTIFY_FLAG, zeroByte),
+                            new PiActionParam(NorthConstants.DROP_FLAG, far.dropFlag() ? oneByte : zeroByte),
+                            new PiActionParam(NorthConstants.NOTIFY_FLAG, far.notifyCpFlag() ? oneByte : zeroByte),
+                            new PiActionParam(NorthConstants.BUFFER_FLAG, far.bufferFlag() ? oneByte : zeroByte),
                             new PiActionParam(NorthConstants.TUNNEL_TYPE_PARAM,
                                     toImmutableByte(NorthConstants.TUNNEL_TYPE_GTPU)),
                             new PiActionParam(NorthConstants.TUNNEL_SRC_PARAM, far.tunnelSrc().toInt()),
                             new PiActionParam(NorthConstants.TUNNEL_DST_PARAM, far.tunnelDst().toInt()),
                             new PiActionParam(NorthConstants.TEID_PARAM, far.teid()),
-                            // TODO: tunnel dport should be included in all north-south and south-north translation
-                            new PiActionParam(NorthConstants.TUNNEL_DPORT_PARAM, ImmutableByteSequence.ofZeros(2))
+                            new PiActionParam(NorthConstants.TUNNEL_SPORT_PARAM, far.tunnel().srcPort())
                     ))
                     .build();
         } else {

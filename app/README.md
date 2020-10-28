@@ -78,11 +78,11 @@ with a single command
     
 Install table entries via p4runtime-shell
 
-    $ make p4rtsh-program
+    $ make p4rt-set-forwarding
     
 If needed, those entries can also be cleared
 
-    $ make p4rtsh-clear
+    $ make p4rt-clear
     
     
 ## Sending and receiving packets

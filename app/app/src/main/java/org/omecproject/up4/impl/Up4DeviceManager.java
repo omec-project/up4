@@ -4,10 +4,13 @@
  */
 package org.omecproject.up4.impl;
 
+import org.omecproject.dbuf.client.DbufClient;
+import org.omecproject.dbuf.client.DefaultDbufClient;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.config.Up4Config;
+import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
@@ -31,7 +34,11 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FACTORY;
@@ -76,6 +83,7 @@ public class Up4DeviceManager implements Up4Service {
     private UpfProgrammable upfProgrammable;
     private DeviceId upfDeviceId;
     private Up4Config config;
+    private DbufClient dbufClient;
 
     @Activate
     protected void activate() {
@@ -96,12 +104,13 @@ public class Up4DeviceManager implements Up4Service {
     @Deactivate
     protected void deactivate() {
         log.info("Stopping...");
-        if (upfProgrammableAvailable()) {
-            upfProgrammable.cleanUp(appId);
-        }
         deviceService.removeListener(deviceListener);
         netCfgService.removeListener(netCfgListener);
         netCfgService.unregisterConfigFactory(appConfigFactory);
+        if (upfProgrammableAvailable()) {
+            upfProgrammable.cleanUp(appId);
+        }
+        teardownDbufClient();
         upfInitialized.set(false);
         log.info("Stopped.");
     }
@@ -140,6 +149,8 @@ public class Up4DeviceManager implements Up4Service {
         synchronized (upfInitialized) {
             if (upfInitialized.get()) {
                 log.info("UPF {} already initialized, skipping setup.", deviceId);
+                // FIXME: this is merely a hotfix for interface entries disappearing when a device becomes available.
+                ensureInterfacesInstalled();
                 return;
             }
             if (!deviceService.isAvailable(deviceId)) {
@@ -161,7 +172,11 @@ public class Up4DeviceManager implements Up4Service {
             upfProgrammable.cleanUp(appId);
             upfProgrammable.init(appId, deviceId);
 
-            setInterfaces();
+            installInterfaces();
+
+            if (dbufClient != null) {
+                addDbufStateToUpfProgrammable();
+            }
 
             upfInitialized.set(true);
             log.info("UPF device setup successful!");
@@ -169,13 +184,42 @@ public class Up4DeviceManager implements Up4Service {
     }
 
     /**
-     * Install the UPF dataplane interfaces.
+     * Gets the collection of interfaces present in the UP4 config file.
+     *
+     * @return an interface collection
      */
-    private void setInterfaces() {
-        log.info("Installing interfaces from config.");
-        upfProgrammable.addInterface(UpfInterface.createS1uFrom(config.s1uPrefix()));
+    private Collection<UpfInterface> configFileInterfaces() {
+        Collection<UpfInterface> interfaces = new ArrayList<>();
+        interfaces.add(UpfInterface.createS1uFrom(config.s1uPrefix()));
         for (Ip4Prefix uePool : config.uePools()) {
-            upfProgrammable.addInterface(UpfInterface.createUePoolFrom(uePool));
+            interfaces.add(UpfInterface.createUePoolFrom(uePool));
+        }
+        Ip4Address dbufDrainAddr = config.dbufDrainAddr();
+        if (dbufDrainAddr != null) {
+            interfaces.add(UpfInterface.createDbufReceiverFrom(dbufDrainAddr));
+        }
+        return interfaces;
+    }
+
+    /**
+     * Ensure that all interfaces present in the UP4 config file are installed in the UPF device.
+     */
+    private void ensureInterfacesInstalled() {
+        log.info("Ensuring all interfaces present in app config are present on device.");
+        Set<UpfInterface> installedInterfaces = new HashSet<>(upfProgrammable.getInstalledInterfaces());
+        for (UpfInterface iface : configFileInterfaces()) {
+            if (!installedInterfaces.contains(iface)) {
+                log.warn("{} is missing from device! Installing", iface);
+                upfProgrammable.addInterface(iface);
+            }
+        }
+    }
+
+    @Override
+    public void installInterfaces() {
+        log.info("Installing interfaces from config.");
+        for (UpfInterface iface : configFileInterfaces()) {
+            upfProgrammable.addInterface(iface);
         }
     }
 
@@ -185,11 +229,14 @@ public class Up4DeviceManager implements Up4Service {
     private void unsetUpfDevice() {
         synchronized (upfInitialized) {
             if (upfProgrammable != null) {
-                log.info("UPF cleanup");
-                upfProgrammable.cleanUp(appId);
+                log.info("UPF was removed. Cleaning up.");
+                if (deviceService.isAvailable(upfDeviceId)) {
+                    upfProgrammable.cleanUp(appId);
+                }
                 upfProgrammable = null;
                 upfInitialized.set(false);
             }
+            teardownDbufClient();
         }
     }
 
@@ -198,8 +245,55 @@ public class Up4DeviceManager implements Up4Service {
             upfDeviceId = config.up4DeviceId();
             this.config = config;
             setUpfDevice(upfDeviceId);
+            setUpDbufClient(config.dbufServiceAddr(), config.dbufDataplaneAddr());
         }
 
+    }
+
+    private void addDbufStateToUpfProgrammable() {
+        upfProgrammable.setDbufTunnel(config.dbufDrainAddr(), dbufClient.dataplaneIp4Addr());
+        upfProgrammable.setBufferDrainer(new UpfProgrammable.BufferDrainer() {
+            @Override
+            public void drain(Ip4Address ueAddr) {
+                log.info("Started dbuf drain for {}", ueAddr);
+                dbufClient.drain(ueAddr, config.dbufDrainAddr(), 2152).whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
+                    } else if (result) {
+                        log.info("Dbuf drain completed for {}", ueAddr);
+                    } else {
+                        log.warn("Unknown error while draining dbuf for {}", ueAddr);
+                    }
+                });
+            }
+        });
+    }
+
+    private void setUpDbufClient(String serviceAddr, String dataplaneAddr) {
+        synchronized (this) {
+            if (serviceAddr != null) {
+                if (dbufClient != null && !dbufClient.serviceAddr().equals(serviceAddr)) {
+                    log.info("Detected updated address for dbuf service ({}), replacing client",
+                            serviceAddr);
+                    teardownDbufClient();
+                }
+                if (dbufClient == null) {
+                    dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr);
+                }
+                if (upfProgrammable != null) {
+                    addDbufStateToUpfProgrammable();
+                }
+            }
+        }
+    }
+
+    private void teardownDbufClient() {
+        synchronized (this) {
+            if (dbufClient != null) {
+                dbufClient.shutdown();
+                dbufClient = null;
+            }
+        }
     }
 
     private void updateConfig() {
@@ -210,8 +304,8 @@ public class Up4DeviceManager implements Up4Service {
     }
 
     /**
-     * React to new devices. The first device recognized to have UPF
-     * functionality is taken as the UPF device.
+     * React to new devices. The first device recognized to have UPF functionality is taken as the
+     * UPF device.
      */
     private class InternalDeviceListener implements DeviceListener {
         @Override
@@ -229,6 +323,7 @@ public class Up4DeviceManager implements Up4Service {
                         break;
                     case DEVICE_REMOVED:
                     case DEVICE_SUSPENDED:
+                        log.debug("Event: {}, unsetting UPF", event.type());
                         unsetUpfDevice();
                         break;
                     case PORT_ADDED:
