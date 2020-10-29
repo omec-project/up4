@@ -149,5 +149,14 @@ public class MockUp4Service implements Up4Service {
                     .setIngress(NorthTestConstants.INGRESS_COUNTER_PKTS, NorthTestConstants.INGRESS_COUNTER_BYTES)
                     .build();
         }
+
+        @Override
+        public Collection<PdrStats> readAllCounters() {
+            return List.of(PdrStats.builder()
+                    .withCellId(NorthTestConstants.COUNTER_INDEX)
+                    .setEgress(NorthTestConstants.EGRESS_COUNTER_PKTS, NorthTestConstants.EGRESS_COUNTER_BYTES)
+                    .setIngress(NorthTestConstants.INGRESS_COUNTER_PKTS, NorthTestConstants.INGRESS_COUNTER_BYTES)
+                    .build());
+        }
     };
 }

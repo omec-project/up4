@@ -1,5 +1,7 @@
 package org.omecproject.up4.behavior;
 
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
@@ -9,6 +11,7 @@ import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.UpfRuleIdentifier;
+import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
@@ -35,8 +38,6 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.omecproject.up4.impl.SouthConstants;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -45,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.onosproject.net.pi.model.PiCounterType.INDIRECT;
 
@@ -174,6 +176,72 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         return this.deviceId;
     }
 
+
+    @Override
+    public Collection<PdrStats> readAllCounters() {
+        // Get client and pipeconf.
+        P4RuntimeClient client = controller.get(deviceId);
+        if (client == null) {
+            log.warn("Unable to find client for {}, aborting operation", deviceId);
+            return List.of();
+        }
+        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
+        if (optPipeconf.isEmpty()) {
+            log.warn("Unable to load piPipeconf for {}, aborting operation", deviceId);
+            return List.of();
+        }
+        PiPipeconf pipeconf = optPipeconf.get();
+
+        // Prepare PdrStats object builders, one for each counter ID currently in use
+        Map<Integer, PdrStats.Builder> pdrStatBuilders = Maps.newHashMap();
+        getInstalledPdrs().forEach(pdr -> pdrStatBuilders.put(pdr.counterId(),
+                PdrStats.builder().withCellId(pdr.counterId())));
+
+        // Generate the counter cell IDs.
+        Set<PiCounterCellId> counterCellIds = Sets.newHashSet();
+        pdrStatBuilders.keySet().forEach(cellID -> {
+            // Counter cell/index = port number.
+            counterCellIds.add(PiCounterCellId.ofIndirect(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER, cellID));
+            counterCellIds.add(PiCounterCellId.ofIndirect(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER, cellID));
+        });
+        Set<PiCounterCellHandle> counterCellHandles = counterCellIds.stream()
+                .map(id -> PiCounterCellHandle.of(deviceId, id))
+                .collect(Collectors.toSet());
+
+        // Query the device.
+        Collection<PiCounterCell> counterEntryResponse = client.read(
+                DEFAULT_P4_DEVICE_ID, pipeconf)
+                .handles(counterCellHandles).submitSync()
+                .all(PiCounterCell.class);
+
+        // Process response.
+        counterEntryResponse.forEach(counterCell -> {
+            if (counterCell.cellId().counterType() != INDIRECT) {
+                log.warn("Invalid counter data type {}, skipping", counterCell.cellId().counterType());
+                return;
+            }
+            if (!pdrStatBuilders.containsKey((int) counterCell.cellId().index())) {
+                log.warn("Unrecognized counter index {}, skipping", counterCell);
+                return;
+            }
+            PdrStats.Builder statsBuilder = pdrStatBuilders.get((int) counterCell.cellId().index());
+            if (counterCell.cellId().counterId().equals(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER)) {
+                statsBuilder.setIngress(counterCell.data().packets(),
+                        counterCell.data().bytes());
+            } else if (counterCell.cellId().counterId().equals(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER)) {
+                statsBuilder.setEgress(counterCell.data().packets(),
+                        counterCell.data().bytes());
+            } else {
+                log.warn("Unrecognized counter ID {}, skipping", counterCell);
+            }
+        });
+
+        return pdrStatBuilders
+                .values()
+                .stream()
+                .map(PdrStats.Builder::build)
+                .collect(Collectors.toList());
+    }
 
     @Override
     public PdrStats readCounter(int cellId) {

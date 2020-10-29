@@ -134,6 +134,14 @@ public interface UpfProgrammable {
      */
     PdrStats readCounter(int cellId);
 
+
+    /**
+     * Read the counter contents for all cell indices currently referenced by any installed PDRs.
+     *
+     * @return A collection of counter values for all currently used cell indices
+     */
+    Collection<PdrStats> readAllCounters();
+
     /**
      * Set the source and destination of the GTPU tunnel used to send packets to a dbuf buffering device.
      *

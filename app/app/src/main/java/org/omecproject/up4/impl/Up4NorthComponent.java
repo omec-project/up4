@@ -22,12 +22,14 @@ import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.model.PiPipelineModel;
 import org.onosproject.net.pi.model.PiTableId;
 import org.onosproject.net.pi.runtime.PiCounterCell;
+import org.onosproject.net.pi.runtime.PiCounterCellId;
 import org.onosproject.net.pi.runtime.PiEntity;
 import org.onosproject.net.pi.runtime.PiEntityType;
 import org.onosproject.net.pi.runtime.PiTableAction;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.p4runtime.ctl.codec.CodecException;
 import org.onosproject.p4runtime.ctl.codec.Codecs;
+import org.onosproject.p4runtime.ctl.utils.P4InfoBrowser;
 import org.onosproject.p4runtime.ctl.utils.PipeconfHelper;
 import org.onosproject.p4runtime.model.P4InfoParser;
 import org.onosproject.p4runtime.model.P4InfoParserException;
@@ -45,6 +47,7 @@ import p4.v1.P4RuntimeOuterClass;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import static org.omecproject.up4.impl.AppConstants.PIPECONF_ID;
@@ -248,46 +251,86 @@ public class Up4NorthComponent {
         return translatedEntries;
     }
 
+
     /**
-     * Read the requested p4 counter cell, and translate it to a p4runtime entity for responding to a read request.
+     * Read the all p4 counter cell requested by the message, and translate them to p4runtime entities for crafting
+     * a p4runtime read response.
      *
-     * @param requestedCell the requested p4 counter cell
-     * @return the requested cell's counter values, as a p4runtime entity
+     * @param message a p4runtime CountryEntry message from a read request
+     * @return the requested counter cells' contents, as a list of p4runtime entities
      */
-    private P4RuntimeOuterClass.Entity readCounterAndTranslate(PiCounterCell requestedCell) {
-        // TODO: read more than one counter cell at a time
-
-        int counterIndex = (int) requestedCell.cellId().index();
-        PdrStats ctrValues = up4Service.getUpfProgrammable().readCounter(counterIndex);
-        PiCounterId piCounterId = requestedCell.cellId().counterId();
-
-        String gress;
-        long pkts;
-        long bytes;
-        if (piCounterId.equals(NorthConstants.INGRESS_COUNTER_ID)) {
-            gress = "ingress";
-            pkts = ctrValues.getIngressPkts();
-            bytes = ctrValues.getIngressBytes();
-        } else if (piCounterId.equals(NorthConstants.EGRESS_COUNTER_ID)) {
-            gress = "egress";
-            pkts = ctrValues.getEgressPkts();
-            bytes = ctrValues.getEgressBytes();
+    private List<P4RuntimeOuterClass.Entity> readCountersAndTranslate(P4RuntimeOuterClass.CounterEntry message) {
+        ArrayList<PiCounterCell> responseCells = new ArrayList<>();
+        Integer index = null;
+        // FYI a counter read message with no index corresponds to a wildcard read of all indices
+        if (message.hasIndex()) {
+            index = (int) message.getIndex().getIndex();
+        }
+        String counterName = null;
+        PiCounterId piCounterId = null;
+        int counterId = message.getCounterId();
+        // FYI a counterId of 0 corresponds to a wildcard read of all counters
+        if (counterId != 0) {
+            try {
+                counterName = PipeconfHelper.getP4InfoBrowser(pipeconf).counters()
+                        .getById(message.getCounterId())
+                        .getPreamble()
+                        .getName();
+                piCounterId = PiCounterId.of(counterName);
+            } catch (P4InfoBrowser.NotFoundException e) {
+                log.warn("Unable to find UP4 counter with ID {}", counterId);
+                return List.of();
+            }
+        }
+        // At this point, the counterName is null if all counters are requested, and non-null if a specific
+        //  counter was requested. The index is null if all cells are requested, and non-null if a specific
+        //  cell was requested.
+        if (counterName != null && index != null) {
+            // A single counter cell was requested
+            PdrStats ctrValues = up4Service.getUpfProgrammable().readCounter(index);
+            long pkts;
+            long bytes;
+            if (piCounterId.equals(NorthConstants.INGRESS_COUNTER_ID)) {
+                pkts = ctrValues.getIngressPkts();
+                bytes = ctrValues.getIngressBytes();
+            } else if (piCounterId.equals(NorthConstants.EGRESS_COUNTER_ID)) {
+                pkts = ctrValues.getEgressPkts();
+                bytes = ctrValues.getEgressBytes();
+            } else {
+                log.warn("Received read request for unknown counter {}. Skipping.", piCounterId);
+                return List.of();
+            }
+            responseCells.add(new PiCounterCell(PiCounterCellId.ofIndirect(piCounterId, index), pkts, bytes));
         } else {
-            log.warn("Received read request for unknown counter {}. Skipping.", piCounterId);
-            return null;
+            // All cells were requested, either for a specific counter or all counters
+            Collection<PdrStats> allStats = up4Service.getUpfProgrammable().readAllCounters();
+            for (PdrStats stat : allStats) {
+                if (piCounterId == null || piCounterId.equals(NorthConstants.INGRESS_COUNTER_ID)) {
+                    // If all counters were requested, or just the ingress one
+                    responseCells.add(new PiCounterCell(
+                            PiCounterCellId.ofIndirect(NorthConstants.INGRESS_COUNTER_ID, stat.getCellId()),
+                            stat.getIngressPkts(), stat.getIngressBytes()));
+                }
+                if (piCounterId == null || piCounterId.equals(NorthConstants.EGRESS_COUNTER_ID)) {
+                    // If all counters were requested, or just the egress one
+                    responseCells.add(new PiCounterCell(
+                            PiCounterCellId.ofIndirect(NorthConstants.EGRESS_COUNTER_ID, stat.getCellId()),
+                            stat.getEgressPkts(), stat.getEgressBytes()));
+                }
+            }
         }
-
-        PiCounterCell responseCell = new PiCounterCell(requestedCell.cellId(), pkts, bytes);
-        P4RuntimeOuterClass.Entity responseEntity;
-        try {
-            responseEntity = Codecs.CODECS.entity().encode(responseCell, null, pipeconf);
-            log.debug("Encoded response to {} counter read request for counter ID {}.", gress, counterIndex);
-            return responseEntity;
-        } catch (CodecException e) {
-            log.error("Unable to encode counter cell into a p4runtime entity. Exception was: {}",
-                    e.getMessage());
-            return null;
+        List<P4RuntimeOuterClass.Entity> responseEntities = new ArrayList<>();
+        for (PiCounterCell cell : responseCells) {
+            try {
+                responseEntities.add(Codecs.CODECS.entity().encode(cell, null, pipeconf));
+                log.debug("Encoded response to counter read request for counter {} and index {}",
+                        cell.cellId().counterId(), cell.cellId().index());
+            } catch (CodecException e) {
+                log.error("Unable to encode counter cell into a p4runtime entity. Exception was: {}",
+                        e.getMessage());
+            }
         }
+        return responseEntities;
     }
 
     /**
@@ -462,39 +505,25 @@ public class Up4NorthComponent {
                          StreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver) {
             log.debug("Received read request.");
             for (P4RuntimeOuterClass.Entity requestEntity : request.getEntitiesList()) {
-                PiEntity requestPiEntity;
-                try {
-                    requestPiEntity = Codecs.CODECS.entity().decode(requestEntity, null, pipeconf);
-                } catch (CodecException e) {
-                    log.warn("Unable to decode p4runtime read request entity", e);
-                    continue;
-                }
-                if (requestPiEntity.piEntityType() == PiEntityType.COUNTER_CELL) {
+                if (requestEntity.getEntityCase() == P4RuntimeOuterClass.Entity.EntityCase.COUNTER_ENTRY) {
                     log.info("Received read request for logical counter cell");
-                    PiCounterCell requestCell = (PiCounterCell) requestPiEntity;
-
-
-                    P4RuntimeOuterClass.Entity responseEntity = readCounterAndTranslate(requestCell);
-                    if (responseEntity != null) {
-                        responseObserver.onNext(P4RuntimeOuterClass.ReadResponse.newBuilder()
-                                .addEntities(responseEntity)
-                                .build());
-                    } else {
-                        responseObserver.onNext(P4RuntimeOuterClass.ReadResponse.newBuilder()
-                                .build());
-                    }
-
-                    log.debug("Responded to counter read request.");
-                } else if (requestPiEntity.piEntityType() == PiEntityType.TABLE_ENTRY) {
+                    responseObserver.onNext(P4RuntimeOuterClass.ReadResponse.newBuilder()
+                            .addAllEntities(readCountersAndTranslate(requestEntity.getCounterEntry()))
+                            .build());
+                    log.debug("Finished responding to counter read request.");
+                } else if (requestEntity.getEntityCase() == P4RuntimeOuterClass.Entity.EntityCase.TABLE_ENTRY) {
                     log.info("Received read request for logical table entry");
-                    PiTableEntry requestEntry = (PiTableEntry) requestPiEntity;
-                    P4RuntimeOuterClass.ReadResponse.Builder responseBuilder =
-                            P4RuntimeOuterClass.ReadResponse.newBuilder();
-
-                    // Get entries and add them to the response
-                    responseBuilder.addAllEntities(readEntriesAndTranslate(requestEntry));
-
-                    responseObserver.onNext(responseBuilder.build());
+                    PiTableEntry requestEntry;
+                    try {
+                        requestEntry = (PiTableEntry) Codecs.CODECS.entity().decode(
+                                requestEntity, null, pipeconf);
+                    } catch (CodecException e) {
+                        log.warn("Unable to decode p4runtime read request entity", e);
+                        continue;
+                    }
+                    responseObserver.onNext(P4RuntimeOuterClass.ReadResponse.newBuilder()
+                            .addAllEntities(readEntriesAndTranslate(requestEntry))
+                            .build());
                     log.debug("Responded to table entry read request.");
                 } else {
                     log.warn("Received read request for an entity we don't yet support. Skipping");
