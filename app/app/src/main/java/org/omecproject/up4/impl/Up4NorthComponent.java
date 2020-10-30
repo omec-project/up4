@@ -408,7 +408,7 @@ public class Up4NorthComponent {
                           StreamObserver<P4RuntimeOuterClass.WriteResponse> responseObserver) {
             log.debug("Received write request.");
             if (!up4Service.configIsLoaded()) {
-                log.error("UP4 client attempted to write to logical switch before an app config was loaded!");
+                log.warn("UP4 client attempted to write to logical switch before an app config was loaded!");
                 responseObserver.onError(
                         io.grpc.Status.UNAVAILABLE
                                 .withDescription("App config not loaded.")
@@ -416,7 +416,7 @@ public class Up4NorthComponent {
                 return;
             }
             if (!up4Service.upfProgrammableAvailable()) {
-                log.error("UP4 client attempted to write to logical switch " +
+                log.warn("UP4 client attempted to write to logical switch " +
                         "while the physical device was unavailable!");
                 responseObserver.onError(
                         io.grpc.Status.UNAVAILABLE
@@ -479,7 +479,7 @@ public class Up4NorthComponent {
                          StreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver) {
             log.debug("Received read request.");
             if (!up4Service.configIsLoaded()) {
-                log.error("UP4 client attempted to read from logical switch before an app config was loaded!");
+                log.warn("UP4 client attempted to read from logical switch before an app config was loaded!");
                 responseObserver.onError(
                         io.grpc.Status.UNAVAILABLE
                                 .withDescription("App config not loaded.")
@@ -487,7 +487,7 @@ public class Up4NorthComponent {
                 return;
             }
             if (!up4Service.upfProgrammableAvailable()) {
-                log.error("UP4 client attempted to read from logical switch " +
+                log.warn("UP4 client attempted to read from logical switch " +
                         "while the physical device was unavailable!");
                 responseObserver.onError(
                         io.grpc.Status.UNAVAILABLE
