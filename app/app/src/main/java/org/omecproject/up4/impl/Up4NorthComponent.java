@@ -219,7 +219,7 @@ public class Up4NorthComponent {
             try {
                 ifaces = up4Service.getUpfProgrammable().getInstalledInterfaces();
             } catch (Up4Service.Up4ServiceException e) {
-                log.error("Unable to read interfaces from UPF! Error was: {}", e.getMessage());
+                log.warn("Unable to read interfaces from UPF! Error was: {}", e.getMessage());
                 return List.of();
             }
             for (UpfInterface iface : ifaces) {
@@ -243,7 +243,7 @@ public class Up4NorthComponent {
             try {
                 fars = up4Service.getUpfProgrammable().getInstalledFars();
             } catch (Up4Service.Up4ServiceException e) {
-                log.error("Unable to read FARs from UPF! Error was: {}", e.getMessage());
+                log.warn("Unable to read FARs from UPF! Error was: {}", e.getMessage());
                 return List.of();
             }
             for (ForwardingActionRule far : fars) {
@@ -262,7 +262,7 @@ public class Up4NorthComponent {
             try {
                 pdrs = up4Service.getUpfProgrammable().getInstalledPdrs();
             } catch (Up4Service.Up4ServiceException e) {
-                log.error("Unable to read PDRs from UPF! Error was: {}", e.getMessage());
+                log.warn("Unable to read PDRs from UPF! Error was: {}", e.getMessage());
                 return List.of();
             }
             for (PacketDetectionRule pdr : pdrs) {
@@ -296,7 +296,7 @@ public class Up4NorthComponent {
         try {
             ctrValues = up4Service.getUpfProgrammable().readCounter(counterIndex);
         } catch (Up4Service.Up4ServiceException e) {
-            log.error("Failed to read counter due to unavailable UPF! Error was: {}", e.getMessage());
+            log.warn("Failed to read counter due to unavailable UPF! Error was: {}", e.getMessage());
             return null;
         }
         PiCounterId piCounterId = requestedCell.cellId().counterId();
