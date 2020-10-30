@@ -18,8 +18,9 @@ public interface Up4Service {
      * Grab a reference to the current UpfProgrammable, for installing PDRs, FARs and Interfaces.
      *
      * @return a reference to the current UpfProgrammable
+     * @throws Up4ServiceException if no UpfProgrammable is found
      */
-    UpfProgrammable getUpfProgrammable();
+    UpfProgrammable getUpfProgrammable() throws Up4ServiceException;
 
     /**
      * True if a UPF device is currently available in ONOS, and false otherwise.
@@ -46,5 +47,16 @@ public interface Up4Service {
      * @return True if the device is a valid UPF data plane, and False otherwise
      */
     boolean isUpfDevice(DeviceId deviceId);
+
+    class Up4ServiceException extends Exception {
+        /**
+         * Creates a new exception for the given message.
+         *
+         * @param message message
+         */
+        public Up4ServiceException(String message) {
+            super(message);
+        }
+    }
 
 }

@@ -45,6 +45,7 @@ import p4.v1.P4RuntimeOuterClass;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import static org.omecproject.up4.impl.AppConstants.PIPECONF_ID;
@@ -128,6 +129,8 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().removeInterface(upfInterface);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 interface in delete write! Error was: {}", e.getMessage());
+            } catch (Up4Service.Up4ServiceException e) {
+                log.warn("Failed to delete UP4 interface! Error was: {}", e.getMessage());
             }
         } else if (up4Translator.isUp4Pdr(entry)) {
             try {
@@ -136,6 +139,8 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().removePdr(pdr);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 PDR in delete write! Error was: {}", e.getMessage());
+            } catch (Up4Service.Up4ServiceException e) {
+                log.warn("Failed to delete UP4 PDR! Error was: {}", e.getMessage());
             }
         } else if (up4Translator.isUp4Far(entry)) {
             try {
@@ -144,6 +149,8 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().removeFar(far);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 FAR in delete write! Error was {}", e.getMessage());
+            } catch (Up4Service.Up4ServiceException e) {
+                log.warn("Failed to delete UP4 FAR! Error was: {}", e.getMessage());
             }
         } else {
             log.warn("Received unknown table entry for table {} in UP4 delete request:", entry.table().id());
@@ -169,6 +176,8 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().addInterface(iface);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Unable to translate UP4 interface table entry! Error was: {}", e.getMessage());
+            } catch (Up4Service.Up4ServiceException e) {
+                log.warn("Failed to insert UP4 interface! Error was: {}", e.getMessage());
             }
         } else if (up4Translator.isUp4Pdr(entry)) {
             try {
@@ -176,6 +185,8 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().addPdr(pdr);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 PDR! Error was: {}", e.getMessage());
+            } catch (Up4Service.Up4ServiceException e) {
+                log.warn("Failed to insert UP4 PDR! Error was: {}", e.getMessage());
             }
         } else if (up4Translator.isUp4Far(entry)) {
             try {
@@ -183,6 +194,8 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().addFar(far);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 FAR! Error was {}", e.getMessage());
+            } catch (Up4Service.Up4ServiceException e) {
+                log.warn("Failed to insert UP4 FAR! Error was: {}", e.getMessage());
             }
         } else {
             log.warn("Received unsupported table entry for table {} in UP4 write request:", entry.table().id());
@@ -202,7 +215,14 @@ public class Up4NorthComponent {
         // Respond with all entries for the table of the requested entry, ignoring other requested properties
         // TODO: return more specific responses
         if (up4Translator.isUp4Interface(requestedEntry)) {
-            for (UpfInterface iface : up4Service.getUpfProgrammable().getInstalledInterfaces()) {
+            Collection<UpfInterface> ifaces;
+            try {
+                ifaces = up4Service.getUpfProgrammable().getInstalledInterfaces();
+            } catch (Up4Service.Up4ServiceException e) {
+                log.error("Unable to read interfaces from UPF! Error was: {}", e.getMessage());
+                return List.of();
+            }
+            for (UpfInterface iface : ifaces) {
                 if (iface.isDbufReceiver()) {
                     // Don't expose the dbuf interface to the logical switch
                     continue;
@@ -219,7 +239,14 @@ public class Up4NorthComponent {
                 }
             }
         } else if (up4Translator.isUp4Far(requestedEntry)) {
-            for (ForwardingActionRule far : up4Service.getUpfProgrammable().getInstalledFars()) {
+            Collection<ForwardingActionRule> fars;
+            try {
+                fars = up4Service.getUpfProgrammable().getInstalledFars();
+            } catch (Up4Service.Up4ServiceException e) {
+                log.error("Unable to read FARs from UPF! Error was: {}", e.getMessage());
+                return List.of();
+            }
+            for (ForwardingActionRule far : fars) {
                 log.debug("Translating a FAR for a read request: {}", far);
                 try {
                     P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
@@ -231,7 +258,14 @@ public class Up4NorthComponent {
                 }
             }
         } else if (up4Translator.isUp4Pdr(requestedEntry)) {
-            for (PacketDetectionRule pdr : up4Service.getUpfProgrammable().getInstalledPdrs()) {
+            Collection<PacketDetectionRule> pdrs;
+            try {
+                pdrs = up4Service.getUpfProgrammable().getInstalledPdrs();
+            } catch (Up4Service.Up4ServiceException e) {
+                log.error("Unable to read PDRs from UPF! Error was: {}", e.getMessage());
+                return List.of();
+            }
+            for (PacketDetectionRule pdr : pdrs) {
                 log.debug("Translating a PDR for a read request: {}", pdr);
                 try {
                     P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
@@ -258,7 +292,13 @@ public class Up4NorthComponent {
         // TODO: read more than one counter cell at a time
 
         int counterIndex = (int) requestedCell.cellId().index();
-        PdrStats ctrValues = up4Service.getUpfProgrammable().readCounter(counterIndex);
+        PdrStats ctrValues;
+        try {
+            ctrValues = up4Service.getUpfProgrammable().readCounter(counterIndex);
+        } catch (Up4Service.Up4ServiceException e) {
+            log.error("Failed to read counter due to unavailable UPF! Error was: {}", e.getMessage());
+            return null;
+        }
         PiCounterId piCounterId = requestedCell.cellId().counterId();
 
         String gress;

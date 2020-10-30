@@ -32,7 +32,11 @@ public class InterfaceDeleteCommand extends AbstractShellCommand {
         Ip4Prefix s1uPrefix = Ip4Prefix.valueOf(this.s1uPrefix);
 
         print("Removing S1U interface address %s", s1uPrefix.toString());
-        app.getUpfProgrammable().removeInterface(UpfInterface.createS1uFrom(s1uPrefix));
+        try {
+            app.getUpfProgrammable().removeInterface(UpfInterface.createS1uFrom(s1uPrefix));
+        }  catch (Up4Service.Up4ServiceException e) {
+            print("Command failed due to UP4 exception:", e.getMessage());
+        }
     }
 }
 

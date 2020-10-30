@@ -22,7 +22,11 @@ public class ClearFlowsCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         print("Clearing all currently installed UE sessions.");
-        app.getUpfProgrammable().clearFlows();
+        try {
+            app.getUpfProgrammable().clearFlows();
+        } catch (Up4Service.Up4ServiceException e) {
+            print("Command failed due to UP4 exception:", e.getMessage());
+        }
     }
 }
 

@@ -18,8 +18,12 @@ public class ReadFarsCommand extends AbstractShellCommand {
     protected void doExecute() {
         Up4Service app = get(Up4Service.class);
 
-        for (ForwardingActionRule far : app.getUpfProgrammable().getInstalledFars()) {
-            print(far.toString());
+        try {
+            for (ForwardingActionRule far : app.getUpfProgrammable().getInstalledFars()) {
+                print(far.toString());
+            }
+        } catch (Up4Service.Up4ServiceException e) {
+            print("Command failed due to UP4 exception:", e.getMessage());
         }
     }
 }
