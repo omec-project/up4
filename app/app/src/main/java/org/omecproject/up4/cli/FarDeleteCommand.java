@@ -38,10 +38,6 @@ public class FarDeleteCommand extends AbstractShellCommand {
                 .withFarId(farId)
                 .build();
         print("Deleting %s", far.toString());
-        try {
-            app.getUpfProgrammable().removeFar(far);
-        } catch (Up4Service.Up4ServiceException e) {
-            print("Command failed due to UP4 exception: %s", e.getMessage());
-        }
+        app.getUpfProgrammable().removeFar(far);
     }
 }

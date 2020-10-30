@@ -18,12 +18,8 @@ public class ReadInterfacesCommand extends AbstractShellCommand {
     protected void doExecute() {
         Up4Service app = get(Up4Service.class);
 
-        try {
-            for (UpfInterface iface : app.getUpfProgrammable().getInstalledInterfaces()) {
-                print(iface.toString());
-            }
-        } catch (Up4Service.Up4ServiceException e) {
-            print("Command failed due to UP4 exception: %s", e.getMessage());
+        for (UpfInterface iface : app.getUpfProgrammable().getInstalledInterfaces()) {
+            print(iface.toString());
         }
     }
 }

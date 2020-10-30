@@ -45,7 +45,6 @@ import p4.v1.P4RuntimeOuterClass;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import static org.omecproject.up4.impl.AppConstants.PIPECONF_ID;
@@ -129,8 +128,6 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().removeInterface(upfInterface);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 interface in delete write! Error was: {}", e.getMessage());
-            } catch (Up4Service.Up4ServiceException e) {
-                log.warn("Failed to delete UP4 interface! Error was: {}", e.getMessage());
             }
         } else if (up4Translator.isUp4Pdr(entry)) {
             try {
@@ -139,8 +136,6 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().removePdr(pdr);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 PDR in delete write! Error was: {}", e.getMessage());
-            } catch (Up4Service.Up4ServiceException e) {
-                log.warn("Failed to delete UP4 PDR! Error was: {}", e.getMessage());
             }
         } else if (up4Translator.isUp4Far(entry)) {
             try {
@@ -149,8 +144,6 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().removeFar(far);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 FAR in delete write! Error was {}", e.getMessage());
-            } catch (Up4Service.Up4ServiceException e) {
-                log.warn("Failed to delete UP4 FAR! Error was: {}", e.getMessage());
             }
         } else {
             log.warn("Received unknown table entry for table {} in UP4 delete request:", entry.table().id());
@@ -176,8 +169,6 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().addInterface(iface);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Unable to translate UP4 interface table entry! Error was: {}", e.getMessage());
-            } catch (Up4Service.Up4ServiceException e) {
-                log.warn("Failed to insert UP4 interface! Error was: {}", e.getMessage());
             }
         } else if (up4Translator.isUp4Pdr(entry)) {
             try {
@@ -185,8 +176,6 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().addPdr(pdr);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 PDR! Error was: {}", e.getMessage());
-            } catch (Up4Service.Up4ServiceException e) {
-                log.warn("Failed to insert UP4 PDR! Error was: {}", e.getMessage());
             }
         } else if (up4Translator.isUp4Far(entry)) {
             try {
@@ -194,8 +183,6 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().addFar(far);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 FAR! Error was {}", e.getMessage());
-            } catch (Up4Service.Up4ServiceException e) {
-                log.warn("Failed to insert UP4 FAR! Error was: {}", e.getMessage());
             }
         } else {
             log.warn("Received unsupported table entry for table {} in UP4 write request:", entry.table().id());
@@ -215,14 +202,7 @@ public class Up4NorthComponent {
         // Respond with all entries for the table of the requested entry, ignoring other requested properties
         // TODO: return more specific responses
         if (up4Translator.isUp4Interface(requestedEntry)) {
-            Collection<UpfInterface> ifaces;
-            try {
-                ifaces = up4Service.getUpfProgrammable().getInstalledInterfaces();
-            } catch (Up4Service.Up4ServiceException e) {
-                log.warn("Unable to read interfaces from UPF! Error was: {}", e.getMessage());
-                return List.of();
-            }
-            for (UpfInterface iface : ifaces) {
+            for (UpfInterface iface : up4Service.getUpfProgrammable().getInstalledInterfaces()) {
                 if (iface.isDbufReceiver()) {
                     // Don't expose the dbuf interface to the logical switch
                     continue;
@@ -239,14 +219,7 @@ public class Up4NorthComponent {
                 }
             }
         } else if (up4Translator.isUp4Far(requestedEntry)) {
-            Collection<ForwardingActionRule> fars;
-            try {
-                fars = up4Service.getUpfProgrammable().getInstalledFars();
-            } catch (Up4Service.Up4ServiceException e) {
-                log.warn("Unable to read FARs from UPF! Error was: {}", e.getMessage());
-                return List.of();
-            }
-            for (ForwardingActionRule far : fars) {
+            for (ForwardingActionRule far : up4Service.getUpfProgrammable().getInstalledFars()) {
                 log.debug("Translating a FAR for a read request: {}", far);
                 try {
                     P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
@@ -258,14 +231,7 @@ public class Up4NorthComponent {
                 }
             }
         } else if (up4Translator.isUp4Pdr(requestedEntry)) {
-            Collection<PacketDetectionRule> pdrs;
-            try {
-                pdrs = up4Service.getUpfProgrammable().getInstalledPdrs();
-            } catch (Up4Service.Up4ServiceException e) {
-                log.warn("Unable to read PDRs from UPF! Error was: {}", e.getMessage());
-                return List.of();
-            }
-            for (PacketDetectionRule pdr : pdrs) {
+            for (PacketDetectionRule pdr : up4Service.getUpfProgrammable().getInstalledPdrs()) {
                 log.debug("Translating a PDR for a read request: {}", pdr);
                 try {
                     P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
@@ -292,13 +258,7 @@ public class Up4NorthComponent {
         // TODO: read more than one counter cell at a time
 
         int counterIndex = (int) requestedCell.cellId().index();
-        PdrStats ctrValues;
-        try {
-            ctrValues = up4Service.getUpfProgrammable().readCounter(counterIndex);
-        } catch (Up4Service.Up4ServiceException e) {
-            log.warn("Failed to read counter due to unavailable UPF! Error was: {}", e.getMessage());
-            return null;
-        }
+        PdrStats ctrValues = up4Service.getUpfProgrammable().readCounter(counterIndex);
         PiCounterId piCounterId = requestedCell.cellId().counterId();
 
         String gress;
@@ -447,6 +407,17 @@ public class Up4NorthComponent {
         public void write(P4RuntimeOuterClass.WriteRequest request,
                           StreamObserver<P4RuntimeOuterClass.WriteResponse> responseObserver) {
             log.debug("Received write request.");
+            if (!up4Service.configIsLoaded()) {
+                log.error("UP4 client attempted to write to logical switch before an app config was loaded!");
+                responseObserver.onError(io.grpc.Status.UNAVAILABLE.asException());
+                return;
+            }
+            if (!up4Service.upfProgrammableAvailable()) {
+                log.error("UP4 client attempted to write to logical switch " +
+                        "while the physical device was unavailable!");
+                responseObserver.onError(io.grpc.Status.UNAVAILABLE.asException());
+                return;
+            }
             if (p4Info == null) {
                 log.warn("Write request received before pipeline config set! Ignoring");
                 responseObserver.onNext(P4RuntimeOuterClass.WriteResponse.getDefaultInstance());
@@ -501,6 +472,17 @@ public class Up4NorthComponent {
         public void read(P4RuntimeOuterClass.ReadRequest request,
                          StreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver) {
             log.debug("Received read request.");
+            if (!up4Service.configIsLoaded()) {
+                log.error("UP4 client attempted to read from logical switch before an app config was loaded!");
+                responseObserver.onError(io.grpc.Status.UNAVAILABLE.asException());
+                return;
+            }
+            if (!up4Service.upfProgrammableAvailable()) {
+                log.error("UP4 client attempted to read from logical switch " +
+                        "while the physical device was unavailable!");
+                responseObserver.onError(io.grpc.Status.UNAVAILABLE.asException());
+                return;
+            }
             for (P4RuntimeOuterClass.Entity requestEntity : request.getEntitiesList()) {
                 PiEntity requestPiEntity;
                 try {

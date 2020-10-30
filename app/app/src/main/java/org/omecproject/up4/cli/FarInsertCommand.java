@@ -65,10 +65,6 @@ public class FarInsertCommand extends AbstractShellCommand {
         ForwardingActionRule far = farBuilder.build();
 
         print("Installing %s", far.toString());
-        try {
-            app.getUpfProgrammable().addFar(far);
-        } catch (Up4Service.Up4ServiceException e) {
-            print("Command failed due to UP4 exception: %s", e.getMessage());
-        }
+        app.getUpfProgrammable().addFar(far);
     }
 }

@@ -115,16 +115,21 @@ public class Up4DeviceManager implements Up4Service {
         log.info("Stopped.");
     }
 
-    public UpfProgrammable getUpfProgrammable() throws Up4ServiceException {
+    @Override
+    public boolean configIsLoaded() {
+        return config != null;
+    }
+
+    public UpfProgrammable getUpfProgrammable() {
         if (this.upfProgrammable == null) {
             if (this.config == null) {
-                throw new Up4ServiceException(
+                throw new IllegalStateException(
                         "No UpfProgrammable set because no app config is available!");
             } else if (!isUpfDevice(upfDeviceId)) {
-                throw new Up4ServiceException(
+                throw new IllegalStateException(
                         "No UpfProgrammable set because deviceId present in config is not a valid UPF!");
             } else {
-                throw new Up4ServiceException(
+                throw new IllegalStateException(
                         String.format("No UpfProgrammable is set for an unknown reason. Is device %s available?",
                                 upfDeviceId.toString()));
             }

@@ -32,11 +32,7 @@ public class InterfaceInsertCommand extends AbstractShellCommand {
         Ip4Prefix s1uPrefix = Ip4Prefix.valueOf(this.s1uPrefix);
 
         print("Adding S1U interface address: %s", s1uPrefix.toString());
-        try {
-            app.getUpfProgrammable().addInterface(UpfInterface.createS1uFrom(s1uPrefix));
-        } catch (Up4Service.Up4ServiceException e) {
-            print("Command failed due to UP4 exception: %s", e.getMessage());
-        }
+        app.getUpfProgrammable().addInterface(UpfInterface.createS1uFrom(s1uPrefix));
     }
 }
 

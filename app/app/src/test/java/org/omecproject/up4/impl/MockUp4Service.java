@@ -36,6 +36,11 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
+    public boolean configIsLoaded() {
+        return true;
+    }
+
+    @Override
     public boolean isUpfDevice(DeviceId deviceId) {
         return true;
     }

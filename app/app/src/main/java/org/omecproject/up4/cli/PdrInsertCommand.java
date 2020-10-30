@@ -66,10 +66,6 @@ public class PdrInsertCommand extends AbstractShellCommand {
 
         PacketDetectionRule pdr = pdrBuilder.build();
         print("Installing %s on UPF", pdr.toString());
-        try {
-            app.getUpfProgrammable().addPdr(pdrBuilder.build());
-        } catch (Up4Service.Up4ServiceException e) {
-            print("Command failed due to UP4 exception: %s", e.getMessage());
-        }
+        app.getUpfProgrammable().addPdr(pdrBuilder.build());
     }
 }

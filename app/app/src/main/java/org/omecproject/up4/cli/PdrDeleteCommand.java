@@ -47,10 +47,6 @@ public class PdrDeleteCommand extends AbstractShellCommand {
 
         PacketDetectionRule pdr = pdrBuilder.build();
         print("Removing %s from UPF", pdr.toString());
-        try {
-            app.getUpfProgrammable().removePdr(pdrBuilder.build());
-        } catch (Up4Service.Up4ServiceException e) {
-            print("Command failed due to UP4 exception: %s", e.getMessage());
-        }
+        app.getUpfProgrammable().removePdr(pdrBuilder.build());
     }
 }
