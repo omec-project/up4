@@ -409,13 +409,19 @@ public class Up4NorthComponent {
             log.debug("Received write request.");
             if (!up4Service.configIsLoaded()) {
                 log.error("UP4 client attempted to write to logical switch before an app config was loaded!");
-                responseObserver.onError(io.grpc.Status.UNAVAILABLE.asException());
+                responseObserver.onError(
+                        io.grpc.Status.UNAVAILABLE
+                                .withDescription("App config not loaded.")
+                                .asException());
                 return;
             }
             if (!up4Service.upfProgrammableAvailable()) {
                 log.error("UP4 client attempted to write to logical switch " +
                         "while the physical device was unavailable!");
-                responseObserver.onError(io.grpc.Status.UNAVAILABLE.asException());
+                responseObserver.onError(
+                        io.grpc.Status.UNAVAILABLE
+                                .withDescription("Physical switch unavailable.")
+                                .asException());
                 return;
             }
             if (p4Info == null) {
@@ -474,13 +480,19 @@ public class Up4NorthComponent {
             log.debug("Received read request.");
             if (!up4Service.configIsLoaded()) {
                 log.error("UP4 client attempted to read from logical switch before an app config was loaded!");
-                responseObserver.onError(io.grpc.Status.UNAVAILABLE.asException());
+                responseObserver.onError(
+                        io.grpc.Status.UNAVAILABLE
+                                .withDescription("App config not loaded.")
+                                .asException());
                 return;
             }
             if (!up4Service.upfProgrammableAvailable()) {
                 log.error("UP4 client attempted to read from logical switch " +
                         "while the physical device was unavailable!");
-                responseObserver.onError(io.grpc.Status.UNAVAILABLE.asException());
+                responseObserver.onError(
+                        io.grpc.Status.UNAVAILABLE
+                                .withDescription("Physical switch unavailable.")
+                                .asException());
                 return;
             }
             for (P4RuntimeOuterClass.Entity requestEntity : request.getEntitiesList()) {
