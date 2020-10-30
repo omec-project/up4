@@ -35,7 +35,7 @@ public class InterfaceInsertCommand extends AbstractShellCommand {
         try {
             app.getUpfProgrammable().addInterface(UpfInterface.createS1uFrom(s1uPrefix));
         } catch (Up4Service.Up4ServiceException e) {
-            print("Command failed due to UP4 exception:", e.getMessage());
+            print("Command failed due to UP4 exception: %s", e.getMessage());
         }
     }
 }

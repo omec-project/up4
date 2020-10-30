@@ -23,7 +23,7 @@ public class ReadPdrsCommand extends AbstractShellCommand {
                 print(pdr.toString());
             }
         } catch (Up4Service.Up4ServiceException e) {
-            print("Command failed due to UP4 exception:", e.getMessage());
+            print("Command failed due to UP4 exception: %s", e.getMessage());
         }
     }
 }
