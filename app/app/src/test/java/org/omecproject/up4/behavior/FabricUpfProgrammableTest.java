@@ -4,10 +4,14 @@ import org.junit.Before;
 import org.junit.Test;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
-import org.omecproject.up4.UpfRuleIdentifier;
+import org.omecproject.up4.PdrStats;
 import org.omecproject.up4.UpfInterface;
+import org.omecproject.up4.UpfRuleIdentifier;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -22,6 +26,8 @@ public class FabricUpfProgrammableTest {
         upfProgrammable.init(TestConstants.APP_ID, TestConstants.DEVICE_ID);
         upfProgrammable.flowRuleService = new MockFlowRuleService();
         upfProgrammable.up4Translator = up4Translator;
+        upfProgrammable.piPipeconfService = new MockPiPipeconfService();
+        upfProgrammable.controller = new MockP4RuntimeController();
         setTranslationState();
     }
 
@@ -135,11 +141,31 @@ public class FabricUpfProgrammableTest {
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         upfProgrammable.addFar(TestConstants.UPLINK_FAR);
         upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
-        // TODO: Can't call getFlows when flows are present because we cannot currently read counters.
-        // TODO: Need to mock PiPipeconfService and P4RuntimeController
-        assertThat(upfProgrammable.getInstalledPdrs().size(), equalTo((2)));
-        assertThat(upfProgrammable.getInstalledFars().size(), equalTo((2)));
+        assertThat(upfProgrammable.getFlows().size(), equalTo(2));
         upfProgrammable.clearFlows();
         assertTrue(upfProgrammable.getFlows().isEmpty());
+    }
+
+    @Test
+    public void testReadAllCounters() {
+        assertTrue(upfProgrammable.readAllCounters().isEmpty());
+        upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
+        upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
+        Collection<PdrStats> allStats = upfProgrammable.readAllCounters();
+        assertThat(allStats.size(), equalTo(2));
+        Map<Integer, PdrStats> cellIdToStats = new HashMap<>();
+        for (PdrStats stat : allStats) {
+            cellIdToStats.put(stat.getCellId(), stat);
+        }
+
+        // Should only be two counters available
+        assertThat(Set.copyOf(cellIdToStats.keySet()),
+                equalTo(Set.of(TestConstants.UPLINK_COUNTER_CELL_ID, TestConstants.DOWNLINK_COUNTER_CELL_ID)));
+        for (PdrStats stat : cellIdToStats.values()) {
+            assertThat(stat.getIngressBytes(), equalTo(TestConstants.COUNTER_BYTES));
+            assertThat(stat.getEgressBytes(), equalTo(TestConstants.COUNTER_BYTES));
+            assertThat(stat.getIngressPkts(), equalTo(TestConstants.COUNTER_PKTS));
+            assertThat(stat.getEgressPkts(), equalTo(TestConstants.COUNTER_PKTS));
+        }
     }
 }

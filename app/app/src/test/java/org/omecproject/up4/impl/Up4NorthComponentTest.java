@@ -12,6 +12,8 @@ import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.runtime.PiCounterCell;
 import org.onosproject.net.pi.runtime.PiCounterCellId;
+import org.onosproject.net.pi.runtime.PiEntity;
+import org.onosproject.net.pi.runtime.PiEntityType;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.p4runtime.ctl.codec.CodecException;
 import org.onosproject.p4runtime.ctl.codec.Codecs;
@@ -137,6 +139,81 @@ public class Up4NorthComponentTest {
 
         assertThat(response.getEntitiesCount(), equalTo(1));
         assertThat(response.getEntitiesList().get(0), equalTo(entity));
+    }
+
+    @Test
+    public void readWildcardCounterTest() {
+        // A counter read request with no counterID or cellID should return ALL active counter cells
+        MockStreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver = new MockStreamObserver<>();
+        P4RuntimeOuterClass.ReadRequest request = P4RuntimeOuterClass.ReadRequest.newBuilder()
+                .addEntities(P4RuntimeOuterClass.Entity.newBuilder()
+                        .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder().build())
+                        .build())
+                .build();
+        up4NorthService.read(request, responseObserver);
+        var response = responseObserver.lastResponse();
+        assertThat(response.getEntitiesList().size(), equalTo(4));
+    }
+
+    private void readPartialWildcardCounterTest(PiCounterId counterId) {
+        // A counter read request with a counterID but no cellID
+        // Encode a dummy cell just so we can get the p4runtime counter integer ID from the encoder
+        PiCounterCell dummyCell = new PiCounterCell(
+                PiCounterCellId.ofIndirect(counterId, 1), 0, 0);
+        P4RuntimeOuterClass.Entity dummyEntity;
+        try {
+            dummyEntity = Codecs.CODECS.entity().encode(dummyCell, null, pipeconf);
+        } catch (CodecException e) {
+            fail("Unable to encode counter cell to p4runtime entity!");
+            return;
+        }
+        int intCounterId = dummyEntity.getCounterEntry().getCounterId();
+        // Now build the actual request
+        MockStreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver = new MockStreamObserver<>();
+        P4RuntimeOuterClass.ReadRequest request = P4RuntimeOuterClass.ReadRequest.newBuilder()
+                .addEntities(P4RuntimeOuterClass.Entity.newBuilder()
+                        .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder()
+                                .setCounterId(intCounterId).build())
+                        .build())
+                .build();
+        up4NorthService.read(request, responseObserver);
+        var response = responseObserver.lastResponse();
+        assertThat(response.getEntitiesList().size(), equalTo(2));
+        for (P4RuntimeOuterClass.Entity entity : response.getEntitiesList()) {
+            PiCounterCell responseCell = entityToCounterCell(entity);
+            if (!responseCell.cellId().counterId().equals(counterId)) {
+                fail("Counter read returned a cell from the wrong counter!");
+            }
+        }
+    }
+
+    private PiCounterCell entityToCounterCell(P4RuntimeOuterClass.Entity entity) {
+        PiEntity responsePiEntity;
+        try {
+            responsePiEntity = Codecs.CODECS.entity().decode(entity, null, pipeconf);
+        } catch (CodecException e) {
+            fail("Unable to decode p4runtime entity from read response!");
+            return null;
+        }
+        if (responsePiEntity.piEntityType() != PiEntityType.COUNTER_CELL) {
+            fail("Counter read returned something other than a counter cell!");
+            return null;
+        }
+        return (PiCounterCell) responsePiEntity;
+    }
+
+    @Test
+    public void readAllIngressCountersTest() {
+        upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
+        upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
+        readPartialWildcardCounterTest(NorthConstants.INGRESS_COUNTER_ID);
+    }
+
+    @Test
+    public void readAllEgressCountersTest() {
+        upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
+        upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
+        readPartialWildcardCounterTest(NorthConstants.EGRESS_COUNTER_ID);
     }
 
     private void readCounterTest(PiCounterId counterId, long expectedPackets, long expectedBytes) {

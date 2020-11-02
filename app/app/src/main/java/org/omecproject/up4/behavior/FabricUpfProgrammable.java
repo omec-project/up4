@@ -388,6 +388,10 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public Collection<UpfFlow> getFlows() {
+        Map<Integer, PdrStats> counterStats = new HashMap<>();
+        readAllCounters().forEach(stats -> {
+            counterStats.put(stats.getCellId(), stats);
+        });
         // A flow is made of a PDR and the FAR that should apply to packets that hit the PDR.
         // Multiple PDRs can map to the same FAR, so create a one->many mapping of FAR Identifier to flow builder
         Map<UpfRuleIdentifier, List<UpfFlow.Builder>> globalFarToSessionBuilder = new HashMap<>();
@@ -408,7 +412,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                             (k, existingVal) -> {
                                 final var builder = UpfFlow.builder()
                                         .setPdr(pdr)
-                                        .addStats(readCounter(pdr.counterId()));
+                                        .addStats(counterStats.get(pdr.counterId()));
                                 if (existingVal == null) {
                                     return List.of(builder);
                                 } else {
