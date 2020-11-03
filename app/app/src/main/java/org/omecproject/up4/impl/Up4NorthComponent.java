@@ -256,7 +256,7 @@ public class Up4NorthComponent {
      * Read the all p4 counter cell requested by the message, and translate them to p4runtime entities for crafting
      * a p4runtime read response.
      *
-     * @param message a p4runtime CountryEntry message from a read request
+     * @param message a p4runtime CounterEntry message from a read request
      * @return the requested counter cells' contents, as a list of p4runtime entities
      */
     private List<P4RuntimeOuterClass.Entity> readCountersAndTranslate(P4RuntimeOuterClass.CounterEntry message) {
