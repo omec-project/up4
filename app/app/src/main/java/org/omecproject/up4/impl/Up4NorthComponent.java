@@ -439,23 +439,6 @@ public class Up4NorthComponent {
             if (errorIfSwitchNotReady(responseObserver)) {
                 return;
             }
-            if (!up4Service.configIsLoaded()) {
-                log.warn("UP4 client attempted to read or write to logical switch before an app config was loaded!");
-                responseObserver.onError(
-                        io.grpc.Status.UNAVAILABLE
-                                .withDescription("App config not loaded.")
-                                .asException());
-                return;
-            }
-            if (!up4Service.upfProgrammableAvailable()) {
-                log.warn("UP4 client attempted to write to logical switch " +
-                        "while the physical device was unavailable!");
-                responseObserver.onError(
-                        io.grpc.Status.UNAVAILABLE
-                                .withDescription("Physical switch unavailable.")
-                                .asException());
-                return;
-            }
             for (P4RuntimeOuterClass.Update update : request.getUpdatesList()) {
                 if (!update.hasEntity()) {
                     log.warn("Update message with no entity received. Ignoring");
