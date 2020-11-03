@@ -33,8 +33,7 @@ _docker_pull_all:
 	docker tag ${MN_TUTORIAL_IMG}@${MN_TUTORIAL_SHA} ${MN_TUTORIAL_IMG}
 	docker pull ${ONOS_IMG}@${ONOS_SHA}
 	docker tag ${ONOS_IMG}@${ONOS_SHA} ${ONOS_IMG}
-	docker pull ${DBUF_IMG}@${DBUF_SHA}
-	docker tag ${DBUF_IMG}@${DBUF_SHA} ${DBUF_IMG}
+	docker pull ${DBUF_IMG}
 	docker pull ${MAVEN_IMG}
 	docker pull ${PROTOC_IMG}
 

@@ -37,23 +37,60 @@ public class Up4NorthComponentTest {
 
     static class MockStreamObserver<T> implements StreamObserver<T> {
         public List<T> responsesObserved = new ArrayList<>();
+        Throwable errorExpected;
+        Throwable errorObserved;
 
         public T lastResponse() {
             return responsesObserved.get(responsesObserved.size() - 1);
         }
 
+        public void clearObservations() {
+            this.errorObserved = null;
+            this.responsesObserved.clear();
+        }
+
+        public void setErrorExpected(Throwable errorExpected) {
+            this.errorExpected = errorExpected;
+        }
+
+        public void assertErrorObserved() {
+            if (errorObserved == null) {
+                fail("gRPC stream error was not observed when expected.");
+            }
+        }
+
+        public Throwable lastError() {
+            return errorObserved;
+        }
+
         @Override
         public void onNext(T value) {
+            if (this.errorObserved != null) {
+                fail("Stream observer experienced an onNext call after an error was observed");
+            }
             responsesObserved.add(value);
         }
 
         @Override
         public void onError(Throwable t) {
-            fail("Stream observer shouldn't see any errors");
+            if (errorExpected != null) {
+                if (this.errorObserved != null) {
+                    fail("Stream observer unexpectedly received more than one error");
+                }
+                this.errorObserved = t;
+                if (!errorExpected.getClass().equals(errorObserved.getClass())) {
+                    fail("Stream observer received unexpected error");
+                }
+            } else {
+                fail("Stream observer shouldn't see any errors");
+            }
         }
 
         @Override
         public void onCompleted() {
+            if (this.errorObserved != null) {
+                fail("Stream observer experienced an onCompleted call after an error was observed");
+            }
 
         }
     }
@@ -67,6 +104,65 @@ public class Up4NorthComponentTest {
         up4NorthComponent.up4Translator = new Up4TranslatorImpl();
         up4NorthComponent.up4Service = new MockUp4Service();
         upfProgrammable = up4NorthComponent.up4Service.getUpfProgrammable();
+    }
+
+    /**
+     * Test that the p4runtime server returns an error when an app netcfg is not yet loaded.
+     */
+    @Test
+    public void configNotSetTest() {
+        // UpfProgrammable present but config not present
+        MockUp4Service mockUp4Service = (MockUp4Service) up4NorthComponent.up4Service;
+        mockUp4Service.hideState(false, true);
+
+        missingStateTest(io.grpc.Status.UNAVAILABLE.asException());
+    }
+
+    /**
+     * Test that the p4runtime server returns an error when the UpfProgrammable is unavailable.
+     */
+    @Test
+    public void switchUnavailableTest() {
+        // Config present but UpfProgrammable not present
+        MockUp4Service mockUp4Service = (MockUp4Service) up4NorthComponent.up4Service;
+        mockUp4Service.hideState(true, false);
+
+        missingStateTest(io.grpc.Status.UNAVAILABLE.asException());
+    }
+
+    /**
+     * Test that the p4runtime server returns an error when the p4info is missing.
+     */
+    @Test
+    public void p4infoNotSetTest() {
+
+        // UpfProgrammable and config present, but p4info not set
+        up4NorthComponent.p4Info = null;
+
+        missingStateTest(io.grpc.Status.FAILED_PRECONDITION.asException());
+    }
+
+    /**
+     * Attempt to read and write from the p4runtime service, and assert that the given error is returned in both
+     * cases.
+     * @param expectedReadWriteError the error expected to be returned by the p4runtime service
+     */
+    private void missingStateTest(Throwable expectedReadWriteError) {
+        // Requests don't need to be filled in, because we should error before they're inspected
+        P4RuntimeOuterClass.WriteRequest writeRequest = P4RuntimeOuterClass.WriteRequest.getDefaultInstance();
+        P4RuntimeOuterClass.ReadRequest readRequest = P4RuntimeOuterClass.ReadRequest.getDefaultInstance();
+
+        MockStreamObserver<P4RuntimeOuterClass.ReadResponse> readResponseObserver = new MockStreamObserver<>();
+        MockStreamObserver<P4RuntimeOuterClass.WriteResponse> writeResponseObserver = new MockStreamObserver<>();
+
+        readResponseObserver.setErrorExpected(expectedReadWriteError);
+        writeResponseObserver.setErrorExpected(expectedReadWriteError);
+
+        // Read and write, and assert errors are hit
+        up4NorthService.read(readRequest, readResponseObserver);
+        readResponseObserver.assertErrorObserved();
+        up4NorthService.write(writeRequest, writeResponseObserver);
+        writeResponseObserver.assertErrorObserved();
     }
 
     private void insertionTest(PiTableEntry entryToInsert) {
