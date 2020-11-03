@@ -506,7 +506,7 @@ public class Up4NorthComponent {
             log.debug("Received read request.");
             for (P4RuntimeOuterClass.Entity requestEntity : request.getEntitiesList()) {
                 if (requestEntity.getEntityCase() == P4RuntimeOuterClass.Entity.EntityCase.COUNTER_ENTRY) {
-                    log.info("Received read request for logical counter cell");
+                    log.debug("Received read request for logical counter cell");
                     responseObserver.onNext(P4RuntimeOuterClass.ReadResponse.newBuilder()
                             .addAllEntities(readCountersAndTranslate(requestEntity.getCounterEntry()))
                             .build());
