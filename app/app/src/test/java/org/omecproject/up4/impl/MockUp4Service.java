@@ -16,15 +16,26 @@ import java.util.Collection;
 import java.util.List;
 
 public class MockUp4Service implements Up4Service {
+    boolean upfProgrammableAvailable = true;
+    boolean configAvailable = true;
+
+    public void hideState(boolean hideUpfProgrammable, boolean hideConfig) {
+        upfProgrammableAvailable = hideUpfProgrammable;
+        configAvailable = hideConfig;
+    }
 
     @Override
     public UpfProgrammable getUpfProgrammable() {
-        return upfProgrammable;
+        if (upfProgrammableAvailable) {
+            return upfProgrammable;
+        } else {
+            return null;
+        }
     }
 
     @Override
     public boolean upfProgrammableAvailable() {
-        return true;
+        return upfProgrammableAvailable;
     }
 
     @Override
@@ -33,6 +44,11 @@ public class MockUp4Service implements Up4Service {
 
     @Override
     public void installInterfaces() {
+    }
+
+    @Override
+    public boolean configIsLoaded() {
+        return configAvailable;
     }
 
     @Override

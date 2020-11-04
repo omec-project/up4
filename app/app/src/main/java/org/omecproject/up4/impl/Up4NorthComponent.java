@@ -397,6 +397,35 @@ public class Up4NorthComponent {
             responseObserver.onCompleted();
         }
 
+        private <E> boolean errorIfSwitchNotReady(StreamObserver<E> responseObserver) {
+            if (!up4Service.configIsLoaded()) {
+                log.warn("UP4 client attempted to read or write to logical switch before an app config was loaded!");
+                responseObserver.onError(
+                        io.grpc.Status.UNAVAILABLE
+                                .withDescription("App config not loaded.")
+                                .asException());
+                return true;
+            }
+            if (!up4Service.upfProgrammableAvailable()) {
+                log.warn("UP4 client attempted to read or write to logical switch " +
+                        "while the physical device was unavailable!");
+                responseObserver.onError(
+                        io.grpc.Status.UNAVAILABLE
+                                .withDescription("Physical switch unavailable.")
+                                .asException());
+                return true;
+            }
+            if (p4Info == null) {
+                log.warn("Read or write request received before pipeline config set!");
+                responseObserver.onError(
+                        io.grpc.Status.FAILED_PRECONDITION
+                                .withDescription("Switch pipeline not set.")
+                                .asException());
+                return true;
+            }
+            return false;
+        }
+
         /**
          * Writes entities to the logical UP4 switch. Currently only supports direct table entries.
          *
@@ -407,10 +436,7 @@ public class Up4NorthComponent {
         public void write(P4RuntimeOuterClass.WriteRequest request,
                           StreamObserver<P4RuntimeOuterClass.WriteResponse> responseObserver) {
             log.debug("Received write request.");
-            if (p4Info == null) {
-                log.warn("Write request received before pipeline config set! Ignoring");
-                responseObserver.onNext(P4RuntimeOuterClass.WriteResponse.getDefaultInstance());
-                responseObserver.onCompleted();
+            if (errorIfSwitchNotReady(responseObserver)) {
                 return;
             }
             for (P4RuntimeOuterClass.Update update : request.getUpdatesList()) {
@@ -461,6 +487,9 @@ public class Up4NorthComponent {
         public void read(P4RuntimeOuterClass.ReadRequest request,
                          StreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver) {
             log.debug("Received read request.");
+            if (errorIfSwitchNotReady(responseObserver)) {
+                return;
+            }
             for (P4RuntimeOuterClass.Entity requestEntity : request.getEntitiesList()) {
                 PiEntity requestPiEntity;
                 try {
