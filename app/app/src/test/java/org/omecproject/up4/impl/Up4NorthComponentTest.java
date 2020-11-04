@@ -78,9 +78,7 @@ public class Up4NorthComponentTest {
                     fail("Stream observer unexpectedly received more than one error");
                 }
                 this.errorObserved = t;
-                if (!errorExpected.getClass().equals(errorObserved.getClass())) {
-                    fail("Stream observer received unexpected error");
-                }
+                assertThat(errorObserved.getClass(), equalTo(errorExpected.getClass()));
             } else {
                 fail("Stream observer shouldn't see any errors");
             }
