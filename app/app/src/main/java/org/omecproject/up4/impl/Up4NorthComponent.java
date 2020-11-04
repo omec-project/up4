@@ -499,7 +499,7 @@ public class Up4NorthComponent {
                     continue;
                 }
                 if (requestPiEntity.piEntityType() == PiEntityType.COUNTER_CELL) {
-                    log.info("Received read request for logical counter cell");
+                    log.debug("Received read request for logical counter cell");
                     PiCounterCell requestCell = (PiCounterCell) requestPiEntity;
 
 
