@@ -9,9 +9,6 @@ import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfRuleIdentifier;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -149,20 +146,9 @@ public class FabricUpfProgrammableTest {
 
     @Test
     public void testReadAllCounters() {
-        assertTrue(upfProgrammable.readAllCounters().isEmpty());
-        upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
-        upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         Collection<PdrStats> allStats = upfProgrammable.readAllCounters();
-        assertThat(allStats.size(), equalTo(2));
-        Map<Integer, PdrStats> cellIdToStats = new HashMap<>();
+        assertThat(allStats.size(), equalTo(TestConstants.PHYSICAL_COUNTER_SIZE));
         for (PdrStats stat : allStats) {
-            cellIdToStats.put(stat.getCellId(), stat);
-        }
-
-        // Should only be two counters available
-        assertThat(Set.copyOf(cellIdToStats.keySet()),
-                equalTo(Set.of(TestConstants.UPLINK_COUNTER_CELL_ID, TestConstants.DOWNLINK_COUNTER_CELL_ID)));
-        for (PdrStats stat : cellIdToStats.values()) {
             assertThat(stat.getIngressBytes(), equalTo(TestConstants.COUNTER_BYTES));
             assertThat(stat.getEgressBytes(), equalTo(TestConstants.COUNTER_BYTES));
             assertThat(stat.getIngressPkts(), equalTo(TestConstants.COUNTER_PKTS));

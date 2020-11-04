@@ -198,13 +198,13 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
         // Prepare PdrStats object builders, one for each counter ID currently in use
         Map<Integer, PdrStats.Builder> pdrStatBuilders = Maps.newHashMap();
-        getInstalledPdrs().forEach(pdr -> pdrStatBuilders.put(pdr.counterId(),
-                PdrStats.builder().withCellId(pdr.counterId())));
+        for (int cellID = 0; cellID < pdrCounterSize(); cellID++) {
+            pdrStatBuilders.put(cellID, PdrStats.builder().withCellId(cellID));
+        }
 
         // Generate the counter cell IDs.
         Set<PiCounterCellId> counterCellIds = Sets.newHashSet();
         pdrStatBuilders.keySet().forEach(cellID -> {
-            // Counter cell/index = port number.
             counterCellIds.add(PiCounterCellId.ofIndirect(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER, cellID));
             counterCellIds.add(PiCounterCellId.ofIndirect(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER, cellID));
         });

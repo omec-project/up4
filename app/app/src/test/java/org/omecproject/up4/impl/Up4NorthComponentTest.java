@@ -152,7 +152,7 @@ public class Up4NorthComponentTest {
                 .build();
         up4NorthService.read(request, responseObserver);
         var response = responseObserver.lastResponse();
-        assertThat(response.getEntitiesList().size(), equalTo(4));
+        assertThat(response.getEntitiesList().size(), equalTo(TestConstants.PHYSICAL_COUNTER_SIZE * 2));
     }
 
     private void readPartialWildcardCounterTest(PiCounterId counterId) {
@@ -178,7 +178,7 @@ public class Up4NorthComponentTest {
                 .build();
         up4NorthService.read(request, responseObserver);
         var response = responseObserver.lastResponse();
-        assertThat(response.getEntitiesList().size(), equalTo(2));
+        assertThat(response.getEntitiesList().size(), equalTo(TestConstants.PHYSICAL_COUNTER_SIZE));
         for (P4RuntimeOuterClass.Entity entity : response.getEntitiesList()) {
             PiCounterCell responseCell = entityToCounterCell(entity);
             if (!responseCell.cellId().counterId().equals(counterId)) {
@@ -204,15 +204,11 @@ public class Up4NorthComponentTest {
 
     @Test
     public void readAllIngressCountersTest() {
-        upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
-        upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         readPartialWildcardCounterTest(NorthConstants.INGRESS_COUNTER_ID);
     }
 
     @Test
     public void readAllEgressCountersTest() {
-        upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
-        upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         readPartialWildcardCounterTest(NorthConstants.EGRESS_COUNTER_ID);
     }
 

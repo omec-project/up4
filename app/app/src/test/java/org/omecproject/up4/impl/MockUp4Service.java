@@ -158,21 +158,17 @@ public class MockUp4Service implements Up4Service {
 
         @Override
         public Collection<PdrStats> readAllCounters() {
-            return List.of(
-                    PdrStats.builder()
-                            .withCellId(NorthTestConstants.UPLINK_COUNTER_INDEX)
-                            .setEgress(NorthTestConstants.EGRESS_COUNTER_PKTS,
-                                    NorthTestConstants.EGRESS_COUNTER_BYTES)
-                            .setIngress(NorthTestConstants.INGRESS_COUNTER_PKTS,
-                                    NorthTestConstants.INGRESS_COUNTER_BYTES)
-                            .build(),
-                    PdrStats.builder()
-                            .withCellId(NorthTestConstants.DOWNLINK_COUNTER_INDEX)
-                            .setEgress(NorthTestConstants.EGRESS_COUNTER_PKTS,
-                                    NorthTestConstants.EGRESS_COUNTER_BYTES)
-                            .setIngress(NorthTestConstants.INGRESS_COUNTER_PKTS,
-                                    NorthTestConstants.INGRESS_COUNTER_BYTES)
-                            .build());
+            List<PdrStats> stats = new ArrayList<>();
+            for (int i = 0; i < TestConstants.PHYSICAL_COUNTER_SIZE; i++) {
+                stats.add(PdrStats.builder()
+                        .withCellId(i)
+                        .setEgress(NorthTestConstants.EGRESS_COUNTER_PKTS,
+                                NorthTestConstants.EGRESS_COUNTER_BYTES)
+                        .setIngress(NorthTestConstants.INGRESS_COUNTER_PKTS,
+                                NorthTestConstants.INGRESS_COUNTER_BYTES)
+                        .build());
+            }
+            return stats;
         }
     };
 }
