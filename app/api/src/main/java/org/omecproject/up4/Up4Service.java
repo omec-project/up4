@@ -29,6 +29,13 @@ public interface Up4Service {
     boolean upfProgrammableAvailable();
 
     /**
+     * True if a valid UP4 app configuration has been loaded, and false otherwise.
+     *
+     * @return true if a valid app config has been loaded
+     */
+    boolean configIsLoaded();
+
+    /**
      * Clear all table entries in the UpfProgrammable installed by the UP4 app.
      */
     void clearUpfProgrammable();
