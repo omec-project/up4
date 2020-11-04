@@ -28,6 +28,7 @@ public class FabricUpfProgrammableTest {
         upfProgrammable.up4Translator = up4Translator;
         upfProgrammable.piPipeconfService = new MockPiPipeconfService();
         upfProgrammable.controller = new MockP4RuntimeController();
+        upfProgrammable.pdrCounterSize = TestConstants.PHYSICAL_COUNTER_SIZE;
         setTranslationState();
     }
 

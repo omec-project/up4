@@ -7,6 +7,7 @@ import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
+import org.omecproject.up4.behavior.TestConstants;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
@@ -53,6 +54,11 @@ public class MockUp4Service implements Up4Service {
         @Override
         public void cleanUp(ApplicationId appId) {
 
+        }
+
+        @Override
+        public int pdrCounterSize() {
+            return TestConstants.PHYSICAL_COUNTER_SIZE;
         }
 
         @Override

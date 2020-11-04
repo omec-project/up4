@@ -437,7 +437,8 @@ public class Up4NorthComponentTest {
                 .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
                 .build();
         up4NorthService.getForwardingPipelineConfig(getPipeRequest, responseObserver);
+        var modifiedP4info = up4NorthComponent.addPhysicalSizesToP4Info(p4Info);
         var response = responseObserver.lastResponse();
-        assertThat(p4Info, equalTo(response.getConfig().getP4Info()));
+        assertThat(modifiedP4info, equalTo(response.getConfig().getP4Info()));
     }
 }

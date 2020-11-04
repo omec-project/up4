@@ -48,6 +48,7 @@ public final class TestConstants {
     public static final Ip4Prefix UE_POOL = Ip4Prefix.valueOf("17.0.0.0/16");
     // TODO: tunnel source port currently not stored on writes, so all reads are 0
     public static final short TUNNEL_SPORT = 2160;
+    public static final int PHYSICAL_COUNTER_SIZE = 512;
 
     public static final long COUNTER_BYTES = 12;
     public static final long COUNTER_PKTS = 15;

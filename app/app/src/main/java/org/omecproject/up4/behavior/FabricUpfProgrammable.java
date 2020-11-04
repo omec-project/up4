@@ -1,5 +1,6 @@
 package org.omecproject.up4.behavior;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.omecproject.up4.ForwardingActionRule;
@@ -22,6 +23,7 @@ import org.onosproject.net.flow.FlowEntry;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.criteria.PiCriterion;
+import org.onosproject.net.pi.model.PiCounterModel;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.model.PiTableId;
 import org.onosproject.net.pi.runtime.PiCounterCell;
@@ -74,6 +76,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     DeviceId deviceId;
     private ApplicationId appId;
 
+    @VisibleForTesting
+    int pdrCounterSize = -1;  // Cached value so we don't have to go through the pipeconf every time
     private BufferDrainer bufferDrainer;
 
 
@@ -244,7 +248,38 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public PdrStats readCounter(int cellId) {
+    public int pdrCounterSize() {
+        if (pdrCounterSize != -1) {
+            return pdrCounterSize;
+        }
+        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
+        if (optPipeconf.isEmpty()) {
+            log.warn("Unable to load piPipeconf for {}, cannot read counter properties", deviceId);
+            return -1;
+        }
+        PiPipeconf pipeconf = optPipeconf.get();
+
+        int ingressCounterSize = -1;
+        int egressCounterSize = -1;
+        for (PiCounterModel piCounter : pipeconf.pipelineModel().counters()) {
+            if (piCounter.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER)) {
+                ingressCounterSize = (int) piCounter.size();
+            } else if (piCounter.id().equals(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER)) {
+                egressCounterSize = (int) piCounter.size();
+            }
+        }
+        if (ingressCounterSize != egressCounterSize) {
+            log.warn("PDR ingress and egress counter sizes are not equal! Using the minimum of the two.");
+        }
+        pdrCounterSize = Math.min(ingressCounterSize, egressCounterSize);
+        return pdrCounterSize;
+    }
+
+    @Override
+    public PdrStats readCounter(int cellId) throws IndexOutOfBoundsException {
+        if (cellId >= pdrCounterSize() || cellId < 0) {
+            throw new IndexOutOfBoundsException("Requested PDR counter cell index is out of bounds!");
+        }
         PdrStats.Builder stats = PdrStats.builder().withCellId(cellId);
 
         // Get client and pipeconf.
@@ -297,7 +332,10 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
 
     @Override
-    public void addPdr(PacketDetectionRule pdr) {
+    public void addPdr(PacketDetectionRule pdr) throws IndexOutOfBoundsException {
+        if (pdr.counterId() >= pdrCounterSize() || pdr.counterId() < 0) {
+            throw new IndexOutOfBoundsException("Counter cell index referenced by PDR is out of bounds!");
+        }
         try {
             FlowRule fabricPdr = up4Translator.pdrToFabricEntry(pdr, deviceId, appId, DEFAULT_PRIORITY);
             log.info("Installing {}", pdr.toString());

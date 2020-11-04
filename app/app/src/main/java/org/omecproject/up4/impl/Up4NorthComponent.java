@@ -4,6 +4,7 @@
  */
 package org.omecproject.up4.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.rpc.Code;
 import com.google.rpc.Status;
 import io.grpc.Server;
@@ -158,12 +159,12 @@ public class Up4NorthComponent {
      *
      * @param entry The logical table entry to be inserted
      */
-    private void translateEntryAndInsert(PiTableEntry entry) {
+    private Throwable translateEntryAndInsert(PiTableEntry entry) {
         log.debug("Translating UP4 write request to fabric entry.");
         PiTableId tableId = entry.table();
         if (entry.action().type() != PiTableAction.Type.ACTION) {
             log.warn("Action profile entry insertion not supported. Ignoring.");
-            return;
+            return null;
         }
 
         if (up4Translator.isUp4Interface(entry)) {
@@ -179,6 +180,11 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().addPdr(pdr);
             } catch (Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to parse UP4 PDR! Error was: {}", e.getMessage());
+            } catch (IndexOutOfBoundsException e) {
+                log.warn("Failed to add PDR, error was: {}", e.getMessage());
+                return io.grpc.Status.OUT_OF_RANGE
+                        .withDescription("PDR counter index out of range!")
+                        .asException();
             }
         } else if (up4Translator.isUp4Far(entry)) {
             try {
@@ -190,6 +196,7 @@ public class Up4NorthComponent {
         } else {
             log.warn("Received unsupported table entry for table {} in UP4 write request:", entry.table().id());
         }
+        return null;
     }
 
 
@@ -249,6 +256,25 @@ public class Up4NorthComponent {
             log.warn("Unknown entry requested by UP4 read request! Entry was {}", requestedEntry);
         }
         return translatedEntries;
+    }
+
+    /**
+     * Update the logical p4info with physical resource sizes. TODO: set table sizes as well
+     *
+     * @param p4Info a logical UP4 switch's p4info
+     * @return the same p4info, but with resource sizes set to the sizes from the physical switch
+     */
+    @VisibleForTesting
+    P4InfoOuterClass.P4Info addPhysicalSizesToP4Info(P4InfoOuterClass.P4Info p4Info) {
+        var newP4InfoBuilder = P4InfoOuterClass.P4Info.newBuilder(p4Info).clearCounters();
+        int physicalCounterSize = up4Service.getUpfProgrammable().pdrCounterSize();
+        Collection<P4InfoOuterClass.Counter> correctedCounters = new ArrayList<>();
+        p4Info.getCountersList().forEach(counter -> {
+            newP4InfoBuilder.addCounters(
+                    P4InfoOuterClass.Counter.newBuilder(counter)
+                            .setSize((long) physicalCounterSize).build());
+        });
+        return newP4InfoBuilder.build();
     }
 
 
@@ -420,7 +446,7 @@ public class Up4NorthComponent {
         }
 
         /**
-         * Returns the UP4 logical switch p4info and cookie.
+         * Returns the UP4 logical switch p4info (but with physical resource sizes) and cookie.
          *
          * @param request          A request for a forwarding pipeline config
          * @param responseObserver The thing that is fed the pipeline config response.
@@ -429,12 +455,13 @@ public class Up4NorthComponent {
         public void getForwardingPipelineConfig(P4RuntimeOuterClass.GetForwardingPipelineConfigRequest request,
                                                 StreamObserver<P4RuntimeOuterClass.GetForwardingPipelineConfigResponse>
                                                         responseObserver) {
+
             responseObserver.onNext(
                     P4RuntimeOuterClass.GetForwardingPipelineConfigResponse.newBuilder()
                             .setConfig(P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
                                     .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
                                             .setCookie(pipeconfCookie))
-                                    .setP4Info(p4Info)
+                                    .setP4Info(addPhysicalSizesToP4Info(p4Info))
                                     .build())
                             .build());
             responseObserver.onCompleted();
@@ -481,7 +508,11 @@ public class Up4NorthComponent {
                 if (update.getType() == P4RuntimeOuterClass.Update.Type.INSERT
                         || update.getType() == P4RuntimeOuterClass.Update.Type.MODIFY) {
                     log.debug("Update type is insert or modify.");
-                    translateEntryAndInsert(entry);
+                    Throwable insertionError = translateEntryAndInsert(entry);
+                    if (insertionError != null) {
+                        responseObserver.onError(insertionError);
+                        return;
+                    }
                 } else if (update.getType() == P4RuntimeOuterClass.Update.Type.DELETE) {
                     log.debug("Update type is delete");
                     translateEntryAndDelete(entry);

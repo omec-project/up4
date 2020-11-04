@@ -88,8 +88,9 @@ public interface UpfProgrammable {
      * Add a Packet Detection Rule (PDR) to the given device.
      *
      * @param pdr The PDR to be added
+     * @throws IndexOutOfBoundsException if the PDR references an out-of-bounds counter cell index
      */
-    void addPdr(PacketDetectionRule pdr);
+    void addPdr(PacketDetectionRule pdr) throws IndexOutOfBoundsException;
 
     /**
      * Remove a previously installed Packet Detection Rule (PDR) from the target device.
@@ -131,9 +132,17 @@ public interface UpfProgrammable {
      *
      * @param cellId The counter cell index from which to read
      * @return A structure containing ingress and egress packet and byte counts for the given cellId.
+     * @throws IndexOutOfBoundsException if the cell ID is out of bounds
      */
-    PdrStats readCounter(int cellId);
+    PdrStats readCounter(int cellId) throws IndexOutOfBoundsException;
 
+    /**
+     * Return the number of PDR counter cells available. The number of cells in the ingress and egress PDR counters
+     * are equivalent.
+     *
+     * @return PDR counter size
+     */
+    int pdrCounterSize();
 
     /**
      * Read the counter contents for all cell indices currently referenced by any installed PDRs.
