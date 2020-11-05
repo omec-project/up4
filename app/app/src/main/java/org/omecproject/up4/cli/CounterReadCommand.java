@@ -8,6 +8,7 @@ import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.PdrStats;
+import org.omecproject.up4.Up4Exception;
 import org.omecproject.up4.Up4Service;
 import org.onosproject.cli.AbstractShellCommand;
 
@@ -29,7 +30,11 @@ public class CounterReadCommand extends AbstractShellCommand {
     protected void doExecute() {
         Up4Service app = get(Up4Service.class);
 
-        PdrStats stats = app.getUpfProgrammable().readCounter(ctrIndex);
-        print(stats.toString());
+        try {
+            PdrStats stats = app.getUpfProgrammable().readCounter(ctrIndex);
+            print(stats.toString());
+        } catch (Up4Exception e) {
+            print("Command failed with error: " + e.getMessage());
+        }
     }
 }

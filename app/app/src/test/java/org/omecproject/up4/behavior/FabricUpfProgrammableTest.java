@@ -5,6 +5,7 @@ import org.junit.Test;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
+import org.omecproject.up4.Up4Exception;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfRuleIdentifier;
 
@@ -39,7 +40,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testUplinkPdr() {
+    public void testUplinkPdr() throws Up4Exception {
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
         PacketDetectionRule expectedPdr = TestConstants.UPLINK_PDR;
         upfProgrammable.addPdr(expectedPdr);
@@ -53,7 +54,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testDownlinkPdr() {
+    public void testDownlinkPdr() throws Up4Exception {
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
         PacketDetectionRule expectedPdr = TestConstants.DOWNLINK_PDR;
         upfProgrammable.addPdr(expectedPdr);
@@ -67,7 +68,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testUplinkFar() {
+    public void testUplinkFar() throws Up4Exception {
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
         ForwardingActionRule expectedFar = TestConstants.UPLINK_FAR;
         upfProgrammable.addFar(expectedFar);
@@ -81,7 +82,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testDownlinkFar() {
+    public void testDownlinkFar() throws Up4Exception {
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
         ForwardingActionRule expectedFar = TestConstants.DOWNLINK_FAR;
         upfProgrammable.addFar(expectedFar);
@@ -95,7 +96,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testUplinkInterface() {
+    public void testUplinkInterface() throws Up4Exception {
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
         UpfInterface expectedInterface = TestConstants.UPLINK_INTERFACE;
         upfProgrammable.addInterface(expectedInterface);
@@ -109,7 +110,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testDownlinkInterface() {
+    public void testDownlinkInterface() throws Up4Exception {
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
         UpfInterface expectedInterface = TestConstants.DOWNLINK_INTERFACE;
         upfProgrammable.addInterface(expectedInterface);
@@ -123,7 +124,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testClearInterfaces() {
+    public void testClearInterfaces() throws Up4Exception {
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
         upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
         upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
@@ -133,7 +134,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testFlows() {
+    public void testFlows() throws Up4Exception {
         assertTrue(upfProgrammable.getFlows().isEmpty());
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);

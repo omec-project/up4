@@ -88,53 +88,58 @@ public interface UpfProgrammable {
      * Add a Packet Detection Rule (PDR) to the given device.
      *
      * @param pdr The PDR to be added
-     * @throws IndexOutOfBoundsException if the PDR references an out-of-bounds counter cell index
+     * @throws Up4Exception if the PDR cannot be translated to a table entry and inserted
      */
-    void addPdr(PacketDetectionRule pdr) throws IndexOutOfBoundsException;
+    void addPdr(PacketDetectionRule pdr) throws Up4Exception;
 
     /**
      * Remove a previously installed Packet Detection Rule (PDR) from the target device.
      *
      * @param pdr The PDR to be removed
+     * @throws Up4Exception if the PDR cannot be translated or the entry cannot be found
      */
-    void removePdr(PacketDetectionRule pdr);
+    void removePdr(PacketDetectionRule pdr) throws Up4Exception;
 
     /**
      * Add a Forwarding Action Rule (FAR) to the given device.
      *
      * @param far The FAR to be added
+     * @throws Up4Exception if the FAR cannot be translated to a table entry and inserted
      */
-    void addFar(ForwardingActionRule far);
+    void addFar(ForwardingActionRule far) throws Up4Exception;
 
     /**
      * Remove a previously installed Forwarding Action Rule (FAR) from the target device.
      *
      * @param far The FAR to be removed
+     * @throws Up4Exception if the FAR cannot be translated or the entry cannot be found
      */
-    void removeFar(ForwardingActionRule far);
+    void removeFar(ForwardingActionRule far) throws Up4Exception;
 
     /**
      * Install a new interface on the UPF device's interface lookup tables.
      *
      * @param upfInterface the interface to install
+     * @throws Up4Exception if the interface cannot be translated to a table entry and inserted
      */
-    void addInterface(UpfInterface upfInterface);
+    void addInterface(UpfInterface upfInterface) throws Up4Exception;
 
     /**
      * Remove a previously installed UPF interface from the target device.
      *
      * @param upfInterface the interface to be removed
+     * @throws Up4Exception if the interface cannot be translated or the entry cannot be found
      */
-    void removeInterface(UpfInterface upfInterface);
+    void removeInterface(UpfInterface upfInterface) throws Up4Exception;
 
     /**
      * Read the the given cell (Counter index) of the PDR counters from the given device.
      *
      * @param cellId The counter cell index from which to read
      * @return A structure containing ingress and egress packet and byte counts for the given cellId.
-     * @throws IndexOutOfBoundsException if the cell ID is out of bounds
+     * @throws Up4Exception if the cell ID is out of bounds
      */
-    PdrStats readCounter(int cellId) throws IndexOutOfBoundsException;
+    PdrStats readCounter(int cellId) throws Up4Exception;
 
     /**
      * Return the number of PDR counter cells available. The number of cells in the ingress and egress PDR counters
@@ -145,9 +150,9 @@ public interface UpfProgrammable {
     int pdrCounterSize();
 
     /**
-     * Read the counter contents for all cell indices currently referenced by any installed PDRs.
+     * Read the counter contents for all cell indices that are valid on the hardware switch.
      *
-     * @return A collection of counter values for all currently used cell indices
+     * @return A collection of counter values for all valid hardware counter cells
      */
     Collection<PdrStats> readAllCounters();
 

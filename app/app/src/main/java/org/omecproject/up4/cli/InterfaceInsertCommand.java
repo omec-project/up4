@@ -7,6 +7,7 @@ package org.omecproject.up4.cli;
 import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
+import org.omecproject.up4.Up4Exception;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfInterface;
 import org.onlab.packet.Ip4Prefix;
@@ -32,7 +33,11 @@ public class InterfaceInsertCommand extends AbstractShellCommand {
         Ip4Prefix s1uPrefix = Ip4Prefix.valueOf(this.s1uPrefix);
 
         print("Adding S1U interface address: %s", s1uPrefix.toString());
-        app.getUpfProgrammable().addInterface(UpfInterface.createS1uFrom(s1uPrefix));
+        try {
+            app.getUpfProgrammable().addInterface(UpfInterface.createS1uFrom(s1uPrefix));
+        } catch (Up4Exception e) {
+            print("Command failed with error: " + e.getMessage());
+        }
     }
 }
 

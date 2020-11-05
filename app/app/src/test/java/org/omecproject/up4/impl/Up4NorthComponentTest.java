@@ -5,6 +5,7 @@ import com.google.rpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
+import org.omecproject.up4.Up4Exception;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.behavior.TestConstants;
 import org.omecproject.up4.behavior.Up4TranslatorImpl;
@@ -145,6 +146,7 @@ public class Up4NorthComponentTest {
     /**
      * Attempt to read and write from the p4runtime service, and assert that the given error is returned in both
      * cases.
+     *
      * @param expectedReadWriteError the error expected to be returned by the p4runtime service
      */
     private void missingStateTest(Throwable expectedReadWriteError) {
@@ -237,7 +239,7 @@ public class Up4NorthComponentTest {
 
     @Test
     public void readWildcardCounterTest() {
-        // A counter read request with no counterID or cellID should return ALL active counter cells
+        // A counter read request with no counterID or cellId should return ALL active counter cells
         MockStreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver = new MockStreamObserver<>();
         P4RuntimeOuterClass.ReadRequest request = P4RuntimeOuterClass.ReadRequest.newBuilder()
                 .addEntities(P4RuntimeOuterClass.Entity.newBuilder()
@@ -250,7 +252,7 @@ public class Up4NorthComponentTest {
     }
 
     private void readPartialWildcardCounterTest(PiCounterId counterId) {
-        // A counter read request with a counterID but no cellID
+        // A counter read request with a counterID but no cellId
         // Encode a dummy cell just so we can get the p4runtime counter integer ID from the encoder
         PiCounterCell dummyCell = new PiCounterCell(
                 PiCounterCellId.ofIndirect(counterId, 1), 0, 0);
@@ -258,7 +260,7 @@ public class Up4NorthComponentTest {
         try {
             dummyEntity = Codecs.CODECS.entity().encode(dummyCell, null, pipeconf);
         } catch (CodecException e) {
-            fail("Unable to encode counter cell to p4runtime entity!");
+            fail("Unable to encode counter cell to p4runtime entity.");
             return;
         }
         int intCounterId = dummyEntity.getCounterEntry().getCounterId();
@@ -275,9 +277,7 @@ public class Up4NorthComponentTest {
         assertThat(response.getEntitiesList().size(), equalTo(TestConstants.PHYSICAL_COUNTER_SIZE));
         for (P4RuntimeOuterClass.Entity entity : response.getEntitiesList()) {
             PiCounterCell responseCell = entityToCounterCell(entity);
-            if (!responseCell.cellId().counterId().equals(counterId)) {
-                fail("Counter read returned a cell from the wrong counter!");
-            }
+            assertThat(responseCell.cellId().counterId(), equalTo(counterId));
         }
     }
 
@@ -286,13 +286,10 @@ public class Up4NorthComponentTest {
         try {
             responsePiEntity = Codecs.CODECS.entity().decode(entity, null, pipeconf);
         } catch (CodecException e) {
-            fail("Unable to decode p4runtime entity from read response!");
+            fail("Unable to decode p4runtime entity from read response.");
             return null;
         }
-        if (responsePiEntity.piEntityType() != PiEntityType.COUNTER_CELL) {
-            fail("Counter read returned something other than a counter cell!");
-            return null;
-        }
+        assertThat(responsePiEntity.piEntityType(), equalTo(PiEntityType.COUNTER_CELL));
         return (PiCounterCell) responsePiEntity;
     }
 
@@ -315,7 +312,7 @@ public class Up4NorthComponentTest {
         try {
             entity = Codecs.CODECS.entity().encode(requestedCell, null, pipeconf);
         } catch (CodecException e) {
-            fail("Unable to encode counter cell to p4runtime entity!");
+            fail("Unable to encode counter cell to p4runtime entity.");
             return;
         }
 
@@ -333,7 +330,7 @@ public class Up4NorthComponentTest {
         try {
             expectedEntity = Codecs.CODECS.entity().encode(expectedCell, null, pipeconf);
         } catch (CodecException e) {
-            fail("Unable to encode counter cell to p4runtime entity!");
+            fail("Unable to encode counter cell to p4runtime entity.");
             return;
         }
         assertThat(response.getEntitiesCount(), equalTo(1));
@@ -353,63 +350,63 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkFarReadTest() {
+    public void downlinkFarReadTest() throws Up4Exception {
         upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
         readTest(TestConstants.UP4_DOWNLINK_FAR);
     }
 
     @Test
-    public void uplinkFarReadTest() {
+    public void uplinkFarReadTest() throws Up4Exception {
         upfProgrammable.addFar(TestConstants.UPLINK_FAR);
         readTest(TestConstants.UP4_UPLINK_FAR);
     }
 
     @Test
-    public void downlinkPdrReadTest() {
+    public void downlinkPdrReadTest() throws Up4Exception {
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         readTest(TestConstants.UP4_DOWNLINK_PDR);
     }
 
     @Test
-    public void uplinkPdrReadTest() {
+    public void uplinkPdrReadTest() throws Up4Exception {
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         readTest(TestConstants.UP4_UPLINK_PDR);
     }
 
     @Test
-    public void downlinkInterfaceReadTest() {
+    public void downlinkInterfaceReadTest() throws Up4Exception {
         upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
         readTest(TestConstants.UP4_DOWNLINK_INTERFACE);
     }
 
     @Test
-    public void uplinkInterfaceReadTest() {
+    public void uplinkInterfaceReadTest() throws Up4Exception {
         upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
         readTest(TestConstants.UP4_UPLINK_INTERFACE);
     }
 
     @Test
-    public void downlinkFarInsertionTest() {
+    public void downlinkFarInsertionTest() throws Up4Exception {
         PiTableEntry entry = TestConstants.UP4_DOWNLINK_FAR;
         insertionTest(entry);
         assertThat(upfProgrammable.getInstalledFars().size(), equalTo(1));
     }
 
     @Test
-    public void downlinkFarDeletionTest() {
+    public void downlinkFarDeletionTest() throws Up4Exception {
         upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
         deletionTest(TestConstants.UP4_DOWNLINK_FAR);
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
     }
 
     @Test
-    public void uplinkFarInsertionTest() {
+    public void uplinkFarInsertionTest() throws Up4Exception {
         insertionTest(TestConstants.UP4_UPLINK_FAR);
         assertThat(upfProgrammable.getInstalledFars().size(), equalTo(1));
     }
 
     @Test
-    public void uplinkFarDeletionTest() {
+    public void uplinkFarDeletionTest() throws Up4Exception {
         upfProgrammable.addFar(TestConstants.UPLINK_FAR);
         deletionTest(TestConstants.UP4_UPLINK_FAR);
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
@@ -422,7 +419,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkPdrDeletionTest() {
+    public void downlinkPdrDeletionTest() throws Up4Exception {
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         deletionTest(TestConstants.UP4_DOWNLINK_PDR);
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
@@ -435,7 +432,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkPdrDeletionTest() {
+    public void uplinkPdrDeletionTest() throws Up4Exception {
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         deletionTest(TestConstants.UP4_UPLINK_PDR);
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
@@ -448,7 +445,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkInterfaceDeletionTest() {
+    public void downlinkInterfaceDeletionTest() throws Up4Exception {
         upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
         deletionTest(TestConstants.UP4_DOWNLINK_INTERFACE);
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
@@ -462,7 +459,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkInterfaceDeletionTest() {
+    public void uplinkInterfaceDeletionTest() throws Up4Exception {
         upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
         deletionTest(TestConstants.UP4_UPLINK_INTERFACE);
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
@@ -529,6 +526,6 @@ public class Up4NorthComponentTest {
         up4NorthService.getForwardingPipelineConfig(getPipeRequest, responseObserver);
         var modifiedP4info = up4NorthComponent.addPhysicalSizesToP4Info(p4Info);
         var response = responseObserver.lastResponse();
-        assertThat(modifiedP4info, equalTo(response.getConfig().getP4Info()));
+        assertThat(response.getConfig().getP4Info(), equalTo(modifiedP4info));
     }
 }

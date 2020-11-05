@@ -9,6 +9,7 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
+import org.omecproject.up4.Up4Exception;
 import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
@@ -65,6 +66,10 @@ public class FarInsertCommand extends AbstractShellCommand {
         ForwardingActionRule far = farBuilder.build();
 
         print("Installing %s", far.toString());
-        app.getUpfProgrammable().addFar(far);
+        try {
+            app.getUpfProgrammable().addFar(far);
+        } catch (Up4Exception e) {
+            print("Command failed with error: " + e.getMessage());
+        }
     }
 }

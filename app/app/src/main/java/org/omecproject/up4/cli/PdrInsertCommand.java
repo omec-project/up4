@@ -8,6 +8,7 @@ import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.PacketDetectionRule;
+import org.omecproject.up4.Up4Exception;
 import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
@@ -66,6 +67,10 @@ public class PdrInsertCommand extends AbstractShellCommand {
 
         PacketDetectionRule pdr = pdrBuilder.build();
         print("Installing %s on UPF", pdr.toString());
-        app.getUpfProgrammable().addPdr(pdrBuilder.build());
+        try {
+            app.getUpfProgrammable().addPdr(pdrBuilder.build());
+        } catch (Up4Exception e) {
+            print("Command failed with error: " + e.getMessage());
+        }
     }
 }
