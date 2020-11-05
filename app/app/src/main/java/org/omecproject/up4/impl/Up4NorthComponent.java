@@ -50,6 +50,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import static org.omecproject.up4.impl.AppConstants.PIPECONF_ID;
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
@@ -299,14 +300,30 @@ public class Up4NorthComponent {
      * @return the same p4info, but with resource sizes set to the sizes from the physical switch
      */
     @VisibleForTesting
-    P4InfoOuterClass.P4Info addPhysicalSizesToP4Info(P4InfoOuterClass.P4Info p4Info) {
+    P4InfoOuterClass.P4Info setPhysicalSizes(P4InfoOuterClass.P4Info p4Info) {
         var newP4InfoBuilder = P4InfoOuterClass.P4Info.newBuilder(p4Info).clearCounters();
         int physicalCounterSize = up4Service.getUpfProgrammable().pdrCounterSize();
-        Collection<P4InfoOuterClass.Counter> correctedCounters = new ArrayList<>();
+        int ingressPdrCounterId;
+        int egressPdrCounterId;
+        try {
+            ingressPdrCounterId = PipeconfHelper.getP4InfoBrowser(pipeconf).counters()
+                    .getByName(NorthConstants.INGRESS_COUNTER_ID.id()).getPreamble().getId();
+            egressPdrCounterId = PipeconfHelper.getP4InfoBrowser(pipeconf).counters()
+                    .getByName(NorthConstants.EGRESS_COUNTER_ID.id()).getPreamble().getId();
+        } catch (P4InfoBrowser.NotFoundException e) {
+            throw new NoSuchElementException("A UP4 counter that should always exist does not exist.");
+        }
         p4Info.getCountersList().forEach(counter -> {
-            newP4InfoBuilder.addCounters(
-                    P4InfoOuterClass.Counter.newBuilder(counter)
-                            .setSize((long) physicalCounterSize).build());
+            if (counter.getPreamble().getId() == ingressPdrCounterId ||
+                    counter.getPreamble().getId() == egressPdrCounterId) {
+                // Change the sizes of the PDR counters
+                newP4InfoBuilder.addCounters(
+                        P4InfoOuterClass.Counter.newBuilder(counter)
+                                .setSize((long) physicalCounterSize).build());
+            } else {
+                // Any other counters go unchanged (for now)
+                newP4InfoBuilder.addCounters(counter);
+            }
         });
         return newP4InfoBuilder.build();
     }
@@ -366,7 +383,7 @@ public class Up4NorthComponent {
                 pkts = ctrValues.getEgressPkts();
                 bytes = ctrValues.getEgressBytes();
             } else {
-                log.warn("Received read request for unknown counter {}. Skipping.", piCounterId);
+                log.warn("Received read request for unknown counter {}", piCounterId);
                 throw io.grpc.Status.INVALID_ARGUMENT
                         .withDescription("Invalid UP4 counter identifier.")
                         .asException();
@@ -374,6 +391,7 @@ public class Up4NorthComponent {
             responseCells.add(new PiCounterCell(PiCounterCellId.ofIndirect(piCounterId, index), pkts, bytes));
         } else {
             // All cells were requested, either for a specific counter or all counters
+            // FIXME: only read the counter that was requested, instead of both ingress and egress unconditionally
             Collection<PdrStats> allStats = up4Service.getUpfProgrammable().readAllCounters();
             for (PdrStats stat : allStats) {
                 if (piCounterId == null || piCounterId.equals(NorthConstants.INGRESS_COUNTER_ID)) {
@@ -509,7 +527,7 @@ public class Up4NorthComponent {
                             .setConfig(P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
                                     .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
                                             .setCookie(pipeconfCookie))
-                                    .setP4Info(addPhysicalSizesToP4Info(p4Info))
+                                    .setP4Info(setPhysicalSizes(p4Info))
                                     .build())
                             .build());
             responseObserver.onCompleted();
