@@ -77,3 +77,7 @@ check:
 
 prettify: .yapf
 	PYTHONPATH=${CURRENT_DIR}/.yapf python .yapf/yapf -ir -e .yapf/ .
+
+reuse-lint:
+	docker run --rm -v ${curr_dir}:/up4 -w /up4 omecproject/reuse-verify:latest reuse lint
+
