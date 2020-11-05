@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
 #
-# SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
 MKFILE_PATH              := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
@@ -77,3 +77,12 @@ check:
 
 prettify: .yapf
 	PYTHONPATH=${CURRENT_DIR}/.yapf python .yapf/yapf -ir -e .yapf/ .
+
+reuse-lint:
+	docker run --rm -v ${CURRENT_DIR}:/up4 -w /up4 omecproject/reuse-verify:latest reuse lint
+
+reuse-addheader:
+	docker run --rm -v ${CURRENT_DIR}:/up4 -w /up4 omecproject/reuse-verify:latest reuse addheader \
+		--copyright "Open Networking Foundation <info@opennetworking.org>" \
+		--license "LicenseRef-ONF-Member-Only-1.0" \
+		--year "2020-present" $(FILE)
