@@ -9,8 +9,8 @@ import com.google.rpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
-import org.omecproject.up4.Up4Exception;
 import org.omecproject.up4.UpfProgrammable;
+import org.omecproject.up4.UpfProgrammableException;
 import org.omecproject.up4.behavior.TestConstants;
 import org.omecproject.up4.behavior.Up4TranslatorImpl;
 import org.onosproject.net.pi.model.PiCounterId;
@@ -39,66 +39,8 @@ public class Up4NorthComponentTest {
     private final Up4NorthComponent up4NorthComponent = new Up4NorthComponent();
     private final Up4NorthComponent.Up4NorthService up4NorthService = up4NorthComponent.up4NorthService;
     PiPipeconf pipeconf;
-    private P4InfoOuterClass.P4Info p4Info;
     UpfProgrammable upfProgrammable;
-
-    static class MockStreamObserver<T> implements StreamObserver<T> {
-        public List<T> responsesObserved = new ArrayList<>();
-        Throwable errorExpected;
-        Throwable errorObserved;
-
-        public T lastResponse() {
-            return responsesObserved.get(responsesObserved.size() - 1);
-        }
-
-        public void clearObservations() {
-            this.errorObserved = null;
-            this.responsesObserved.clear();
-        }
-
-        public void setErrorExpected(Throwable errorExpected) {
-            this.errorExpected = errorExpected;
-        }
-
-        public void assertErrorObserved() {
-            if (errorObserved == null) {
-                fail("gRPC stream error was not observed when expected.");
-            }
-        }
-
-        public Throwable lastError() {
-            return errorObserved;
-        }
-
-        @Override
-        public void onNext(T value) {
-            if (this.errorObserved != null) {
-                fail("Stream observer experienced an onNext call after an error was observed");
-            }
-            responsesObserved.add(value);
-        }
-
-        @Override
-        public void onError(Throwable t) {
-            if (errorExpected != null) {
-                if (this.errorObserved != null) {
-                    fail("Stream observer unexpectedly received more than one error");
-                }
-                this.errorObserved = t;
-                assertThat(errorObserved.getClass(), equalTo(errorExpected.getClass()));
-            } else {
-                fail("Stream observer shouldn't see any errors");
-            }
-        }
-
-        @Override
-        public void onCompleted() {
-            if (this.errorObserved != null) {
-                fail("Stream observer experienced an onCompleted call after an error was observed");
-            }
-
-        }
-    }
+    private P4InfoOuterClass.P4Info p4Info;
 
     @Before
     public void setUp() throws Exception {
@@ -354,63 +296,63 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkFarReadTest() throws Up4Exception {
+    public void downlinkFarReadTest() throws UpfProgrammableException {
         upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
         readTest(TestConstants.UP4_DOWNLINK_FAR);
     }
 
     @Test
-    public void uplinkFarReadTest() throws Up4Exception {
+    public void uplinkFarReadTest() throws UpfProgrammableException {
         upfProgrammable.addFar(TestConstants.UPLINK_FAR);
         readTest(TestConstants.UP4_UPLINK_FAR);
     }
 
     @Test
-    public void downlinkPdrReadTest() throws Up4Exception {
+    public void downlinkPdrReadTest() throws UpfProgrammableException {
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         readTest(TestConstants.UP4_DOWNLINK_PDR);
     }
 
     @Test
-    public void uplinkPdrReadTest() throws Up4Exception {
+    public void uplinkPdrReadTest() throws UpfProgrammableException {
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         readTest(TestConstants.UP4_UPLINK_PDR);
     }
 
     @Test
-    public void downlinkInterfaceReadTest() throws Up4Exception {
+    public void downlinkInterfaceReadTest() throws UpfProgrammableException {
         upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
         readTest(TestConstants.UP4_DOWNLINK_INTERFACE);
     }
 
     @Test
-    public void uplinkInterfaceReadTest() throws Up4Exception {
+    public void uplinkInterfaceReadTest() throws UpfProgrammableException {
         upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
         readTest(TestConstants.UP4_UPLINK_INTERFACE);
     }
 
     @Test
-    public void downlinkFarInsertionTest() throws Up4Exception {
+    public void downlinkFarInsertionTest() throws UpfProgrammableException {
         PiTableEntry entry = TestConstants.UP4_DOWNLINK_FAR;
         insertionTest(entry);
         assertThat(upfProgrammable.getInstalledFars().size(), equalTo(1));
     }
 
     @Test
-    public void downlinkFarDeletionTest() throws Up4Exception {
+    public void downlinkFarDeletionTest() throws UpfProgrammableException {
         upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
         deletionTest(TestConstants.UP4_DOWNLINK_FAR);
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
     }
 
     @Test
-    public void uplinkFarInsertionTest() throws Up4Exception {
+    public void uplinkFarInsertionTest() throws UpfProgrammableException {
         insertionTest(TestConstants.UP4_UPLINK_FAR);
         assertThat(upfProgrammable.getInstalledFars().size(), equalTo(1));
     }
 
     @Test
-    public void uplinkFarDeletionTest() throws Up4Exception {
+    public void uplinkFarDeletionTest() throws UpfProgrammableException {
         upfProgrammable.addFar(TestConstants.UPLINK_FAR);
         deletionTest(TestConstants.UP4_UPLINK_FAR);
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
@@ -423,7 +365,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkPdrDeletionTest() throws Up4Exception {
+    public void downlinkPdrDeletionTest() throws UpfProgrammableException {
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         deletionTest(TestConstants.UP4_DOWNLINK_PDR);
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
@@ -436,7 +378,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkPdrDeletionTest() throws Up4Exception {
+    public void uplinkPdrDeletionTest() throws UpfProgrammableException {
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         deletionTest(TestConstants.UP4_UPLINK_PDR);
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
@@ -449,7 +391,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkInterfaceDeletionTest() throws Up4Exception {
+    public void downlinkInterfaceDeletionTest() throws UpfProgrammableException {
         upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
         deletionTest(TestConstants.UP4_DOWNLINK_INTERFACE);
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
@@ -463,12 +405,11 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkInterfaceDeletionTest() throws Up4Exception {
+    public void uplinkInterfaceDeletionTest() throws UpfProgrammableException {
         upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
         deletionTest(TestConstants.UP4_UPLINK_INTERFACE);
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
     }
-
 
     @Test
     public void arbitrationTest() {
@@ -498,7 +439,6 @@ public class Up4NorthComponentTest {
         assertThat(response.getArbitration().getStatus(),
                 equalTo(Status.newBuilder().setCode(Code.OK.getNumber()).build()));
     }
-
 
     @Test
     public void setPipelineConfigTest() {
@@ -531,5 +471,63 @@ public class Up4NorthComponentTest {
         var modifiedP4info = up4NorthComponent.setPhysicalSizes(p4Info);
         var response = responseObserver.lastResponse();
         assertThat(response.getConfig().getP4Info(), equalTo(modifiedP4info));
+    }
+
+    static class MockStreamObserver<T> implements StreamObserver<T> {
+        public List<T> responsesObserved = new ArrayList<>();
+        Throwable errorExpected;
+        Throwable errorObserved;
+
+        public T lastResponse() {
+            return responsesObserved.get(responsesObserved.size() - 1);
+        }
+
+        public void clearObservations() {
+            this.errorObserved = null;
+            this.responsesObserved.clear();
+        }
+
+        public void setErrorExpected(Throwable errorExpected) {
+            this.errorExpected = errorExpected;
+        }
+
+        public void assertErrorObserved() {
+            if (errorObserved == null) {
+                fail("gRPC stream error was not observed when expected.");
+            }
+        }
+
+        public Throwable lastError() {
+            return errorObserved;
+        }
+
+        @Override
+        public void onNext(T value) {
+            if (this.errorObserved != null) {
+                fail("Stream observer experienced an onNext call after an error was observed");
+            }
+            responsesObserved.add(value);
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            if (errorExpected != null) {
+                if (this.errorObserved != null) {
+                    fail("Stream observer unexpectedly received more than one error");
+                }
+                this.errorObserved = t;
+                assertThat(errorObserved.getClass(), equalTo(errorExpected.getClass()));
+            } else {
+                fail("Stream observer shouldn't see any errors");
+            }
+        }
+
+        @Override
+        public void onCompleted() {
+            if (this.errorObserved != null) {
+                fail("Stream observer experienced an onCompleted call after an error was observed");
+            }
+
+        }
     }
 }

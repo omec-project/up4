@@ -52,13 +52,11 @@ import java.util.Objects;
         service = {Up4Translator.class})
 public class Up4TranslatorImpl implements Up4Translator {
 
-    private final Logger log = LoggerFactory.getLogger(getClass());
     // Maps local FAR IDs to global FAR IDs
     protected final BiMap<UpfRuleIdentifier, Integer> farIdMapper = HashBiMap.create();
-    private int nextGlobalFarId = 1;
-
+    private final Logger log = LoggerFactory.getLogger(getClass());
     private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
-
+    private int nextGlobalFarId = 1;
 
     @Activate
     protected void activate() {

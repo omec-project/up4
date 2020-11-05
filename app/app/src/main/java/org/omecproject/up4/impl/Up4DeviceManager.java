@@ -6,10 +6,10 @@ package org.omecproject.up4.impl;
 
 import org.omecproject.dbuf.client.DbufClient;
 import org.omecproject.dbuf.client.DefaultDbufClient;
-import org.omecproject.up4.Up4Exception;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
+import org.omecproject.up4.UpfProgrammableException;
 import org.omecproject.up4.config.Up4Config;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
@@ -232,7 +232,7 @@ public class Up4DeviceManager implements Up4Service {
                 log.warn("{} is missing from device! Installing", iface);
                 try {
                     upfProgrammable.addInterface(iface);
-                } catch (Up4Exception e) {
+                } catch (UpfProgrammableException e) {
                     log.warn("Failed to insert interface: {}", e.getMessage());
                 }
             }
@@ -245,7 +245,7 @@ public class Up4DeviceManager implements Up4Service {
         for (UpfInterface iface : configFileInterfaces()) {
             try {
                 upfProgrammable.addInterface(iface);
-            } catch (Up4Exception e) {
+            } catch (UpfProgrammableException e) {
                 log.warn("Failed to insert interface: {}", e.getMessage());
             }
         }

@@ -11,11 +11,11 @@ import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
-import org.omecproject.up4.Up4Exception;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
+import org.omecproject.up4.UpfProgrammableException;
 import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
@@ -79,15 +79,15 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Translator up4Translator;
     DeviceId deviceId;
-    private ApplicationId appId;
-
     @VisibleForTesting
     int pdrCounterSize = -1;  // Cached value so we don't have to go through the pipeconf every time
+    private ApplicationId appId;
     private BufferDrainer bufferDrainer;
 
 
     private Set<UpfRuleIdentifier> bufferFarIds;
     private Map<UpfRuleIdentifier, Set<PacketDetectionRule>> farIdToPdrs;
+    private GtpTunnel dbufTunnel;
 
     @Activate
     protected void activate() {
@@ -113,8 +113,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     public void setBufferDrainer(BufferDrainer drainer) {
         this.bufferDrainer = drainer;
     }
-
-    private GtpTunnel dbufTunnel;
 
     @Override
     public void setDbufTunnel(Ip4Address switchAddr, Ip4Address dbufAddr) {
@@ -187,17 +185,19 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
 
     @Override
-    public Collection<PdrStats> readAllCounters() {
+    public Collection<PdrStats> readAllCounters() throws UpfProgrammableException {
         // Get client and pipeconf.
         P4RuntimeClient client = controller.get(deviceId);
         if (client == null) {
             log.warn("Unable to find client for {}, aborting operation", deviceId);
-            return List.of();
+            throw new UpfProgrammableException("Unable to find p4runtime client for reading from device "
+                    + deviceId.toString());
         }
         Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
         if (optPipeconf.isEmpty()) {
             log.warn("Unable to load piPipeconf for {}, aborting operation", deviceId);
-            return List.of();
+            throw new UpfProgrammableException("Unable to load pipeconf for device "
+                    + deviceId.toString());
         }
         PiPipeconf pipeconf = optPipeconf.get();
 
@@ -281,10 +281,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public PdrStats readCounter(int cellId) throws Up4Exception {
+    public PdrStats readCounter(int cellId) throws UpfProgrammableException {
         if (cellId >= pdrCounterSize() || cellId < 0) {
-            throw new Up4Exception(Up4Exception.Type.INVALID_COUNTER_INDEX,
-                    "Requested PDR counter cell index is out of bounds.");
+            throw new UpfProgrammableException("Requested PDR counter cell index is out of bounds.");
         }
         PdrStats.Builder stats = PdrStats.builder().withCellId(cellId);
 
@@ -292,13 +291,13 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         P4RuntimeClient client = controller.get(deviceId);
         if (client == null) {
             log.warn("Unable to find p4runtime client for device {}.", deviceId);
-            throw new Up4Exception(Up4Exception.Type.SWITCH_UNAVAILABLE,
+            throw new UpfProgrammableException(
                     "Unable to find p4runtime client for device " + deviceId.toString());
         }
         Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
         if (optPipeconf.isEmpty()) {
             log.warn("Unable to load pipeconf for device {}", deviceId);
-            throw new Up4Exception(Up4Exception.Type.SWITCH_UNAVAILABLE,
+            throw new UpfProgrammableException(
                     "Unable to load pipeconf for device " + deviceId.toString());
         }
         PiPipeconf pipeconf = optPipeconf.get();
@@ -340,10 +339,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
 
     @Override
-    public void addPdr(PacketDetectionRule pdr) throws Up4Exception {
+    public void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException {
         if (pdr.counterId() >= pdrCounterSize() || pdr.counterId() < 0) {
-            throw new Up4Exception(Up4Exception.Type.INVALID_COUNTER_INDEX,
-                    "Counter cell index referenced by PDR is out of bounds.");
+            throw new UpfProgrammableException("Counter cell index referenced by PDR is out of bounds.");
         }
         try {
             FlowRule fabricPdr = up4Translator.pdrToFabricEntry(pdr, deviceId, appId, DEFAULT_PRIORITY);
@@ -365,14 +363,13 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             });
         } catch (Up4Translator.Up4TranslationException e) {
             log.warn("Unable to insert PDR {} to dataplane: {}", pdr, e.getMessage());
-            throw new Up4Exception(Up4Exception.Type.INVALID_FAR,
-                    e.getMessage());
+            throw new UpfProgrammableException("Failed to translate PDR: " + e.getMessage());
         }
     }
 
 
     @Override
-    public void addFar(ForwardingActionRule far) throws Up4Exception {
+    public void addFar(ForwardingActionRule far) throws UpfProgrammableException {
         try {
             UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(far.sessionId(), far.farId());
             if (far.bufferFlag()) {
@@ -394,13 +391,12 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             }
         } catch (Up4Translator.Up4TranslationException e) {
             log.warn("Unable to insert FAR {} to dataplane: {}", far, e.getMessage());
-            throw new Up4Exception(Up4Exception.Type.INVALID_PDR,
-                    e.getMessage());
+            throw new UpfProgrammableException("Failed to translate FAR: " + e.getMessage());
         }
     }
 
     @Override
-    public void addInterface(UpfInterface upfInterface) throws Up4Exception {
+    public void addInterface(UpfInterface upfInterface) throws UpfProgrammableException {
         try {
             FlowRule flowRule = up4Translator.interfaceToFabricEntry(upfInterface, deviceId, appId, DEFAULT_PRIORITY);
             log.info("Installing {}", upfInterface);
@@ -408,11 +404,12 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             log.debug("Interface added with flowID {}", flowRule.id().value());
         } catch (Up4Translator.Up4TranslationException e) {
             log.warn("Unable to insert interface {} to dataplane: {}", upfInterface, e.getMessage());
-            throw new Up4Exception(Up4Exception.Type.INVALID_INTERFACE, e.getMessage());
+            throw new UpfProgrammableException("Failed to translate interface: " + e.getMessage());
         }
     }
 
-    private boolean removeEntry(PiCriterion match, PiTableId tableId, boolean failSilent) throws Up4Exception {
+    private boolean removeEntry(PiCriterion match, PiTableId tableId, boolean failSilent)
+            throws UpfProgrammableException {
         FlowRule entry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
                 .forTable(tableId)
@@ -434,14 +431,13 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         }
         if (!failSilent) {
             log.warn("Did not find a flow rule with the given match conditions! Deleting nothing.");
-            throw new Up4Exception(Up4Exception.Type.ENTRY_NOT_FOUND,
-                    "Entry for table " + tableId.toString() + " not found");
+            throw new UpfProgrammableException("Entry for table " + tableId.toString() + " not found");
         }
         return false;
     }
 
     @Override
-    public Collection<UpfFlow> getFlows() {
+    public Collection<UpfFlow> getFlows() throws UpfProgrammableException {
         Map<Integer, PdrStats> counterStats = new HashMap<>();
         readAllCounters().forEach(stats -> {
             counterStats.put(stats.getCellId(), stats);
@@ -556,7 +552,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
 
     @Override
-    public void removePdr(PacketDetectionRule pdr) throws Up4Exception {
+    public void removePdr(PacketDetectionRule pdr) throws UpfProgrammableException {
         PiCriterion match;
         PiTableId tableId;
         if (pdr.isUplink()) {
@@ -572,8 +568,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             tableId = SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS;
         } else {
             log.warn("Removal of flexible PDRs not yet supported.");
-            throw new Up4Exception(Up4Exception.Type.UNSUPPORTED_PDR,
-                    "Removal of flexible PDRs not yet supported.");
+            throw new UpfProgrammableException("Removal of flexible PDRs not yet supported.");
         }
         log.info("Removing {}", pdr.toString());
         removeEntry(match, tableId, false);
@@ -591,7 +586,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public void removeFar(ForwardingActionRule far) throws Up4Exception {
+    public void removeFar(ForwardingActionRule far) throws UpfProgrammableException {
         log.info("Removing {}", far.toString());
 
         PiCriterion match = PiCriterion.builder()
@@ -602,7 +597,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public void removeInterface(UpfInterface upfInterface) throws Up4Exception {
+    public void removeInterface(UpfInterface upfInterface) throws UpfProgrammableException {
         Ip4Prefix ifacePrefix = upfInterface.prefix();
         // If it isn't a downlink interface (so it is either uplink or unknown), try removing uplink
         if (!upfInterface.isDownlink()) {

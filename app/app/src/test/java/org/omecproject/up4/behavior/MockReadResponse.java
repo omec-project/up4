@@ -21,15 +21,15 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class MockReadResponse implements P4RuntimeReadClient.ReadResponse {
     List<PiEntity> entities;
 
-    @Override
-    public boolean isSuccess() {
-        return true;
-    }
-
     public MockReadResponse(Iterable<? extends PiHandle> handles) {
         this.entities = new ArrayList<>();
         checkNotNull(handles);
         handles.forEach(this::handle);
+    }
+
+    @Override
+    public boolean isSuccess() {
+        return true;
     }
 
     public MockReadResponse handle(PiHandle handle) {

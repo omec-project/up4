@@ -23,44 +23,6 @@ import java.util.List;
 public class MockUp4Service implements Up4Service {
     boolean upfProgrammableAvailable = true;
     boolean configAvailable = true;
-
-    public void hideState(boolean hideUpfProgrammable, boolean hideConfig) {
-        upfProgrammableAvailable = hideUpfProgrammable;
-        configAvailable = hideConfig;
-    }
-
-    @Override
-    public UpfProgrammable getUpfProgrammable() {
-        if (upfProgrammableAvailable) {
-            return upfProgrammable;
-        } else {
-            return null;
-        }
-    }
-
-    @Override
-    public boolean upfProgrammableAvailable() {
-        return upfProgrammableAvailable;
-    }
-
-    @Override
-    public void clearUpfProgrammable() {
-    }
-
-    @Override
-    public void installInterfaces() {
-    }
-
-    @Override
-    public boolean configIsLoaded() {
-        return configAvailable;
-    }
-
-    @Override
-    public boolean isUpfDevice(DeviceId deviceId) {
-        return true;
-    }
-
     UpfProgrammable upfProgrammable = new UpfProgrammable() {
         final List<PacketDetectionRule> pdrs = new ArrayList<>();
         final List<ForwardingActionRule> fars = new ArrayList<>();
@@ -191,4 +153,41 @@ public class MockUp4Service implements Up4Service {
             return stats;
         }
     };
+
+    public void hideState(boolean hideUpfProgrammable, boolean hideConfig) {
+        upfProgrammableAvailable = hideUpfProgrammable;
+        configAvailable = hideConfig;
+    }
+
+    @Override
+    public UpfProgrammable getUpfProgrammable() {
+        if (upfProgrammableAvailable) {
+            return upfProgrammable;
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public boolean upfProgrammableAvailable() {
+        return upfProgrammableAvailable;
+    }
+
+    @Override
+    public void clearUpfProgrammable() {
+    }
+
+    @Override
+    public void installInterfaces() {
+    }
+
+    @Override
+    public boolean configIsLoaded() {
+        return configAvailable;
+    }
+
+    @Override
+    public boolean isUpfDevice(DeviceId deviceId) {
+        return true;
+    }
 }

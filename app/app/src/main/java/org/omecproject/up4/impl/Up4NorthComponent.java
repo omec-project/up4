@@ -14,10 +14,10 @@ import io.grpc.stub.StreamObserver;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
-import org.omecproject.up4.Up4Exception;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
+import org.omecproject.up4.UpfProgrammableException;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.pi.model.DefaultPiPipeconf;
 import org.onosproject.net.pi.model.PiCounterId;
@@ -63,17 +63,26 @@ import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT
 @Component(immediate = true)
 public class Up4NorthComponent {
     private static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
+    protected final Up4NorthService up4NorthService = new Up4NorthService();
     private final Logger log = LoggerFactory.getLogger(getClass());
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Service up4Service;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Translator up4Translator;
-    private Server server;
     protected P4InfoOuterClass.P4Info p4Info;
-    private long pipeconfCookie = 0xbeefbeef;
     protected PiPipeconf pipeconf;
+    private Server server;
+    private long pipeconfCookie = 0xbeefbeef;
 
-    protected final Up4NorthService up4NorthService = new Up4NorthService();
+    protected static PiPipeconf buildPipeconf() throws P4InfoParserException {
+        final URL p4InfoUrl = Up4NorthComponent.class.getResource(AppConstants.P4INFO_PATH);
+        final PiPipelineModel pipelineModel = P4InfoParser.parse(p4InfoUrl);
+        return DefaultPiPipeconf.builder()
+                .withId(PIPECONF_ID)
+                .withPipelineModel(pipelineModel)
+                .addExtension(P4_INFO_TEXT, p4InfoUrl)
+                .build();
+    }
 
     @Activate
     protected void activate() {
@@ -109,53 +118,6 @@ public class Up4NorthComponent {
         log.info("Stopped.");
     }
 
-    protected static PiPipeconf buildPipeconf() throws P4InfoParserException {
-        final URL p4InfoUrl = Up4NorthComponent.class.getResource(AppConstants.P4INFO_PATH);
-        final PiPipelineModel pipelineModel = P4InfoParser.parse(p4InfoUrl);
-        return DefaultPiPipeconf.builder()
-                .withId(PIPECONF_ID)
-                .withPipelineModel(pipelineModel)
-                .addExtension(P4_INFO_TEXT, p4InfoUrl)
-                .build();
-    }
-
-    private StatusException toStatusException(Up4Exception e) {
-        io.grpc.Status errorStatus;
-        switch (e.getType()) {
-            case INVALID_FAR:
-            case INVALID_PDR:
-            case INVALID_ENTITY:
-            case INVALID_COUNTER:
-            case INVALID_INTERFACE:
-            case INVALID_TABLE:
-            case INVALID_ACTION:
-                errorStatus = io.grpc.Status.INVALID_ARGUMENT;
-                break;
-            case ENTRY_NOT_FOUND:
-                errorStatus = io.grpc.Status.NOT_FOUND;
-                break;
-            case INVALID_COUNTER_INDEX:
-                errorStatus = io.grpc.Status.OUT_OF_RANGE;
-                break;
-            case UNSUPPORTED_PDR:
-                errorStatus = io.grpc.Status.UNIMPLEMENTED;
-                break;
-            case P4INFO_UNAVAILABLE:
-                errorStatus = io.grpc.Status.FAILED_PRECONDITION;
-                break;
-            case CONFIG_UNAVAILABLE:
-            case SWITCH_UNAVAILABLE:
-                errorStatus = io.grpc.Status.UNAVAILABLE;
-                break;
-            case UNKNOWN:
-            default:
-                errorStatus = io.grpc.Status.UNKNOWN;
-                break;
-        }
-        return errorStatus.withDescription(e.getMessage()).asException();
-    }
-
-
     /**
      * Translate the given logical pipeline table entry to a Up4Service entry deletion call.
      *
@@ -190,9 +152,11 @@ public class Up4NorthComponent {
             throw io.grpc.Status.INVALID_ARGUMENT
                     .withDescription("Failed to translate entry in deletion request: " + e.getMessage())
                     .asException();
-        } catch (Up4Exception e) {
+        } catch (UpfProgrammableException e) {
             log.warn("Failed to complete deletion request: {}", e.getMessage());
-            throw toStatusException(e);
+            throw io.grpc.Status.INVALID_ARGUMENT
+                    .withDescription(e.getMessage())
+                    .asException();
         }
     }
 
@@ -231,9 +195,11 @@ public class Up4NorthComponent {
             throw io.grpc.Status.INVALID_ARGUMENT
                     .withDescription("Translation error: " + e.getMessage())
                     .asException();
-        } catch (Up4Exception e) {
+        } catch (UpfProgrammableException e) {
             log.warn("Failed to complete table entry insertion request: {}", e.getMessage());
-            throw toStatusException(e);
+            throw io.grpc.Status.INVALID_ARGUMENT
+                    .withDescription(e.getMessage())
+                    .asException();
         }
     }
 
@@ -371,8 +337,10 @@ public class Up4NorthComponent {
             PdrStats ctrValues;
             try {
                 ctrValues = up4Service.getUpfProgrammable().readCounter(index);
-            } catch (Up4Exception e) {
-                throw toStatusException(e);
+            } catch (UpfProgrammableException e) {
+                throw io.grpc.Status.INVALID_ARGUMENT
+                        .withDescription(e.getMessage())
+                        .asException();
             }
             long pkts;
             long bytes;
@@ -392,7 +360,12 @@ public class Up4NorthComponent {
         } else {
             // All cells were requested, either for a specific counter or all counters
             // FIXME: only read the counter that was requested, instead of both ingress and egress unconditionally
-            Collection<PdrStats> allStats = up4Service.getUpfProgrammable().readAllCounters();
+            Collection<PdrStats> allStats;
+            try {
+                allStats = up4Service.getUpfProgrammable().readAllCounters();
+            } catch (UpfProgrammableException e) {
+                throw io.grpc.Status.UNKNOWN.withDescription(e.getMessage()).asException();
+            }
             for (PdrStats stat : allStats) {
                 if (piCounterId == null || piCounterId.equals(NorthConstants.INGRESS_COUNTER_ID)) {
                     // If all counters were requested, or just the ingress one
@@ -558,7 +531,7 @@ public class Up4NorthComponent {
 
         private void doWrite(P4RuntimeOuterClass.WriteRequest request,
                              StreamObserver<P4RuntimeOuterClass.WriteResponse> responseObserver)
-                throws Up4Exception, StatusException {
+                throws StatusException {
             for (P4RuntimeOuterClass.Update update : request.getUpdatesList()) {
                 if (!update.hasEntity()) {
                     log.warn("Update message with no entities received. Ignoring");
@@ -575,7 +548,7 @@ public class Up4NorthComponent {
                             piEntity = Codecs.CODECS.entity().decode(requestEntity, null, pipeconf);
                         } catch (CodecException e) {
                             log.warn("Unable to decode p4runtime entity update message", e);
-                            throw new Up4Exception(Up4Exception.Type.INVALID_ENTITY, e.getMessage());
+                            throw io.grpc.Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
                         }
                         PiTableEntry entry = (PiTableEntry) piEntity;
                         switch (update.getType()) {
@@ -622,15 +595,13 @@ public class Up4NorthComponent {
                 doWrite(request, responseObserver);
             } catch (StatusException e) {
                 responseObserver.onError(e);
-            } catch (Up4Exception e) {
-                responseObserver.onError(toStatusException(e));
             }
             log.debug("Done with write request.");
         }
 
         private void doRead(P4RuntimeOuterClass.ReadRequest request,
                             StreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver)
-                throws Up4Exception, StatusException {
+                throws StatusException {
             for (P4RuntimeOuterClass.Entity requestEntity : request.getEntitiesList()) {
                 switch (requestEntity.getEntityCase()) {
                     case COUNTER_ENTRY:
@@ -645,7 +616,7 @@ public class Up4NorthComponent {
                                     requestEntity, null, pipeconf);
                         } catch (CodecException e) {
                             log.warn("Unable to decode p4runtime read request entity", e);
-                            throw new Up4Exception(Up4Exception.Type.INVALID_ENTITY, e.getMessage());
+                            throw io.grpc.Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
                         }
                         responseObserver.onNext(P4RuntimeOuterClass.ReadResponse.newBuilder()
                                 .addAllEntities(readEntriesAndTranslate(requestEntry))
@@ -674,8 +645,6 @@ public class Up4NorthComponent {
                 doRead(request, responseObserver);
             } catch (StatusException e) {
                 responseObserver.onError(e);
-            } catch (Up4Exception e) {
-                responseObserver.onError(toStatusException(e));
             }
             log.debug("Done with read request.");
         }

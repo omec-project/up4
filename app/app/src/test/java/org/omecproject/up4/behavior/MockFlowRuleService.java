@@ -27,6 +27,7 @@ public class MockFlowRuleService extends FlowRuleServiceAdapter {
     boolean success;
 
     int errorFlow = -1;
+
     public void setErrorFlow(int errorFlow) {
         this.errorFlow = errorFlow;
     }

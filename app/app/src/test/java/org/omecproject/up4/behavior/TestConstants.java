@@ -306,17 +306,17 @@ public final class TestConstants {
             .withPriority(DEFAULT_PRIORITY)
             .build();
 
+    /**
+     * Hidden constructor for utility class.
+     */
+    private TestConstants() {
+    }
+
     private static ImmutableByteSequence toSessionId(long value) {
         try {
             return ImmutableByteSequence.copyFrom(value).fit(NorthConstants.SESSION_ID_BITWIDTH);
         } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
             return ImmutableByteSequence.ofZeros(NorthConstants.SESSION_ID_BITWIDTH / 8);
         }
-    }
-
-    /**
-     * Hidden constructor for utility class.
-     */
-    private TestConstants() {
     }
 }

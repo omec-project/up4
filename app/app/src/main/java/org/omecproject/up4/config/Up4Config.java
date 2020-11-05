@@ -32,6 +32,32 @@ public class Up4Config extends Config<ApplicationId> {
     public static final String DBUF_DATAPLANE_ADDR = "dbufDataplaneAddr";
     public static final String DBUF_DRAIN_ADDR = "dbufDrainAddr";
 
+    static boolean isValidAddrString(String addr, boolean mustBeIp4Addr) {
+        if (addr.isBlank()) {
+            throw new InvalidFieldException(addr, "address string cannot be blank");
+        }
+        final var pieces = addr.split(":");
+        if (pieces.length != 2) {
+            throw new InvalidFieldException(addr, "invalid address, must be host:port");
+        }
+        if (mustBeIp4Addr) {
+            try {
+                Ip4Address.valueOf(pieces[0]);
+            } catch (IllegalArgumentException e) {
+                throw new InvalidFieldException(addr, "invalid IPv4 address");
+            }
+        }
+        try {
+            final int port = Integer.parseInt(pieces[1]);
+            if (port <= 0) {
+                throw new InvalidFieldException(addr, "invalid port number");
+            }
+        } catch (NumberFormatException e) {
+            throw new InvalidFieldException(addr, "invalid port number");
+        }
+        return true;
+    }
+
     @Override
     public boolean isValid() {
         return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_PREFIX, DBUF_SERVICE_ADDR,
@@ -77,7 +103,6 @@ public class Up4Config extends Config<ApplicationId> {
     public Up4Config setUp4DeviceId(String deviceId) {
         return (Up4Config) setOrClear(DEVICE_ID, deviceId);
     }
-
 
     /**
      * Get the S1U IPv4 prefix assigned to the device. Or null if not configured.
@@ -149,32 +174,6 @@ public class Up4Config extends Config<ApplicationId> {
     public Ip4Address dbufDrainAddr() {
         String addr = get(DBUF_DRAIN_ADDR, null);
         return addr != null ? Ip4Address.valueOf(addr) : null;
-    }
-
-    static boolean isValidAddrString(String addr, boolean mustBeIp4Addr) {
-        if (addr.isBlank()) {
-            throw new InvalidFieldException(addr, "address string cannot be blank");
-        }
-        final var pieces = addr.split(":");
-        if (pieces.length != 2) {
-            throw new InvalidFieldException(addr, "invalid address, must be host:port");
-        }
-        if (mustBeIp4Addr) {
-            try {
-                Ip4Address.valueOf(pieces[0]);
-            } catch (IllegalArgumentException e) {
-                throw new InvalidFieldException(addr, "invalid IPv4 address");
-            }
-        }
-        try {
-            final int port = Integer.parseInt(pieces[1]);
-            if (port <= 0) {
-                throw new InvalidFieldException(addr, "invalid port number");
-            }
-        } catch (NumberFormatException e) {
-            throw new InvalidFieldException(addr, "invalid port number");
-        }
-        return true;
     }
 }
 
