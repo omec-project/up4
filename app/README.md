@@ -1,3 +1,8 @@
+<!--
+Copyright 2020-present Open Networking Foundation
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # up4-app
 ONOS Application for managing the hardware implementation of the abstract UP4 pipeline.
 

@@ -1,3 +1,7 @@
+/*
+ SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+ */
 package org.omecproject.up4.behavior;
 
 import com.google.common.collect.BiMap;
@@ -325,7 +329,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             if (far.tunnelSrc() == null || far.tunnelDst() == null
                     || far.teid() == null || far.tunnel().srcPort() == null) {
                 throw new Up4TranslationException(
-                    "Not all action parameters present when translating intermediate downlink FAR to physical FAR!");
+                        "Not all action parameters present when translating intermediate downlink FAR to physical FAR!");
             }
             // TODO: copy tunnel destination port from logical switch write requests, instead of hardcoding 2152
             PiActionId actionId = far.bufferFlag() ? SouthConstants.FABRIC_INGRESS_SPGW_LOAD_DBUF_FAR :

@@ -1,3 +1,8 @@
+<!--
+Copyright 2020-present Open Networking Foundation
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # UP4
 
 [![CircleCI](https://circleci.com/gh/omec-project/up4.svg?style=svg&circle-token=dd7ccddc58269dfdd22af69a892b6a4ee33b3474)](https://circleci.com/gh/omec-project/up4)
