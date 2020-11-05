@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2019 Barefoot Networks, Inc. 
+# SPDX-FileCopyrightText: 2019 Barefoot Networks, Inc.
 # SPDX-License-Identifier: Apache-2.0
 """
 P4Runtime shell docker wrapper
