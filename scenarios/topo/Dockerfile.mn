@@ -10,3 +10,5 @@ RUN cp $(which dbuf) /output/dbuf
 # Why are we not using opennetworking/mn-stratum:latest?
 FROM opennetworking/ngsdn-tutorial:stratum_bmv2
 COPY --from=dbuf /output/dbuf /usr/local/bin
+
+ENV PATH=/up4/bin:${PATH}

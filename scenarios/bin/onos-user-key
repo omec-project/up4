@@ -1,0 +1,13 @@
+#!/bin/bash
+# -----------------------------------------------------------------------------
+# Adds or removes a user key for managing passwordless login to ONOS console.
+# -----------------------------------------------------------------------------
+
+container=${1:-$ODI}
+user=${2:-$(id -un)}
+key=${3:-$(cut -d\  -f2 ~/.ssh/id_rsa.pub)}
+
+# /root/onos/bin/onos-user-key at end calls ssh-keygen which is missing in the container, hence
+# causing a non-zero exit status. However, adding the key to karaf properties should always
+# successful, hence "| true".
+docker-compose exec -T "${container}" bash -c "/root/onos/bin/onos-user-key $user $key | true"

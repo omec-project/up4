@@ -26,8 +26,8 @@ def ip2long(ip):
 
 # 17.0.0.1 comes from util/traffic.py
 # FIXME: https://github.com/omec-project/dbuf/issues/3
-DBUF_QUEUUE_ID_LOW = ip2long('17.0.0.1')  # included
-DBUF_QUEUUE_ID_HIGH = ip2long('17.0.0.4')  # excluded
+DBUF_QUEUE_ID_LOW = ip2long('17.0.0.1')  # included
+DBUF_QUEUE_ID_HIGH = ip2long('17.0.0.4')  # excluded
 DBUF_DROP_TIMEOUT_SEC = "30s"
 
 
@@ -65,8 +65,8 @@ class DbufHost(IPv4Host):
         args = map(
             str,
             [
-                #"-queue_id_high", DBUF_QUEUUE_ID_HIGH,
-                #"-queue_id_low", DBUF_QUEUUE_ID_LOW,
+                #"-queue_id_high", DBUF_QUEUE_ID_HIGH,
+                #"-queue_id_low", DBUF_QUEUE_ID_LOW,
                 "-queue_drop_timeout",
                 DBUF_DROP_TIMEOUT_SEC,
             ])

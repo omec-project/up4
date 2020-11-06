@@ -1,0 +1,12 @@
+#!/bin/bash
+# Checks the onos log for errors
+container=${1:-$ODI}
+regex='ERROR|Exception|Error'
+errors=$(docker-compose logs "${container}" | grep -E -c ${regex})
+
+if [ "$errors" -eq "0" ]; then
+   exit 0;
+else
+  docker-compose logs "${container}" | grep -E ${regex}
+  exit 1;
+fi

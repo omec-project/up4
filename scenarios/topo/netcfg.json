@@ -168,6 +168,14 @@
         "grpcPort": 51001,
         "p4RuntimeDeviceId": 1
       }
+    },
+    "org.onosproject.route-service": {
+      "routes": [
+        {
+          "prefix": "17.0.0.0/24",
+          "nextHop": "140.0.100.1"
+        }
+      ]
     }
   }
 }

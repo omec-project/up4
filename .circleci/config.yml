@@ -34,8 +34,13 @@ jobs:
           command: cd app && make build-ci
       - run:
           name: App integration test
-          command: cd app && make check-slow
+          command: |
+            cd scenarios
+            make deps
+            make setup.xml net-setup.xml INTERACTIVE=
       # FIXME: Should upload as build artifacts instead of printing on screen
+      - store_artifacts:
+          path: scenarios/tmp
       - run:
           name: Print ONOS logs
           command: cd app && docker logs onos

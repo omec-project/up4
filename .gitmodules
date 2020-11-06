@@ -7,4 +7,3 @@
 	path = scenarios/onos-stc
 	url = https://gerrit.onosproject.org/onos
 	branch = onos-2.2
-	shallow = 1

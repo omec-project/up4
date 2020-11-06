@@ -1,0 +1,4 @@
+#!/bin/bash
+for _ in {1..30}; do
+    docker logs "$1" | grep "$2" && break || sleep 1
+done

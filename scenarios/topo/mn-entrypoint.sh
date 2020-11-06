@@ -1,10 +1,9 @@
 #!/bin/bash
+
 # SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+#
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
-if [ -z $1 ]; then
-  echo "usage: $0 host cmd [args...]"
-  exit 1
-fi
+mv /usr/sbin/tcpdump /usr/bin/tcpdump
 
-docker exec -it mininet /util/host-cmd $@
+/topo/topo-gtp.py
