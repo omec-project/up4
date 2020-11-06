@@ -3,8 +3,7 @@
 [submodule "app/app/external/dbuf"]
 	path = app/app/external/dbuf
 	url = git@github.com:omec-project/dbuf.git
-[submodule "onos-stc"]
-    # To re-use commands during STC tests.
+[submodule "scenarios/onos-stc"]
 	path = scenarios/onos-stc
 	url = https://gerrit.onosproject.org/onos
 	branch = onos-2.2
