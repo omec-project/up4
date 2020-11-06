@@ -12,3 +12,6 @@ build-ptf:
 push-ptf:
 	# Remember to update Makefile.vars with the new image sha
 	docker push ${PTF_IMG}
+
+build-stc:
+	cd stc && docker build -t ${STC_IMG} .

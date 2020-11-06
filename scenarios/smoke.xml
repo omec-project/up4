@@ -1,0 +1,5 @@
+<scenario name="smoke" description="Smoke test">
+    <import file="setup.xml"/>
+    <import file="teardown.xml"/>
+    <dependency name="Teardown" requires="~Setup"/>
+</scenario>

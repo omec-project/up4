@@ -1,0 +1,5 @@
+<scenario name="teardown" description="Environment teardown">
+    <group name="Teardown">
+        <step name="Docker-Compose-Down" exec="docker-compose down"/>
+    </group>
+</scenario>

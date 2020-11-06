@@ -1,0 +1,6 @@
+<scenario name="setup" description="Environment setup">
+    <group name="Setup">
+        <step name="Docker-Compose-Reset" exec="docker-compose down"/>
+        <step name="Docker-Compose-Up" exec="docker-compose up -d" requires="^"/>
+    </group>
+</scenario>
