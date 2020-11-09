@@ -79,7 +79,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
 
     private Set<UpfRuleIdentifier> bufferFarIds;
-    private Map<UpfRuleIdentifier, Set<PacketDetectionRule>> farIdToPdrs;
+    private Map<UpfRuleIdentifier, Set<Ip4Address>> farIdToUeAddrs;
 
     @Activate
     protected void activate() {
@@ -94,7 +94,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Override
     public boolean init(ApplicationId appId, DeviceId deviceId) {
         this.bufferFarIds = new HashSet<>();
-        this.farIdToPdrs = new HashMap<>();
+        this.farIdToUeAddrs = new HashMap<>();
         this.appId = appId;
         this.deviceId = deviceId;
         log.info("UpfProgrammable initialized for appId {} and deviceId {}", appId, deviceId);
@@ -239,18 +239,20 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             flowRuleService.applyFlowRules(fabricPdr);
             log.debug("FAR added with flowID {}", fabricPdr.id().value());
 
-            // If the flow rule was applied, add the PDR to the farID->PDR mapping
-            UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(pdr.sessionId(), pdr.farId());
-            farIdToPdrs.compute(ruleId, (k, existingSet) -> {
-                if (existingSet == null) {
-                    Set<PacketDetectionRule> newSet = new HashSet<>();
-                    newSet.add(pdr);
-                    return newSet;
-                } else {
-                    existingSet.add(pdr);
-                    return existingSet;
-                }
-            });
+            // If the flow rule was applied and the PDR is downlink, add the PDR to the farID->PDR mapping
+            if (pdr.isDownlink()) {
+                UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(pdr.sessionId(), pdr.farId());
+                farIdToUeAddrs.compute(ruleId, (k, existingSet) -> {
+                    if (existingSet == null) {
+                        Set<Ip4Address> newSet = new HashSet<>();
+                        newSet.add(pdr.ueAddress());
+                        return newSet;
+                    } else {
+                        existingSet.add(pdr.ueAddress());
+                        return existingSet;
+                    }
+                });
+            }
         } catch (Up4Translator.Up4TranslationException e) {
             log.warn("Unable to insert malformed FAR to dataplane! {}", pdr.toString());
         }
@@ -273,9 +275,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             if (!far.bufferFlag() && bufferFarIds.contains(ruleId)) {
                 // If this FAR does not buffer but used to, then drain all relevant buffers
                 bufferFarIds.remove(ruleId);
-                for (var pdr : farIdToPdrs.getOrDefault(ruleId, Set.of())) {
+                for (var ueAddr : farIdToUeAddrs.getOrDefault(ruleId, Set.of())) {
                     // Drain the buffer for every UE address that hits this FAR
-                    bufferDrainer.drain(pdr.ueAddress());
+                    bufferDrainer.drain(ueAddr);
                 }
             }
         } catch (Up4Translator.Up4TranslationException e) {
@@ -455,15 +457,10 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         removeEntry(match, tableId, false);
 
         // Remove the PDR from the farID->PDR mapping
-        UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(pdr.sessionId(), pdr.farId());
-        farIdToPdrs.compute(ruleId, (k, existingSet) -> {
-            if (existingSet == null) {
-                return null;
-            } else {
-                existingSet.remove(pdr);
-                return existingSet;
-            }
-        });
+        // This is an inefficient hotfix FIXME: remove UE addrs from the mapping in sublinear time
+        if (pdr.isDownlink()) {
+            farIdToUeAddrs.values().forEach(set -> set.remove(pdr.ueAddress()));
+        }
     }
 
     @Override
