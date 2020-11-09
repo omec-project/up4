@@ -4,6 +4,9 @@
  */
 package org.omecproject.up4;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 
@@ -68,6 +71,42 @@ public final class ForwardingActionRule {
         }
 
         return String.format("%s-FAR{ Keys:(%s) -> Params (%s) }", directionString, matchKeys, actionParams);
+    }
+
+    /**
+     * Return this ForwardingActionRule as a JSON object.
+     *
+     * @return this rule as a JSON object
+     */
+    public JsonNode toJson() {
+        final ObjectMapper mapper = new ObjectMapper();
+        final ObjectNode root = mapper.createObjectNode();
+        String directionString = "unknown";
+
+        root.put("farId", farId);
+        root.put("seid", sessionId.toString());
+
+        if (hasActionParameters()) {
+            root.put("direction", "downlink");
+            root.put("drop", drop);
+        }
+        if (isUplink()) {
+            directionString = "uplink";
+        } else if (isDownlink()) {
+            directionString = "downlink";
+            root.put("direction", "downlink");
+            root.put("buffer", buffer);
+            root.put("tunnelSrc", tunnel.src().toString());
+            root.put("tunnelDst", tunnel.dst().toString());
+            root.put("tunnelSrcPort", tunnel.srcPort());
+            root.put("teid", tunnel.teid().toString());
+        } else {
+            root.put("direction", "unknown");
+        }
+
+        root.put("direction", directionString);
+        root.put("hasActionParams", hasActionParameters());
+        return root;
     }
 
     @Override
@@ -373,9 +412,9 @@ public final class ForwardingActionRule {
         /**
          * Set the unidirectional GTP tunnel that this FAR should encapsulate packets with.
          *
-         * @param src  GTP tunnel source IP
-         * @param dst  GTP tunnel destination IP
-         * @param teid GTP tunnel ID
+         * @param src     GTP tunnel source IP
+         * @param dst     GTP tunnel destination IP
+         * @param teid    GTP tunnel ID
          * @param srcPort GTP tunnel UDP source port (destination port is hardcoded as 2152)
          * @return This builder object
          */

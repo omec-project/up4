@@ -11,7 +11,7 @@ import org.omecproject.up4.UpfInterface;
 import org.onosproject.cli.AbstractShellCommand;
 
 /**
- * UP4 PDR read command.
+ * UP4 Interface read command.
  */
 @Service
 @Command(scope = "up4", name = "read-interfaces",

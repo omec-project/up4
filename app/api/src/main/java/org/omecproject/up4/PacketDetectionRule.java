@@ -4,6 +4,9 @@
  */
 package org.omecproject.up4;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 
@@ -66,6 +69,34 @@ public final class PacketDetectionRule {
         }
 
         return String.format("%s-PDR{ Keys:(%s) -> Params (%s) }", directionString, matchKeys, actionParams);
+    }
+
+    /**
+     * Return this PacketDetectionRule as a JSON object.
+     *
+     * @return this rule as a JSON object
+     */
+    public JsonNode toJson() {
+        final ObjectMapper mapper = new ObjectMapper();
+        final ObjectNode root = mapper.createObjectNode();
+        String directionString;
+
+        if (isUplink()) {
+            directionString = "uplink";
+            root.put("tunnelDst", tunnelDst.toString());
+            root.put("teid", teid.toString());
+        } else {
+            directionString = "downlink";
+            root.put("ueAddr", ueAddr.toString());
+        }
+        if (hasActionParameters()) {
+            root.put("seid", sessionId.toString());
+            root.put("farId", farId);
+            root.put("ctrId", ctrId);
+        }
+        root.put("direction", directionString);
+        root.put("hasActionParams", hasActionParameters());
+        return root;
     }
 
     @Override

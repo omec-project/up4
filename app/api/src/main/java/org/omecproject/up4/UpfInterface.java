@@ -4,6 +4,9 @@
  */
 package org.omecproject.up4;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 
@@ -40,6 +43,31 @@ public final class UpfInterface {
             typeStr = "UNKNOWN";
         }
         return String.format("Interface{%s, %s}", typeStr, prefix);
+    }
+
+    /**
+     * Return this UPF Interface as a JSON object.
+     *
+     * @return this interface as a JSON object
+     */
+    public JsonNode toJson() {
+        final ObjectMapper mapper = new ObjectMapper();
+        final ObjectNode root = mapper.createObjectNode();
+        String typeStr;
+
+        if (type.equals(Type.ACCESS)) {
+            typeStr = "uplink";
+        } else if (type.equals(Type.CORE)) {
+            typeStr = "downlink";
+        } else if (type.equals(Type.DBUF)) {
+            typeStr = "dbufReceiver";
+        } else {
+            typeStr = "unknown";
+        }
+        root.put("type", typeStr);
+        root.put("prefix", prefix.toString());
+
+        return root;
     }
 
     @Override

@@ -5,6 +5,10 @@
 package org.omecproject.up4;
 
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -35,6 +39,24 @@ public final class PdrStats {
     public String toString() {
         return String.format("PDR-Stats:{ CellID: %d, Ingress:(%dpkts,%dbytes), Egress:(%dpkts,%dbytes) }",
                 cellId, ingressPkts, ingressBytes, egressPkts, egressBytes);
+    }
+
+    /**
+     * Return this set of PDR counter statistics as a JSON object.
+     *
+     * @return this PdrStats as a JSON object
+     */
+    public JsonNode toJson() {
+        final ObjectMapper mapper = new ObjectMapper();
+        final ObjectNode root = mapper.createObjectNode();
+
+        root.put("cellId", cellId);
+        root.put("ingressPkts", ingressPkts);
+        root.put("ingressBytes", ingressBytes);
+        root.put("egressPkts", egressPkts);
+        root.put("egressBytes", egressBytes);
+
+        return root;
     }
 
     /**

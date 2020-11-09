@@ -4,6 +4,9 @@
  */
 package org.omecproject.up4;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.onlab.util.ImmutableByteSequence;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -13,6 +16,7 @@ import static com.google.common.base.Preconditions.checkArgument;
  */
 public final class UpfFlow {
     private final ImmutableByteSequence pfcpSessionId;
+    private final int farId;
     private final PacketDetectionRule pdr;
     private final ForwardingActionRule far;
     private final PdrStats flowStats;
@@ -33,9 +37,10 @@ public final class UpfFlow {
         DOWNLINK
     }
 
-    private UpfFlow(Type type, ImmutableByteSequence pfcpSessionId,
+    private UpfFlow(Type type, ImmutableByteSequence pfcpSessionId, int farId,
                     PacketDetectionRule pdr, ForwardingActionRule far, PdrStats flowStats) {
         this.pfcpSessionId = pfcpSessionId;
+        this.farId = farId;
         this.pdr = pdr;
         this.far = far;
         this.flowStats = flowStats;
@@ -113,6 +118,45 @@ public final class UpfFlow {
                 pfcpSessionId, pdrString, farString, statString);
     }
 
+    /**
+     * Return this UPF flow as a JSON Object.
+     *
+     * @return this UpfFlow as a JSON object
+     */
+    public JsonNode toJson() {
+        final ObjectMapper mapper = new ObjectMapper();
+        final ObjectNode root = mapper.createObjectNode();
+
+        root.put("seid", pfcpSessionId.toString());
+        root.put("farId", farId);
+
+        if (pdr != null) {
+            ObjectNode pdrNode = (ObjectNode) pdr.toJson();
+            // trim redundant fields
+            pdrNode.remove("farId");
+            pdrNode.remove("seid");
+            root.set("pdr", pdrNode);
+        } else {
+            root.putNull("pdr");
+        }
+
+        if (far != null) {
+            ObjectNode farNode = (ObjectNode) far.toJson();
+            // trim redundant fields
+            farNode.remove("farId");
+            farNode.remove("seid");
+            root.set("far", farNode);
+        } else {
+            root.putNull("far");
+        }
+
+        if (flowStats != null) {
+            ObjectNode statsNode = (ObjectNode) flowStats.toJson();
+            root.set("stats", statsNode);
+        }
+        return root;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -165,6 +209,7 @@ public final class UpfFlow {
         public UpfFlow build() {
             Type type = Type.UNKNOWN;
             ImmutableByteSequence sessionId = null;
+            int farId = -1;
             if (pdr != null && far != null) {
                 checkArgument(pdr.sessionId().equals(far.sessionId()),
                         "PFCP session ID of PDR and FAR must match!");
@@ -177,9 +222,11 @@ public final class UpfFlow {
                             "Counter statistics provided do not use counter index set by provided PDR!");
                 }
                 sessionId = pdr.sessionId();
+                farId = pdr.farId();
                 type = pdr.isUplink() ? Type.UPLINK : Type.DOWNLINK;
             } else if (far != null) {
                 sessionId = far.sessionId();
+                farId = far.farId();
                 if (far.isUplink()) {
                     type = Type.UPLINK;
                 } else if (far.isDownlink()) {
@@ -187,7 +234,7 @@ public final class UpfFlow {
                 }
             }
 
-            return new UpfFlow(type, sessionId, pdr, far, flowStats);
+            return new UpfFlow(type, sessionId, farId, pdr, far, flowStats);
         }
     }
 }
