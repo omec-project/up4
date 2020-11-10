@@ -1,5 +1,5 @@
-<scenario name="net-setup" description="Network setup">
-    <group name="Netcfg">
+<scenario name="Net-Setup" description="Network setup">
+    <group name="Net-Setup">
         <!-- FIXME: support wipe-out with P4Runtime devices in ONOS
                 there's an issue with deleting groups-->
         <!--<step name="Wipe-Out-Data-Before" exec="onos-wipe-out" />-->

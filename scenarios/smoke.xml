@@ -1,5 +1,9 @@
-<scenario name="smoke" description="Smoke test">
-    <import file="setup.xml"/>
-    <import file="teardown.xml"/>
-    <dependency name="Teardown" requires="~Setup"/>
+<scenario name="smoke" description="UP4 smoke test">
+    <import file="./setup.xml"/>
+    <import file="./net-setup.xml"/>
+    <import file="./forwarding.xml"/>
+    <import file="./teardown.xml"/>
+    <dependency name="Net-Setup" requires="Setup"/>
+    <dependency name="Forwarding" requires="Net-Setup"/>
+    <dependency name="Teardown" requires="~Forwarding"/>
 </scenario>

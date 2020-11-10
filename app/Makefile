@@ -18,6 +18,8 @@ MVN_FLAGS ?=
 onos_url := http://localhost:8181/onos
 onos_curl := curl --fail -sSL --user onos:rocks --noproxy localhost
 
+onos_tools_dir := ${CURRENT_DIR}/../scenarios/onos-stc/tools/package/runtime/bin/
+
 include ../util/docker/Makefile.vars
 
 ONOS_BOOT_TIME := 45
@@ -25,30 +27,11 @@ CONFIG_WAIT_TIME := 10
 PKT_WAIT_TIME := 10
 STOP_ARGS := -t0
 
-
 _docker_pull_all:
-	docker pull ${P4RT_SH_IMG}@${P4RT_SH_SHA}
-	docker tag ${P4RT_SH_IMG}@${P4RT_SH_SHA} ${P4RT_SH_IMG}
-	docker pull ${MN_TUTORIAL_IMG}@${MN_TUTORIAL_SHA}
-	docker tag ${MN_TUTORIAL_IMG}@${MN_TUTORIAL_SHA} ${MN_TUTORIAL_IMG}
-	docker pull ${ONOS_IMG}@${ONOS_SHA}
-	docker tag ${ONOS_IMG}@${ONOS_SHA} ${ONOS_IMG}
-	docker pull ${DBUF_IMG}
 	docker pull ${MAVEN_IMG}
 	docker pull ${PROTOC_IMG}
 
-deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java
-	docker-compose build
-
-onos-ui:
-	open ${onos_url}/ui
-
-onos-tools:
-	curl -sS --fail https://repo1.maven.org/maven2/org/onosproject/onos-releases/2.2.2/onos-admin-2.2.2.tar.gz \
-  > tools.tar.gz
-	tar xf tools.tar.gz
-	mv onos-admin-2.2.2 onos-tools
-	rm tools.tar.gz
+deps: _docker_pull_all app/external/dbuf/dbuf.proto app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java
 
 app/src/main/resources/p4info.txt: ../p4src/build/p4info.txt
 	mkdir -p app/src/main/resources
@@ -85,21 +68,9 @@ build: _build_resources
 build-ci: MVN_FLAGS := -Pci-verify -Pcoverage
 build-ci: build
 
-start:
-	$(info *** Starting ONOS and Mininet (topo-gtp.py)... )
-	@mkdir -p tmp/onos
-	@docker-compose up -d
-
 clean:
 	rm -rf target/
-	rm -rf tmp/
 	rm -rf app/src/main/java/org/omecproject/dbuf/grpc/
-
-set-app-info:
-	util/onos-cmd log:set INFO org.omecproject.up4
-
-set-app-debug:
-	util/onos-cmd log:set DEBUG org.omecproject.up4
 
 p4rt-shell:
 	docker exec -it $(shell docker-compose ps -q p4rtsh)  \
@@ -128,38 +99,11 @@ pdr-clear:
 far-clear:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh far
 
-stop2: STOP_ARGS :=
-stop2: stop
-
-stop:
-	$(info *** Stopping ONOS and Mininet...)
-	docker-compose down ${STOP_ARGS}
-
-reset: stop
-	-$(NGSDN_TUTORIAL_SUDO) rm -rf ./tmp
-
-
-mn-cli:
-	$(info *** Attaching to Mininet CLI...)
-	$(info *** To detach press Ctrl-D (Mininet will keep running))
-	-@docker attach --detach-keys "ctrl-d" $(shell docker-compose ps -q mininet) || echo "*** Detached from Mininet CLI"
-
-mn-log:
-	docker logs -f mininet
-	
-onos-logs:
-	docker-compose logs -f onos
-
-onos-config:
-	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1
-	make netcfg
-	make app-load
-
 app-load:
-	./onos-tools/onos-app localhost install! app/target/up4-app-1.0.0-SNAPSHOT.oar
+	${onos_tools_dir}/onos-app localhost install! app/target/up4-app-1.0.0-SNAPSHOT.oar
 
 app-reload:
-	./onos-tools/onos-app localhost reinstall! app/target/up4-app-1.0.0-SNAPSHOT.oar
+	${onos_tools_dir}/onos-app localhost reinstall! app/target/up4-app-1.0.0-SNAPSHOT.oar
 
 check-slow: ONOS_BOOT_TIME := 75
 check-slow: CONFIG_WAIT_TIME := 30
@@ -227,22 +171,6 @@ send-and-recv-uplink:
 	util/mn-cmd pdn /util/traffic.py recv-udp -t ${PKT_WAIT_TIME}
 	@# kill sending process
 	util/mn-cmd enodeb pkill "traffic.py"
-
-check-dbuf-started:
-	cat tmp/dbuf_dbuf1.log | grep "Listening for gRPC requests on 0.0.0.0:10000"
-
-check-dbuf-ready:
-	docker-compose logs onos | grep "Dbuf service at mininet:10000 is READY=true"
-
-netcfg:
-	$(info *** Pushing ./util/netcfg.json to ONOS...)
-	${onos_curl} -X POST -H 'Content-Type:application/json' \
-		${onos_url}/v1/network/configuration -d@./util/netcfg.json
-	@echo
-
-onos-cli:
-	echo "Password: rocks"
-	ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o LogLevel=ERROR -p 8101 onos@localhost
 
 
 test-onos-netcfg:

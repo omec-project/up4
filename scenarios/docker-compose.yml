@@ -4,7 +4,7 @@ version: "3"
 
 services:
   p4rtsh:
-    image: p4lang/p4runtime-sh
+    image: p4lang/p4runtime-sh:latest@sha256:6ae50afb5bde620acb9473ce6cd7b990ff6cc63fe4113cf5584c8e38fe42176c
     hostname: p4rtsh
     container_name: p4rtsh
     tty: true
@@ -12,7 +12,7 @@ services:
     volumes:
       - ./tmp:/tmp
       - ../p4src/build/:/p4c-out/
-      - ./p4rtsh-scripts:/scripts/
+      - ./p4rt:/p4rt
     links:
       - onos1
     entrypoint: "/bin/bash"
@@ -40,7 +40,7 @@ services:
       - "10000:10000" # dbuf service
   onos1:
     # Use tost image which comes with latest trellis apps
-    image: registry.aetherproject.org/tost/tost:master
+    image: registry.aetherproject.org/tost/tost:stable
     hostname: onos1
     container_name: onos1
     ports:

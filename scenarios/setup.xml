@@ -1,45 +1,55 @@
 <scenario name="setup" description="Environment setup">
-    <group name="Start-Containers">
-        <step name="Docker-Compose-Up" exec="docker-compose up -d "/>
-    </group>
+    <group name="Setup">
+        <group name="Start-Containers">
+            <step name="Docker-Compose-Up" exec="docker-compose up -d "/>
+        </group>
 
-    <group name="Verify" requires="Start-Containers">
-        <step name="Mn-Dbuf-Wait-For-Start" exec="file-grep tmp/dbuf_dbuf1.log 'Listening for gRPC requests'"
-              requires="Start-Containers"/>
-        <parallel var="${OD#}">
-            <step name="Onos-Wait-For-Start-${#}" exec="onos-wait-for-start ${OD#}"
+        <group name="Verify" requires="Start-Containers">
+            <step name="Mn-Dbuf-Wait-For-Start"
+                  exec="file-grep tmp/dbuf_dbuf1.log 'Listening for gRPC requests'"
                   requires="Start-Containers"/>
-            <!-- Add current users key for password-less SSH access to the ONOS CLI
-            required by most onos-* commands -->
-            <step name="Onos-User-Key-${#}" exec="onos-user-key ${OD#}"
-                  requires="~Onos-Wait-For-Start-${#}"/>
-            <step name="Onos-Check-Components-${#}" exec="onos-check-components ${OC#}"
-                  delay="5" requires="~Onos-Wait-For-Start-${#}"/>
-            <step name="Onos-Check-Logs-${#}" exec="onos-check-logs ${OD#}"
-                  requires="Onos-User-Key-${#}"/>
-            <step name="Onos-Check-Apps-${#}" exec="onos-check-apps ${OC#} ${ONOS_APPS} includes"
-                  requires="Onos-User-Key-${#}"/>
-        </parallel>
-        <step name="Up4-App-Uninstall"
-              exec="onos-app ${OC1} uninstall org.omecproject.up4"
-              requires="Onos-Wait-For-Start-1"/>
-    </group>
+            <parallel var="${OD#}">
+                <step name="Onos-Wait-For-Start-${#}" exec="onos-wait-for-start ${OD#}"
+                      requires="Start-Containers"/>
+                <!-- Add current users key for passwordless SSH access to the ONOS CLI
+                required by most onos-* commands -->
+                <step name="Onos-User-Key-${#}" exec="onos-user-key ${OD#}"
+                      requires="~Onos-Wait-For-Start-${#}"/>
+                <step name="Onos-Check-Components-${#}" exec="onos-check-components ${OC#}"
+                      delay="5" requires="~Onos-Wait-For-Start-${#}"/>
+                <step name="Onos-Check-Logs-${#}" exec="onos-check-logs ${OD#}"
+                      requires="Onos-User-Key-${#}"/>
+                <step name="Onos-Check-Apps-${#}"
+                      exec="onos-check-apps ${OC#} ${ONOS_APPS} includes"
+                      requires="Onos-User-Key-${#}"/>
+            </parallel>
+            <!-- tost image comes with up4 pre-installed, remove so we can install local build -->
+            <step name="Up4-App-Uninstall"
+                  exec="onos-app ${OC1} uninstall org.omecproject.up4"
+                  requires="Onos-Wait-For-Start-1"/>
+            <step name="Up4-App-Wait-For-Uninstalled" requires="Up4-App-Uninstall"
+                  exec="docker-log-grep ${ODI} 'Application org.omecproject.up4 has been uninstalled'"/>
+        </group>
 
-    <group name="Install-Up4" requires="Verify">
-        <step name="Up4-Oar-Exists"
-              exec="test -f ${UP4_ROOT}/app/app/target/up4-app-1.0.0-SNAPSHOT.oar"/>
-        <step name="Up4-App-Install"
-              exec="onos-app ${OCI} reinstall! ${UP4_ROOT}/app/app/target/up4-app-1.0.0-SNAPSHOT.oar"
-              delay="5"
-              requires="^"/>
-        <parallel var="${OD#}">
-            <step name="Up4-Check-App-${#}"
-                  exec="onos-check-apps ${OC#} org.omecproject.up4 includes"
-                  requires="Up4-App-Install"/>
-            <step name="Up4-Check-Components-${#}" exec="onos-check-components ${OC#}"
-                  delay="5" requires="~Up4-Check-App-${#}"/>
-            <step name="Up4-Check-Logs-${#}" exec="onos-check-logs ${OD#}"
-                  requires="~Up4-Check-App-${#}"/>
-        </parallel>
+        <group name="Install-Up4" requires="Verify">
+            <step name="Up4-Oar-Exists"
+                  exec="test -f ${UP4_ROOT}/app/app/target/up4-app-1.0.0-SNAPSHOT.oar"/>
+            <step name="Up4-App-Install"
+                  exec="onos-app ${OCI} reinstall! ${UP4_ROOT}/app/app/target/up4-app-1.0.0-SNAPSHOT.oar"
+                  delay="5"
+                  requires="^"/>
+            <parallel var="${OD#}">
+                <step name="Up4-Check-App-${#}"
+                      exec="onos-check-apps ${OC#} org.omecproject.up4 includes"
+                      requires="Up4-App-Install"/>
+                <step name="Up4-Set-Log-Debug-${#}"
+                      exec="onos ${OC#} log:set DEBUG org.omecproject.up4"
+                      requires="Up4-App-Install"/>
+                <step name="Up4-Check-Components-${#}" exec="onos-check-components ${OC#}"
+                      delay="5" requires="~Up4-Check-App-${#}"/>
+                <step name="Up4-Check-Logs-${#}" exec="onos-check-logs ${OD#}"
+                      requires="~Up4-Check-App-${#}"/>
+            </parallel>
+        </group>
     </group>
 </scenario>

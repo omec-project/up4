@@ -1,0 +1,4 @@
+#!/bin/bash
+for _ in {1..30}; do
+    onos "$1" "$2" | grep "$3" && break || sleep 1
+done

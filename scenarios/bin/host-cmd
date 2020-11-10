@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
 # Attach to a Mininet host and run a command
+# To be executed inside the Mininet container.
 
 if [ -z $1 ]; then
   echo "usage: $0 host cmd [args...]"

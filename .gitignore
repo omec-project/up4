@@ -13,8 +13,6 @@
 /app/app/src/main/resources/p4info.txt
 /app/dependencies.xml
 /app/mvn_settings.xml
-/app/onos-tools/
-/app/screenlog.0
 /ptf/*.log
 /ptf/*.pcap
 /scenarios/tmp
