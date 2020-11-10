@@ -107,6 +107,23 @@ public final class PacketDetectionRule {
     }
 
     /**
+     * Return a new instance of this PDR with the action parameters stripped, leaving only the match keys.
+     *
+     * @return a new PDR with only match keys
+     */
+    public PacketDetectionRule withoutActionParams() {
+        if (isUplink()) {
+            return PacketDetectionRule.builder()
+                    .withTeid(teid)
+                    .withTunnelDst(tunnelDst)
+                    .build();
+        } else {
+            return PacketDetectionRule.builder()
+                    .withUeAddr(ueAddr).build();
+        }
+    }
+
+    /**
      * True if this PDR matches on packets travelling in the uplink direction, and false otherwise.
      *
      * @return true if the PDR matches only uplink packets
