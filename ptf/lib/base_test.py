@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
 # Copyright 2013-present Barefoot Networks, Inc.
 #
-# SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 # SPDX-License-Identifier: Apache-2.0
 #
 # Antonin Bas (antonin@barefootnetworks.com)

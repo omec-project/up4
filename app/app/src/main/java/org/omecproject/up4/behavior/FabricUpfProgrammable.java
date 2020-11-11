@@ -1,3 +1,7 @@
+/*
+ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+ */
 package org.omecproject.up4.behavior;
 
 import org.omecproject.up4.ForwardingActionRule;
@@ -9,6 +13,7 @@ import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.UpfRuleIdentifier;
+import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
@@ -34,8 +39,6 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.omecproject.up4.impl.SouthConstants;
 
 import java.util.ArrayList;
 import java.util.Collection;

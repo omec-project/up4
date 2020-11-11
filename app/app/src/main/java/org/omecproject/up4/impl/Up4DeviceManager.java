@@ -1,5 +1,5 @@
 /*
- SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4.impl;
@@ -115,7 +115,25 @@ public class Up4DeviceManager implements Up4Service {
         log.info("Stopped.");
     }
 
+    @Override
+    public boolean configIsLoaded() {
+        return config != null;
+    }
+
     public UpfProgrammable getUpfProgrammable() {
+        if (this.upfProgrammable == null) {
+            if (this.config == null) {
+                throw new IllegalStateException(
+                        "No UpfProgrammable set because no app config is available!");
+            } else if (!isUpfDevice(upfDeviceId)) {
+                throw new IllegalStateException(
+                        "No UpfProgrammable set because deviceId present in config is not a valid UPF!");
+            } else {
+                throw new IllegalStateException(
+                        String.format("No UpfProgrammable is set for an unknown reason. Is device %s available?",
+                                upfDeviceId.toString()));
+            }
+        }
         return this.upfProgrammable;
     }
 
@@ -167,6 +185,7 @@ public class Up4DeviceManager implements Up4Service {
             }
 
             log.info("Setup UPF device: {}", deviceId);
+            upfDeviceId = deviceId;
             upfProgrammable = upfProgrammableService; // TODO: change this once UpfProgrammable moves to the onos core
 
             upfProgrammable.cleanUp(appId);
@@ -241,7 +260,12 @@ public class Up4DeviceManager implements Up4Service {
     }
 
     private void upfUpdateConfig(Up4Config config) {
+        if (config == null) {
+            unsetUpfDevice();
+            this.config = null;
+        }
         if (config.isValid()) {
+            log.error("Invalid UP4 config loaded! Cannot set up UPF.");
             upfDeviceId = config.up4DeviceId();
             this.config = config;
             setUpfDevice(upfDeviceId);
@@ -354,7 +378,7 @@ public class Up4DeviceManager implements Up4Service {
                     break;
                 case CONFIG_REMOVED:
                     event.prevConfig().ifPresent(config -> {
-                        unsetUpfDevice();
+                        upfUpdateConfig(null);
                         log.info("{} removed", config.getClass().getSimpleName());
                     });
                     break;

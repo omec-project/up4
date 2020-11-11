@@ -1,5 +1,5 @@
 /*
- SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4;
@@ -27,6 +27,13 @@ public interface Up4Service {
      * @return true if the device is available and false otherwise
      */
     boolean upfProgrammableAvailable();
+
+    /**
+     * True if a valid UP4 app configuration has been loaded, and false otherwise.
+     *
+     * @return true if a valid app config has been loaded
+     */
+    boolean configIsLoaded();
 
     /**
      * Clear all table entries in the UpfProgrammable installed by the UP4 app.
