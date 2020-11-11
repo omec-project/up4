@@ -257,20 +257,23 @@ pfcp-topo-stop:
 	docker-compose -f docker-compose-pfcp.yml down ${STOP_ARGS}
 
 pfcp-messenger-start:
-	docker exec -it scapy screen -d -m -S Messenger /util/pfcp-message.py pfcp
+	docker exec -itd scapy screen -m -S Messenger /util/pfcp-message.py pfcp
 
 pfcp-messenger-associate:
-	docker exec -it scapy screen -S Messenger -p 0 -X stuff "1"
+	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "1"
 
 pfcp-messenger-create-session:
-	docker exec -it scapy screen -S Messenger -p 0 -X stuff "2"
+	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "2"
 
 pfcp-messenger-modify-session:
-	docker exec -it $(shell docker-compose ps -q scapy)	screen -S Messenger -p 0 -X stuff "3"
+	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "3"
 
 pfcp-messenger-release-session:
-	docker exec -it $(shell docker-compose ps -q scapy)	screen -S Messenger -p 0 -X stuff "4"
+	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "4"
 
 pfcp-messenger-stop:
-	docker exec -it $(shell docker-compose ps -q scapy)	screen -S Messenger -p 0 -X stuff "5"
+	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "5"
+
+pfcp-messenger-kill:
+	docker exec -itd scapy screen -X -S Messenger quit
 
