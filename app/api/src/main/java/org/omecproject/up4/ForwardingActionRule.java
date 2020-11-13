@@ -44,6 +44,18 @@ public final class ForwardingActionRule {
         this.type = type;
     }
 
+    /**
+     * Return a new instance of this FAR with the action parameters stripped, leaving only the match keys.
+     *
+     * @return a new FAR with only match keys
+     */
+    public ForwardingActionRule withoutActionParams() {
+        return ForwardingActionRule.builder()
+                .withFarId(farId)
+                .withSessionId(sessionId)
+                .build();
+    }
+
     public static Builder builder() {
         return new Builder();
     }
