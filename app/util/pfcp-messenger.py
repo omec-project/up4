@@ -1,5 +1,8 @@
 #!/usr/bin/python3
+
 # SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
+# SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+#
 # SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
 
 import argparse
@@ -400,6 +403,8 @@ def craft_pfcp_session_delete_packet():
     pfcp_header.seq = get_sequence_num()
 
     deletion_request = pfcp.PFCPSessionDeletionRequest()
+    fseid = craft_fseid(our_seid, our_addr)
+    deletion_request.IE_list.append(fseid)
 
     delete_pkt = IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header / deletion_request
     return delete_pkt
