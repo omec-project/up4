@@ -15,7 +15,7 @@ jobs:
           command: make deps && cd app && make deps
       - run:
           name: Build P4 program
-          command: make build
+          command: make deps build
       - run:
           name: Check if P4Info is up-to-date
           command: |
@@ -31,20 +31,16 @@ jobs:
           command: make check
       - run:
           name: Build ONOS app
-          command: cd app && make build-ci
+          command: cd app && make deps build-ci
       - run:
-          name: App integration test
-          command: |
-            cd scenarios
-            make deps
-            make setup.xml net-setup.xml INTERACTIVE=
-      # FIXME: Should upload as build artifacts instead of printing on screen
+          name: Smoke test
+          command: cd scenarios && make deps smoke.xml stcColor=false
+      - run:
+          name: Dump ONOS logs
+          command: cd app && docker-compose logs onos > tmp/onos.log
+          when: on_fail
       - store_artifacts:
           path: scenarios/tmp
-      - run:
-          name: Print ONOS logs
-          command: cd app && docker logs onos
-          when: on_fail
       - run:
           name: Upload coverage
           command: cd app && bash <(curl -s https://codecov.io/bash)

@@ -36,7 +36,7 @@ deps: build stc-dev-build
 stc-dev-build:
 	rm -rf /tmp/onos-stc
 	cd /tmp && git clone -b quotes --depth 1 https://github.com/opennetworkinglab/onos-stc.git
-	cd /tmp/onos-stc && mvn clean install
+	cd /tmp/onos-stc && mvn -Dmaven.test.skip=true install
 
 # Images used in docker-compose, pull sha-specific tag to maximize chances of reproducible runs.
 # TODO: use non-latest for tost, as harbor doesn't store for long untagged images
