@@ -15,7 +15,7 @@ jobs:
           name: Dependencies
           command: |
             make deps
-            cd app && deps
+            cd app && make deps
             cd ../scenarios && make deps
       - run:
           name: Build P4 program
