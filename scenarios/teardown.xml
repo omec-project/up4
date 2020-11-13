@@ -1,6 +1,10 @@
 <scenario name="teardown" description="Environment teardown">
-    <group name="Teardown">
-        <!-- Do not teardown in CircleCI so we can dump onos logs-->
-        <step name="Docker-Compose-Down" exec="docker-compose down -t0" unless="${CIRCLECI}"/>
+    <group name="Dump-Logs">
+        <parallel var="${OD#}">
+            <step name="Log-Dump-${OD#}"
+                  exec="docker-compose logs ${OD#}"/>
+        </parallel>
     </group>
+    <step name="Docker-Compose-Down" requires="Dump-Logs"
+          exec="docker-compose down -t0"/>
 </scenario>

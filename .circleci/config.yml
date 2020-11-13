@@ -43,10 +43,6 @@ jobs:
             # Avoid Docker setting root permissions on tmp
             mkdir -p ./tmp
             make smoke.xml
-      - run:
-          name: Dump ONOS logs
-          command: cd scenarios && docker-compose logs onos1 > tmp/onos.log
-          when: on_fail
       - store_artifacts:
           path: scenarios/tmp
       - run:
