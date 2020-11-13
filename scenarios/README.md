@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
+SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+-->
+
 # Integration Test Scenarios
 
 This directory contains test scenarios for the ONOS System Test Coordinator (STC) framework.

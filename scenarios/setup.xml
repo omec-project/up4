@@ -1,3 +1,7 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
 <scenario name="setup" description="Environment setup">
     <group name="Setup">
         <step name="Docker-Compose-Up" exec="docker-compose up -d"/>

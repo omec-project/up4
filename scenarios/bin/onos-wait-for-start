@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+
 # Wait until ApplicationManager is available
 for _ in {1..30}; do
     docker-compose logs "$1" | grep "ApplicationManager.*Started" && break || sleep 1

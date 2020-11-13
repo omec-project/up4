@@ -1,3 +1,7 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
 <scenario name="net-setup" description="Network setup">
     <group name="Net-Setup">
         <!-- FIXME: support wipe-out with P4Runtime devices in ONOS.
