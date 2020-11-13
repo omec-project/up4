@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
-
 CURRENT_UID              := $(shell id -u)
 CURRENT_GID              := $(shell id -g)
 MKFILE_PATH              := $(abspath $(lastword $(MAKEFILE_LIST)))
@@ -10,22 +9,13 @@ CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 
 # By default use docker volume to persist mvn cache,
 # but allow passing a directory, e.g., local ~/.m2
-mvn_cache_docker_volume := mvn-cache-${curr_dir_sha}
+mvn_cache_docker_volume := mvn-cache-up4
 MVN_CACHE ?= ${mvn_cache_docker_volume}
-
 MVN_FLAGS ?=
 
-onos_url := http://localhost:8181/onos
-onos_curl := curl --fail -sSL --user onos:rocks --noproxy localhost
-
-onos_tools_dir := ${CURRENT_DIR}/../scenarios/onos-stc/tools/package/runtime/bin/
+onos_tools_dir := ${CURRENT_DIR}/../scenarios/onos-stc/tools/package/runtime/bin
 
 include ../util/docker/Makefile.vars
-
-ONOS_BOOT_TIME := 45
-CONFIG_WAIT_TIME := 10
-PKT_WAIT_TIME := 10
-STOP_ARGS := -t0
 
 _docker_pull_all:
 	docker pull ${MAVEN_IMG}
@@ -69,162 +59,39 @@ build-ci: MVN_FLAGS := -Pci-verify -Pcoverage
 build-ci: build
 
 clean:
-	rm -rf target/
+	rm -rf app/target/
 	rm -rf app/src/main/java/org/omecproject/dbuf/grpc/
 
 p4rt-shell:
-	docker exec -it $(shell docker-compose ps -q p4rtsh)  \
+	cd ../scenarios && docker-compose exec p4rtsh  \
 		/p4runtime-sh/docker_entry_point.sh \
-		-v --grpc-addr onos:51001 \
+		-v --grpc-addr onos1:51001 \
 		--device-id 0 --election-id 0,1
 
 p4rt-set-forwarding:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh ${ARGS} program
+	cd ../scenarios && docker-compose exec p4rtsh /p4rt/do_program.sh program
 
 p4rt-set-buffering:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh --buffer ${ARGS} program
+	cd ../scenarios && docker-compose exec p4rtsh /p4rt/do_program.sh --buffer program
 
 p4rt-clear:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_program.sh ${ARGS} clear
+	cd ../scenarios && docker-compose exec p4rtsh /p4rt/do_program.sh clear
 
 p4rt-bash:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /bin/bash
+	cd ../scenarios && docker-compose exec p4rtsh /bin/bash
 
 iface-clear:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh filter
+	cd ../scenarios && docker-compose exec p4rtsh /p4rt/do_selective_clear.sh filter
 
 pdr-clear:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh pdr
+	cd ../scenarios && docker-compose exec p4rtsh /p4rt/do_selective_clear.sh pdr
 
 far-clear:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh far
+	cd ../scenarios && docker-compose exec p4rtsh /p4rt/do_selective_clear.sh far
 
 app-load:
 	${onos_tools_dir}/onos-app localhost install! app/target/up4-app-1.0.0-SNAPSHOT.oar
 
 app-reload:
 	${onos_tools_dir}/onos-app localhost reinstall! app/target/up4-app-1.0.0-SNAPSHOT.oar
-
-check-slow: ONOS_BOOT_TIME := 75
-check-slow: CONFIG_WAIT_TIME := 30
-check-slow: PKT_WAIT_TIME := 20
-check-slow: STOP_ARGS :=
-check-slow: _check
-
-check: _check
-
-
-_check:
-	make start
-	@echo "*** Giving ONOS time to warm up..."
-	sleep ${ONOS_BOOT_TIME}
-	make check-dbuf-started
-	make onos-config
-	sleep ${CONFIG_WAIT_TIME}
-	make check-dbuf-ready
-	make check-forwarding
-	make check-buffering
-	@echo "**********************************"
-	@echo "** Integration checks passed :D **"
-	@echo "**********************************"
-	make stop STOP_ARGS=${STOP_ARGS}
-
-check-forwarding:
-	@echo "*** Setting forwarding FAR..."
-	make p4rt-set-forwarding
-	sleep 1
-	@echo "*** Sending downlink..."
-	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-and-recv-downlink
-	@echo "*** Sending uplink..."
-	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-and-recv-uplink
-
-check-buffering:
-	@echo "*** Setting buffering FAR..."
-	make p4rt-set-buffering
-	sleep 1
-	@echo "*** Sending 10 downlink pkts..."
-	util/mn-cmd pdn /util/traffic.py send-udp-10
-	docker-compose logs onos | grep "Received FIRST_BUFFER: new_buffer_id: 285212673"
-	rm -f screenlog.0
-	screen -L -d -m util/mn-cmd enodeb /util/traffic.py recv-gtp -t ${PKT_WAIT_TIME}
-	sleep 1
-	@echo "*** Setting forwarding FAR (drain)..."
-	make p4rt-set-forwarding
-	sleep 2
-	docker-compose logs onos | grep "Started dbuf drain for 17.0.0.1"
-	docker-compose logs onos | grep "Dbuf drain completed for 17.0.0.1"
-	@echo "*** Verify delivery of at least one drained pkt..."
-	cat screenlog.0 | grep "140.0.100.254 -> 140.0.100.1, is_gtp_encap=True"
-
-send-and-recv-downlink:
-	@# util/mn-cmd requires a TTY because it uses docker -it option
-	@# hence we use screen for putting it in the background
-	screen -d -m util/mn-cmd pdn /util/traffic.py send-udp
-	util/mn-cmd enodeb /util/traffic.py recv-gtp -t ${PKT_WAIT_TIME}
-	@# kill sending process
-	util/mn-cmd pdn pkill "traffic.py"
-
-send-and-recv-uplink:
-	@# util/mn-cmd requires a TTY because it uses docker -it option
-	@# hence we use screen for putting it in the background
-	screen -d -m util/mn-cmd enodeb /util/traffic.py send-gtp
-	util/mn-cmd pdn /util/traffic.py recv-udp -t ${PKT_WAIT_TIME}
-	@# kill sending process
-	util/mn-cmd enodeb pkill "traffic.py"
-
-
-test-onos-netcfg:
-	${onos_curl} -X POST -H 'Content-Type:application/json' \
-    	${onos_url}/v1/network/configuration -d@./util/ptf-netcfg.json
-
-test-onos-config:
-	#util/onos-cmd app deactivate lldpprovider # the packet injects ruin tests
-	#util/onos-cmd app activate segmentrouting
-	#util/onos-cmd app activate pipelines.fabric
-	#util/onos-cmd app activate netcfghostprovider
-	#util/onos-cmd app activate org.onosproject.protocols.grpc
-	#sleep 1
-	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1
-	sleep 1
-	make test-onos-netcfg
-	sleep 3
-	onos-tools/onos-app localhost install! ./target/up4-app-0.1.oar
-
-
-test-onos-start:
-	docker run --name test-onos-img -d -it --privileged --rm \
-		-e ONOS_APPS=gui2,drivers.bmv2,segmentrouting,pipelines.fabric,hostprovider,netcfghostprovider,org.onosproject.protocols.grpc,fwd \
-		-p 8101:8101 \
-		-p 8181:8181 \
-		-p 51001:51001 \
-		onosproject/onos:2.2-latest
-
-
-test-sw-start:
-	docker run --name test-bmv2-img -d --privileged --rm \
-	  -v "/Users/macdavid/Code/up4/ptf":/ptf -w /ptf \
-	  -v "/Users/macdavid/Code/up4/p4src/build":/p4c-out \
-	  -v "/Users/macdavid/Code/up4/app/util":/util \
-	  --network "container:test-onos-img" \
-	  ccasconeonf/up4-ptf:latest \
-	  ./lib/start_bmv2.sh > /dev/null
-
-test-onos-logs:
-	docker logs -f test-onos-img
-
-test-onos-stop:
-	docker stop -t0 test-onos-img > /dev/null
-
-test-sw-stop:
-	docker stop -t0 test-bmv2-img > /dev/null
-
-test-run-ptf:
-	docker exec test-bmv2-img ./lib/runner.py \
-    --bmv2-json /p4c-out/bmv2.json \
-    --p4info /p4c-out/p4info.bin \
-    --grpc-addr localhost:51001 \
-    --device-id 1 \
-    --ptf-dir ./tests \
-    --cpu-port 255 \
-    --port-map /ptf/lib/port_map.json ${TEST}
 

@@ -4,31 +4,39 @@ CURRENT_DIR := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 include ../util/docker/Makefile.vars
 
 UP4_ROOT    := $(CURRENT_DIR)/..
-ONOS_ROOT   := $(CURRENT_DIR)/onos-stc
+ONOS_ROOT   := $(CURRENT_DIR)/onos
 SCENARIOS   := *.xml
 
-INTERACTIVE ?= true
+# TODO: release 2.6 with support for quotes in step commands
+STC_VERSION ?= 2.6-SNAPSHOT
 
-.PHONY = phony $(SCENARIOS)
-phony:
+.PHONY: $(SCENARIOS)
+.PRECIOUS: $(SCENARIOS)
 
 # Some onos-* commands expect to be able to write in /tmp/stc
 # (e.g., onos-check-components)
 /tmp/stc:
 	@mkdir -p /tmp/stc
 
-$(SCENARIOS): phony /tmp/stc
+$(SCENARIOS): /tmp/stc
 	$(info *** Running STC scenario: $@)
 	@export $(shell cat "${CURRENT_DIR}"/.env | xargs) && \
 		export PATH=${CURRENT_DIR}/bin:${ONOS_ROOT}/tools/test/bin:${ONOS_ROOT}/tools/test/scenarios/bin:${PATH} && \
 		export WORKSPACE=${CURRENT_DIR} && \
 		export ONOS_ROOT=${ONOS_ROOT} && \
 		export UP4_ROOT=${UP4_ROOT} && \
-		stcColor=${INTERACTIVE} stc $@
+		export STC_VERSION=${STC_VERSION} && \
+		stc $@
 
-deps: build
+deps: build stc-dev-build
 	docker-compose pull
-	git submodule update --init --depth 1 onos-stc
+	git submodule update --init --depth 1 onos
+
+#FIXME: remove once 'quotes' branche is merged and 2.6 released:
+stc-dev-build:
+	rm -rf /tmp/onos-stc
+	cd /tmp && git clone -b quotes --depth 1 https://github.com/opennetworkinglab/onos-stc.git
+	cd /tmp/onos-stc && mvn clean install
 
 # Images used in docker-compose, pull sha-specific tag to maximize chances of reproducible runs.
 # TODO: use non-latest for tost, as harbor doesn't store for long untagged images
@@ -37,14 +45,13 @@ _docker_pull:
 	docker tag ${ONOS_IMG}@${ONOS_SHA} ${ONOS_IMG}
 
 build:
-	docker-compose build
+	docker-compose build --pull
 
 reset:
 	-docker-compose down -t0 --remove-orphans
 	-rm -rf ./tmp
 	-rm -rf /tmp/stc
 
-#FIXME: use onos cmd fomr onos-stc
 set-app-info:
 	util/onos-cmd log:set INFO org.omecproject.up4
 
@@ -64,13 +71,6 @@ onos-cli:
 
 onos-log:
 	docker-compose logs -f onos1
-
-# FIXME: use onos-netcfg command from onos-stc
-netcfg:
-	$(info *** Pushing ./util/netcfg.json to ONOS...)
-	${onos_curl} -X POST -H 'Content-Type:application/json' \
-		${onos_url}/v1/network/configuration -d@./util/netcfg.json
-	@echo
 
 onos-ui:
 	open http://localhost:8181/onos/ui

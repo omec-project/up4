@@ -2,8 +2,10 @@
     <import file="./setup.xml"/>
     <import file="./net-setup.xml"/>
     <import file="./forwarding.xml"/>
+    <import file="./buffering.xml"/>
     <import file="./teardown.xml"/>
     <dependency name="Net-Setup" requires="Setup"/>
     <dependency name="Forwarding" requires="Net-Setup"/>
-    <dependency name="Teardown" requires="~Forwarding"/>
+    <dependency name="Buffering" requires="Forwarding"/>
+    <dependency name="Teardown" requires="~Forwarding,~Buffering"/>
 </scenario>

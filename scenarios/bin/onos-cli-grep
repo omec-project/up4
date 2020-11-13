@@ -1,4 +1,10 @@
 #!/bin/bash
+set -x
+
+node=$1
+cliCmd=$2
+findString=$3
 for _ in {1..30}; do
-    onos "$1" "$2" | grep "$3" && break || sleep 1
+    onos "$node" "$cliCmd" | grep "$findString" && exit 0 || sleep 1
 done
+exit 1
