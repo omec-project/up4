@@ -67,30 +67,8 @@ Next, go to the section on sending and receiving packets.
 ## Setting up a test using UP4 P4Runtime calls
 This is the second way to test the app, which uses both the northbound and southbound.
 
-Download dependencies. This only needs to be done once:
-
-    $ make deps
-
-Build app:
-
-    $ make build
-    
-Use STC scenarios to start Mininet and ONOS:
-
-    $ cd ../scenarios
-    $ make setup.xml net-setup.xml  
-
-setup.xml includes steps to install the local build of the up4 app.
-
-To re-install the app, e.g., after a new build, without re-starting ONOS:
-
-    $ make app-reload
-    
-View ONOS logs
-    
-    $ make onos-log
-    
-Install table entries via p4runtime-shell
+The initial steps are the same as the previous case. Instead of using the ONOS CLI to install table
+entries, you can do the same by suing the p4runtime-shell:
 
     $ make p4rt-set-forwarding
     

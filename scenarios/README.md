@@ -42,7 +42,7 @@ Download dependencies (do only once):
 
 Run the smoke scenario:
     
-    make smoke.xml**
+    make smoke.xml
 
 This scenario is used to verify UP4 app builds. It included a non-exhaustive set of tests that aim
 at ensuring that the most important functions work. Some functions tested in this scenario

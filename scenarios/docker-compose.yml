@@ -39,7 +39,7 @@ services:
       - "50004:50004"
       - "10000:10000" # dbuf service
   onos1:
-    # Use tost image which comes with latest trellis apps
+    # Tost image comes with latest trellis apps
     image: registry.aetherproject.org/tost/tost:stable
     hostname: onos1
     container_name: onos1
