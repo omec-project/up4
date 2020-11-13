@@ -53,7 +53,7 @@ public class FabricUpfProgrammableTest {
         for (var readPdr : installedPdrs) {
             assertThat(readPdr, equalTo(expectedPdr));
         }
-        upfProgrammable.removePdr(expectedPdr);
+        upfProgrammable.removePdr(expectedPdr.withoutActionParams());
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
     }
 
@@ -67,7 +67,7 @@ public class FabricUpfProgrammableTest {
         for (var readPdr : installedPdrs) {
             assertThat(readPdr, equalTo(expectedPdr));
         }
-        upfProgrammable.removePdr(expectedPdr);
+        upfProgrammable.removePdr(expectedPdr.withoutActionParams());
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
     }
 
@@ -81,7 +81,7 @@ public class FabricUpfProgrammableTest {
         for (var readFar : installedFars) {
             assertThat(readFar, equalTo(expectedFar));
         }
-        upfProgrammable.removeFar(expectedFar);
+        upfProgrammable.removeFar(expectedFar.withoutActionParams());
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
     }
 
@@ -95,7 +95,7 @@ public class FabricUpfProgrammableTest {
         for (var readFar : installedFars) {
             assertThat(readFar, equalTo(expectedFar));
         }
-        upfProgrammable.removeFar(expectedFar);
+        upfProgrammable.removeFar(expectedFar.withoutActionParams());
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
     }
 

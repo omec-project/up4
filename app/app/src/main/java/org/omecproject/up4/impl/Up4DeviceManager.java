@@ -275,11 +275,12 @@ public class Up4DeviceManager implements Up4Service {
             this.config = null;
         }
         if (config.isValid()) {
-            log.error("Invalid UP4 config loaded! Cannot set up UPF.");
             upfDeviceId = config.up4DeviceId();
             this.config = config;
             setUpfDevice(upfDeviceId);
             setUpDbufClient(config.dbufServiceAddr(), config.dbufDataplaneAddr());
+        } else {
+            log.error("Invalid UP4 config loaded! Cannot set up UPF.");
         }
 
     }
