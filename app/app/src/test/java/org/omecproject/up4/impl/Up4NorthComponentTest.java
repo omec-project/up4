@@ -10,7 +10,6 @@ import io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
 import org.omecproject.up4.UpfProgrammable;
-import org.omecproject.up4.UpfProgrammableException;
 import org.omecproject.up4.behavior.TestConstants;
 import org.omecproject.up4.behavior.Up4TranslatorImpl;
 import org.onosproject.net.pi.model.PiCounterId;
@@ -296,63 +295,63 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkFarReadTest() throws UpfProgrammableException {
+    public void downlinkFarReadTest() throws Exception {
         upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
         readTest(TestConstants.UP4_DOWNLINK_FAR);
     }
 
     @Test
-    public void uplinkFarReadTest() throws UpfProgrammableException {
+    public void uplinkFarReadTest() throws Exception {
         upfProgrammable.addFar(TestConstants.UPLINK_FAR);
         readTest(TestConstants.UP4_UPLINK_FAR);
     }
 
     @Test
-    public void downlinkPdrReadTest() throws UpfProgrammableException {
+    public void downlinkPdrReadTest() throws Exception {
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         readTest(TestConstants.UP4_DOWNLINK_PDR);
     }
 
     @Test
-    public void uplinkPdrReadTest() throws UpfProgrammableException {
+    public void uplinkPdrReadTest() throws Exception {
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         readTest(TestConstants.UP4_UPLINK_PDR);
     }
 
     @Test
-    public void downlinkInterfaceReadTest() throws UpfProgrammableException {
+    public void downlinkInterfaceReadTest() throws Exception {
         upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
         readTest(TestConstants.UP4_DOWNLINK_INTERFACE);
     }
 
     @Test
-    public void uplinkInterfaceReadTest() throws UpfProgrammableException {
+    public void uplinkInterfaceReadTest() throws Exception {
         upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
         readTest(TestConstants.UP4_UPLINK_INTERFACE);
     }
 
     @Test
-    public void downlinkFarInsertionTest() throws UpfProgrammableException {
+    public void downlinkFarInsertionTest() {
         PiTableEntry entry = TestConstants.UP4_DOWNLINK_FAR;
         insertionTest(entry);
         assertThat(upfProgrammable.getInstalledFars().size(), equalTo(1));
     }
 
     @Test
-    public void downlinkFarDeletionTest() throws UpfProgrammableException {
+    public void downlinkFarDeletionTest() throws Exception {
         upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
         deletionTest(TestConstants.UP4_DOWNLINK_FAR);
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
     }
 
     @Test
-    public void uplinkFarInsertionTest() throws UpfProgrammableException {
+    public void uplinkFarInsertionTest() {
         insertionTest(TestConstants.UP4_UPLINK_FAR);
         assertThat(upfProgrammable.getInstalledFars().size(), equalTo(1));
     }
 
     @Test
-    public void uplinkFarDeletionTest() throws UpfProgrammableException {
+    public void uplinkFarDeletionTest() throws Exception {
         upfProgrammable.addFar(TestConstants.UPLINK_FAR);
         deletionTest(TestConstants.UP4_UPLINK_FAR);
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
@@ -365,7 +364,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkPdrDeletionTest() throws UpfProgrammableException {
+    public void downlinkPdrDeletionTest() throws Exception {
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         deletionTest(TestConstants.UP4_DOWNLINK_PDR);
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
@@ -378,7 +377,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkPdrDeletionTest() throws UpfProgrammableException {
+    public void uplinkPdrDeletionTest() throws Exception {
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         deletionTest(TestConstants.UP4_UPLINK_PDR);
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
@@ -391,7 +390,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkInterfaceDeletionTest() throws UpfProgrammableException {
+    public void downlinkInterfaceDeletionTest() throws Exception {
         upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
         deletionTest(TestConstants.UP4_DOWNLINK_INTERFACE);
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
@@ -405,7 +404,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkInterfaceDeletionTest() throws UpfProgrammableException {
+    public void uplinkInterfaceDeletionTest() throws Exception {
         upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
         deletionTest(TestConstants.UP4_UPLINK_INTERFACE);
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());

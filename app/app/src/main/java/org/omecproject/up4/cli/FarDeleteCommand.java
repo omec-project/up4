@@ -9,7 +9,6 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.Up4Service;
-import org.omecproject.up4.UpfProgrammableException;
 import org.onosproject.cli.AbstractShellCommand;
 
 /**
@@ -41,7 +40,7 @@ public class FarDeleteCommand extends AbstractShellCommand {
         print("Deleting %s", far.toString());
         try {
             app.getUpfProgrammable().removeFar(far);
-        } catch (UpfProgrammableException e) {
+        } catch (Exception e) {
             print("Command failed with error: " + e.getMessage());
         }
     }

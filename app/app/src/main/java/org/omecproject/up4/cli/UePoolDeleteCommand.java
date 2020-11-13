@@ -9,7 +9,6 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfInterface;
-import org.omecproject.up4.UpfProgrammableException;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.cli.AbstractShellCommand;
 
@@ -35,7 +34,7 @@ public class UePoolDeleteCommand extends AbstractShellCommand {
         print("Deleting UE IPv4 address pool prefix: %s", poolPrefix);
         try {
             app.getUpfProgrammable().removeInterface(UpfInterface.createUePoolFrom(poolPrefix));
-        } catch (UpfProgrammableException e) {
+        } catch (Exception e) {
             print("Command failed with error: " + e.getMessage());
         }
     }

@@ -89,15 +89,17 @@ public interface UpfProgrammable {
      * Add a Packet Detection Rule (PDR) to the given device.
      *
      * @param pdr The PDR to be added
-     * @throws UpfProgrammableException if the PDR cannot be translated to a table entry and inserted
+     * @throws Up4Translator.Up4TranslationException if the PDR cannot be translated
+     * @throws UpfProgrammableException              if the PDR cannot be be installed, or the counter index
+     *                                               is out of bounds
      */
-    void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException;
+    void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
 
     /**
      * Remove a previously installed Packet Detection Rule (PDR) from the target device.
      *
      * @param pdr The PDR to be removed
-     * @throws UpfProgrammableException if the PDR cannot be translated or the entry cannot be found
+     * @throws UpfProgrammableException if the PDR cannot be found
      */
     void removePdr(PacketDetectionRule pdr) throws UpfProgrammableException;
 
@@ -105,15 +107,16 @@ public interface UpfProgrammable {
      * Add a Forwarding Action Rule (FAR) to the given device.
      *
      * @param far The FAR to be added
-     * @throws UpfProgrammableException if the FAR cannot be translated to a table entry and inserted
+     * @throws Up4Translator.Up4TranslationException if the FAR cannot be translated
+     * @throws UpfProgrammableException              if the FAR cannot be installed
      */
-    void addFar(ForwardingActionRule far) throws UpfProgrammableException;
+    void addFar(ForwardingActionRule far) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
 
     /**
      * Remove a previously installed Forwarding Action Rule (FAR) from the target device.
      *
      * @param far The FAR to be removed
-     * @throws UpfProgrammableException if the FAR cannot be translated or the entry cannot be found
+     * @throws UpfProgrammableException if the FAR cannot be found
      */
     void removeFar(ForwardingActionRule far) throws UpfProgrammableException;
 
@@ -121,15 +124,16 @@ public interface UpfProgrammable {
      * Install a new interface on the UPF device's interface lookup tables.
      *
      * @param upfInterface the interface to install
-     * @throws UpfProgrammableException if the interface cannot be translated to a table entry and inserted
+     * @throws Up4Translator.Up4TranslationException if the interface cannot be translated
+     * @throws UpfProgrammableException              if the interface cannot be installed
      */
-    void addInterface(UpfInterface upfInterface) throws UpfProgrammableException;
+    void addInterface(UpfInterface upfInterface) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
 
     /**
      * Remove a previously installed UPF interface from the target device.
      *
      * @param upfInterface the interface to be removed
-     * @throws UpfProgrammableException if the interface cannot be translated or the entry cannot be found
+     * @throws UpfProgrammableException if the interface cannot be found
      */
     void removeInterface(UpfInterface upfInterface) throws UpfProgrammableException;
 

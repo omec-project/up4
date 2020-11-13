@@ -9,7 +9,6 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.Up4Service;
-import org.omecproject.up4.UpfProgrammableException;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
 
@@ -50,7 +49,7 @@ public class PdrDeleteCommand extends AbstractShellCommand {
         print("Removing %s from UPF", pdr.toString());
         try {
             app.getUpfProgrammable().removePdr(pdrBuilder.build());
-        } catch (UpfProgrammableException e) {
+        } catch (Exception e) {
             print("Command failed with error: " + e.getMessage());
         }
     }

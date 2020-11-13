@@ -8,7 +8,6 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfFlow;
-import org.omecproject.up4.UpfProgrammableException;
 import org.onosproject.cli.AbstractShellCommand;
 
 import java.util.Collection;
@@ -31,7 +30,7 @@ public class ReadFlowsCommand extends AbstractShellCommand {
                 print(flow.toString());
             }
             print("%d flows found", flows.size());
-        } catch (UpfProgrammableException e) {
+        } catch (Exception e) {
             print("Command failed with error: " + e.getMessage());
         }
     }

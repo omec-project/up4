@@ -9,7 +9,6 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfInterface;
-import org.omecproject.up4.UpfProgrammableException;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.cli.AbstractShellCommand;
 
@@ -35,7 +34,7 @@ public class InterfaceInsertCommand extends AbstractShellCommand {
         print("Adding S1U interface address: %s", s1uPrefix.toString());
         try {
             app.getUpfProgrammable().addInterface(UpfInterface.createS1uFrom(s1uPrefix));
-        } catch (UpfProgrammableException e) {
+        } catch (Exception e) {
             print("Command failed with error: " + e.getMessage());
         }
     }

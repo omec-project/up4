@@ -154,7 +154,7 @@ public class Up4NorthComponent {
                     .asException();
         } catch (UpfProgrammableException e) {
             log.warn("Failed to complete deletion request: {}", e.getMessage());
-            throw io.grpc.Status.INVALID_ARGUMENT
+            throw io.grpc.Status.UNAVAILABLE
                     .withDescription(e.getMessage())
                     .asException();
         }
@@ -185,7 +185,7 @@ public class Up4NorthComponent {
                 ForwardingActionRule far = up4Translator.up4EntryToFar(entry);
                 up4Service.getUpfProgrammable().addFar(far);
             } else {
-                log.warn("Received unsupported table entry for table {} in UP4 write request:", entry.table().id());
+                log.warn("Received entry for unsupported table in UP4 write request: {}", entry.table().id());
                 throw io.grpc.Status.INVALID_ARGUMENT
                         .withDescription("Write request was for an unknown table.")
                         .asException();
@@ -197,7 +197,7 @@ public class Up4NorthComponent {
                     .asException();
         } catch (UpfProgrammableException e) {
             log.warn("Failed to complete table entry insertion request: {}", e.getMessage());
-            throw io.grpc.Status.INVALID_ARGUMENT
+            throw io.grpc.Status.UNAVAILABLE
                     .withDescription(e.getMessage())
                     .asException();
         }
@@ -252,7 +252,7 @@ public class Up4NorthComponent {
         } catch (Up4Translator.Up4TranslationException | CodecException e) {
             log.warn("Unable to encode/translate a read entry to a UP4 read response: {}",
                     e.getMessage());
-            throw io.grpc.Status.INTERNAL
+            throw io.grpc.Status.INVALID_ARGUMENT
                     .withDescription("Unable to translate a read table entry to a p4runtime entity.")
                     .asException();
         }

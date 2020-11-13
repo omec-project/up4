@@ -7,6 +7,7 @@ package org.omecproject.up4.impl;
 import org.omecproject.dbuf.client.DbufClient;
 import org.omecproject.dbuf.client.DefaultDbufClient;
 import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.UpfProgrammableException;
@@ -232,7 +233,7 @@ public class Up4DeviceManager implements Up4Service {
                 log.warn("{} is missing from device! Installing", iface);
                 try {
                     upfProgrammable.addInterface(iface);
-                } catch (UpfProgrammableException e) {
+                } catch (UpfProgrammableException | Up4Translator.Up4TranslationException e) {
                     log.warn("Failed to insert interface: {}", e.getMessage());
                 }
             }
@@ -245,7 +246,7 @@ public class Up4DeviceManager implements Up4Service {
         for (UpfInterface iface : configFileInterfaces()) {
             try {
                 upfProgrammable.addInterface(iface);
-            } catch (UpfProgrammableException e) {
+            } catch (UpfProgrammableException | Up4Translator.Up4TranslationException e) {
                 log.warn("Failed to insert interface: {}", e.getMessage());
             }
         }
