@@ -13,10 +13,13 @@ jobs:
           command: docker login registry.aetherproject.org -u $AETHER_DOCKER_USER -p $AETHER_DOCKER_PASSWORD
       - run:
           name: Dependencies
-          command: make deps && cd app && make deps
+          command: |
+            make deps
+            cd app && deps
+            cd ../scenarios && make deps
       - run:
           name: Build P4 program
-          command: make deps build
+          command: make build
       - run:
           name: Check if P4Info is up-to-date
           command: |
@@ -32,13 +35,17 @@ jobs:
           command: make check
       - run:
           name: Build ONOS app
-          command: cd app && make deps build-ci
+          command: cd app && make build-ci
       - run:
           name: Smoke test
-          command: cd scenarios && make deps smoke.xml stcColor=false
+          command: |
+            cd scenarios
+            # Avoid Docker setting root permissions on tmp
+            mkdir -p ./tmp
+            make smoke.xml
       - run:
           name: Dump ONOS logs
-          command: cd app && docker-compose logs onos > tmp/onos.log
+          command: cd scenarios && docker-compose logs onos1 > tmp/onos.log
           when: on_fail
       - store_artifacts:
           path: scenarios/tmp

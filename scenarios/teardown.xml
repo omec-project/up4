@@ -1,5 +1,6 @@
 <scenario name="teardown" description="Environment teardown">
     <group name="Teardown">
-        <step name="Docker-Compose-Down" exec="docker-compose down -t0"/>
+        <!-- Do not teardown in CircleCI so we can dump onos logs-->
+        <step name="Docker-Compose-Down" exec="docker-compose down -t0" unless="${CIRCLECI}"/>
     </group>
 </scenario>

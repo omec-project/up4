@@ -21,7 +21,7 @@ STC_VERSION ?= 2.6-SNAPSHOT
 $(SCENARIOS): /tmp/stc
 	$(info *** Running STC scenario: $@)
 	@export $(shell cat "${CURRENT_DIR}"/.env | xargs) && \
-		export PATH=${CURRENT_DIR}/bin:${ONOS_ROOT}/tools/test/bin:${ONOS_ROOT}/tools/test/scenarios/bin:${PATH} && \
+		export PATH=${CURRENT_DIR}/bin:${ONOS_ROOT}/tools/test/bin:${ONOS_ROOT}/tools/test/scenarios/bin:${ONOS_ROOT}/tools/package/runtime/bin:${PATH} && \
 		export WORKSPACE=${CURRENT_DIR} && \
 		export ONOS_ROOT=${ONOS_ROOT} && \
 		export UP4_ROOT=${UP4_ROOT} && \
