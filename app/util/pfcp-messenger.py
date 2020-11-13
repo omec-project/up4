@@ -2,28 +2,27 @@
 # SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
 # SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
 
-from scapy import all as scapy
-from scapy.layers.inet import IP, UDP
-from scapy.contrib import pfcp
-import socket
-import time
 import argparse
-import ifcfg
-import signal
+import socket
 import struct
-
+import time
+from ipaddress import IPv4Network, IPv4Address, AddressValueError
 from threading import Lock, Thread
-from ipaddress import IPv4Network, IPv4Address
 
+import ifcfg
+from scapy import all as scapy
+from scapy.contrib import pfcp
+from scapy.layers.inet import IP, UDP
 
 # Global non-constants
 sock: socket.socket = None
 our_addr: str = ""
 peer_addr: str = ""
-our_seid: int = 1
-peer_seid: int = 1
+our_seid: int = 1  # actually constant but placed here due to relevance
+peer_seid: int = -1
 sequence_number: int = 0
 thread_lock = Lock()
+association_established = True
 session_terminated = False
 # End global non-constants
 
@@ -34,22 +33,17 @@ for num, name in pfcp.PFCPmessageType.items():
 HEARTBEAT_PERIOD = 5  # in seconds
 
 UDP_PORT_PFCP = 8805
-TEID = 255
 
 IFACE_ACCESS = 0
 IFACE_CORE = 1
 
-UE_IPV4 = '17.0.0.1'
+PDR_PRECEDENCE = 2
 
-S1U_IPV4 = '140.0.100.254'
-ENODEB_IPV4 = '140.0.100.1'
 
-PDR_PRECEDENCE=2
-
-def get_addresses_from_prefix(prefix : IPv4Network, count : int):
+def get_addresses_from_prefix(prefix: IPv4Network, count: int):
     # Currently this doesn't allow the address with host bits all 0,
     #  so the first host address is (prefix_addr & mask) + 1
-    if count >= 2**(prefix.max_prefixlen - prefix.prefixlen):
+    if count >= 2 ** (prefix.max_prefixlen - prefix.prefixlen):
         raise Exception("trying to generate more addresses than a prefix contains!")
     base_addr = ip2int(prefix.network_address) + 1
     offset = 0
@@ -58,11 +52,11 @@ def get_addresses_from_prefix(prefix : IPv4Network, count : int):
         offset += 1
 
 
-def ip2int(addr : IPv4Address):
+def ip2int(addr: IPv4Address):
     return struct.unpack("!I", addr.packed)[0]
 
 
-def int2ip(addr : int):
+def int2ip(addr: int):
     return IPv4Address(addr)
 
 
@@ -93,15 +87,15 @@ def craft_fseid(seid, address):
 
 
 def craft_pdr(id, far_id, qer_id, urr_id, src_iface, update=False,
-              ue_addr=None, from_tunnel=False, tunnel_dst=None, teid=None):
+              ue_addr=None, from_tunnel=False, tunnel_dst=None, teid=None, precedence=2):
     ###
     pdr = pfcp.IE_CreatePDR() if not update else pfcp.IE_UpdatePDR()
     pdr_id = pfcp.IE_PDR_Id()
     pdr_id.id = id
     pdr.IE_list.append(pdr_id)
-    priority = pfcp.IE_Precedence()
-    priority.precedence = PDR_PRECEDENCE
-    pdr.IE_list.append(priority)
+    _precedence = pfcp.IE_Precedence()
+    _precedence.precedence = precedence
+    pdr.IE_list.append(_precedence)
 
     # Packet Detection Information
     pdi = pfcp.IE_PDI()
@@ -113,8 +107,7 @@ def craft_pdr(id, far_id, qer_id, urr_id, src_iface, update=False,
 
     if from_tunnel:
         if tunnel_dst is None or teid is None:
-            print("ERROR: tunnel dst and teid should be provided for tunnel PDR")
-            return None
+            raise Exception("ERROR: tunnel dst and teid should be provided for tunnel PDR")
         # Add the F-TEID to the PDI
         fteid = pfcp.IE_FTEID()
         fteid.V4 = 1
@@ -127,8 +120,7 @@ def craft_pdr(id, far_id, qer_id, urr_id, src_iface, update=False,
         pdr.IE_list.append(outer_header_removal)
     else:
         if ue_addr is None:
-            print("UE address required for downlink PDRs!")
-            return None
+            raise Exception("UE address required for downlink PDRs!")
         ## Add UE IPv4 address to the PDI
         _ue_addr = pfcp.IE_UE_IP_Address()
         _ue_addr.V1 = 1
@@ -183,7 +175,7 @@ def craft_far(id, update=False, forward_flag=False, drop_flag=False, buffer_flag
 
     if tunnel:
         if tunnel_dst is None or teid is None:
-            print("ERROR: tunnel dst and teid should be provided for tunnel FAR")
+            raise Exception("ERROR: tunnel dst and teid should be provided for tunnel FAR")
         outer_header = pfcp.IE_OuterHeaderCreation()
         outer_header.GTPUUDPIPV4 = 1
         outer_header.ipv4 = tunnel_dst
@@ -225,7 +217,7 @@ def craft_urr(id, quota, threshold, update=False):
     urr.IE_list.append(urr_id)
     # Measurement Method
     measure_method = pfcp.IE_MeasurementMethod()
-    measure_method.VOLUM=1
+    measure_method.VOLUM = 1
     urr.IE_list.append(measure_method)
     # Report trigger
     report_trigger = pfcp.IE_ReportingTriggers()
@@ -290,7 +282,7 @@ def add_rules_to_request(args, request, update=False, add_pdrs=False, add_fars=F
         if add_pdrs:
             pdr1 = craft_pdr(id=pdr_id1, far_id=far_id1, qer_id=qer_id1, urr_id=urr_id1,
                              src_iface=IFACE_ACCESS, from_tunnel=True, teid=teid1, tunnel_dst=args.s1u_addr,
-                             update=update)
+                             update=update, precedence=args.pdr_precedence)
             request.IE_list.append(pdr1)
             pdr2 = craft_pdr(id=pdr_id2, far_id=far_id2, qer_id=qer_id2, urr_id=urr_id2,
                              src_iface=IFACE_CORE, from_tunnel=False, ue_addr=ue_addr,
@@ -298,10 +290,12 @@ def add_rules_to_request(args, request, update=False, add_pdrs=False, add_fars=F
             request.IE_list.append(pdr2)
 
         if add_fars:
-            far1 = craft_far(id=far_id1, update=update, forward_flag=True, tunnel=False, dst_iface=IFACE_CORE)
+            far1 = craft_far(id=far_id1, update=update, forward_flag=True, dst_iface=IFACE_CORE, tunnel=False)
             request.IE_list.append(far1)
+            # The downlink FAR should only tunnel if this is an update message. Our PFCP agent does not support
+            #  outer header creation on session establishment, only session modification
             far2 = craft_far(id=far_id2, update=update, forward_flag=True, dst_iface=IFACE_ACCESS,
-                             tunnel=True, tunnel_dst=args.enb_addr, teid=teid2)
+                             tunnel=update, tunnel_dst=args.enb_addr, teid=teid2)
             request.IE_list.append(far2)
 
         if add_qers:
@@ -349,6 +343,8 @@ def craft_pfcp_session_modify_packet(args):
     pfcp_header.version = 1
     pfcp_header.S = 1
     pfcp_header.message_type = MSG_TYPES["session_modification_request"]
+    if peer_seid == -1:
+        print("WARNING: Peer SEID has not yet been received!")
     pfcp_header.seid = peer_seid
     pfcp_header.seq = get_sequence_num()
 
@@ -366,30 +362,40 @@ def craft_pfcp_session_delete_packet():
     pfcp_header.version = 1
     pfcp_header.S = 1
     pfcp_header.message_type = MSG_TYPES["session_deletion_request"]
+    if peer_seid == -1:
+        print("WARNING: Peer SEID has not yet been received!")
     pfcp_header.seid = peer_seid
     pfcp_header.seq = get_sequence_num()
 
-    delete_pkt = IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header
+    deletion_request = pfcp.PFCPSessionDeletionRequest()
+
+    delete_pkt = IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header / deletion_request
     return delete_pkt
 
 
-def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, quiet=True):
-    global peer_addr, peer_seid
+def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, verbosity=0):
+    """
+    Send the given PFCP packet out the global socket, and wait for a response with the given PFCP message type.
+    :param pkt: The packet to be sent out the global socket
+    :param expected_response_type: The expected PFCP message type of the response
+    :param verbosity: 0 for no printing, 1 to print some stuff, 2 to print the dissected sent and received packets
+    :return: None
+    """
+    global peer_seid
 
-    if not quiet:
+    if verbosity > 1:
         pkt.show()
-    verbosity = 0 if quiet else 1
     scapy.send(pkt, verbose=verbosity)
     data, addr = sock.recvfrom(1024)  # buffer size is 1024 bytes
-    if not quiet:
+    if verbosity > 0:
         print("Received message: %s" % data)
     response = pfcp.PFCP()
     response.dissect(data)
-    if not quiet:
+    if verbosity > 1:
         response.show()
     if response.message_type == expected_response_type:
         for ie in response.payload.IE_list:
-            if not quiet:
+            if verbosity > 0:
                 if ie.ie_type == 60:
                     print("decoded node type : ", ie)
                 elif ie.ie_type == 19:
@@ -403,21 +409,20 @@ def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, quiet=True):
                     print("decoded ip resource information received")
             if ie.ie_type == 57:
                 peer_seid = int(ie.seid)
-                print("Peer addr: %s, Peer SEID: %d" % (peer_addr, peer_seid))
     else:
         print("ERROR: Expected response of type %s but received %s"
               % (pfcp.PFCPmessageType[expected_response_type], pfcp.PFCPmessageType[response.message_type]))
 
 
 def setup_pfcp_association(args):
+    global association_established
     pkt = craft_pfcp_association_setup_packet()
     send_recv_pfcp(pkt, MSG_TYPES["association_setup_response"])
+    association_established = True
 
 
 def establish_pfcp_session(args):
-    print("Crafting packet")
     pkt = craft_pfcp_session_est_packet(args)
-    print("Done crafting packet")
     send_recv_pfcp(pkt, MSG_TYPES["session_establishment_response"])
 
 
@@ -427,15 +432,22 @@ def modify_pfcp_session(args):
 
 
 def delete_pfcp_session(args):
+    global association_established
     pkt = craft_pfcp_session_delete_packet()
+    association_established = False
     send_recv_pfcp(pkt, MSG_TYPES["session_deletion_response"])
 
 
 def send_pfcp_heartbeats():
     while True:
-        time.sleep(HEARTBEAT_PERIOD)
-        if session_terminated:
-            return
+        for _ in range(HEARTBEAT_PERIOD):
+            # semi-busy wait
+            time.sleep(1)
+            if session_terminated:
+                return
+        if not association_established:
+            # Don't heartbeat unless an association is currently established
+            continue
         pfcp_header = pfcp.PFCP()
         pfcp_header.version = 1
         pfcp_header.S = 0  # SEID flag false
@@ -447,13 +459,13 @@ def send_pfcp_heartbeats():
         heartbeat.IE_list.append(pfcp.IE_RecoveryTimeStamp())
 
         pkt = IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header / heartbeat
-        send_recv_pfcp(pkt, MSG_TYPES["heartbeat_response"], quiet=True)
-        print("Heartbeat.")
+        send_recv_pfcp(pkt, MSG_TYPES["heartbeat_response"], verbosity=0)
 
 
 class ArgumentParser(argparse.ArgumentParser):
 
     def error(self, message):
+        # This override stops the argument parser from calling exit() on error
         raise Exception("Bad parser arguments.")
 
 
@@ -489,6 +501,8 @@ def get_option_parser():
     parser.add_argument("--qer-base", type=int, default=1,
                         help="The first QER ID to use for the first UE. " +
                              "Further counter indices will be generated by incrementing.")
+    parser.add_argument("--pdr-precedence", type=int, default=2,
+                        help="The priority/precedence of PDRs.")
     return parser
 
 
@@ -504,16 +518,12 @@ def handle_user_input():
         print("4 - Release PFCP Session ")
         print("5 - Exit test ")
         try:
-            print("ONE")
             args = parser.parse_args(input("Enter your option : "))
-            print("TWO")
         except Exception as e:
-            print("THREE")
             print(e)
             parser.print_help()
             continue
         try:
-            print("address:", peer_addr)
             if args.option == 1:
                 print("Selected option 1 - Setup Association")
                 setup_pfcp_association(args)
@@ -531,10 +541,14 @@ def handle_user_input():
                 delete_pfcp_session(args)
                 print("Done deletion")
             elif args.option == 5:
-                session_terminated = True
                 print("Selected option 5. Exiting program")
+                if association_established:
+                    print("Exiting before association deleted. Deleting..")
+                    delete_pfcp_session(args)
+                session_terminated = True
                 return
         except Exception as e:
+            # Catch the exception just long enough to signal the heartbeat thread to end
             session_terminated = True
             raise e
 
@@ -546,9 +560,16 @@ def main():
     sock = open_socket(our_addr)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("upfaddr", help="UPF address")
+    parser.add_argument("upfaddr", help="Address or hostname of the UPF")
     args = parser.parse_args()
-    peer_addr = socket.gethostbyname(args.upfaddr)
+    try:
+        peer_addr = socket.gethostbyname(args.upfaddr)
+    except socket.gaierror as e:
+        try:
+            peer_addr = str(IPv4Address(args.upfaddr))
+        except AddressValueError as e:
+            print("Argument must be a valid hostname or address")
+            exit(1)
 
     thread1 = Thread(target=handle_user_input)
     thread2 = Thread(target=send_pfcp_heartbeats)
