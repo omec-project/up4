@@ -8,13 +8,14 @@ import struct
 import time
 from ipaddress import IPv4Network, IPv4Address, AddressValueError
 from threading import Lock, Thread
+# Global non-constants
+from typing import Dict
 
 import ifcfg
 from scapy import all as scapy
 from scapy.contrib import pfcp
 from scapy.layers.inet import IP, UDP
 
-# Global non-constants
 sock: socket.socket = None
 our_addr: str = ""
 peer_addr: str = ""
@@ -24,6 +25,10 @@ sequence_number: int = 0
 thread_lock = Lock()
 association_established = True
 session_terminated = False
+sent_pdrs = {}
+sent_fars = {}
+sent_urrs = {}
+sent_qers = {}
 # End global non-constants
 
 MSG_TYPES = {}
@@ -31,13 +36,32 @@ for num, name in pfcp.PFCPmessageType.items():
     MSG_TYPES[name] = num
 
 HEARTBEAT_PERIOD = 5  # in seconds
-
 UDP_PORT_PFCP = 8805
-
 IFACE_ACCESS = 0
 IFACE_CORE = 1
 
-PDR_PRECEDENCE = 2
+
+def already_sent(rule_id: int, rule: pfcp.IE_Compound, sent_rule_map: Dict[int, pfcp.IE_Compound]):
+    """
+    Check if the soon-to-be-sent rule has been previously sent to the PFCP agent,
+    and then optimistically store the rule as sent
+    :param rule_id: the ID of the rule that will soon be sent
+    :param rule: the rule that will soon be sent
+    :param sent_rule_map: the rule_id->rule mapping of previously sent rules
+    :return:
+    """
+    previous_rule = sent_rule_map.get(rule_id, None)
+    sent_rule_map[rule_id] = rule
+    if previous_rule is None:
+        return False
+    return previous_rule == rule
+
+
+def clear_sent_rules():
+    sent_pdrs.clear()
+    sent_fars.clear()
+    sent_urrs.clear()
+    sent_qers.clear()
 
 
 def get_addresses_from_prefix(prefix: IPv4Network, count: int):
@@ -88,7 +112,6 @@ def craft_fseid(seid, address):
 
 def craft_pdr(id, far_id, qer_id, urr_id, src_iface, update=False,
               ue_addr=None, from_tunnel=False, tunnel_dst=None, teid=None, precedence=2):
-    ###
     pdr = pfcp.IE_CreatePDR() if not update else pfcp.IE_UpdatePDR()
     pdr_id = pfcp.IE_PDR_Id()
     pdr_id.id = id
@@ -121,7 +144,7 @@ def craft_pdr(id, far_id, qer_id, urr_id, src_iface, update=False,
     else:
         if ue_addr is None:
             raise Exception("UE address required for downlink PDRs!")
-        ## Add UE IPv4 address to the PDI
+        # Add UE IPv4 address to the PDI
         _ue_addr = pfcp.IE_UE_IP_Address()
         _ue_addr.V1 = 1
         _ue_addr.ipv4 = ue_addr
@@ -131,7 +154,7 @@ def craft_pdr(id, far_id, qer_id, urr_id, src_iface, update=False,
         net_instance.instance = "internetinternetinternetinterne"
         pdi.IE_list.append(net_instance)
 
-    # Adda  fully wildcard SDF filter
+    # Add a fully wildcard SDF filter
     sdf = pfcp.IE_SDF_Filter()
     sdf.FD = 1
     sdf.flow_description = "0.0.0.0/0 0.0.0.0/0 0 : 65535 0 : 65535 0x0/0x0"
@@ -253,7 +276,8 @@ def craft_pfcp_association_setup_packet():
     return IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header / setup_request
 
 
-def add_rules_to_request(args, request, update=False, add_pdrs=False, add_fars=False, add_urrs=False, add_qers=False):
+def add_rules_to_request(args, request, update=False, add_pdrs=False, add_fars=False, add_urrs=False, add_qers=False,
+                         force_add=False):
     rule_count = args.ue_count * 2
     ue_addr_gen = get_addresses_from_prefix(args.ue_pool, args.ue_count)
     teid_gen = iter(range(args.teid_base, args.teid_base + rule_count))
@@ -283,32 +307,40 @@ def add_rules_to_request(args, request, update=False, add_pdrs=False, add_fars=F
             pdr1 = craft_pdr(id=pdr_id1, far_id=far_id1, qer_id=qer_id1, urr_id=urr_id1,
                              src_iface=IFACE_ACCESS, from_tunnel=True, teid=teid1, tunnel_dst=args.s1u_addr,
                              update=update, precedence=args.pdr_precedence)
-            request.IE_list.append(pdr1)
+            if force_add or not already_sent(pdr_id1, pdr1, sent_pdrs):
+                request.IE_list.append(pdr1)
             pdr2 = craft_pdr(id=pdr_id2, far_id=far_id2, qer_id=qer_id2, urr_id=urr_id2,
                              src_iface=IFACE_CORE, from_tunnel=False, ue_addr=ue_addr,
                              update=update)
-            request.IE_list.append(pdr2)
+            if force_add or not already_sent(pdr_id2, pdr2, sent_pdrs):
+                request.IE_list.append(pdr2)
 
         if add_fars:
             far1 = craft_far(id=far_id1, update=update, forward_flag=True, dst_iface=IFACE_CORE, tunnel=False)
-            request.IE_list.append(far1)
+            if force_add or not already_sent(far_id1, far1, sent_fars):
+                request.IE_list.append(far1)
             # The downlink FAR should only tunnel if this is an update message. Our PFCP agent does not support
             #  outer header creation on session establishment, only session modification
             far2 = craft_far(id=far_id2, update=update, forward_flag=True, dst_iface=IFACE_ACCESS,
                              tunnel=update, tunnel_dst=args.enb_addr, teid=teid2)
-            request.IE_list.append(far2)
+            if force_add or not already_sent(far_id2, far2, sent_fars):
+                request.IE_list.append(far2)
 
         if add_qers:
             qer1 = craft_qer(id=qer_id1, update=update)
-            request.IE_list.append(qer1)
+            if force_add or not already_sent(qer_id1, qer1, sent_qers):
+                request.IE_list.append(qer1)
             qer2 = craft_qer(id=qer_id2, update=update)
-            request.IE_list.append(qer2)
+            if force_add or not already_sent(qer_id2, qer2, sent_qers):
+                request.IE_list.append(qer2)
 
         if add_urrs:
-            urr1 = craft_urr(id=urr_id1, quota=100000, threshold=4000, update=update)
-            request.IE_list.append(urr1)
+            urr1 = craft_urr(id=urr_id1, quota=100000, threshold=40000, update=update)
+            if force_add or not already_sent(urr_id1, urr1, sent_urrs):
+                request.IE_list.append(urr1)
             urr2 = craft_urr(id=urr_id2, quota=100000, threshold=50000, update=update)
-            request.IE_list.append(urr2)
+            if force_add or not already_sent(urr_id2, urr2, sent_urrs):
+                request.IE_list.append(urr2)
 
 
 def craft_pfcp_session_est_packet(args):
@@ -344,7 +376,7 @@ def craft_pfcp_session_modify_packet(args):
     pfcp_header.S = 1
     pfcp_header.message_type = MSG_TYPES["session_modification_request"]
     if peer_seid == -1:
-        print("WARNING: Peer SEID has not yet been received!")
+        raise Exception("Peer SEID has not yet been received.")
     pfcp_header.seid = peer_seid
     pfcp_header.seq = get_sequence_num()
 
@@ -363,7 +395,7 @@ def craft_pfcp_session_delete_packet():
     pfcp_header.S = 1
     pfcp_header.message_type = MSG_TYPES["session_deletion_request"]
     if peer_seid == -1:
-        print("WARNING: Peer SEID has not yet been received!")
+        raise Exception("Peer SEID has not yet been received.")
     pfcp_header.seid = peer_seid
     pfcp_header.seq = get_sequence_num()
 
@@ -436,6 +468,7 @@ def delete_pfcp_session(args):
     pkt = craft_pfcp_session_delete_packet()
     association_established = False
     send_recv_pfcp(pkt, MSG_TYPES["session_deletion_response"])
+    clear_sent_rules()
 
 
 def send_pfcp_heartbeats():
