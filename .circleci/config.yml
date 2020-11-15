@@ -42,7 +42,7 @@ jobs:
             cd scenarios
             # Add SSH key for passwordless access to ONOS CLI
             ssh-keygen -t rsa -q -f "$HOME/.ssh/id_rsa" -N "" \<<<y
-            make smoke.xml stcColor=false
+            make smoke.xml stcColor=false stcDumpLogs=true
       - store_artifacts:
           path: scenarios/tmp
       - run:
