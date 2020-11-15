@@ -49,9 +49,8 @@ Run the smoke scenario:
     
     make smoke.xml
 
-This scenario is used to verify UP4 app builds. It included a non-exhaustive set of tests that aim
-at ensuring that the most important functions work. Some functions tested in this scenario
-are:
+This scenario verifies UP4 app builds. It included a non-exhaustive set of tests that aim at
+ensuring that the most important functions work. Some functions tested in this scenario are:
 * UP4 app install and activation
 * UP4 northbound APIs (via P4Runtime calls)
 * Basic GTP termination for both uplink and downlink traffic
@@ -79,13 +78,14 @@ To execute a given scenario:
 
 **forwarding.xml**
 * Use UP4 northbound APIs to set up GTP termination and forwarding
-* Check forwarding by sending and receving traffic using the eNodeB and PDN Mininet hosts
+* Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts
 
 **buffering.xml**
 * Same as forwarding.xml but checks the case where downlink buffering is enabled
 
 **teardown.xml**
-* Stops Docker containers
+* Dump Docker container logs
+* Stop containers
 
 **smoke.xml**
 * Combines the above scenarios in one test
@@ -101,15 +101,16 @@ commands are:
 * `onos-check-summary`: to verify that devices, links, and hosts have been discovered
 * and many more
 
-To be able to reuse such commands, we clone the ONOS repository in `./onos` and add the
+To be able to reuse such commands, we clone the ONOS repository in `scenarios/onos` and add the
 following directories to `PATH` when running `stc` (see `$(SCENARIOS):` target in `Makefile`):
 * ./onos/tools/test/bin
 * ./onos/tools/test/scenarios/bin
 
-However, `onos-check-*` commands were developed to be used with "cells", an environment for running
-multiple ONOS instances in VMs. Instead, here we use STC to coordinate execution of steps in the
-local machine using Docker. For this reason, we override some of the `onos-check-*` commands with a
-modified version that works with the Docker-based environment.
+However, `onos-check-*` commands were originally developed to be used with "cells", an environment
+for running multiple ONOS instances in VMs. Instead, here we use STC to coordinate execution of
+steps in the local machine using Docker. For this reason, we override some of the `onos-check-*`
+commands with a modified version that works with the Docker-based environment. We do this by
+re-implementing the same commands in `scenarios/bin`, and giving it priority in `PATH`.
 
 The modified `onos-check-*` commands, along with other new commands, can be found in `./bin`.
 
