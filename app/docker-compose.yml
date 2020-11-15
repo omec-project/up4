@@ -1,6 +1,6 @@
 version: "3"
 # SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
-# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+# SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
 
 services:
   p4rtsh:
@@ -16,6 +16,46 @@ services:
     links:
       - onos
     entrypoint: "/bin/bash"
+    depends_on:
+      - onos
+  pfcp:
+    image: badhri85/upf-epc-pfcpiface:0.3.3-test 
+    hostname: pfcp
+    container_name: pfcp
+    tty: true
+    stdin_open: true
+    ports:
+      - "8805:8805" # SSH (CLI)
+    volumes:
+      - ./tmp:/tmp
+      - ./util:/util/
+    links:
+      - mininet
+      - onos
+    entrypoint: "/util/pfcp-entry.sh"
+    working_dir: /bin/
+    depends_on:
+      - mininet
+  scapy:
+    build:
+      context: ./util
+      dockerfile: Dockerfile.scapy
+    hostname: scapy
+    container_name: scapy
+    tty: true
+    stdin_open: true
+    ports:
+      - "8282:8282" # HTTP
+      - "8202:8202" # SSH (CLI)
+    volumes:
+      - ./tmp:/tmp
+      - ./util:/util/
+    links:
+      - pfcp
+    entrypoint: "/bin/sh"
+    depends_on:
+      - pfcp
+      - mininet
   mininet:
     build:
       context: ./util

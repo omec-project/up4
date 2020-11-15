@@ -476,7 +476,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public void removeInterface(UpfInterface upfInterface) {
-        Ip4Prefix ifacePrefix = upfInterface.prefix();
+        Ip4Prefix ifacePrefix = upfInterface.getPrefix();
         // If it isn't a downlink interface (so it is either uplink or unknown), try removing uplink
         if (!upfInterface.isDownlink()) {
             PiCriterion match1 = PiCriterion.builder()

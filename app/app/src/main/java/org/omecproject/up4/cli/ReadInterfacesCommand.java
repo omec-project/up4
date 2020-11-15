@@ -23,6 +23,9 @@ public class ReadInterfacesCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         for (UpfInterface iface : app.getUpfProgrammable().getInstalledInterfaces()) {
+            print(iface.getAddress().toString());
+            print("%d", iface.getPrefixLen());
+            print(iface.getPrefix().address().toString());
             print(iface.toString());
         }
     }

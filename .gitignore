@@ -14,7 +14,6 @@
 /app/dependencies.xml
 /app/mvn_settings.xml
 /app/onos-tools/
-/app/pfcp-scapy/
 /app/screenlog.0
 /app/tmp/
 /ptf/*.log

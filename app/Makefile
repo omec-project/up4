@@ -26,8 +26,6 @@ PKT_WAIT_TIME := 10
 STOP_ARGS := -t0
 
 
-# TODO: start the pfcp generating script with screen, and then feed commands into the running session
-
 _docker_pull_all:
 	docker pull ${P4RT_SH_IMG}@${P4RT_SH_SHA}
 	docker tag ${P4RT_SH_IMG}@${P4RT_SH_SHA} ${P4RT_SH_IMG}
@@ -39,12 +37,8 @@ _docker_pull_all:
 	docker pull ${MAVEN_IMG}
 	docker pull ${PROTOC_IMG}
 
-deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java pfcp-scapy
+deps: _docker_pull_all onos-tools app/external/dbuf/dbuf.proto app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java
 	docker-compose build
-	docker-compose -f docker-compose-pfcp.yml build
-
-pfcp-scapy:
-	git clone https://github.com/thakurajayL/pfcp_tool.git pfcp-scapy
 
 onos-ui:
 	open ${onos_url}/ui
@@ -244,17 +238,8 @@ onos-cli:
 	echo "Password: rocks"
 	ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o LogLevel=ERROR -p 8101 onos@localhost
 
-pfcp-topo-start:
-	$(info *** Starting UP4+PFCP Agent integration testing containers... )
-	@mkdir -p tmp/onos
-	@docker-compose -f docker-compose-pfcp.yml up -d
-
-pfcp-topo-stop2: STOP_ARGS :=
-pfcp-topo-stop2: pfcp-topo-stop
-
-pfcp-topo-stop:
-	$(info *** Stopping ONOS and Mininet...)
-	docker-compose -f docker-compose-pfcp.yml down ${STOP_ARGS}
+pfcp-messenger:
+	docker exec -it scapy /util/pfcp-messenger.py pfcp
 
 pfcp-messenger-start:
 	docker exec -itd scapy screen -m -S Messenger /util/pfcp-message.py pfcp

@@ -16,7 +16,6 @@ import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.impl.NorthConstants;
 import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
-import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
@@ -285,8 +284,9 @@ public class Up4TranslatorImpl implements Up4Translator {
             throw new Up4TranslationException("Attempting to translate an unsupported UP4 interface type! " +
                     srcIfaceTypeInt);
         }
-        Ip4Prefix prefix = TranslatorUtil.getFieldPrefix(entry, NorthConstants.IFACE_DST_PREFIX_KEY);
-        builder.setPrefix(prefix);
+        Pair<Ip4Address, Integer> prefix = TranslatorUtil.getFieldPrefix(entry, NorthConstants.IFACE_DST_PREFIX_KEY);
+        builder.setAddress(prefix.getLeft());
+        builder.setPrefixLen(prefix.getRight());
         return builder.build();
     }
 
@@ -297,8 +297,11 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiCriterion match = matchActionPair.getLeft();
         PiAction action = (PiAction) matchActionPair.getRight();
 
+        Pair<Ip4Address, Integer> prefix = TranslatorUtil.getFieldPrefix(match, SouthConstants.HDR_IPV4_DST_ADDR);
+
         var ifaceBuilder = UpfInterface.builder()
-                .setPrefix(TranslatorUtil.getFieldPrefix(match, SouthConstants.HDR_IPV4_DST_ADDR));
+                .setAddress(prefix.getLeft())
+                .setPrefixLen(prefix.getRight());
 
         int interfaceType = TranslatorUtil.getParamInt(action, SouthConstants.SRC_IFACE);
         if (interfaceType == SouthConstants.INTERFACE_ACCESS) {
@@ -417,8 +420,8 @@ public class Up4TranslatorImpl implements Up4Translator {
 
         PiCriterion match = PiCriterion.builder()
                 .matchLpm(SouthConstants.HDR_IPV4_DST_ADDR,
-                        upfInterface.prefix().address().toInt(),
-                        upfInterface.prefix().prefixLength())
+                        upfInterface.getAddress().toInt(),
+                        upfInterface.getPrefixLen())
                 .matchExact(SouthConstants.HDR_GTPU_IS_VALID, gtpuValidity)
                 .build();
         PiAction action = PiAction.builder()
@@ -548,8 +551,8 @@ public class Up4TranslatorImpl implements Up4Translator {
                 .withMatchKey(PiMatchKey.builder()
                         .addFieldMatch(new PiLpmFieldMatch(
                                 NorthConstants.IFACE_DST_PREFIX_KEY,
-                                ImmutableByteSequence.copyFrom(upfInterface.prefix().address().toOctets()),
-                                upfInterface.prefix().prefixLength()))
+                                ImmutableByteSequence.copyFrom(upfInterface.getAddress().toOctets()),
+                                upfInterface.getPrefixLen()))
                         .build())
                 .withAction(PiAction.builder()
                         .withId(NorthConstants.LOAD_IFACE)

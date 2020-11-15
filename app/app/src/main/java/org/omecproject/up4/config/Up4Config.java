@@ -80,6 +80,26 @@ public class Up4Config extends Config<ApplicationId> {
 
 
     /**
+     * Get the S1U IPv4 address assigned to the device. Or null if not properly configured.
+     *
+     * @return The S1U IPv4 address assigned to the device
+     */
+    public Ip4Address s1uAddress() {
+        String prefix = get(S1U_PREFIX, null);
+        if (prefix == null) {
+            return null;
+        }
+        try {
+            Ip4Prefix.valueOf(prefix);
+        } catch (Exception e) {
+            return null;
+        }
+        String[] pieces = prefix.split("/");
+        return Ip4Address.valueOf(pieces[0]);
+    }
+
+
+    /**
      * Get the S1U IPv4 prefix assigned to the device. Or null if not configured.
      *
      * @return The S1U IPv4 prefix assigned to the device
