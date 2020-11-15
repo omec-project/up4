@@ -112,9 +112,7 @@ steps in the local machine using Docker. For this reason, we override some of th
 commands with a modified version that works with the Docker-based environment. We do this by
 re-implementing the same commands in `scenarios/bin`, and giving it priority in `PATH`.
 
-The modified `onos-check-*` commands, along with other new commands, can be found in `./bin`.
-
 The main difference between the cell environment and the Docker-based one is that with cells, we
 assume that ONOS is running in a VM that can be operated via SSH. The modified commands perform
 equivalent actions without using SSH, but instead executing command directly inside the
-corresponding containers. 
+corresponding containers, i.e., via `docker exec`. 
