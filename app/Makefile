@@ -171,17 +171,32 @@ _check:
 	make check-dbuf-started
 	make onos-config
 	sleep ${CONFIG_WAIT_TIME}
+	make pfcp-messenger-start
 	make check-dbuf-ready
+	make check-messenger-ready
 	make check-forwarding
-	make check-buffering
+	#make check-buffering
+	make pfcp-messenger-stop
+	sleep 3
+	make FLOW_COUNT=0 check-flows-found 
 	@echo "**********************************"
 	@echo "** Integration checks passed :D **"
 	@echo "**********************************"
 	make stop STOP_ARGS=${STOP_ARGS}
 
+
+pfcp-set-forwarding:
+	make pfcp-messenger-associate
+	sleep 0.2
+	make pfcp-messenger-create-session
+	sleep 0.2
+	make pfcp-messenger-modify-session
+	sleep 0.2
+
 check-forwarding:
 	@echo "*** Setting forwarding FAR..."
-	make p4rt-set-forwarding
+	make pfcp-set-forwarding
+	make FLOW_COUNT=2 check-flows-found 
 	sleep 1
 	@echo "*** Sending downlink..."
 	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-and-recv-downlink
@@ -205,6 +220,10 @@ check-buffering:
 	docker-compose logs onos | grep "Dbuf drain completed for 17.0.0.1"
 	@echo "*** Verify delivery of at least one drained pkt..."
 	cat screenlog.0 | grep "140.0.100.254 -> 140.0.100.1, is_gtp_encap=True"
+
+
+check-flows-found:
+	util/onos-cmd up4:read-flows | grep "${FLOW_COUNT} flows found"
 
 send-and-recv-downlink:
 	@# util/mn-cmd requires a TTY because it uses docker -it option
@@ -242,7 +261,12 @@ pfcp-messenger:
 	docker exec -it scapy /util/pfcp-messenger.py pfcp
 
 pfcp-messenger-start:
-	docker exec -itd scapy screen -m -S Messenger /util/pfcp-message.py pfcp
+	docker exec -itd scapy screen -L -Logfile /tmp/pfcp-messenger-screen.log -m -S Messenger /util/pfcp-messenger.py pfcp
+	docker exec scapy screen -S Messenger -X colon "logfile flush 0^M"
+
+check-messenger-ready:
+	cat tmp/pfcp-messenger-screen.log | grep "Enter your option" # Check it started
+	docker exec scapy screen -ls | grep "Messenger" | grep "Attached" # Check its alive
 
 pfcp-messenger-associate:
 	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "1"
