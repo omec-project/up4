@@ -6,6 +6,8 @@
 # Adds the current user SSH key for passwordless login to ONOS console.
 # -----------------------------------------------------------------------------
 
+set -ex
+
 container=${1:-$ODI}
 user=${2:-$(id -un)}
 key=${3:-$(cut -d\  -f2 ~/.ssh/id_rsa.pub)}

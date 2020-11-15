@@ -5,7 +5,7 @@ set -x
 
 container=$1
 findString=$2
-for _ in {1..30}; do
+for _ in {1..60}; do
     docker-compose logs "$container" | grep "$findString" && exit 0 || sleep 1
 done
 exit 1

@@ -7,7 +7,7 @@ set -x
 node=$1
 cliCmd=$2
 findString=$3
-for _ in {1..30}; do
+for _ in {1..60}; do
     onos "$node" "$cliCmd" | grep "$findString" && exit 0 || sleep 1
 done
 exit 1

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
 # Wait until ApplicationManager is available
-for _ in {1..30}; do
+for _ in {1..60}; do
     docker-compose logs "$1" | grep "ApplicationManager.*Started" && break || sleep 1
 done
 

@@ -40,9 +40,9 @@ jobs:
           name: Smoke test
           command: |
             cd scenarios
-            # Avoid Docker setting root permissions on tmp
-            mkdir -p ./tmp
-            make smoke.xml
+            # Add SSH key for passwordless access to ONOS CLI
+            ssh-keygen -t rsa -q -f "$HOME/.ssh/id_rsa" -N "" <<<y
+            make smoke.xml stcColor=false
       - store_artifacts:
           path: scenarios/tmp
       - run:

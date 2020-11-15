@@ -5,7 +5,7 @@ set -x
 
 file=$1
 findString=$2
-for _ in {1..30}; do
+for _ in {1..60}; do
     grep "$findString" "$file" && exit 0 || sleep 1
 done
 exit 1
