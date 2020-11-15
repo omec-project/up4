@@ -171,11 +171,11 @@ _check:
 	make check-dbuf-started
 	make onos-config
 	sleep ${CONFIG_WAIT_TIME}
-	make pfcp-messenger-start
+	make pfcp-setup
 	make check-dbuf-ready
 	make check-messenger-ready
 	make check-forwarding
-	#make check-buffering
+	make check-buffering
 	make pfcp-messenger-stop
 	sleep 3
 	make FLOW_COUNT=0 check-flows-found 
@@ -185,13 +185,20 @@ _check:
 	make stop STOP_ARGS=${STOP_ARGS}
 
 
-pfcp-set-forwarding:
+pfcp-setup:
+	make pfcp-messenger-start
+	sleep 1
 	make pfcp-messenger-associate
 	sleep 0.2
 	make pfcp-messenger-create-session
 	sleep 0.2
+
+pfcp-set-forwarding:
 	make pfcp-messenger-modify-session
 	sleep 0.2
+
+pfcp-set-buffering:
+	make pfcp-messenger-modify-session PFCP_ARGS="--buffer"
 
 check-forwarding:
 	@echo "*** Setting forwarding FAR..."
@@ -205,7 +212,7 @@ check-forwarding:
 
 check-buffering:
 	@echo "*** Setting buffering FAR..."
-	make p4rt-set-buffering
+	make pfcp-set-buffering
 	sleep 1
 	@echo "*** Sending 10 downlink pkts..."
 	util/mn-cmd pdn /util/traffic.py send-udp-10
@@ -214,7 +221,7 @@ check-buffering:
 	screen -L -d -m util/mn-cmd enodeb /util/traffic.py recv-gtp -t ${PKT_WAIT_TIME}
 	sleep 1
 	@echo "*** Setting forwarding FAR (drain)..."
-	make p4rt-set-forwarding
+	make pfcp-set-forwarding
 	sleep 2
 	docker-compose logs onos | grep "Started dbuf drain for 17.0.0.1"
 	docker-compose logs onos | grep "Dbuf drain completed for 17.0.0.1"
@@ -269,19 +276,19 @@ check-messenger-ready:
 	docker exec scapy screen -ls | grep "Messenger" | grep "Attached" # Check its alive
 
 pfcp-messenger-associate:
-	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "1"
+	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "1 ${PFCP_ARGS}"
 
 pfcp-messenger-create-session:
-	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "2"
+	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "2 ${PFCP_ARGS}"
 
 pfcp-messenger-modify-session:
-	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "3"
+	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "3 ${PFCP_ARGS}"
 
 pfcp-messenger-release-session:
-	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "4"
+	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "4 ${PFCP_ARGS}"
 
 pfcp-messenger-stop:
-	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "5"
+	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "5 ${PFCP_ARGS}"
 
 pfcp-messenger-kill:
 	docker exec -itd scapy screen -X -S Messenger quit

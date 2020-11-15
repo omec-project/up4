@@ -305,8 +305,6 @@ def add_rules_to_request(args, request, update=False, add_pdrs=False, add_fars=F
         qer_id1 = next(qer_id_gen)
         qer_id2 = next(qer_id_gen)
 
-        print("UE ADDRESS:", ue_addr)
-
         if add_pdrs:
             # uplink
             pdr1 = craft_pdr(id=pdr_id1, far_id=far_id1, qer_id=qer_id1, urr_id=urr_id1,
@@ -330,7 +328,8 @@ def add_rules_to_request(args, request, update=False, add_pdrs=False, add_fars=F
             #  outer header creation on session establishment, only session modification
             # downlink
             far2 = craft_far(id=far_id2, update=update, forward_flag=True, dst_iface=IFACE_ACCESS,
-                             tunnel=update, tunnel_dst=args.enb_addr, teid=teid2)
+                             tunnel=update, tunnel_dst=args.enb_addr, teid=teid2,
+                             buffer_flag=args.buffer)
             if force_add or not already_sent(far_id2, far2, sent_fars):
                 request.IE_list.append(far2)
 
@@ -509,7 +508,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
     def error(self, message):
         # This override stops the argument parser from calling exit() on error
-        raise Exception("Bad parser arguments.")
+        raise Exception("Bad parser input: %s" % message)
 
 
 def terminate(args):
@@ -570,7 +569,7 @@ def handle_user_input():
         for num, (action_desc, action) in user_choices.items():
             print("%d - %s" % (num, action_desc))
         try:
-            args = parser.parse_args(input("Enter your option : "))
+            args = parser.parse_args(input("Enter your option : ").split())
         except Exception as e:
             print(e)
             parser.print_help()
