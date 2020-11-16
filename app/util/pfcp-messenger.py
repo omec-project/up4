@@ -9,8 +9,7 @@ import socket
 import struct
 from ipaddress import IPv4Network, IPv4Address, AddressValueError
 from threading import Lock, Thread
-# Global non-constants
-from typing import Dict
+from typing import Dict, Generator
 
 import ifcfg
 import time
@@ -18,6 +17,7 @@ from scapy import all as scapy
 from scapy.contrib import pfcp
 from scapy.layers.inet import IP, UDP
 
+# Global non-constants
 sock: socket.socket = None
 our_addr: str = ""
 peer_addr: str = ""
@@ -33,10 +33,7 @@ sent_urrs = {}
 sent_qers = {}
 # End global non-constants
 
-MSG_TYPES = {}
-for num, name in pfcp.PFCPmessageType.items():
-    MSG_TYPES[name] = num
-
+MSG_TYPES = {name: num for num, name in pfcp.PFCPmessageType.items()}
 HEARTBEAT_PERIOD = 5  # in seconds
 UDP_PORT_PFCP = 8805
 IFACE_ACCESS = 0
@@ -50,7 +47,7 @@ def already_sent(rule_id: int, rule: pfcp.IE_Compound, sent_rule_map: Dict[int, 
     :param rule_id: the ID of the rule that will soon be sent
     :param rule: the rule that will soon be sent
     :param sent_rule_map: the rule_id->rule mapping of previously sent rules
-    :return:
+    :return: None
     """
     previous_rule = sent_rule_map.get(rule_id, None)
     sent_rule_map[rule_id] = rule
@@ -60,13 +57,23 @@ def already_sent(rule_id: int, rule: pfcp.IE_Compound, sent_rule_map: Dict[int, 
 
 
 def clear_sent_rules():
+    """
+    Wipe out the cache of previously sent rules
+    :return: None
+    """
     sent_pdrs.clear()
     sent_fars.clear()
     sent_urrs.clear()
     sent_qers.clear()
 
 
-def get_addresses_from_prefix(prefix: IPv4Network, count: int):
+def get_addresses_from_prefix(prefix: IPv4Network, count: int) -> Generator[IPv4Address, None, None]:
+    """
+    Generator for yielding Ip4Addresses from the provided prefix.
+    :param prefix: the prefix from which addresses should be generated
+    :param count: how many addresses to yield
+    :return: an address generator
+    """
     # Currently this doesn't allow the address with host bits all 0,
     #  so the first host address is (prefix_addr & mask) + 1
     if count >= 2 ** (prefix.max_prefixlen - prefix.prefixlen):
@@ -87,6 +94,11 @@ def int2ip(addr: int):
 
 
 def get_sequence_num(reset=False):
+    """
+    Generate a sequence number for a PFCP message.
+    :param reset: if true, resets the sequence number counter
+    :return: a sequence number to be used in a PFCP message
+    """
     thread_lock.acquire()
     global sequence_number
     if reset:
@@ -96,7 +108,7 @@ def get_sequence_num(reset=False):
     return sequence_number
 
 
-def open_socket(our_addr):
+def open_socket(our_addr: str):
     sock = socket.socket(socket.AF_INET,  # Internet
                          socket.SOCK_DGRAM)  # UDP
     sock.bind((our_addr, UDP_PORT_PFCP))
@@ -104,7 +116,7 @@ def open_socket(our_addr):
     return sock
 
 
-def craft_fseid(seid, address):
+def craft_fseid(seid: int, address: str) -> pfcp.IE_Compound:
     fseid = pfcp.IE_FSEID()
     fseid.v4 = 1
     fseid.seid = seid
@@ -112,8 +124,9 @@ def craft_fseid(seid, address):
     return fseid
 
 
-def craft_pdr(id, far_id, qer_id, urr_id, src_iface, update=False,
-              ue_addr=None, from_tunnel=False, tunnel_dst=None, teid=None, precedence=2):
+def craft_pdr(id: int, far_id: int, qer_id: int, urr_id: int, src_iface: int, update=False,
+              ue_addr: IPv4Address = None, from_tunnel=False, tunnel_dst: str = None,
+              teid: int = None, precedence=2) -> pfcp.IE_Compound:
     pdr = pfcp.IE_CreatePDR() if not update else pfcp.IE_UpdatePDR()
     pdr_id = pfcp.IE_PDR_Id()
     pdr_id.id = id
@@ -178,8 +191,8 @@ def craft_pdr(id, far_id, qer_id, urr_id, src_iface, update=False,
     return pdr
 
 
-def craft_far(id, update=False, forward_flag=False, drop_flag=False, buffer_flag=False,
-              dst_iface=None, tunnel=False, tunnel_dst=None, teid=None):
+def craft_far(id: int, update=False, forward_flag=False, drop_flag=False, buffer_flag=False,
+              dst_iface: int = None, tunnel=False, tunnel_dst: str = None, teid: int = None) -> pfcp.IE_Compound:
     far = pfcp.IE_CreateFAR() if not update else pfcp.IE_UpdateFAR()
     far_id = pfcp.IE_FAR_Id()
     far_id.id = id
@@ -211,8 +224,8 @@ def craft_far(id, update=False, forward_flag=False, drop_flag=False, buffer_flag
     return far
 
 
-def craft_qer(id, max_bitrate_up=12345678, max_bitrate_down=12345678,
-              guaranteed_bitrate_up=12345678, guaranteed_bitrate_down=12345678, update=False):
+def craft_qer(id: int, max_bitrate_up=12345678, max_bitrate_down=12345678,
+              guaranteed_bitrate_up=12345678, guaranteed_bitrate_down=12345678, update=False) -> pfcp.IE_Compound:
     qer = pfcp.IE_CreateQER() if not update else pfcp.IE_UpdateQER()
     # QER ID
     qer_id = pfcp.IE_QER_Id()
@@ -234,7 +247,7 @@ def craft_qer(id, max_bitrate_up=12345678, max_bitrate_down=12345678,
     return qer
 
 
-def craft_urr(id, quota, threshold, update=False):
+def craft_urr(id: int, quota: int, threshold: int, update=False) -> pfcp.IE_Compound:
     urr = pfcp.IE_CreateURR() if not update else pfcp.IE_UpdateURR()
     # URR ID
     urr_id = pfcp.IE_URR_Id()
@@ -263,7 +276,7 @@ def craft_urr(id, quota, threshold, update=False):
     return urr
 
 
-def craft_pfcp_association_setup_packet():
+def craft_pfcp_association_setup_packet() -> scapy.Packet:
     # create PFCP packet
     pfcp_header = pfcp.PFCP()
     # create setup request packet
@@ -278,8 +291,9 @@ def craft_pfcp_association_setup_packet():
     return IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header / setup_request
 
 
-def add_rules_to_request(args, request, update=False, add_pdrs=False, add_fars=False, add_urrs=False, add_qers=False,
-                         force_add=False):
+def add_rules_to_request(args: argparse.Namespace, request, update=False,
+                         add_pdrs=False, add_fars=False, add_urrs=False, add_qers=False,
+                         force_add=False) -> None:
     rule_count = args.ue_count * 2
     ue_addr_gen = get_addresses_from_prefix(args.ue_pool, args.ue_count)
     teid_gen = iter(range(args.teid_base, args.teid_base + rule_count))
@@ -350,7 +364,7 @@ def add_rules_to_request(args, request, update=False, add_pdrs=False, add_fars=F
                 request.IE_list.append(urr2)
 
 
-def craft_pfcp_session_est_packet(args):
+def craft_pfcp_session_est_packet(args: argparse.Namespace) -> scapy.Packet:
     pfcp_header = pfcp.PFCP()
     pfcp_header.version = 1
     pfcp_header.S = 1
@@ -376,7 +390,7 @@ def craft_pfcp_session_est_packet(args):
     return IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header / establishment_request
 
 
-def craft_pfcp_session_modify_packet(args):
+def craft_pfcp_session_modify_packet(args: argparse.Namespace) -> scapy.Packet:
     # fill pfcp header
     pfcp_header = pfcp.PFCP()
     pfcp_header.version = 1
@@ -396,7 +410,7 @@ def craft_pfcp_session_modify_packet(args):
     return IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header / modification_request
 
 
-def craft_pfcp_session_delete_packet():
+def craft_pfcp_session_delete_packet() -> scapy.Packet:
     pfcp_header = pfcp.PFCP()
     pfcp_header.version = 1
     pfcp_header.S = 1
@@ -414,7 +428,7 @@ def craft_pfcp_session_delete_packet():
     return delete_pkt
 
 
-def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, verbosity=0):
+def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, verbosity=0) -> None:
     """
     Send the given PFCP packet out the global socket, and wait for a response with the given PFCP message type.
     :param pkt: The packet to be sent out the global socket
@@ -455,24 +469,24 @@ def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, verbosity=0):
               % (pfcp.PFCPmessageType[expected_response_type], pfcp.PFCPmessageType[response.message_type]))
 
 
-def setup_pfcp_association(args):
+def setup_pfcp_association(args: argparse.Namespace) -> None:
     global association_established
     pkt = craft_pfcp_association_setup_packet()
     send_recv_pfcp(pkt, MSG_TYPES["association_setup_response"])
     association_established = True
 
 
-def establish_pfcp_session(args):
+def establish_pfcp_session(args: argparse.Namespace) -> None:
     pkt = craft_pfcp_session_est_packet(args)
     send_recv_pfcp(pkt, MSG_TYPES["session_establishment_response"])
 
 
-def modify_pfcp_session(args):
+def modify_pfcp_session(args: argparse.Namespace) -> None:
     pkt = craft_pfcp_session_modify_packet(args)
     send_recv_pfcp(pkt, MSG_TYPES["session_modification_response"])
 
 
-def delete_pfcp_session(args):
+def delete_pfcp_session(args: argparse.Namespace) -> None:
     global association_established
     pkt = craft_pfcp_session_delete_packet()
     association_established = False
@@ -480,7 +494,7 @@ def delete_pfcp_session(args):
     clear_sent_rules()
 
 
-def send_pfcp_heartbeats():
+def send_pfcp_heartbeats() -> None:
     while True:
         for _ in range(HEARTBEAT_PERIOD):
             # semi-busy wait
@@ -511,7 +525,7 @@ class ArgumentParser(argparse.ArgumentParser):
         raise Exception("Bad parser input: %s" % message)
 
 
-def terminate(args):
+def terminate(args: argparse.Namespace) -> None:
     global session_terminated
     if association_established:
         print("Exiting before association deleted. Deleting..")
@@ -520,7 +534,7 @@ def terminate(args):
     exit()
 
 
-def handle_user_input():
+def handle_user_input() -> None:
     global session_terminated
 
     user_choices = {
