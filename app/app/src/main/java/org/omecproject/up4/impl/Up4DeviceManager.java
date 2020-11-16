@@ -209,13 +209,7 @@ public class Up4DeviceManager implements Up4Service {
      */
     private Collection<UpfInterface> configFileInterfaces() {
         Collection<UpfInterface> interfaces = new ArrayList<>();
-        Ip4Address address = config.s1uAddress();
-        int prefixLen = config.s1uPrefix().prefixLength();
-        interfaces.add(UpfInterface.builder()
-                .setUplink()
-                .setAddress(config.s1uAddress())
-                .setPrefixLen(config.s1uPrefix().prefixLength())
-                .build());
+        interfaces.add(UpfInterface.createS1uFrom(config.s1uAddress()));
         for (Ip4Prefix uePool : config.uePools()) {
             interfaces.add(UpfInterface.createUePoolFrom(uePool));
         }

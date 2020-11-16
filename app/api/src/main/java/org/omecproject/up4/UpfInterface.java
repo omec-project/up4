@@ -9,20 +9,17 @@ import org.onlab.packet.Ip4Prefix;
 
 import java.util.Objects;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A UPF device interface, such as a S1U or UE IP address pool.
  */
 public final class UpfInterface {
-    private final Ip4Address address;
-    private final int prefixLen;
+    private final Ip4Prefix prefix;
     private final Type type;
 
-    private UpfInterface(Ip4Address address, int prefixLen, Type type) {
-        this.address = address;
-        this.prefixLen = prefixLen;
+    private UpfInterface(Ip4Prefix prefix, Type type) {
+        this.prefix = prefix;
         this.type = type;
     }
 
@@ -42,7 +39,7 @@ public final class UpfInterface {
         } else {
             typeStr = "UNKNOWN";
         }
-        return String.format("Interface{%s, %s/%d}", typeStr, address, prefixLen);
+        return String.format("Interface{%s, %s}", typeStr, prefix);
     }
 
     @Override
@@ -58,13 +55,12 @@ public final class UpfInterface {
         }
         UpfInterface that = (UpfInterface) obj;
         return (this.type.equals(that.type) &&
-                this.address.equals(that.address) &&
-                this.prefixLen == that.prefixLen);
+                this.prefix.equals(that.prefix));
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(address, prefixLen, type);
+        return Objects.hash(prefix, type);
     }
 
     /**
@@ -74,17 +70,7 @@ public final class UpfInterface {
      * @return a new UPF interface
      */
     public static UpfInterface createS1uFrom(Ip4Address address) {
-        return builder().setUplink().setAddress(address).setPrefixLen(32).build();
-    }
-
-    /**
-     * Create an uplink UPF Interface from the given IP prefix.
-     *
-     * @param prefix the prefix of the new uplink interface
-     * @return a new UPF interface
-     */
-    public static UpfInterface createS1uFrom(Ip4Prefix prefix) {
-        return builder().setUplink().setPrefix(prefix).build();
+        return builder().setUplink().setPrefix(Ip4Prefix.valueOf(address, 32)).build();
     }
 
     /**
@@ -104,35 +90,16 @@ public final class UpfInterface {
      * @return a new UPF interface
      */
     public static UpfInterface createDbufReceiverFrom(Ip4Address address) {
-        return UpfInterface.builder().setDbufReceiver().setAddress(address).setPrefixLen(32).build();
+        return UpfInterface.builder().setDbufReceiver().setAddress(address).build();
     }
 
     /**
-     * Get the IP prefix of this interface. Host bits will not be included.
+     * Get the IP prefix of this interface.
      *
      * @return the interface prefix
      */
-    public Ip4Prefix getPrefix() {
-        return Ip4Prefix.valueOf(address, prefixLen);
-    }
-
-
-    /**
-     * Get the IP address of this interface, which is the prefix address plus host bits.
-     *
-     * @return the interface address
-     */
-    public Ip4Address getAddress() {
-        return address;
-    }
-
-    /**
-     * Get the length of the IP prefix of this interface.
-     *
-     * @return the interface prefix length
-     */
-    public int getPrefixLen() {
-        return prefixLen;
+    public Ip4Prefix prefix() {
+        return prefix;
     }
 
     /**
@@ -166,6 +133,15 @@ public final class UpfInterface {
         return type == Type.DBUF;
     }
 
+    /**
+     * Get the IPv4 prefix of this UPF interface.
+     *
+     * @return the interface prefix
+     */
+    public Ip4Prefix getPrefix() {
+        return this.prefix;
+    }
+
     public enum Type {
         /**
          * Unknown UPF interface type.
@@ -191,8 +167,7 @@ public final class UpfInterface {
     }
 
     public static class Builder {
-        private Ip4Address address;
-        private Integer prefixLen;
+        private Ip4Prefix prefix;
         private Type type;
 
         public Builder() {
@@ -206,29 +181,18 @@ public final class UpfInterface {
          * @return this builder object
          */
         public Builder setPrefix(Ip4Prefix prefix) {
-            this.address = prefix.address();
-            this.prefixLen = prefix.prefixLength();
+            this.prefix = prefix;
             return this;
         }
 
         /**
-         * Set address of the IPv4 prefix of this interface. Host bits will not be discarded.
+         * Set the IPv4 prefix of this interface, by turning the given address into a /32 prefix.
          *
-         * @param address the base address of the interface's prefix
+         * @param address the interface address that will become a /32 prefix
          * @return this builder object
          */
         public Builder setAddress(Ip4Address address) {
-            this.address = address;
-            return this;
-        }
-
-        /**
-         * Set the length of the IPv4 prefix of this interface.
-         * @param length the length of the prefix of this interface
-         * @return this builder object
-         */
-        public Builder setPrefixLen(int length) {
-            this.prefixLen = length;
+            this.prefix = Ip4Prefix.valueOf(address, 32);
             return this;
         }
 
@@ -263,10 +227,8 @@ public final class UpfInterface {
         }
 
         public UpfInterface build() {
-            checkNotNull(address);
-            checkNotNull(prefixLen);
-            checkArgument(prefixLen >= 0 && prefixLen <= 32);
-            return new UpfInterface(address, prefixLen, type);
+            checkNotNull(prefix);
+            return new UpfInterface(prefix, type);
         }
     }
 }

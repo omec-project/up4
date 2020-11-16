@@ -9,7 +9,7 @@ import socket
 import struct
 from ipaddress import IPv4Network, IPv4Address, AddressValueError
 from threading import Lock, Thread
-from typing import Dict, Generator
+from typing import Dict, Generator, Optional
 
 import ifcfg
 import time
@@ -18,7 +18,7 @@ from scapy.contrib import pfcp
 from scapy.layers.inet import IP, UDP
 
 # Global non-constants
-sock: socket.socket = None
+sock: Optional[socket.socket] = None
 our_addr: str = ""
 peer_addr: str = ""
 our_seid: int = 1  # actually constant but placed here due to relevance

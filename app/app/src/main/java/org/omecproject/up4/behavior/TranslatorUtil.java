@@ -6,6 +6,7 @@ package org.omecproject.up4.behavior;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.onlab.packet.Ip4Address;
+import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.criteria.Criterion;
@@ -129,24 +130,24 @@ final class TranslatorUtil {
         return Ip4Address.valueOf(getParamValue(action, paramId).asArray());
     }
 
-    static Pair<Ip4Address, Integer> getFieldPrefix(PiTableEntry entry, PiMatchFieldId fieldId) {
+    static Ip4Prefix getFieldPrefix(PiTableEntry entry, PiMatchFieldId fieldId) {
         Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(fieldId);
         if (optField.isEmpty()) {
             return null;
         }
         PiLpmFieldMatch field = (PiLpmFieldMatch) optField.get();
         Ip4Address address = Ip4Address.valueOf(field.value().asArray());
-        return Pair.of(address, field.prefixLength());
+        return Ip4Prefix.valueOf(address, field.prefixLength());
     }
 
-    static Pair<Ip4Address, Integer> getFieldPrefix(PiCriterion criterion, PiMatchFieldId fieldId) {
+    static Ip4Prefix getFieldPrefix(PiCriterion criterion, PiMatchFieldId fieldId) {
         Optional<PiFieldMatch> optField = criterion.fieldMatch(fieldId);
         if (optField.isEmpty()) {
             return null;
         }
         PiLpmFieldMatch field = (PiLpmFieldMatch) optField.get();
         Ip4Address address = Ip4Address.valueOf(field.value().asArray());
-        return Pair.of(address, field.prefixLength());
+        return Ip4Prefix.valueOf(address, field.prefixLength());
     }
 
     static Ip4Address getFieldAddress(PiTableEntry entry, PiMatchFieldId fieldId)

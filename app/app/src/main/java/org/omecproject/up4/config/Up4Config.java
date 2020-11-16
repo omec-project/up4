@@ -13,6 +13,8 @@ import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.config.Config;
 import org.onosproject.net.config.InvalidFieldException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,11 +23,13 @@ import java.util.List;
  * Class that represents the config expected from a UPF network configuration JSON block.
  */
 public class Up4Config extends Config<ApplicationId> {
+    private final Logger log = LoggerFactory.getLogger(getClass());
     // JSON keys to look for in the network config
     public static final String KEY = "up4";  // base key that signals the presence of this config
     public static final String DEVICE_ID = "deviceId";
     public static final String UE_POOLS = "uePools";
-    public static final String S1U_PREFIX = "s1uPrefix";
+    public static final String S1U_PREFIX = "s1uPrefix";  // TODO: remove this field after all configs updated
+    public static final String S1U_ADDR = "s1uAddr";
     // Eventually, we will have to support multiple dbuf instances, in which case it might make more
     // sense to have a dedicated config class with an array of dbuf instances.
     public static final String DBUF_SERVICE_ADDR = "dbufServiceAddr";
@@ -34,10 +38,11 @@ public class Up4Config extends Config<ApplicationId> {
 
     @Override
     public boolean isValid() {
-        return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_PREFIX, DBUF_SERVICE_ADDR,
+        return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_ADDR, S1U_PREFIX, DBUF_SERVICE_ADDR,
                 DBUF_DATAPLANE_ADDR, DBUF_DRAIN_ADDR) &&
                 // Mandatory fields.
-                hasFields(DEVICE_ID, UE_POOLS, S1U_PREFIX) &&
+                hasFields(DEVICE_ID, UE_POOLS) &&
+                (hasField(S1U_ADDR) || hasField(S1U_PREFIX)) &&
                 !uePools().isEmpty() &&
                 isDbufConfigValid();
     }
@@ -78,45 +83,45 @@ public class Up4Config extends Config<ApplicationId> {
         return (Up4Config) setOrClear(DEVICE_ID, deviceId);
     }
 
-
     /**
      * Get the S1U IPv4 address assigned to the device. Or null if not properly configured.
      *
      * @return The S1U IPv4 address assigned to the device
      */
     public Ip4Address s1uAddress() {
-        String prefix = get(S1U_PREFIX, null);
-        if (prefix == null) {
+        if (hasField(S1U_ADDR)) {
+            String addr = get(S1U_ADDR, null);
+            return addr != null ? Ip4Address.valueOf(addr) : null;
+        } else if (hasField(S1U_PREFIX)) {
+            // TODO: remove this whole block after all network configs have been updated
+            log.warn("UP4 config field {} has been replaced by {}, please update your config!",
+                    S1U_PREFIX, S1U_ADDR);
+            String prefix = get(S1U_PREFIX, null);
+            if (prefix == null) {
+                return null;
+            }
+            try {
+                // Try converting to a prefix just to check that the format is correct
+                Ip4Prefix.valueOf(prefix);
+            } catch (Exception e) {
+                return null;
+            }
+            // We can't do Ip4Prefix.address() because it masks off the host bits
+            String[] pieces = prefix.split("/");
+            return Ip4Address.valueOf(pieces[0]);
+        } else {
             return null;
         }
-        try {
-            Ip4Prefix.valueOf(prefix);
-        } catch (Exception e) {
-            return null;
-        }
-        String[] pieces = prefix.split("/");
-        return Ip4Address.valueOf(pieces[0]);
-    }
-
-
-    /**
-     * Get the S1U IPv4 prefix assigned to the device. Or null if not configured.
-     *
-     * @return The S1U IPv4 prefix assigned to the device
-     */
-    public Ip4Prefix s1uPrefix() {
-        String prefix = get(S1U_PREFIX, null);
-        return prefix != null ? Ip4Prefix.valueOf(prefix) : null;
     }
 
     /**
-     * Set the S1U IPv4 prefix of the device.
+     * Set the S1U IPv4 address of the device.
      *
-     * @param prefix The S1U IPv4 prefix to assign
+     * @param addr The S1U IPv4 address to assign
      * @return an updated instance of this config
      */
-    public Up4Config setS1uPrefix(String prefix) {
-        return (Up4Config) setOrClear(S1U_PREFIX, prefix);
+    public Up4Config setS1uAddr(String addr) {
+        return (Up4Config) setOrClear(S1U_ADDR, addr);
     }
 
     /**
