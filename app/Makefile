@@ -268,6 +268,7 @@ pfcp-messenger:
 	docker exec -it scapy /util/pfcp-messenger.py pfcp
 
 pfcp-messenger-start:
+	echo "" > /tmp/pfcp-messenger-screen.log
 	docker exec -itd scapy screen -L -Logfile /tmp/pfcp-messenger-screen.log -m -S Messenger /util/pfcp-messenger.py pfcp
 	docker exec scapy screen -S Messenger -X colon "logfile flush 0^M"
 

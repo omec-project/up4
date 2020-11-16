@@ -211,7 +211,6 @@ public class Up4DeviceManager implements Up4Service {
         Collection<UpfInterface> interfaces = new ArrayList<>();
         Ip4Address address = config.s1uAddress();
         int prefixLen = config.s1uPrefix().prefixLength();
-        log.error("S1U ADDRESSSSSSSSS: {}", address);
         interfaces.add(UpfInterface.builder()
                 .setUplink()
                 .setAddress(config.s1uAddress())

@@ -192,7 +192,7 @@ public final class UpfInterface {
 
     public static class Builder {
         private Ip4Address address;
-        private int prefixLen = -1;
+        private Integer prefixLen;
         private Type type;
 
         public Builder() {
@@ -264,7 +264,7 @@ public final class UpfInterface {
 
         public UpfInterface build() {
             checkNotNull(address);
-            checkArgument(prefixLen != -1, "Prefix length must be provided");
+            checkNotNull(prefixLen);
             checkArgument(prefixLen >= 0 && prefixLen <= 32);
             return new UpfInterface(address, prefixLen, type);
         }
