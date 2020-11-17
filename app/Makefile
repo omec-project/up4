@@ -177,7 +177,7 @@ _check:
 	make check-forwarding
 	make check-buffering
 	make pfcp-messenger-stop
-	sleep 3
+	sleep 5
 	make FLOW_COUNT=0 check-flows-found 
 	@echo "**********************************"
 	@echo "** Integration checks passed :D **"
@@ -190,7 +190,7 @@ pfcp-setup:
 	sleep 1
 	make pfcp-messenger-associate
 	sleep 0.2
-	make pfcp-messenger-create-session
+	make pfcp-messenger-establish-session
 	sleep 0.2
 
 pfcp-set-forwarding:
@@ -265,32 +265,29 @@ onos-cli:
 	ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o LogLevel=ERROR -p 8101 onos@localhost
 
 pfcp-messenger:
-	docker exec -it scapy /util/pfcp-messenger.py pfcp
+	docker exec -it pfcp-client /util/pfcp-messenger.py pfcp-agent
 
 pfcp-messenger-start:
-	echo "" > /tmp/pfcp-messenger-screen.log
-	docker exec -itd scapy screen -L -Logfile /tmp/pfcp-messenger-screen.log -m -S Messenger /util/pfcp-messenger.py pfcp
-	docker exec scapy screen -S Messenger -X colon "logfile flush 0^M"
+	./util/pfcp-client-cmd start
 
 check-messenger-ready:
-	cat tmp/pfcp-messenger-screen.log | grep "Enter your option" # Check it started
-	docker exec scapy screen -ls | grep "Messenger" | grep "Attached" # Check its alive
+	./util/pfcp-client-cmd check
 
 pfcp-messenger-associate:
-	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "1 ${PFCP_ARGS}"
+	./util/pfcp-client-cmd associate ${PFCP_ARGS}
 
-pfcp-messenger-create-session:
-	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "2 ${PFCP_ARGS}"
+pfcp-messenger-establish-session:
+	./util/pfcp-client-cmd establish ${PFCP_ARGS}
 
 pfcp-messenger-modify-session:
-	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "3 ${PFCP_ARGS}"
+	./util/pfcp-client-cmd modify ${PFCP_ARGS}
 
 pfcp-messenger-release-session:
-	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "4 ${PFCP_ARGS}"
+	./util/pfcp-client-cmd delete ${PFCP_ARGS}
 
 pfcp-messenger-stop:
-	docker exec -itd scapy screen -S Messenger -p 0 -X stuff "5 ${PFCP_ARGS}"
+	./util/pfcp-client-cmd stop ${PFCP_ARGS}
 
 pfcp-messenger-kill:
-	docker exec -itd scapy screen -X -S Messenger quit
+	./util/pfcp-client-cmd kill
 

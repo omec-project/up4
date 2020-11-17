@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/local/bin/python3
 
 # SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
 #
@@ -212,12 +212,12 @@ def craft_far(id: int, update=False, forward_flag=False, drop_flag=False, buffer
     forward_param.IE_list.append(_dst_iface)
 
     if tunnel:
-        if tunnel_dst is None or teid is None:
+        if (not buffer_flag) and tunnel_dst is None or teid is None:
             raise Exception("ERROR: tunnel dst and teid should be provided for tunnel FAR")
         outer_header = pfcp.IE_OuterHeaderCreation()
         outer_header.GTPUUDPIPV4 = 1
         outer_header.ipv4 = tunnel_dst
-        outer_header.TEID = teid
+        outer_header.TEID = teid if not buffer_flag else 0  # FARs that buffer have a TEID of zero
         forward_param.IE_list.append(outer_header)
 
     far.IE_list.append(forward_param)
@@ -538,14 +538,14 @@ def handle_user_input() -> None:
     global session_terminated
 
     user_choices = {
-        1: ("Setup PFCP Assocaition", setup_pfcp_association),
-        2: ("Establish PFCP Session", establish_pfcp_session),
-        3: ("Modify PFCP Session", modify_pfcp_session),
-        4: ("Delete PFCP Session", delete_pfcp_session),
-        5: ("Exit script", terminate)}
+        "associate": ("Setup PFCP Association", setup_pfcp_association),
+        "establish": ("Establish PFCP Session", establish_pfcp_session),
+        "modify": ("Modify PFCP Session", modify_pfcp_session),
+        "delete": ("Delete PFCP Session", delete_pfcp_session),
+        "stop": ("Exit script", terminate)}
 
     parser = ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("option", type=int, help="The PFCP message type",
+    parser.add_argument("choice", type=str, help="The PFCP client operation to perform",
                         choices=user_choices.keys())
     parser.add_argument("--buffer", action='store_true',
                         help="If this argument is present, downlink fars will have" +
@@ -580,17 +580,17 @@ def handle_user_input() -> None:
                         help="The priority/precedence of PDRs.")
 
     while True:
-        for num, (action_desc, action) in user_choices.items():
-            print("%d - %s" % (num, action_desc))
+        for choice, (action_desc, action) in user_choices.items():
+            print("\"%s\" - %s" % (choice, action_desc))
         try:
-            args = parser.parse_args(input("Enter your option : ").split())
+            args = parser.parse_args(input("Enter your selection : ").split())
         except Exception as e:
             print(e)
             parser.print_help()
             continue
         try:
-            choice_desc, choice_func = user_choices[args.option]
-            print("Selected option %d - %s" % (args.option, choice_desc))
+            choice_desc, choice_func = user_choices[args.choice]
+            print("Selected %s" % choice_desc)
             choice_func(args)
         except Exception as e:
             # Catch the exception just long enough to signal the heartbeat thread to end

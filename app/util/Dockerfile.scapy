@@ -1,10 +1,6 @@
 # SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
-ARG BASE_OS=ubuntu:18.04
-FROM $BASE_OS as pfcptool
-workdir /pfcptool
-COPY .  ./
-EXPOSE 8805/udp
-RUN ./scapy-deps.sh
-RUN echo 'alias python="python3"' >> ~/.bashrc
+FROM python:latest
+RUN apt-get update && apt-get install -y git net-tools tcpdump vim iputils-ping screen
+RUN pip3 install ifcfg git+https://github.com/secdev/scapy
