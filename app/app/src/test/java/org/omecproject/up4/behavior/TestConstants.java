@@ -71,16 +71,13 @@ public final class TestConstants {
             .build();
 
     public static final ForwardingActionRule UPLINK_FAR = ForwardingActionRule.builder()
-            .withFarId(UPLINK_FAR_ID)
-            .withFlags(false, false)
+            .setFarId(UPLINK_FAR_ID)
             .withSessionId(SESSION_ID).build();
 
     public static final ForwardingActionRule DOWNLINK_FAR = ForwardingActionRule.builder()
-            .withFarId(DOWNLINK_FAR_ID)
-            .withFlags(false, false)
-            .withBufferFlag(false)
+            .setFarId(DOWNLINK_FAR_ID)
             .withSessionId(SESSION_ID)
-            .withTunnel(S1U_ADDR, ENB_ADDR, TEID, TUNNEL_SPORT)
+            .setTunnel(S1U_ADDR, ENB_ADDR, TEID, TUNNEL_SPORT)
             .build();
 
     public static final UpfInterface UPLINK_INTERFACE = UpfInterface.createS1uFrom(S1U_IFACE);

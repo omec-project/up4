@@ -161,12 +161,12 @@ public final class UpfFlow {
                             "Counter statistics provided do not use counter index set by provided PDR!");
                 }
                 sessionId = pdr.sessionId();
-                type = pdr.isUplink() ? Type.UPLINK : Type.DOWNLINK;
+                type = pdr.matchesEncapped() ? Type.UPLINK : Type.DOWNLINK;
             } else if (far != null) {
                 sessionId = far.sessionId();
-                if (far.isUplink()) {
+                if (far.forwards()) {
                     type = Type.UPLINK;
-                } else if (far.isDownlink()) {
+                } else if (far.encaps()) {
                     type = Type.DOWNLINK;
                 }
             }
