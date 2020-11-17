@@ -60,26 +60,40 @@ public final class ForwardingActionRule {
         return new Builder();
     }
 
-    @Override
-    public String toString() {
-        String matchKeys = String.format("ID:%d,SEID:%s", farId, sessionId.toString());
-        String directionString;
-        String actionParams;
-        if (bufferFlag()) {
-            directionString = "Buffering";
-            actionParams = "";
-        } else if (isUplink()) {
-            directionString = "Uplink";
-            actionParams = String.format("Drop:%b,Notify:%b", drop, notifyCp);
-        } else if (isDownlink()) {
-            directionString = "Downlink";
-            actionParams = String.format("Drop:%b,Notify:%b,Tunnel:%s", drop, notifyCp, tunnel.toString());
-        } else {
-            directionString = "Blank";
-            actionParams = "";
+    /**
+     * Return a string representing the dataplane action applied by this FAR.
+     *
+     * @return a string representing the FAR action
+     */
+    public String actionString() {
+        String actionName = "NO_ACTION";
+        String actionParams = "";
+        if (hasActionParameters()) {
+            if (drop) {
+                actionName = "Drop";
+            } else if (buffer) {
+                actionName = "Buffer";
+            } else if (tunnel != null) {
+                actionName = "Encap";
+                actionParams = String.format("Src=%s, SPort=%d, TEID=%s, Dst=%s",
+                        tunnel.src().toString(), tunnel.srcPort(), tunnel.teid().toString(), tunnel.dst().toString());
+            } else {
+                actionName = "Forward";
+            }
+            if (notifyCp) {
+                actionName += "+NotifyCP";
+            }
         }
 
-        return String.format("%s-FAR{ Keys:(%s) -> Params (%s) }", directionString, matchKeys, actionParams);
+        return String.format("%s(%s)", actionName, actionParams);
+    }
+
+    @Override
+    public String toString() {
+        String matchKeys = String.format("ID=%d, SEID=%s", farId, sessionId.toString());
+        String actionString = actionString();
+
+        return String.format("FAR{Match(%s) -> %s}", matchKeys, actionString);
     }
 
     @Override
@@ -120,18 +134,18 @@ public final class ForwardingActionRule {
     }
 
     /**
-     * True if this FAR forwards packets in the uplink direction, and false otherwise.
+     * True if this FAR forwards packets without encapsulating, and false otherwise.
      *
-     * @return true if FAR is uplink
+     * @return true if FAR is forwards without encapsulating
      */
     public boolean isUplink() {
         return type == Type.UPLINK;
     }
 
     /**
-     * True if this FAR forwards packets in the downlink direction, and false otherwise.
+     * True if this FAR tunnels packets before forwarding, and false otherwise.
      *
-     * @return true is FAR is downlink
+     * @return true is FAR encapsulates
      */
     public boolean isDownlink() {
         return type == Type.DOWNLINK;
@@ -385,9 +399,9 @@ public final class ForwardingActionRule {
         /**
          * Set the unidirectional GTP tunnel that this FAR should encapsulate packets with.
          *
-         * @param src  GTP tunnel source IP
-         * @param dst  GTP tunnel destination IP
-         * @param teid GTP tunnel ID
+         * @param src     GTP tunnel source IP
+         * @param dst     GTP tunnel destination IP
+         * @param teid    GTP tunnel ID
          * @param srcPort GTP tunnel UDP source port (destination port is hardcoded as 2152)
          * @return This builder object
          */

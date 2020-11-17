@@ -47,25 +47,28 @@ public final class PacketDetectionRule {
         return new Builder();
     }
 
+    /**
+     * Return a string representing the match conditions of this PDR.
+     *
+     * @return a string representing the PDR match conditions
+     */
+    public String matchString() {
+        if (isUplink()) {
+            return String.format("Match(Dst=%s, TEID=%s)", tunnelDest(), teid());
+        } else {
+            return String.format("Match(Dst=%s, !GTP)", ueAddress());
+        }
+    }
+
     @Override
     public String toString() {
-        String matchKeys;
-        String directionString;
-        if (isUplink()) {
-            directionString = "Uplink";
-            matchKeys = String.format("TunnelDst:%s,TEID:%s",
-                    tunnelDst.toString(), teid.toString());
-        } else {
-            directionString = "Downlink";
-            matchKeys = String.format("UE:%s", ueAddr.toString());
-        }
         String actionParams = "";
         if (hasActionParameters()) {
-            actionParams = String.format("SEID:%s,FAR:%d,CtrIdx:%d",
+            actionParams = String.format("SEID=%s, FAR=%d, CtrIdx=%d",
                     sessionId.toString(), farId, ctrId);
         }
 
-        return String.format("%s-PDR{ Keys:(%s) -> Params (%s) }", directionString, matchKeys, actionParams);
+        return String.format("PDR{%s -> LoadParams(%s)}", matchString(), actionParams);
     }
 
     @Override
