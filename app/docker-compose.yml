@@ -1,5 +1,7 @@
 version: "3"
+
 # SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+#
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
 services:
@@ -16,6 +18,41 @@ services:
     links:
       - onos
     entrypoint: "/bin/bash"
+    depends_on:
+      - onos
+  pfcp-agent:
+    image: badhri85/upf-epc-pfcpiface:0.3.3-test 
+    hostname: pfcp-agent
+    container_name: pfcp-agent
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./tmp:/tmp
+      - ./util:/util/
+    links:
+      - mininet
+      - onos
+    entrypoint: "/util/pfcp-entry.sh"
+    working_dir: /bin/
+    depends_on:
+      - mininet
+  pfcp-client:
+    build:
+      context: ./util
+      dockerfile: Dockerfile.scapy
+    hostname: pfcp-client
+    container_name: pfcp-client
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./tmp:/tmp
+      - ./util:/util/
+    links:
+      - pfcp-agent
+    entrypoint: "/bin/sh"
+    depends_on:
+      - pfcp-agent
+      - mininet
   mininet:
     build:
       context: ./util
@@ -30,12 +67,6 @@ services:
       - ./tmp:/tmp
       - ./util:/util
       - ./tmp/pcaps:/pcaps
-    ports:
-      - "50001:50001"
-      - "50002:50002"
-      - "50003:50003"
-      - "50004:50004"
-      - "10000:10000" # dbuf service
     entrypoint: "/util/mininet-entry.sh"
   onos:
     image: onosproject/onos:2.2-latest

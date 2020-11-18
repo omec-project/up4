@@ -51,12 +51,11 @@ public class FarInsertCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         var farBuilder = ForwardingActionRule.builder()
-                .withFarId(farId)
-                .withSessionId(sessionId)
-                .withFlags(false, false);
+                .setFarId(farId)
+                .withSessionId(sessionId);
 
         if (teid != -1) {
-            farBuilder.withTunnel(GtpTunnel.builder()
+            farBuilder.setTunnel(GtpTunnel.builder()
                     .setSrc(Ip4Address.valueOf(tunnelSrc))
                     .setDst(Ip4Address.valueOf(tunnelDst))
                     .setTeid(teid)

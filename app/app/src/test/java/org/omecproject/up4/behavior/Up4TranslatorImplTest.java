@@ -46,7 +46,7 @@ public class Up4TranslatorImplTest {
             assertThat("UP4 uplink PDR should translate to abstract PDR without error.", false);
             return;
         }
-        assertThat("Translated PDR should be uplink.", translatedPdr.isUplink());
+        assertThat("Translated PDR should be uplink.", translatedPdr.matchesEncapped());
         assertThat(translatedPdr, equalTo(expectedPdr));
     }
 
@@ -60,7 +60,7 @@ public class Up4TranslatorImplTest {
             assertThat("Fabric uplink PDR should translate to abstract PDR without error.", false);
             return;
         }
-        assertThat("Translated PDR should be uplink.", translatedPdr.isUplink());
+        assertThat("Translated PDR should be uplink.", translatedPdr.matchesEncapped());
         assertThat(translatedPdr, equalTo(expectedPdr));
     }
 
@@ -75,7 +75,7 @@ public class Up4TranslatorImplTest {
             return;
         }
 
-        assertThat("Translated PDR should be downlink.", translatedPdr.isDownlink());
+        assertThat("Translated PDR should be downlink.", translatedPdr.matchesUnencapped());
         assertThat(translatedPdr, equalTo(expectedPdr));
     }
 
@@ -90,7 +90,7 @@ public class Up4TranslatorImplTest {
             return;
         }
 
-        assertThat("Translated PDR should be downlink.", translatedPdr.isDownlink());
+        assertThat("Translated PDR should be downlink.", translatedPdr.matchesUnencapped());
         assertThat(translatedPdr, equalTo(expectedPdr));
     }
 
@@ -105,7 +105,7 @@ public class Up4TranslatorImplTest {
                     false);
             return;
         }
-        assertThat("Translated FAR should be uplink.", translatedFar.isUplink());
+        assertThat("Translated FAR should be uplink.", translatedFar.forwards());
         assertThat(translatedFar, equalTo(expectedFar));
     }
 
@@ -120,7 +120,7 @@ public class Up4TranslatorImplTest {
                     false);
             return;
         }
-        assertThat("Translated FAR should be uplink.", translatedFar.isUplink());
+        assertThat("Translated FAR should be uplink.", translatedFar.forwards());
         assertThat(translatedFar, equalTo(expectedFar));
     }
 
@@ -135,7 +135,7 @@ public class Up4TranslatorImplTest {
                     false);
             return;
         }
-        assertThat("Translated FAR should be downlink.", translatedFar.isDownlink());
+        assertThat("Translated FAR should be downlink.", translatedFar.encaps());
         assertThat(translatedFar, equalTo(expectedFar));
     }
 
@@ -150,7 +150,7 @@ public class Up4TranslatorImplTest {
                     false);
             return;
         }
-        assertThat("Translated FAR should be downlink.", translatedFar.isDownlink());
+        assertThat("Translated FAR should be downlink.", translatedFar.encaps());
         assertThat(translatedFar, equalTo(expectedFar));
     }
 
@@ -165,7 +165,7 @@ public class Up4TranslatorImplTest {
                     false);
             return;
         }
-        assertThat("Translated interface should be uplink.", translatedInterface.isUplink());
+        assertThat("Translated interface should be uplink.", translatedInterface.isAccess());
         assertThat(translatedInterface, equalTo(expectedInterface));
     }
 
@@ -180,7 +180,7 @@ public class Up4TranslatorImplTest {
                     false);
             return;
         }
-        assertThat("Translated interface should be uplink.", translatedInterface.isUplink());
+        assertThat("Translated interface should be uplink.", translatedInterface.isAccess());
         assertThat(translatedInterface, equalTo(expectedInterface));
     }
 
@@ -195,7 +195,7 @@ public class Up4TranslatorImplTest {
                     false);
             return;
         }
-        assertThat("Translated interface should be downlink.", translatedInterface.isDownlink());
+        assertThat("Translated interface should be downlink.", translatedInterface.isCore());
         assertThat(translatedInterface, equalTo(expectedInterface));
     }
 
@@ -210,7 +210,7 @@ public class Up4TranslatorImplTest {
                     false);
             return;
         }
-        assertThat("Translated interface should be downlink.", translatedInterface.isDownlink());
+        assertThat("Translated interface should be downlink.", translatedInterface.isCore());
         assertThat(translatedInterface, equalTo(expectedInterface));
     }
 

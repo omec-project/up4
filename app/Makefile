@@ -86,9 +86,11 @@ build-ci: MVN_FLAGS := -Pci-verify -Pcoverage
 build-ci: build
 
 start:
-	$(info *** Starting ONOS and Mininet (topo-gtp.py)... )
+	$(info *** Starting UP4 integration testing containers... )
 	@mkdir -p tmp/onos
 	@docker-compose up -d
+
+
 
 clean:
 	rm -rf target/
@@ -119,14 +121,6 @@ p4rt-clear:
 p4rt-bash:
 	docker exec -it $(shell docker-compose ps -q p4rtsh) /bin/bash
 
-iface-clear:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh filter
-
-pdr-clear:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh pdr
-
-far-clear:
-	docker exec -it $(shell docker-compose ps -q p4rtsh) /scripts/do_selective_clear.sh far
 
 stop2: STOP_ARGS :=
 stop2: stop
@@ -177,17 +171,39 @@ _check:
 	make check-dbuf-started
 	make onos-config
 	sleep ${CONFIG_WAIT_TIME}
+	make pfcp-setup
 	make check-dbuf-ready
+	make check-messenger-ready
 	make check-forwarding
 	make check-buffering
+	make pfcp-messenger-stop
+	sleep 5
+	make FLOW_COUNT=0 check-flows-found 
 	@echo "**********************************"
 	@echo "** Integration checks passed :D **"
 	@echo "**********************************"
 	make stop STOP_ARGS=${STOP_ARGS}
 
+
+pfcp-setup:
+	make pfcp-messenger-start
+	sleep 1
+	make pfcp-messenger-associate
+	sleep 0.2
+	make pfcp-messenger-establish-session
+	sleep 0.2
+
+pfcp-set-forwarding:
+	make pfcp-messenger-modify-session
+	sleep 0.2
+
+pfcp-set-buffering:
+	make pfcp-messenger-modify-session PFCP_ARGS="--buffer"
+
 check-forwarding:
 	@echo "*** Setting forwarding FAR..."
-	make p4rt-set-forwarding
+	make pfcp-set-forwarding
+	make FLOW_COUNT=2 check-flows-found 
 	sleep 1
 	@echo "*** Sending downlink..."
 	make PKT_WAIT_TIME=${PKT_WAIT_TIME} send-and-recv-downlink
@@ -196,7 +212,7 @@ check-forwarding:
 
 check-buffering:
 	@echo "*** Setting buffering FAR..."
-	make p4rt-set-buffering
+	make pfcp-set-buffering
 	sleep 1
 	@echo "*** Sending 10 downlink pkts..."
 	util/mn-cmd pdn /util/traffic.py send-udp-10
@@ -205,12 +221,16 @@ check-buffering:
 	screen -L -d -m util/mn-cmd enodeb /util/traffic.py recv-gtp -t ${PKT_WAIT_TIME}
 	sleep 1
 	@echo "*** Setting forwarding FAR (drain)..."
-	make p4rt-set-forwarding
+	make pfcp-set-forwarding
 	sleep 2
 	docker-compose logs onos | grep "Started dbuf drain for 17.0.0.1"
 	docker-compose logs onos | grep "Dbuf drain completed for 17.0.0.1"
 	@echo "*** Verify delivery of at least one drained pkt..."
 	cat screenlog.0 | grep "140.0.100.254 -> 140.0.100.1, is_gtp_encap=True"
+
+
+check-flows-found:
+	util/onos-cmd up4:read-flows | grep "${FLOW_COUNT} flows found"
 
 send-and-recv-downlink:
 	@# util/mn-cmd requires a TTY because it uses docker -it option
@@ -244,59 +264,30 @@ onos-cli:
 	echo "Password: rocks"
 	ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o LogLevel=ERROR -p 8101 onos@localhost
 
+pfcp-messenger:
+	docker exec -it pfcp-client /util/pfcp-messenger.py pfcp-agent
 
-test-onos-netcfg:
-	${onos_curl} -X POST -H 'Content-Type:application/json' \
-    	${onos_url}/v1/network/configuration -d@./util/ptf-netcfg.json
+pfcp-messenger-start:
+	./util/pfcp-client-cmd start
 
-test-onos-config:
-	#util/onos-cmd app deactivate lldpprovider # the packet injects ruin tests
-	#util/onos-cmd app activate segmentrouting
-	#util/onos-cmd app activate pipelines.fabric
-	#util/onos-cmd app activate netcfghostprovider
-	#util/onos-cmd app activate org.onosproject.protocols.grpc
-	#sleep 1
-	util/onos-cmd route-add 17.0.0.0/24 140.0.100.1
-	sleep 1
-	make test-onos-netcfg
-	sleep 3
-	onos-tools/onos-app localhost install! ./target/up4-app-0.1.oar
+check-messenger-ready:
+	./util/pfcp-client-cmd check
 
+pfcp-messenger-associate:
+	./util/pfcp-client-cmd associate ${PFCP_ARGS}
 
-test-onos-start:
-	docker run --name test-onos-img -d -it --privileged --rm \
-		-e ONOS_APPS=gui2,drivers.bmv2,segmentrouting,pipelines.fabric,hostprovider,netcfghostprovider,org.onosproject.protocols.grpc,fwd \
-		-p 8101:8101 \
-		-p 8181:8181 \
-		-p 51001:51001 \
-		onosproject/onos:2.2-latest
+pfcp-messenger-establish-session:
+	./util/pfcp-client-cmd establish ${PFCP_ARGS}
 
+pfcp-messenger-modify-session:
+	./util/pfcp-client-cmd modify ${PFCP_ARGS}
 
-test-sw-start:
-	docker run --name test-bmv2-img -d --privileged --rm \
-	  -v "/Users/macdavid/Code/up4/ptf":/ptf -w /ptf \
-	  -v "/Users/macdavid/Code/up4/p4src/build":/p4c-out \
-	  -v "/Users/macdavid/Code/up4/app/util":/util \
-	  --network "container:test-onos-img" \
-	  ccasconeonf/up4-ptf:latest \
-	  ./lib/start_bmv2.sh > /dev/null
+pfcp-messenger-release-session:
+	./util/pfcp-client-cmd delete ${PFCP_ARGS}
 
-test-onos-logs:
-	docker logs -f test-onos-img
+pfcp-messenger-stop:
+	./util/pfcp-client-cmd stop ${PFCP_ARGS}
 
-test-onos-stop:
-	docker stop -t0 test-onos-img > /dev/null
-
-test-sw-stop:
-	docker stop -t0 test-bmv2-img > /dev/null
-
-test-run-ptf:
-	docker exec test-bmv2-img ./lib/runner.py \
-    --bmv2-json /p4c-out/bmv2.json \
-    --p4info /p4c-out/p4info.bin \
-    --grpc-addr localhost:51001 \
-    --device-id 1 \
-    --ptf-dir ./tests \
-    --cpu-port 255 \
-    --port-map /ptf/lib/port_map.json ${TEST}
+pfcp-messenger-kill:
+	./util/pfcp-client-cmd kill
 

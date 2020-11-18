@@ -211,7 +211,7 @@ public class Up4DeviceManager implements Up4Service {
      */
     private Collection<UpfInterface> configFileInterfaces() {
         Collection<UpfInterface> interfaces = new ArrayList<>();
-        interfaces.add(UpfInterface.createS1uFrom(config.s1uPrefix()));
+        interfaces.add(UpfInterface.createS1uFrom(config.s1uAddress()));
         for (Ip4Prefix uePool : config.uePools()) {
             interfaces.add(UpfInterface.createUePoolFrom(uePool));
         }
