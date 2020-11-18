@@ -67,7 +67,8 @@ def clear_sent_rules():
     sent_qers.clear()
 
 
-def get_addresses_from_prefix(prefix: IPv4Network, count: int) -> Generator[IPv4Address, None, None]:
+def get_addresses_from_prefix(prefix: IPv4Network,
+                              count: int) -> Generator[IPv4Address, None, None]:
     """
     Generator for yielding Ip4Addresses from the provided prefix.
     :param prefix: the prefix from which addresses should be generated
@@ -76,7 +77,7 @@ def get_addresses_from_prefix(prefix: IPv4Network, count: int) -> Generator[IPv4
     """
     # Currently this doesn't allow the address with host bits all 0,
     #  so the first host address is (prefix_addr & mask) + 1
-    if count >= 2 ** (prefix.max_prefixlen - prefix.prefixlen):
+    if count >= 2**(prefix.max_prefixlen - prefix.prefixlen):
         raise Exception("trying to generate more addresses than a prefix contains!")
     base_addr = ip2int(prefix.network_address) + 1
     offset = 0
@@ -109,8 +110,9 @@ def get_sequence_num(reset=False):
 
 
 def open_socket(our_addr: str):
-    sock = socket.socket(socket.AF_INET,  # Internet
-                         socket.SOCK_DGRAM)  # UDP
+    sock = socket.socket(
+        socket.AF_INET,  # Internet
+        socket.SOCK_DGRAM)  # UDP
     sock.bind((our_addr, UDP_PORT_PFCP))
     print("Socket opened ")
     return sock
@@ -192,7 +194,8 @@ def craft_pdr(id: int, far_id: int, qer_id: int, urr_id: int, src_iface: int, up
 
 
 def craft_far(id: int, update=False, forward_flag=False, drop_flag=False, buffer_flag=False,
-              dst_iface: int = None, tunnel=False, tunnel_dst: str = None, teid: int = None) -> pfcp.IE_Compound:
+              dst_iface: int = None, tunnel=False, tunnel_dst: str = None,
+              teid: int = None) -> pfcp.IE_Compound:
     far = pfcp.IE_CreateFAR() if not update else pfcp.IE_UpdateFAR()
     far_id = pfcp.IE_FAR_Id()
     far_id.id = id
@@ -206,7 +209,8 @@ def craft_far(id: int, update=False, forward_flag=False, drop_flag=False, buffer
     far.IE_list.append(apply_action)
 
     # Forwarding Parameters
-    forward_param = pfcp.IE_ForwardingParameters() if not update else pfcp.IE_UpdateForwardingParameters()
+    forward_param = pfcp.IE_ForwardingParameters(
+    ) if not update else pfcp.IE_UpdateForwardingParameters()
     _dst_iface = pfcp.IE_DestinationInterface()
     _dst_iface.interface = dst_iface
     forward_param.IE_list.append(_dst_iface)
@@ -225,7 +229,8 @@ def craft_far(id: int, update=False, forward_flag=False, drop_flag=False, buffer
 
 
 def craft_qer(id: int, max_bitrate_up=12345678, max_bitrate_down=12345678,
-              guaranteed_bitrate_up=12345678, guaranteed_bitrate_down=12345678, update=False) -> pfcp.IE_Compound:
+              guaranteed_bitrate_up=12345678, guaranteed_bitrate_down=12345678,
+              update=False) -> pfcp.IE_Compound:
     qer = pfcp.IE_CreateQER() if not update else pfcp.IE_UpdateQER()
     # QER ID
     qer_id = pfcp.IE_QER_Id()
@@ -291,9 +296,8 @@ def craft_pfcp_association_setup_packet() -> scapy.Packet:
     return IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header / setup_request
 
 
-def add_rules_to_request(args: argparse.Namespace, request, update=False,
-                         add_pdrs=False, add_fars=False, add_urrs=False, add_qers=False,
-                         force_add=False) -> None:
+def add_rules_to_request(args: argparse.Namespace, request, update=False, add_pdrs=False,
+                         add_fars=False, add_urrs=False, add_qers=False, force_add=False) -> None:
     rule_count = args.ue_count * 2
     ue_addr_gen = get_addresses_from_prefix(args.ue_pool, args.ue_count)
     teid_gen = iter(range(args.teid_base, args.teid_base + rule_count))
@@ -322,8 +326,9 @@ def add_rules_to_request(args: argparse.Namespace, request, update=False,
         if add_pdrs:
             # uplink
             pdr1 = craft_pdr(id=pdr_id1, far_id=far_id1, qer_id=qer_id1, urr_id=urr_id1,
-                             src_iface=IFACE_ACCESS, from_tunnel=True, teid=teid1, tunnel_dst=args.s1u_addr,
-                             update=update, precedence=args.pdr_precedence)
+                             src_iface=IFACE_ACCESS, from_tunnel=True, teid=teid1,
+                             tunnel_dst=args.s1u_addr, update=update,
+                             precedence=args.pdr_precedence)
             if force_add or not already_sent(pdr_id1, pdr1, sent_pdrs):
                 request.IE_list.append(pdr1)
             # downlink
@@ -335,7 +340,8 @@ def add_rules_to_request(args: argparse.Namespace, request, update=False,
 
         if add_fars:
             # uplink
-            far1 = craft_far(id=far_id1, update=update, forward_flag=True, dst_iface=IFACE_CORE, tunnel=False)
+            far1 = craft_far(id=far_id1, update=update, forward_flag=True, dst_iface=IFACE_CORE,
+                             tunnel=False)
             if force_add or not already_sent(far_id1, far1, sent_fars):
                 request.IE_list.append(far1)
             # The downlink FAR should only tunnel if this is an update message. Our PFCP agent does not support
@@ -384,8 +390,8 @@ def craft_pfcp_session_est_packet(args: argparse.Namespace) -> scapy.Packet:
     pdn_type = pfcp.IE_PDNType()
     establishment_request.IE_list.append(pdn_type)
 
-    add_rules_to_request(args=args, request=establishment_request, update=False,
-                         add_pdrs=True, add_fars=True, add_urrs=True, add_qers=True)
+    add_rules_to_request(args=args, request=establishment_request, update=False, add_pdrs=True,
+                         add_fars=True, add_urrs=True, add_qers=True)
 
     return IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header / establishment_request
 
@@ -465,8 +471,9 @@ def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, verbosity=0) 
             if ie.ie_type == 57:
                 peer_seid = int(ie.seid)
     else:
-        print("ERROR: Expected response of type %s but received %s"
-              % (pfcp.PFCPmessageType[expected_response_type], pfcp.PFCPmessageType[response.message_type]))
+        print("ERROR: Expected response of type %s but received %s" %
+              (pfcp.PFCPmessageType[expected_response_type],
+               pfcp.PFCPmessageType[response.message_type]))
 
 
 def setup_pfcp_association(args: argparse.Namespace) -> None:
@@ -542,40 +549,39 @@ def handle_user_input() -> None:
         "establish": ("Establish PFCP Session", establish_pfcp_session),
         "modify": ("Modify PFCP Session", modify_pfcp_session),
         "delete": ("Delete PFCP Session", delete_pfcp_session),
-        "stop": ("Exit script", terminate)}
+        "stop": ("Exit script", terminate)
+    }
 
     parser = ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("choice", type=str, help="The PFCP client operation to perform",
                         choices=user_choices.keys())
-    parser.add_argument("--buffer", action='store_true',
-                        help="If this argument is present, downlink fars will have" +
-                             " the buffering flag set to true")
+    parser.add_argument(
+        "--buffer", action='store_true',
+        help="If this argument is present, downlink fars will have" +
+        " the buffering flag set to true")
     parser.add_argument("--ue-count", type=int, default=1,
                         help="The number of UE flows for which table entries should be created.")
-    parser.add_argument("--ue-pool", type=IPv4Network,
-                        default=IPv4Network("17.0.0.0/24"),
+    parser.add_argument("--ue-pool", type=IPv4Network, default=IPv4Network("17.0.0.0/24"),
                         help="The IPv4 prefix from which UE addresses will be drawn.")
-    parser.add_argument("--s1u-addr", type=IPv4Address,
-                        default=IPv4Address("140.0.100.254"),
+    parser.add_argument("--s1u-addr", type=IPv4Address, default=IPv4Address("140.0.100.254"),
                         help="The IPv4 address of the UPF's S1U interface")
-    parser.add_argument("--enb-addr", type=IPv4Address,
-                        default=IPv4Address("140.0.100.1"),
+    parser.add_argument("--enb-addr", type=IPv4Address, default=IPv4Address("140.0.100.1"),
                         help="The IPv4 address of the eNodeB")
-    parser.add_argument("--teid-base", type=int, default=255,
-                        help="The first TEID to use for the first UE. " +
-                             "Further TEIDs will be generated by incrementing.")
-    parser.add_argument("--pdr-base", type=int, default=1,
-                        help="The first PDR ID to use for the first UE. " +
-                             "Further PDR IDs will be generated by incrementing.")
-    parser.add_argument("--far-base", type=int, default=1,
-                        help="The first FAR ID to use for the first UE. " +
-                             "Further FAR IDs will be generated by incrementing.")
-    parser.add_argument("--urr-base", type=int, default=1,
-                        help="The first URR ID to use for the first UE. " +
-                             "Further counter indices will be generated by incrementing.")
-    parser.add_argument("--qer-base", type=int, default=1,
-                        help="The first QER ID to use for the first UE. " +
-                             "Further counter indices will be generated by incrementing.")
+    parser.add_argument(
+        "--teid-base", type=int, default=255, help="The first TEID to use for the first UE. " +
+        "Further TEIDs will be generated by incrementing.")
+    parser.add_argument(
+        "--pdr-base", type=int, default=1, help="The first PDR ID to use for the first UE. " +
+        "Further PDR IDs will be generated by incrementing.")
+    parser.add_argument(
+        "--far-base", type=int, default=1, help="The first FAR ID to use for the first UE. " +
+        "Further FAR IDs will be generated by incrementing.")
+    parser.add_argument(
+        "--urr-base", type=int, default=1, help="The first URR ID to use for the first UE. " +
+        "Further counter indices will be generated by incrementing.")
+    parser.add_argument(
+        "--qer-base", type=int, default=1, help="The first QER ID to use for the first UE. " +
+        "Further counter indices will be generated by incrementing.")
     parser.add_argument("--pdr-precedence", type=int, default=2,
                         help="The priority/precedence of PDRs.")
 
