@@ -473,7 +473,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public void removeInterface(UpfInterface upfInterface) {
-        Ip4Prefix ifacePrefix = upfInterface.prefix();
+        Ip4Prefix ifacePrefix = upfInterface.getPrefix();
         // If it isn't a core interface (so it is either access or unknown), try removing core
         if (!upfInterface.isCore()) {
             PiCriterion match1 = PiCriterion.builder()

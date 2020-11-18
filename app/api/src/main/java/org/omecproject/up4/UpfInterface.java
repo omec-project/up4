@@ -74,16 +74,6 @@ public final class UpfInterface {
     }
 
     /**
-     * Create an access-facing UPF Interface from the given IP prefix.
-     *
-     * @param prefix the prefix of the new access-facing interface
-     * @return a new UPF interface
-     */
-    public static UpfInterface createS1uFrom(Ip4Prefix prefix) {
-        return builder().setAccess().setPrefix(prefix).build();
-    }
-
-    /**
      * Create a core-facing UPF Interface from the given IP prefix.
      *
      * @param prefix the prefix of the new core-facing interface
