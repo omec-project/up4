@@ -125,16 +125,15 @@ public class FabricUpfProgrammable implements UpfProgrammable {
      * @return the converted FAR
      */
     private ForwardingActionRule convertToDbufFar(ForwardingActionRule far) {
-        if (!far.bufferFlag()) {
+        if (!far.buffers()) {
             log.error("Converting a non-buffering FAR to a dbuf FAR! This shouldn't happen.");
         }
         return ForwardingActionRule.builder()
-                .withFarId(far.farId())
+                .setFarId(far.farId())
                 .withSessionId(far.sessionId())
-                .withDropFlag(far.dropFlag())
-                .withNotifyFlag(far.notifyCpFlag())
-                .withBufferFlag(true)
-                .withTunnel(dbufTunnel)
+                .setNotifyFlag(far.notifies())
+                .setBufferFlag(true)
+                .setTunnel(dbufTunnel)
                 .build();
     }
 
@@ -239,8 +238,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             flowRuleService.applyFlowRules(fabricPdr);
             log.debug("FAR added with flowID {}", fabricPdr.id().value());
 
-            // If the flow rule was applied and the PDR is downlink, add the PDR to the farID->PDR mapping
-            if (pdr.isDownlink()) {
+            // If the flow rule was applied and the PDR matches unencapsulated packets,
+            // add the PDR to the farID->PDR mapping
+            if (pdr.matchesUnencapped()) {
                 UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(pdr.sessionId(), pdr.farId());
                 farIdToUeAddrs.compute(ruleId, (k, existingSet) -> {
                     if (existingSet == null) {
@@ -263,7 +263,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     public void addFar(ForwardingActionRule far) {
         try {
             UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(far.sessionId(), far.farId());
-            if (far.bufferFlag()) {
+            if (far.buffers()) {
                 // If the far has the buffer flag, modify its tunnel so it directs to dbuf
                 far = convertToDbufFar(far);
                 bufferFarIds.add(ruleId);
@@ -272,7 +272,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             log.info("Installing {}", far.toString());
             flowRuleService.applyFlowRules(fabricFar);
             log.debug("FAR added with flowID {}", fabricFar.id().value());
-            if (!far.bufferFlag() && bufferFarIds.contains(ruleId)) {
+            if (!far.buffers() && bufferFarIds.contains(ruleId)) {
                 // If this FAR does not buffer but used to, then drain all relevant buffers
                 bufferFarIds.remove(ruleId);
                 for (var ueAddr : farIdToUeAddrs.getOrDefault(ruleId, Set.of())) {
@@ -438,27 +438,24 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     public void removePdr(PacketDetectionRule pdr) {
         PiCriterion match;
         PiTableId tableId;
-        if (pdr.isUplink()) {
+        if (pdr.matchesEncapped()) {
             match = PiCriterion.builder()
                     .matchExact(SouthConstants.HDR_TEID, pdr.teid().asArray())
                     .matchExact(SouthConstants.HDR_TUNNEL_IPV4_DST, pdr.tunnelDest().toInt())
                     .build();
             tableId = SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS;
-        } else if (pdr.isDownlink()) {
+        } else {
             match = PiCriterion.builder()
                     .matchExact(SouthConstants.HDR_UE_ADDR, pdr.ueAddress().toInt())
                     .build();
             tableId = SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS;
-        } else {
-            log.error("Removal of flexible PDRs not yet supported.");
-            return;
         }
         log.info("Removing {}", pdr.toString());
         removeEntry(match, tableId, false);
 
         // Remove the PDR from the farID->PDR mapping
         // This is an inefficient hotfix FIXME: remove UE addrs from the mapping in sublinear time
-        if (pdr.isDownlink()) {
+        if (pdr.matchesUnencapped()) {
             farIdToUeAddrs.values().forEach(set -> set.remove(pdr.ueAddress()));
         }
     }
@@ -477,8 +474,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Override
     public void removeInterface(UpfInterface upfInterface) {
         Ip4Prefix ifacePrefix = upfInterface.prefix();
-        // If it isn't a downlink interface (so it is either uplink or unknown), try removing uplink
-        if (!upfInterface.isDownlink()) {
+        // If it isn't a core interface (so it is either access or unknown), try removing core
+        if (!upfInterface.isCore()) {
             PiCriterion match1 = PiCriterion.builder()
                     .matchLpm(SouthConstants.HDR_IPV4_DST_ADDR, ifacePrefix.address().toInt(),
                             ifacePrefix.prefixLength())
@@ -488,7 +485,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 return;
             }
         }
-        // If that didn't work or didn't execute, try removing downlink
+        // If that didn't work or didn't execute, try removing access
         PiCriterion match2 = PiCriterion.builder()
                 .matchLpm(SouthConstants.HDR_IPV4_DST_ADDR, ifacePrefix.address().toInt(),
                         ifacePrefix.prefixLength())

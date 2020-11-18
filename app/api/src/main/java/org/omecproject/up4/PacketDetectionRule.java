@@ -22,13 +22,13 @@ import static com.google.common.base.Preconditions.checkArgument;
 public final class PacketDetectionRule {
     // Match keys
     private final Ip4Address ueAddr;  // The UE IP address that this PDR matches on
-    private final ImmutableByteSequence teid;  // The Tunnel Endpoint ID that this PDR matches on (if PDR is uplink)
-    private final Ip4Address tunnelDst;  // The tunnel destination address that this PDR matches on (if PDR is uplink)
+    private final ImmutableByteSequence teid;  // The Tunnel Endpoint ID that this PDR matches on
+    private final Ip4Address tunnelDst;  // The tunnel destination address that this PDR matches on
     // Action parameters
     private final ImmutableByteSequence sessionId;  // The ID of the PFCP session that created this PDR
     private final Integer ctrId;  // Counter ID unique to this PDR
     private final Integer farId;  // The PFCP session-local ID of the FAR that should apply after this PDR hits
-    private final Type type; // Is the PDR Uplink, Downlink, etc.
+    private final Type type;
 
     private static final int SESSION_ID_BITWIDTH = 96;
 
@@ -47,25 +47,28 @@ public final class PacketDetectionRule {
         return new Builder();
     }
 
+    /**
+     * Return a string representing the match conditions of this PDR.
+     *
+     * @return a string representing the PDR match conditions
+     */
+    public String matchString() {
+        if (matchesEncapped()) {
+            return String.format("Match(Dst=%s, TEID=%s)", tunnelDest(), teid());
+        } else {
+            return String.format("Match(Dst=%s, !GTP)", ueAddress());
+        }
+    }
+
     @Override
     public String toString() {
-        String matchKeys;
-        String directionString;
-        if (isUplink()) {
-            directionString = "Uplink";
-            matchKeys = String.format("TunnelDst:%s,TEID:%s",
-                    tunnelDst.toString(), teid.toString());
-        } else {
-            directionString = "Downlink";
-            matchKeys = String.format("UE:%s", ueAddr.toString());
-        }
         String actionParams = "";
         if (hasActionParameters()) {
-            actionParams = String.format("SEID:%s,FAR:%d,CtrIdx:%d",
+            actionParams = String.format("SEID=%s, FAR=%d, CtrIdx=%d",
                     sessionId.toString(), farId, ctrId);
         }
 
-        return String.format("%s-PDR{ Keys:(%s) -> Params (%s) }", directionString, matchKeys, actionParams);
+        return String.format("PDR{%s -> LoadParams(%s)}", matchString(), actionParams);
     }
 
     @Override
@@ -103,7 +106,7 @@ public final class PacketDetectionRule {
      * @return true if this instance has PDR action parameters, false otherwise.
      */
     public boolean hasActionParameters() {
-        return type == Type.UPLINK || type == Type.DOWNLINK;
+        return type == Type.MATCH_ENCAPPED || type == Type.MATCH_UNENCAPPED;
     }
 
     /**
@@ -112,7 +115,7 @@ public final class PacketDetectionRule {
      * @return a new PDR with only match keys
      */
     public PacketDetectionRule withoutActionParams() {
-        if (isUplink()) {
+        if (matchesEncapped()) {
             return PacketDetectionRule.builder()
                     .withTeid(teid)
                     .withTunnelDst(tunnelDst)
@@ -124,21 +127,21 @@ public final class PacketDetectionRule {
     }
 
     /**
-     * True if this PDR matches on packets travelling in the uplink direction, and false otherwise.
+     * True if this PDR matches on packets received with a GTP header, and false otherwise.
      *
-     * @return true if the PDR matches only uplink packets
+     * @return true if the PDR matches only encapsulated packets
      */
-    public boolean isUplink() {
-        return type == Type.UPLINK || type == Type.UPLINK_KEYS_ONLY;
+    public boolean matchesEncapped() {
+        return type == Type.MATCH_ENCAPPED || type == Type.MATCH_ENCAPPED_NO_ACTION;
     }
 
     /**
-     * True if this PDR matches on packets travelling in the downlink direction, and false otherwise.
+     * True if this PDR matches on packets received without a GTP header, and false otherwise.
      *
-     * @return true if the PDR matches only downlink packets
+     * @return true if the PDR matches only unencapsulated packets
      */
-    public boolean isDownlink() {
-        return type == Type.DOWNLINK || type == Type.DOWNLINK_KEYS_ONLY;
+    public boolean matchesUnencapped() {
+        return type == Type.MATCH_UNENCAPPED || type == Type.MATCH_UNENCAPPED_NO_ACTION;
     }
 
     /**
@@ -197,24 +200,23 @@ public final class PacketDetectionRule {
 
     public enum Type {
         /**
-         * Uplink PDRs match on packets travelling in the uplink direction. These packets will have a GTP tunnel.
+         * Match on packets that are encapsulated in a GTP tunnel.
          */
-        UPLINK,
+        MATCH_ENCAPPED,
         /**
-         * Downlink PDRs match on packets travelling in the downlink direction.
-         * These packets will not have a GTP tunnel.
+         * Match on packets that are not encapsulated in a GTP tunnel.
          */
-        DOWNLINK,
+        MATCH_UNENCAPPED,
         /**
-         * For uplink PDRs that were not build with any action parameters, only match keys.
+         * For PDRs that match on encapsulated packets but do not yet have any action parameters set.
          * These are usually built in the context of P4Runtime DELETE write requests.
          */
-        UPLINK_KEYS_ONLY,
+        MATCH_ENCAPPED_NO_ACTION,
         /**
-         * For downlink PDRs that were not build with any action parameters, only match keys.
+         * For PDRs that match on unencapsulated packets but do not yet have any action parameters set.
          * These are usually built in the context of P4Runtime DELETE write requests.
          */
-        DOWNLINK_KEYS_ONLY
+        MATCH_UNENCAPPED_NO_ACTION
     }
 
     public static class Builder {
@@ -346,15 +348,15 @@ public final class PacketDetectionRule {
             Type type;
             if (teid != null) {
                 if (sessionId != null) {
-                    type = Type.UPLINK;
+                    type = Type.MATCH_ENCAPPED;
                 } else {
-                    type = Type.UPLINK_KEYS_ONLY;
+                    type = Type.MATCH_ENCAPPED_NO_ACTION;
                 }
             } else {
                 if (sessionId != null) {
-                    type = Type.DOWNLINK;
+                    type = Type.MATCH_UNENCAPPED;
                 } else {
-                    type = Type.DOWNLINK_KEYS_ONLY;
+                    type = Type.MATCH_UNENCAPPED_NO_ACTION;
                 }
             }
             return new PacketDetectionRule(sessionId, ctrId, localFarId, ueAddr, teid, tunnelDst, type);

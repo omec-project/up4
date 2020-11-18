@@ -82,27 +82,11 @@ public final class UpfFlow {
     public String toString() {
         String farString = "NO FAR!";
         if (far != null) {
-            if (far.bufferFlag()) {
-                farString = String.format("FarID %d  -->  Buffer()", far.farId());
-            } else if (far.isUplink()) {
-                farString = String.format("FarID %d  -->  Decap()", far.farId());
-            } else if (far.isDownlink()) {
-                farString = String.format("FarID %d  -->  Encap(Src=%s, TEID=%s, Dst=%s)",
-                        far.farId(), far.tunnelSrc(), far.teid(), far.tunnelDst());
-            } else {
-                // If the FAR is incomplete
-                farString = String.format("FarID %s -> NO_ACTION", far.farId());
-            }
+            farString = String.format("FarID %d  -->  %s", far.farId(), far.actionString());
         }
         String pdrString = "NO PDR!";
         if (pdr != null) {
-            if (pdr.isUplink()) {
-                pdrString = String.format("Match(Dst=%s, TEID=%s)", pdr.tunnelDest(), pdr.teid());
-            } else if (pdr.isDownlink()) {
-                pdrString = String.format("Match(Dst=%s, !GTP)", pdr.ueAddress());
-            } else {
-                pdrString = pdr.toString();
-            }
+            pdrString = pdr.matchString();
         }
         String statString = "NO STATISTICS!";
         if (flowStats != null) {
@@ -177,12 +161,12 @@ public final class UpfFlow {
                             "Counter statistics provided do not use counter index set by provided PDR!");
                 }
                 sessionId = pdr.sessionId();
-                type = pdr.isUplink() ? Type.UPLINK : Type.DOWNLINK;
+                type = pdr.matchesEncapped() ? Type.UPLINK : Type.DOWNLINK;
             } else if (far != null) {
                 sessionId = far.sessionId();
-                if (far.isUplink()) {
+                if (far.forwards()) {
                     type = Type.UPLINK;
-                } else if (far.isDownlink()) {
+                } else if (far.encaps()) {
                     type = Type.DOWNLINK;
                 }
             }
