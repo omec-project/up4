@@ -32,7 +32,7 @@ $(SCENARIOS): /tmp/stc
 		export DOCKER_COMPOSE_CMD="${DOCKER_COMPOSE_CMD}" && \
 		stc $@
 
-deps: build
+deps: build stc-dev-build
 	${DOCKER_COMPOSE_CMD} pull
 	git submodule update --init --depth 1 onos
 
@@ -42,7 +42,7 @@ stc-dev-build:
 	cd /tmp && git clone -b quotes --depth 1 https://github.com/opennetworkinglab/onos-stc.git
 	cd /tmp/onos-stc && mvn -Dmaven.test.skip=true install
 
-build: stc-dev-build
+build:
 	${DOCKER_COMPOSE_CMD} build --pull
 
 reset:
