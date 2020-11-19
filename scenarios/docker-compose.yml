@@ -4,7 +4,7 @@ version: "3"
 
 services:
   p4rtsh:
-    image: p4lang/p4runtime-sh:latest@sha256:6ae50afb5bde620acb9473ce6cd7b990ff6cc63fe4113cf5584c8e38fe42176c
+    image: ${P4RTSH_IMAGE}
     hostname: p4rtsh
     container_name: p4rtsh
     tty: true
@@ -20,6 +20,9 @@ services:
     build:
       context: ./topo
       dockerfile: Dockerfile.mn
+      args:
+        - DBUF_IMAGE=${DBUF_IMAGE}
+        - MN_STRATUM_IMAGE=${MN_STRATUM_IMAGE}
     hostname: mininet
     container_name: mininet
     privileged: true
@@ -40,7 +43,7 @@ services:
       - "10000:10000" # dbuf service
   onos1:
     # Tost image comes with latest trellis apps
-    image: registry.aetherproject.org/tost/tost:stable
+    image: ${ONOS_IMAGE}
     hostname: onos1
     container_name: onos1
     ports:
@@ -49,11 +52,13 @@ services:
       - "51001:51001" # the UP4 app's gRPC server port
       - "5005:5005" # Java debugger
     volumes:
-      - ./tmp/onos:/root/onos/apache-karaf-4.2.8/data/tmp
+      - ./tmp/onos:/root/onos/apache-karaf-4.2.9/data/tmp
       - ./tmp/pcaps:/pcaps
     environment:
-      - ONOS_APPS=${ONOS_APPS}
       - JAVA_DEBUG_PORT=0.0.0.0:5005
+    env_file:
+      # Includes ONOS_APPS
+      - .env.stc
     entrypoint: "./bin/onos-service"
     command: ["debug"]
     links:

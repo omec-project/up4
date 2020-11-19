@@ -7,10 +7,10 @@
         <group name="Dump-Logs">
             <parallel var="${OD#}">
                 <step name="Log-Dump-${OD#}"
-                      exec="docker-compose logs ${OD#}"/>
+                      exec="${DOCKER_COMPOSE_CMD} logs ${OD#}"/>
             </parallel>
         </group>
         <step name="Docker-Compose-Down" requires="Dump-Logs"
-              exec="docker-compose down -t0"/>
+              exec="${DOCKER_COMPOSE_CMD} down -t0"/>
     </group>
 </scenario>

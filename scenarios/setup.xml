@@ -4,7 +4,7 @@
   -->
 <scenario name="setup" description="Environment setup">
     <group name="Setup">
-        <step name="Docker-Compose-Up" exec="docker-compose up -d"/>
+        <step name="Docker-Compose-Up" exec="${DOCKER_COMPOSE_CMD} up -d"/>
 
         <step name="Mn-Wait-For-Start-Dbuf"
               exec="file-grep tmp/dbuf_dbuf1.log 'Listening for gRPC requests'"
@@ -38,6 +38,9 @@
               exec="onos-app ${OCI} reinstall! ${UP4_ROOT}/app/app/target/up4-app-1.0.0-SNAPSHOT.oar"/>
 
         <parallel var="${OD#}">
+            <step name="Onos-Enable-Grpc-Log-${#}"
+                  exec="onos ${OC#} cfg set org.onosproject.grpc.ctl.GrpcChannelControllerImpl enableMessageLog true"
+                  requires="Onos-User-Key-${#}"/>
             <step name="Up4-Set-Log-Debug-${#}"
                   exec="onos ${OC#} log:set DEBUG org.omecproject.up4"
                   requires="Up4-App-Install-Local-Build"/>

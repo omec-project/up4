@@ -2,15 +2,14 @@
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
 # Regular mn-stratum with dbuf binary.
+ARG DBUF_IMAGE
+ARG MN_STRATUM_IMAGE
 
-# Cannot pin sha for dbuf image.
-# Aether registry prunes untagged images periodically.
-FROM registry.aetherproject.org/tost/dbuf as dbuf
+FROM $DBUF_IMAGE as dbuf
 RUN mkdir /output
 RUN cp $(which dbuf) /output/dbuf
 
-# Why are we not using opennetworking/mn-stratum:latest?
-FROM opennetworking/ngsdn-tutorial:stratum_bmv2@sha256:f31faa5e83abbb2d9cf39d28b3578f6e113225641337ec7d16d867b0667524ef
+FROM $MN_STRATUM_IMAGE
 COPY --from=dbuf /output/dbuf /usr/local/bin
 
 ENV PATH=/up4/bin:${PATH}
