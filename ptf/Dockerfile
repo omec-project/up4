@@ -3,7 +3,7 @@
 
 # Docker image to run PTF-based data plane tests using stratum_bmv2
 
-ARG MN_STRATUM_SHA
+ARG MN_STRATUM_IMAGE
 
 FROM bitnami/minideb:stretch as builder
 
@@ -22,7 +22,7 @@ ENV PIP_DEPS \
     ipaddress
 RUN pip install --no-cache-dir --root /output $PIP_DEPS
 
-FROM opennetworking/mn-stratum:latest@$MN_STRATUM_SHA as runtime
+FROM $MN_STRATUM_IMAGE as runtime
 
 LABEL description="Docker image to run PTF-based data plane tests using stratum_bmv2"
 

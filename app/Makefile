@@ -13,13 +13,13 @@ mvn_cache_docker_volume := mvn-cache-up4
 MVN_CACHE ?= ${mvn_cache_docker_volume}
 MVN_FLAGS ?=
 
-onos_tools_dir := ${CURRENT_DIR}/../scenarios/onos-stc/tools/package/runtime/bin
+onos_tools_dir := $(abspath ${CURRENT_DIR}/../scenarios/onos-stc/tools/package/runtime/bin)
 
-include ../util/docker/Makefile.vars
+include ../.env.docker
 
 _docker_pull_all:
-	docker pull ${MAVEN_IMG}
-	docker pull ${PROTOC_IMG}
+	docker pull ${MAVEN_IMAGE}
+	docker pull ${PROTOC_IMAGE}
 
 deps: _docker_pull_all app/external/dbuf/dbuf.proto app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java
 
@@ -35,7 +35,7 @@ app/external/dbuf/dbuf.proto:
 app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java: app/external/dbuf/dbuf.proto
 	docker run --rm -v ${CURRENT_DIR}/app/external/dbuf:/root/dbuf \
 		-v ${CURRENT_DIR}/app/src/main/java:/java_out -w /root/dbuf \
-		${PROTOC_IMG} -I=/root/dbuf --java_out=/java_out \
+		${PROTOC_IMAGE} -I=/root/dbuf --java_out=/java_out \
 		--plugin=protoc-gen-grpc-java=/usr/bin/protoc-gen-grpc-java --grpc-java_out=/java_out \
 		dbuf.proto
 
@@ -49,7 +49,7 @@ local-build: _build_resources
 
 build: _build_resources
 	docker run -it --rm -v ${CURRENT_DIR}:/root -v ${MVN_CACHE}:/root/.m2 -w /root \
-		${MAVEN_IMG} bash -c "mvn ${MVN_FLAGS} clean install && chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
+		${MAVEN_IMAGE} bash -c "mvn ${MVN_FLAGS} clean install && chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
 
 # ci-verify is a build profile specified in onos-dependencies's pom.xml
 # It's used to run javadoc validation and other checks that should not

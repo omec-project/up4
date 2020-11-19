@@ -5,10 +5,10 @@
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 
-UP4_ROOT           := $(CURRENT_DIR)/..
+UP4_ROOT           := $(abspath $(CURRENT_DIR)/..)
 ONOS_ROOT          := $(CURRENT_DIR)/onos
 SCENARIOS          := *.xml
-DOCKER_COMPOSE_CMD := docker-compose --env-file .env.docker
+DOCKER_COMPOSE_CMD := docker-compose --env-file $(UP4_ROOT)/.env.docker
 
 # TODO: release 2.6 with support for quotes in step commands
 STC_VERSION ?= 2.6-SNAPSHOT
@@ -23,7 +23,7 @@ STC_VERSION ?= 2.6-SNAPSHOT
 
 $(SCENARIOS): /tmp/stc
 	$(info *** Running STC scenario: $@)
-	@export $(shell cat "${CURRENT_DIR}"/.env.stc | xargs) && \
+	@export $(shell cat "${CURRENT_DIR}"/.env.stc | grep -v '#' | xargs) && \
 		export PATH="${CURRENT_DIR}/bin:${ONOS_ROOT}/tools/test/bin:${ONOS_ROOT}/tools/test/scenarios/bin:${ONOS_ROOT}/tools/package/runtime/bin:${PATH}" && \
 		export WORKSPACE=${CURRENT_DIR} && \
 		export ONOS_ROOT=${ONOS_ROOT} && \
