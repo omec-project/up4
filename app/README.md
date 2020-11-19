@@ -68,7 +68,7 @@ Next, go to the section on sending and receiving packets.
 This is the second way to test the app, which uses both the northbound and southbound.
 
 The initial steps are the same as the previous case. Instead of using the ONOS CLI to install table
-entries, you can do the same by suing the p4runtime-shell:
+entries, you can do the same by using the p4runtime-shell:
 
     $ make p4rt-set-forwarding
     
