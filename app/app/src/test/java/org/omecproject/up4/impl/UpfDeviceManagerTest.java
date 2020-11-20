@@ -1,7 +1,7 @@
 /*
- SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
- SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
- */
+SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+*/
 package org.omecproject.up4.impl;
 
 import org.junit.After;
@@ -13,32 +13,27 @@ import org.onosproject.net.device.DeviceServiceAdapter;
 import org.onosproject.net.flow.FlowRuleServiceAdapter;
 import org.onosproject.net.pi.PiPipeconfServiceAdapter;
 
-/**
- * Set of tests of the ONOS application component.
- */
+/** Set of tests of the ONOS application component. */
 public class UpfDeviceManagerTest {
 
-    private Up4DeviceManager component;
+  private Up4DeviceManager component;
 
-    @Before
-    public void setUp() {
-        component = new Up4DeviceManager();
-        component.coreService = new CoreServiceAdapter();
-        component.flowRuleService = new FlowRuleServiceAdapter();
-        component.deviceService = new DeviceServiceAdapter();
-        component.piPipeconfService = new PiPipeconfServiceAdapter();
-        component.netCfgService = new NetworkConfigRegistryAdapter();
-        component.activate();
-    }
+  @Before
+  public void setUp() {
+    component = new Up4DeviceManager();
+    component.coreService = new CoreServiceAdapter();
+    component.flowRuleService = new FlowRuleServiceAdapter();
+    component.deviceService = new DeviceServiceAdapter();
+    component.piPipeconfService = new PiPipeconfServiceAdapter();
+    component.netCfgService = new NetworkConfigRegistryAdapter();
+    component.activate();
+  }
 
-    @After
-    public void tearDown() {
-        component.deactivate();
-    }
+  @After
+  public void tearDown() {
+    component.deactivate();
+  }
 
-    @Test
-    public void basics() {
-
-    }
-
+  @Test
+  public void basics() {}
 }
