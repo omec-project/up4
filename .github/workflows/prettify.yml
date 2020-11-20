@@ -25,4 +25,4 @@ jobs:
         commit-message: Auto-prettify ${{ github.sha }}
         title: Auto-prettify 💅
         labels: prettybot
-        branch: prettybot
+        branch: prettybot-java-test
