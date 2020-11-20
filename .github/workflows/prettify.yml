@@ -17,8 +17,18 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: 3.8
+    - name: Set up Java 11
+      uses: actions/setup-java@v1
+      with:
+        # Recommended: latest versions of Google Java Format require JDK 11+
+        java-version: "11"
     - name: Run yapf
       run: make prettify
+    - name: Run Google Java Format
+      uses: axel-op/googlejavaformat-action@v3
+      with:
+        skipCommit: true
+        args: "--replace"
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v2.7.0
       with:
