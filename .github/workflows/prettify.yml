@@ -6,7 +6,7 @@ name: Prettify
 on:
   push:
     branches:
-      - master
+      - java-prettify
 
 jobs:
   create_pull_request:
