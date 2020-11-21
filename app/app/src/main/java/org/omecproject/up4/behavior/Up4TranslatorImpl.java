@@ -4,8 +4,7 @@
  */
 package org.omecproject.up4.behavior;
 
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
+import com.google.common.collect.Maps;
 import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
@@ -18,6 +17,7 @@ import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
+import org.onlab.util.KryoNamespace;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.flow.DefaultFlowRule;
@@ -35,13 +35,22 @@ import org.onosproject.net.pi.runtime.PiMatchKey;
 import org.onosproject.net.pi.runtime.PiTableAction;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
+import org.onosproject.store.serializers.KryoNamespaces;
+import org.onosproject.store.service.ConsistentMap;
+import org.onosproject.store.service.MapEvent;
+import org.onosproject.store.service.MapEventListener;
+import org.onosproject.store.service.Serializer;
+import org.onosproject.store.service.StorageService;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
+import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -51,35 +60,65 @@ import java.util.Objects;
 @Component(immediate = true,
         service = {Up4Translator.class})
 public class Up4TranslatorImpl implements Up4Translator {
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected StorageService storageService;
 
-    // Maps local FAR IDs to global FAR IDs
-    protected final BiMap<UpfRuleIdentifier, Integer> farIdMapper = HashBiMap.create();
     private final Logger log = LoggerFactory.getLogger(getClass());
+    protected static final String FAR_ID_MAP_NAME = "up4-far-id";
+    protected static final KryoNamespace.Builder SERIALIZER = KryoNamespace.newBuilder()
+            .register(KryoNamespaces.API)
+            .register(UpfRuleIdentifier.class);
+
+    // Distributed local FAR ID to global FAR ID mapping
+    protected ConsistentMap<UpfRuleIdentifier, Integer> farIdMap;
+    private MapEventListener<UpfRuleIdentifier, Integer> farIdMapListener;
+    // Local, reversed copy of farIdMapper for better reverse lookup performance
+    protected Map<Integer, UpfRuleIdentifier> reverseFarIdMap;
+
     private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
     private int nextGlobalFarId = 1;
 
     @Activate
     protected void activate() {
+        // Allow unit test to inject farIdMap here.
+        if (storageService != null) {
+            farIdMap = storageService.<UpfRuleIdentifier, Integer>consistentMapBuilder()
+                    .withName(FAR_ID_MAP_NAME)
+                    .withRelaxedReadConsistency()
+                    .withSerializer(Serializer.using(SERIALIZER.build()))
+                    .build();
+        }
+        farIdMapListener = new FarIdMapListener();
+        farIdMap.addListener(farIdMapListener);
+
+        reverseFarIdMap = Maps.newHashMap();
+        farIdMap.entrySet().forEach(entry -> reverseFarIdMap.put(entry.getValue().value(), entry.getKey()));
+
         log.info("Started");
     }
 
     @Deactivate
     protected void deactivate() {
+        farIdMap.removeListener(farIdMapListener);
+        farIdMap.destroy();
+        reverseFarIdMap.clear();
+
         log.info("Stopped");
     }
 
     @Override
     public void reset() {
-        farIdMapper.clear();
+        farIdMap.clear();
+        reverseFarIdMap.clear();
         nextGlobalFarId = 0;
     }
 
     @Override
     public int globalFarIdOf(UpfRuleIdentifier farIdPair) {
-        int globalFarId = farIdMapper.compute(farIdPair,
+        int globalFarId = farIdMap.compute(farIdPair,
                 (k, existingId) -> {
                     return Objects.requireNonNullElseGet(existingId, () -> nextGlobalFarId++);
-                });
+                }).value();
         log.info("{} translated to GlobalFarId={}", farIdPair, globalFarId);
         return globalFarId;
     }
@@ -99,7 +138,7 @@ public class Up4TranslatorImpl implements Up4Translator {
      * @return the corresponding PFCP session ID and session-local FAR ID, as a RuleIdentifier
      */
     private UpfRuleIdentifier localFarIdOf(int globalFarId) {
-        return farIdMapper.inverse().get(globalFarId);
+        return reverseFarIdMap.get(globalFarId);
     }
 
     @Override
@@ -549,4 +588,25 @@ public class Up4TranslatorImpl implements Up4Translator {
                         .build()).build();
     }
 
+    // NOTE: FarIdMapListener is run on the same thread intentionally in order to ensure that
+    //       reverseFarIdMap update always finishes right after farIdMap is updated
+    private class FarIdMapListener implements MapEventListener<UpfRuleIdentifier, Integer> {
+        @Override
+        public void event(MapEvent<UpfRuleIdentifier, Integer> event) {
+            switch (event.type()) {
+                case INSERT:
+                    reverseFarIdMap.put(event.newValue().value(), event.key());
+                    break;
+                case UPDATE:
+                    reverseFarIdMap.remove(event.oldValue().value());
+                    reverseFarIdMap.put(event.newValue().value(), event.key());
+                    break;
+                case REMOVE:
+                    reverseFarIdMap.remove(event.oldValue().value());
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
 }

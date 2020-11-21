@@ -12,12 +12,16 @@ import org.omecproject.up4.PdrStats;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammableException;
 import org.omecproject.up4.UpfRuleIdentifier;
+import org.onosproject.store.service.Serializer;
+import org.onosproject.store.service.TestConsistentMap;
 
 import java.util.Collection;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.omecproject.up4.behavior.Up4TranslatorImpl.FAR_ID_MAP_NAME;
+import static org.omecproject.up4.behavior.Up4TranslatorImpl.SERIALIZER;
 
 public class FabricUpfProgrammableTest {
     private final FabricUpfProgrammable upfProgrammable = new FabricUpfProgrammable();
@@ -30,14 +34,22 @@ public class FabricUpfProgrammableTest {
         upfProgrammable.piPipeconfService = new MockPiPipeconfService();
         upfProgrammable.controller = new MockP4RuntimeController();
         upfProgrammable.init(TestConstants.APP_ID, TestConstants.DEVICE_ID);
+
+        TestConsistentMap.Builder<UpfRuleIdentifier, Integer> testConsistentMapBuilder = TestConsistentMap.builder();
+        testConsistentMapBuilder
+                .withName(FAR_ID_MAP_NAME)
+                .withRelaxedReadConsistency()
+                .withSerializer(Serializer.using(SERIALIZER.build()));
+        up4Translator.farIdMap = testConsistentMapBuilder.build();
+        up4Translator.activate();
         setTranslationState();
     }
 
     private void setTranslationState() {
-        up4Translator.farIdMapper.put(
+        up4Translator.farIdMap.put(
                 new UpfRuleIdentifier(TestConstants.SESSION_ID, TestConstants.UPLINK_FAR_ID),
                 TestConstants.UPLINK_PHYSICAL_FAR_ID);
-        up4Translator.farIdMapper.put(
+        up4Translator.farIdMap.put(
                 new UpfRuleIdentifier(TestConstants.SESSION_ID, TestConstants.DOWNLINK_FAR_ID),
                 TestConstants.DOWNLINK_PHYSICAL_FAR_ID);
     }
