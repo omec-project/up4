@@ -28,7 +28,6 @@ services:
     privileged: true
     tty: true
     stdin_open: true
-    restart: always
     entrypoint: "/topo/mn-entrypoint.sh"
     volumes:
       - ./tmp:/tmp
