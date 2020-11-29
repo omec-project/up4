@@ -1,0 +1,15 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="smoke" description="UP4 smoke test">
+    <import file="./setup.xml"/>
+    <import file="./net-setup.xml"/>
+    <import file="./forwarding.xml"/>
+    <import file="./buffering.xml"/>
+    <import file="./teardown.xml"/>
+    <dependency name="Net-Setup" requires="Setup"/>
+    <dependency name="Forwarding" requires="Net-Setup"/>
+    <dependency name="Buffering" requires="Forwarding"/>
+    <dependency name="Teardown" requires="~Forwarding,~Buffering"/>
+</scenario>

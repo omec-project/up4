@@ -1,12 +1,47 @@
 version: "3"
-
 # SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
-#
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
 services:
+  pfcp-agent:
+    image: ${PFCP_AGENT_IMAGE} 
+    hostname: pfcp-agent
+    container_name: pfcp-agent
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./tmp:/tmp
+      - ./topo:/topo
+      - ./bin:/up4/bin
+    links:
+      - mininet
+      - onos1
+    entrypoint: "/topo/pfcp-entry.sh"
+    working_dir: /bin/
+    depends_on:
+      - mininet
+  pfcp-client:
+    build:
+      context: ./topo
+      dockerfile: Dockerfile.scapy
+      args:
+        - SCAPY_BASE_IMAGE=${SCAPY_BASE_IMAGE}
+    hostname: pfcp-client
+    container_name: pfcp-client
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./tmp:/tmp
+      - ./topo:/topo
+      - ./bin:/up4/bin
+    links:
+      - pfcp-agent
+    entrypoint: "/bin/sh"
+    depends_on:
+      - pfcp-agent
+      - mininet
   p4rtsh:
-    image: p4lang/p4runtime-sh
+    image: ${P4RTSH_IMAGE}
     hostname: p4rtsh
     container_name: p4rtsh
     tty: true
@@ -14,75 +49,46 @@ services:
     volumes:
       - ./tmp:/tmp
       - ../p4src/build/:/p4c-out/
-      - ./p4rtsh-scripts:/scripts/
+      - ./p4rt:/p4rt
     links:
-      - onos
+      - onos1
     entrypoint: "/bin/bash"
-    depends_on:
-      - onos
-  pfcp-agent:
-    image: badhri85/upf-epc-pfcpiface:0.3.3-test 
-    hostname: pfcp-agent
-    container_name: pfcp-agent
-    tty: true
-    stdin_open: true
-    volumes:
-      - ./tmp:/tmp
-      - ./util:/util/
-    links:
-      - mininet
-      - onos
-    entrypoint: "/util/pfcp-entry.sh"
-    working_dir: /bin/
-    depends_on:
-      - mininet
-  pfcp-client:
-    build:
-      context: ./util
-      dockerfile: Dockerfile.scapy
-    hostname: pfcp-client
-    container_name: pfcp-client
-    tty: true
-    stdin_open: true
-    volumes:
-      - ./tmp:/tmp
-      - ./util:/util/
-    links:
-      - pfcp-agent
-    entrypoint: "/bin/sh"
-    depends_on:
-      - pfcp-agent
-      - mininet
   mininet:
     build:
-      context: ./util
+      context: ./topo
       dockerfile: Dockerfile.mn
+      args:
+        - DBUF_IMAGE=${DBUF_IMAGE}
+        - MN_STRATUM_IMAGE=${MN_STRATUM_IMAGE}
     hostname: mininet
     container_name: mininet
     privileged: true
     tty: true
     stdin_open: true
-    restart: always
+    entrypoint: "/topo/mn-entrypoint.sh"
     volumes:
       - ./tmp:/tmp
-      - ./util:/util
+      - ./topo:/topo
+      - ./bin:/up4/bin
       - ./tmp/pcaps:/pcaps
-    entrypoint: "/util/mininet-entry.sh"
-  onos:
-    image: onosproject/onos:2.2-latest
-    hostname: onos
-    container_name: onos
+  onos1:
+    # Tost image comes with latest trellis apps
+    image: ${ONOS_IMAGE}
+    hostname: onos1
+    container_name: onos1
     ports:
       - "8181:8181" # HTTP
       - "8101:8101" # SSH (CLI)
       - "51001:51001" # the UP4 app's gRPC server port
       - "5005:5005" # Java debugger
     volumes:
-      - ./tmp/onos:/root/onos/apache-karaf-4.2.8/data/tmp
+      - ./tmp/onos:/root/onos/apache-karaf-4.2.9/data/tmp
       - ./tmp/pcaps:/pcaps
     environment:
-      - ONOS_APPS=gui2,drivers.bmv2,lldpprovider,hostprovider,pipelines.fabric,segmentrouting,netcfghostprovider,protocols.grpc
       - JAVA_DEBUG_PORT=0.0.0.0:5005
+    env_file:
+      # Includes ONOS_APPS
+      - .env.stc
     entrypoint: "./bin/onos-service"
     command: ["debug"]
     links:

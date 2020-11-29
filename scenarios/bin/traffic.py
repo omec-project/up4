@@ -44,6 +44,10 @@ def send_gtp(send_count=None):
     send(pkt, inter=1.0 / RATE, loop=send_count is None, count=send_count, verbose=True)
 
 
+def send_gtp_10():
+    send_gtp(10)
+
+
 def send_udp(send_count=None):
     pkt =   IP(src=PDN_ADDR, dst=UE_ADDR) / \
             UDP(sport=PDN_PORT, dport=UE_PORT) / \
@@ -110,6 +114,7 @@ if __name__ == "__main__":
 
     funcs = {
         "send-gtp": send_gtp,
+        "send-gtp-10": send_gtp_10,
         "send-udp": send_udp,
         "send-udp-10": send_udp_10,
         "recv-gtp": sniff_gtp,

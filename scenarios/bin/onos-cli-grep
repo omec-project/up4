@@ -2,9 +2,12 @@
 # SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
-if [ -z $1 ]; then
-  echo "usage: $0 host cmd [args...]"
-  exit 1
-fi
+set -x
 
-docker exec -it mininet /util/host-cmd $@
+node=$1
+cliCmd=$2
+findString=$3
+for _ in {1..60}; do
+    onos "$node" "$cliCmd" | grep "$findString" && exit 0 || sleep 1
+done
+exit 1

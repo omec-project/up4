@@ -1,0 +1,36 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="forwarding" description="Fwd test">
+    <group name="Forwarding">
+        <group name="P4rt-Program">
+            <step name="P4rt-Set-Fwd"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rtsh /p4rt/do_program.sh program"/>
+            <step name="Check-Up4-Flows-Fwd" requires="^"
+                  exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
+            <step name="Check-Flow-Rules-Fwd" requires="^" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+        <group name="Check-Traffic-Fwd" requires="P4rt-Program">
+            <!-- Downlink -->
+            <step name="Downlink-Enb-Recv-Gtp-Fwd" requires="P4rt-Program"
+                  exec="mn-cmd enodeb traffic.py recv-gtp -t 10"/>
+            <step name="Downlink-Pdn-Send-Udp-Fwd" requires="P4rt-Program" delay="5"
+                  exec="mn-cmd pdn traffic.py send-udp-10"/>
+            <!-- Uplink -->
+            <step name="Downlink-Pdn-Recv-Udp-Fwd" requires="P4rt-Program"
+                  exec="mn-cmd pdn traffic.py recv-udp -t 10"/>
+            <step name="Downlink-Enb-Send-Gtp-Fwd" requires="P4rt-Program" delay="5"
+                  exec="mn-cmd enodeb traffic.py send-gtp-10"/>
+        </group>
+        <group name="P4rt-Clear-Fwd" requires="~Check-Traffic-Fwd">
+            <step name="P4rt-Unset-Fwd" requires="~Check-Traffic-Fwd"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rtsh /p4rt/do_program.sh clear"/>
+            <step name="Check-Up4-Flows-Fwd-Cleared" requires="^"
+                  exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
+            <step name="Check-Flow-Rules-Fwd-Cleared" requires="^" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+    </group>
+</scenario>

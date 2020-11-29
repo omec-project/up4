@@ -1,0 +1,56 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="setup" description="Environment setup">
+    <group name="Setup">
+        <step name="Docker-Compose-Up" exec="${DOCKER_COMPOSE_CMD} up -d"/>
+
+        <step name="Mn-Wait-For-Start-Dbuf"
+              exec="file-grep tmp/dbuf_dbuf1.log 'Listening for gRPC requests'"
+              requires="Docker-Compose-Up"/>
+        <parallel var="${SW#}">
+            <step name="Mn-Wait-For-Start-${SW#}"
+                  exec="file-grep tmp/${SW#}/stratum_bmv2.log 'Stratum external facing services are listening to'"
+                  requires="Docker-Compose-Up"/>
+        </parallel>
+
+        <parallel var="${OD#}">
+            <step name="Onos-Wait-For-Start-${#}" exec="onos-wait-for-start ${OD#}"
+                  requires="Docker-Compose-Up"/>
+            <!-- tost image comes with up4 pre-installed -->
+            <step name="Up4-App-Wait-For-Installed-${#}" requires="Onos-Wait-For-Start-${#}"
+                  exec="docker-log-grep ${ODI} 'Application org.omecproject.up4 has been installed'"/>
+            <!-- Add current users key for passwordless SSH access to the ONOS CLI
+            required by most onos-* commands -->
+            <step name="Onos-User-Key-${#}" exec="onos-user-key ${OD#}"
+                  requires="~Onos-Wait-For-Start-${#}"/>
+        </parallel>
+
+        <!-- remove pre-installed up4, install local build -->
+        <step name="Up4-App-Uninstall" requires="Up4-App-Wait-For-Installed-1"
+              exec="onos-app ${OC1} uninstall org.omecproject.up4"/>
+        <step name="Up4-App-Wait-For-Uninstalled" requires="^"
+              exec="docker-log-grep ${ODI} 'Application org.omecproject.up4 has been uninstalled'"/>
+        <step name="Up4-Oar-Exists" requires="^"
+              exec="test -f ${UP4_ROOT}/app/app/target/up4-app-1.0.0-SNAPSHOT.oar"/>
+        <step name="Up4-App-Install-Local-Build" requires="^" delay="5"
+              exec="onos-app ${OCI} reinstall! ${UP4_ROOT}/app/app/target/up4-app-1.0.0-SNAPSHOT.oar"/>
+
+        <parallel var="${OD#}">
+            <step name="Onos-Enable-Grpc-Log-${#}"
+                  exec="onos ${OC#} cfg set org.onosproject.grpc.ctl.GrpcChannelControllerImpl enableMessageLog true"
+                  requires="Onos-User-Key-${#}"/>
+            <step name="Up4-Set-Log-Debug-${#}"
+                  exec="onos ${OC#} log:set DEBUG org.omecproject.up4"
+                  requires="Up4-App-Install-Local-Build"/>
+            <step name="Onos-Check-Apps-${#}"
+                  exec="onos-check-apps ${OC#} ${ONOS_APPS},org.omecproject.up4 includes"
+                  requires="Up4-App-Install-Local-Build"/>
+            <step name="Onos-Check-Components-${#}" exec="onos-check-components ${OC#}"
+                  delay="5" requires="Onos-Check-Apps-${#}"/>
+            <step name="Onos-Check-Logs-${#}" exec="onos-check-logs ${OD#}"
+                  requires="Onos-Check-Apps-${#}"/>
+        </parallel>
+    </group>
+</scenario>

@@ -1,0 +1,42 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="buffering" description="Buffering test">
+    <group name="Buffering">
+        <group name="P4rt-Program-Buff">
+            <step name="P4rt-Set-Buff"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rtsh /p4rt/do_program.sh --buffer program"/>
+            <step name="Check-Up4-Flows-Buff" requires="^"
+                  exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
+            <step name="Check-Flow-Rules-Buff" requires="^" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+        <group name="Check-Traffic-Buff" requires="P4rt-Program-Buff">
+            <!-- Check Downlink only -->
+            <step name="Downlink-Pdn-Send-Udp-Buff" requires="P4rt-Program-Buff"
+                  exec="mn-cmd pdn traffic.py send-udp-10"/>
+            <!-- FIXME: grep log tail to allow running scenarios in development where there can be
+                    many FIRST_BUFFER in the log  -->
+            <step name="Verify-First-Buffer" requires="^"
+                  exec="docker-log-grep ${ODI} 'Received FIRST_BUFFER'"/>
+            <!-- -t 30 to wait enough time for packets to be released after P4rt-Set-Fwd-After-Buff -->
+            <step name="Downlink-Enb-Recv-Gtp-Buff" requires="Verify-First-Buffer"
+                  exec="mn-cmd enodeb traffic.py recv-gtp -t 30"/>
+            <step name="P4rt-Set-Fwd-After-Buff" requires="Verify-First-Buffer" delay="5"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rtsh /p4rt/do_program.sh program"/>
+            <step name="Check-Drain-Started" requires="P4rt-Set-Fwd-After-Buff"
+                  exec="docker-log-grep ${ODI} 'Started dbuf drain'"/>
+            <step name="Check-Drain-Completed" requires="P4rt-Set-Fwd-After-Buff"
+                  exec="docker-log-grep ${ODI} 'Dbuf drain completed'"/>
+        </group>
+        <group name="P4rt-Clear-Buff" requires="~Check-Traffic-Buff">
+            <step name="P4rt-Unset-Fwd-After-Buff" requires="~Check-Traffic-Buff"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rtsh /p4rt/do_program.sh clear"/>
+            <step name="Check-Up4-Flows-Fwd-After-Buff-Cleared" requires="P4rt-Unset-Fwd-After-Buff"
+                  exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
+            <step name="Check-Flow-Rules-Fwd-After-Buff-Cleared" requires="P4rt-Unset-Fwd-After-Buff" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+    </group>
+</scenario>
