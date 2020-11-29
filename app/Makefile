@@ -94,9 +94,6 @@ app-load:
 app-reload:
 	${onos_tools_dir}/onos-app localhost reinstall! app/target/up4-app-1.0.0-SNAPSHOT.oar
 
-check-flows-found:
-	util/onos-cmd up4:read-flows | grep "${FLOW_COUNT} flows found"
-
 pfcp-setup:
 	make pfcp-messenger-start
 	sleep 1
@@ -113,28 +110,28 @@ pfcp-set-buffering:
 	make pfcp-messenger-modify-session PFCP_ARGS="--buffer"
 
 pfcp-messenger:
-	docker exec -it pfcp-client /util/pfcp-messenger.py pfcp-agent
+	docker exec -it pfcp-client ../scenarios/bin/pfcp-messenger.py pfcp-agent
 
 pfcp-messenger-start:
-	./util/pfcp-client-cmd start
+	../scenarios/bin/pfcp-client-cmd start
 
 check-messenger-ready:
-	./util/pfcp-client-cmd check
+	../scenarios/bin/pfcp-client-cmd check
 
 pfcp-messenger-associate:
-	./util/pfcp-client-cmd associate ${PFCP_ARGS}
+	../scenarios/bin/pfcp-client-cmd associate ${PFCP_ARGS}
 
 pfcp-messenger-establish-session:
-	./util/pfcp-client-cmd establish ${PFCP_ARGS}
+	../scenarios/bin/pfcp-client-cmd establish ${PFCP_ARGS}
 
 pfcp-messenger-modify-session:
-	./util/pfcp-client-cmd modify ${PFCP_ARGS}
+	../scenarios/bin/pfcp-client-cmd modify ${PFCP_ARGS}
 
 pfcp-messenger-release-session:
-	./util/pfcp-client-cmd delete ${PFCP_ARGS}
+	../scenarios/bin/pfcp-client-cmd delete ${PFCP_ARGS}
 
 pfcp-messenger-stop:
-	./util/pfcp-client-cmd stop ${PFCP_ARGS}
+	../scenarios/bin/pfcp-client-cmd stop ${PFCP_ARGS}
 
 pfcp-messenger-kill:
-	./util/pfcp-client-cmd kill
+	../scenarios/bin/pfcp-client-cmd kill

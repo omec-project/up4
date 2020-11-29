@@ -4,32 +4,36 @@ version: "3"
 
 services:
   pfcp-agent:
-    image: badhri85/upf-epc-pfcpiface:0.3.3-test
+    image: ${PFCP_AGENT_IMAGE} 
     hostname: pfcp-agent
     container_name: pfcp-agent
     tty: true
     stdin_open: true
     volumes:
       - ./tmp:/tmp
-      - ./util:/util/
+      - ./topo:/topo
+      - ./bin:/up4/bin
     links:
       - mininet
-      - onos
-    entrypoint: "/util/pfcp-entry.sh"
+      - onos1
+    entrypoint: "/topo/pfcp-entry.sh"
     working_dir: /bin/
     depends_on:
       - mininet
   pfcp-client:
     build:
-      context: ./util
+      context: ./topo
       dockerfile: Dockerfile.scapy
+      args:
+        - SCAPY_BASE_IMAGE=${SCAPY_BASE_IMAGE}
     hostname: pfcp-client
     container_name: pfcp-client
     tty: true
     stdin_open: true
     volumes:
       - ./tmp:/tmp
-      - ./util:/util/
+      - ./topo:/topo
+      - ./bin:/up4/bin
     links:
       - pfcp-agent
     entrypoint: "/bin/sh"

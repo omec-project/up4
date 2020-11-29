@@ -7,7 +7,7 @@ LOG_FILE="tmp/pfcp-messenger-screen.log"
 AGENT_NAME="pfcp-agent"
 if [ $1 = "start" ]; then
     echo "" > $LOG_FILE
-    docker-compose exec -d $IMG_NAME screen -L -Logfile /$LOG_FILE -m -S Messenger /util/pfcp-messenger.py $AGENT_NAME 
+    docker-compose exec -d $IMG_NAME screen -L -Logfile /$LOG_FILE -m -S Messenger /up4/bin/pfcp-messenger.py $AGENT_NAME 
     docker-compose exec $IMG_NAME screen -S Messenger -X colon "logfile flush 0^M"
 elif [ $1 = "kill" ]; then
     docker-compose exec -d $IMG_NAME screen -X -S Messenger quit
