@@ -79,15 +79,6 @@ p4rt-clear:
 p4rt-bash:
 	cd ../scenarios && docker-compose exec p4rtsh /bin/bash
 
-iface-clear:
-	cd ../scenarios && docker-compose exec p4rtsh /p4rt/do_selective_clear.sh filter
-
-pdr-clear:
-	cd ../scenarios && docker-compose exec p4rtsh /p4rt/do_selective_clear.sh pdr
-
-far-clear:
-	cd ../scenarios && docker-compose exec p4rtsh /p4rt/do_selective_clear.sh far
-
 app-load:
 	${onos_tools_dir}/onos-app localhost install! app/target/up4-app-1.0.0-SNAPSHOT.oar
 
