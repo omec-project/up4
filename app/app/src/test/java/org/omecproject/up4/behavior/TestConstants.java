@@ -47,7 +47,6 @@ public final class TestConstants {
     public static final Ip4Address UE_ADDR = Ip4Address.valueOf("17.0.0.1");
     public static final Ip4Address S1U_ADDR = Ip4Address.valueOf("192.168.0.1");
     public static final Ip4Address ENB_ADDR = Ip4Address.valueOf("192.168.0.2");
-    public static final Ip4Prefix S1U_IFACE = Ip4Prefix.valueOf(S1U_ADDR, 24);
     public static final Ip4Prefix UE_POOL = Ip4Prefix.valueOf("17.0.0.0/16");
     // TODO: tunnel source port currently not stored on writes, so all reads are 0
     public static final short TUNNEL_SPORT = 2160;
@@ -71,19 +70,16 @@ public final class TestConstants {
             .build();
 
     public static final ForwardingActionRule UPLINK_FAR = ForwardingActionRule.builder()
-            .withFarId(UPLINK_FAR_ID)
-            .withFlags(false, false)
+            .setFarId(UPLINK_FAR_ID)
             .withSessionId(SESSION_ID).build();
 
     public static final ForwardingActionRule DOWNLINK_FAR = ForwardingActionRule.builder()
-            .withFarId(DOWNLINK_FAR_ID)
-            .withFlags(false, false)
-            .withBufferFlag(false)
+            .setFarId(DOWNLINK_FAR_ID)
             .withSessionId(SESSION_ID)
-            .withTunnel(S1U_ADDR, ENB_ADDR, TEID, TUNNEL_SPORT)
+            .setTunnel(S1U_ADDR, ENB_ADDR, TEID, TUNNEL_SPORT)
             .build();
 
-    public static final UpfInterface UPLINK_INTERFACE = UpfInterface.createS1uFrom(S1U_IFACE);
+    public static final UpfInterface UPLINK_INTERFACE = UpfInterface.createS1uFrom(S1U_ADDR);
 
     public static final UpfInterface DOWNLINK_INTERFACE = UpfInterface.createUePoolFrom(UE_POOL);
 
@@ -170,8 +166,8 @@ public final class TestConstants {
             .withMatchKey(PiMatchKey.builder()
                     .addFieldMatch(new PiLpmFieldMatch(
                             NorthConstants.IFACE_DST_PREFIX_KEY,
-                            ImmutableByteSequence.copyFrom(S1U_IFACE.address().toOctets()),
-                            S1U_IFACE.prefixLength()))
+                            ImmutableByteSequence.copyFrom(S1U_ADDR.toOctets()),
+                            32))
                     .build())
             .withAction(PiAction.builder()
                     .withId(NorthConstants.LOAD_IFACE)
@@ -273,8 +269,8 @@ public final class TestConstants {
             .forTable(SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES)
             .withSelector(DefaultTrafficSelector.builder().matchPi(PiCriterion.builder()
                     .matchLpm(SouthConstants.HDR_IPV4_DST_ADDR,
-                            S1U_IFACE.address().toInt(),
-                            S1U_IFACE.prefixLength())
+                            S1U_ADDR.toInt(),
+                            32)
                     .matchExact(SouthConstants.HDR_GTPU_IS_VALID, 1)
                     .build()).build())
             .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()

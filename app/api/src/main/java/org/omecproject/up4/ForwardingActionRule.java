@@ -9,7 +9,6 @@ import org.onlab.util.ImmutableByteSequence;
 
 import java.util.Objects;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -25,23 +24,21 @@ public final class ForwardingActionRule {
     private final ImmutableByteSequence sessionId;  // The PFCP session identifier that created this FAR
     private final int farId;  // PFCP session-local identifier for this FAR
     // Action parameters
-    private final Boolean drop;  // Should this FAR drop packets?
-    private final Boolean notifyCp;  // Should this FAR notify the control plane when it sees a packet?
-    private final boolean buffer;   // Should this FAR buffer incoming packets?
+    private final boolean notifyFlag;  // Should this FAR notify the control plane when it sees a packet?
+    private final boolean dropFlag;
+    private final boolean bufferFlag;
     private final GtpTunnel tunnel;  // The GTP tunnel that this FAR should encapsulate packets with (if downlink)
-    private final Type type;  // Is the FAR Uplink, Downlink, etc
 
     private static final int SESSION_ID_BITWIDTH = 96;
 
     private ForwardingActionRule(ImmutableByteSequence sessionId, Integer farId,
-                                 Boolean drop, Boolean notifyCp, boolean buffer, GtpTunnel tunnel, Type type) {
+                                 boolean notifyFlag, GtpTunnel tunnel, boolean dropFlag, boolean bufferFlag) {
         this.sessionId = sessionId;
         this.farId = farId;
-        this.drop = drop;
-        this.buffer = buffer;
-        this.notifyCp = notifyCp;
+        this.notifyFlag = notifyFlag;
         this.tunnel = tunnel;
-        this.type = type;
+        this.dropFlag = dropFlag;
+        this.bufferFlag = bufferFlag;
     }
 
     /**
@@ -51,7 +48,7 @@ public final class ForwardingActionRule {
      */
     public ForwardingActionRule withoutActionParams() {
         return ForwardingActionRule.builder()
-                .withFarId(farId)
+                .setFarId(farId)
                 .withSessionId(sessionId)
                 .build();
     }
@@ -60,26 +57,38 @@ public final class ForwardingActionRule {
         return new Builder();
     }
 
-    @Override
-    public String toString() {
-        String matchKeys = String.format("ID:%d,SEID:%s", farId, sessionId.toString());
-        String directionString;
-        String actionParams;
-        if (bufferFlag()) {
-            directionString = "Buffering";
-            actionParams = "";
-        } else if (isUplink()) {
-            directionString = "Uplink";
-            actionParams = String.format("Drop:%b,Notify:%b", drop, notifyCp);
-        } else if (isDownlink()) {
-            directionString = "Downlink";
-            actionParams = String.format("Drop:%b,Notify:%b,Tunnel:%s", drop, notifyCp, tunnel.toString());
+    /**
+     * Return a string representing the dataplane action applied by this FAR.
+     *
+     * @return a string representing the FAR action
+     */
+    public String actionString() {
+        String actionName;
+        String actionParams = "";
+        if (dropFlag) {
+            actionName = "Drop";
+        } else if (bufferFlag) {
+            actionName = "Buffer";
+        } else if (tunnel != null) {
+            actionName = "Encap";
+            actionParams = String.format("Src=%s, SPort=%d, TEID=%s, Dst=%s",
+                    tunnel.src().toString(), tunnel.srcPort(), tunnel.teid().toString(), tunnel.dst().toString());
         } else {
-            directionString = "Blank";
-            actionParams = "";
+            actionName = "Forward";
+        }
+        if (notifyFlag) {
+            actionName += "+NotifyCP";
         }
 
-        return String.format("%s-FAR{ Keys:(%s) -> Params (%s) }", directionString, matchKeys, actionParams);
+        return String.format("%s(%s)", actionName, actionParams);
+    }
+
+    @Override
+    public String toString() {
+        String matchKeys = String.format("ID=%d, SEID=%s", farId, sessionId.toString());
+        String actionString = actionString();
+
+        return String.format("FAR{Match(%s) -> %s}", matchKeys, actionString);
     }
 
     @Override
@@ -96,45 +105,17 @@ public final class ForwardingActionRule {
         ForwardingActionRule that = (ForwardingActionRule) obj;
 
         // Safe comparisons between potentially null objects
-        return (this.type.equals(that.type) &&
-                (this.farId == that.farId) &&
+        return (this.dropFlag == that.dropFlag &&
+                this.bufferFlag == that.bufferFlag &&
+                this.notifyFlag == that.notifyFlag &&
+                this.farId == that.farId &&
                 Objects.equals(this.tunnel, that.tunnel) &&
-                Objects.equals(this.drop, that.drop) &&
-                Objects.equals(this.notifyCp, that.notifyCp) &&
                 Objects.equals(this.sessionId, that.sessionId));
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(sessionId, farId, drop, notifyCp, tunnel, type);
-    }
-
-    /**
-     * Instances created as a result of DELETE write requests will not have action parameters, only match keys.
-     * This method should be used to avoid null pointer exceptions in those instances.
-     *
-     * @return true if this instance has FAR action parameters, false otherwise.
-     */
-    public boolean hasActionParameters() {
-        return type != Type.KEYS_ONLY;
-    }
-
-    /**
-     * True if this FAR forwards packets in the uplink direction, and false otherwise.
-     *
-     * @return true if FAR is uplink
-     */
-    public boolean isUplink() {
-        return type == Type.UPLINK;
-    }
-
-    /**
-     * True if this FAR forwards packets in the downlink direction, and false otherwise.
-     *
-     * @return true is FAR is downlink
-     */
-    public boolean isDownlink() {
-        return type == Type.DOWNLINK;
+        return Objects.hash(sessionId, farId, notifyFlag, tunnel, dropFlag, bufferFlag);
     }
 
     /**
@@ -156,12 +137,30 @@ public final class ForwardingActionRule {
     }
 
     /**
+     * True if this FAR does not drop packets.
+     *
+     * @return true if FAR is forwards
+     */
+    public boolean forwards() {
+        return !dropFlag;
+    }
+
+    /**
+     * True if this FAR encapsulates packets in a GTP tunnel, and false otherwise.
+     *
+     * @return true is FAR encapsulates
+     */
+    public boolean encaps() {
+        return tunnel != null;
+    }
+
+    /**
      * Returns true if this FAR drops packets, and false otherwise.
      *
      * @return true if this FAR drops
      */
-    public boolean dropFlag() {
-        return drop;
+    public boolean drops() {
+        return dropFlag;
     }
 
     /**
@@ -169,8 +168,8 @@ public final class ForwardingActionRule {
      *
      * @return true if this FAR notifies the cp
      */
-    public boolean notifyCpFlag() {
-        return notifyCp;
+    public boolean notifies() {
+        return notifyFlag;
     }
 
 
@@ -179,8 +178,8 @@ public final class ForwardingActionRule {
      *
      * @return true if this FAR buffers
      */
-    public boolean bufferFlag() {
-        return buffer;
+    public boolean buffers() {
+        return bufferFlag;
     }
 
     /**
@@ -238,36 +237,15 @@ public final class ForwardingActionRule {
         return tunnel.teid();
     }
 
-    public enum Type {
-        /**
-         * Uplink FARs apply to packets traveling in the uplink direction, and do not encapsulate.
-         */
-        UPLINK,
-        /**
-         * Downlink FARS apply to packets traveling in the downlink direction, and do encapsulate.
-         */
-        DOWNLINK,
-        /**
-         * FAR was not built with any action parameters, only match keys.
-         */
-        KEYS_ONLY
-    }
-
     public static class Builder {
-        private ImmutableByteSequence sessionId;
-        private Integer farId;
-        private Boolean drop;
-        private Boolean notifyCp;
-        private boolean buffer;
-        private GtpTunnel tunnel;
+        private ImmutableByteSequence sessionId = null;
+        private Integer farId = null;
+        private GtpTunnel tunnel = null;
+        private boolean dropFlag = false;
+        private boolean bufferFlag = false;
+        private boolean notifyCp = false;
 
         public Builder() {
-            sessionId = null;
-            farId = null;
-            drop = null;
-            notifyCp = null;
-            tunnel = null;
-            buffer = false;
         }
 
         /**
@@ -302,34 +280,41 @@ public final class ForwardingActionRule {
          * @param farId PFCP session-local FAR ID
          * @return This builder object
          */
-        public Builder withFarId(int farId) {
+        public Builder setFarId(int farId) {
             this.farId = farId;
             return this;
         }
 
-
         /**
-         * Set flags specifying whether this FAR should drop packets and/or notify the control plane when
-         * any packets arrive.
+         * Make this FAR forward incoming packets.
          *
-         * @param drop     true if this FAR drops
-         * @param notifyCp true if this FAR notifies the control plane
+         * @param flag the flag value to set
          * @return This builder object
          */
-        public Builder withFlags(boolean drop, boolean notifyCp) {
-            this.drop = drop;
-            this.notifyCp = notifyCp;
+        public Builder setForwardFlag(boolean flag) {
+            this.dropFlag = !flag;
             return this;
         }
 
         /**
-         * Set a flag specifying if this FAR drops traffic or not.
+         * Make this FAR drop incoming packets.
          *
-         * @param drop true if FAR drops
+         * @param flag the flag value to set
          * @return This builder object
          */
-        public Builder withDropFlag(boolean drop) {
-            this.drop = drop;
+        public Builder setDropFlag(boolean flag) {
+            this.dropFlag = flag;
+            return this;
+        }
+
+        /**
+         * Make this FAR buffer incoming packets.
+         *
+         * @param flag the flag value to set
+         * @return This builder object
+         */
+        public Builder setBufferFlag(boolean flag) {
+            this.bufferFlag = flag;
             return this;
         }
 
@@ -339,19 +324,8 @@ public final class ForwardingActionRule {
          * @param notifyCp true if FAR notifies control plane
          * @return This builder object
          */
-        public Builder withNotifyFlag(boolean notifyCp) {
+        public Builder setNotifyFlag(boolean notifyCp) {
             this.notifyCp = notifyCp;
-            return this;
-        }
-
-        /**
-         * Set a flag specifying if this FAR should buffer incoming packets.
-         *
-         * @param buffer true if this FAR buffers packets
-         * @return This builder object
-         */
-        public Builder withBufferFlag(boolean buffer) {
-            this.buffer = buffer;
             return this;
         }
 
@@ -361,7 +335,7 @@ public final class ForwardingActionRule {
          * @param tunnel GTP tunnel
          * @return This builder object
          */
-        public Builder withTunnel(GtpTunnel tunnel) {
+        public Builder setTunnel(GtpTunnel tunnel) {
             this.tunnel = tunnel;
             return this;
         }
@@ -374,8 +348,8 @@ public final class ForwardingActionRule {
          * @param teid GTP tunnel ID
          * @return This builder object
          */
-        public Builder withTunnel(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid) {
-            return this.withTunnel(GtpTunnel.builder()
+        public Builder setTunnel(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid) {
+            return this.setTunnel(GtpTunnel.builder()
                     .setSrc(src)
                     .setDst(dst)
                     .setTeid(teid)
@@ -385,14 +359,14 @@ public final class ForwardingActionRule {
         /**
          * Set the unidirectional GTP tunnel that this FAR should encapsulate packets with.
          *
-         * @param src  GTP tunnel source IP
-         * @param dst  GTP tunnel destination IP
-         * @param teid GTP tunnel ID
+         * @param src     GTP tunnel source IP
+         * @param dst     GTP tunnel destination IP
+         * @param teid    GTP tunnel ID
          * @param srcPort GTP tunnel UDP source port (destination port is hardcoded as 2152)
          * @return This builder object
          */
-        public Builder withTunnel(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid, short srcPort) {
-            return this.withTunnel(GtpTunnel.builder()
+        public Builder setTunnel(Ip4Address src, Ip4Address dst, ImmutableByteSequence teid, short srcPort) {
+            return this.setTunnel(GtpTunnel.builder()
                     .setSrc(src)
                     .setDst(dst)
                     .setTeid(teid)
@@ -404,19 +378,7 @@ public final class ForwardingActionRule {
             // All match keys are required
             checkNotNull(sessionId, "Session ID is required");
             checkNotNull(farId, "FAR ID is required");
-            // Action parameters are optional. If the tunnel desc is provided, the flags must also be provided.
-            checkArgument((drop != null && notifyCp != null) ||
-                            (drop == null && notifyCp == null && tunnel == null),
-                    "FAR Arguments must be provided together or not at all.");
-            Type type;
-            if (drop == null && notifyCp == null) {
-                type = Type.KEYS_ONLY;
-            } else if (tunnel == null) {
-                type = Type.UPLINK;
-            } else {
-                type = Type.DOWNLINK;
-            }
-            return new ForwardingActionRule(sessionId, farId, drop, notifyCp, buffer, tunnel, type);
+            return new ForwardingActionRule(sessionId, farId, notifyCp, tunnel, dropFlag, bufferFlag);
         }
     }
 }

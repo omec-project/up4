@@ -31,9 +31,9 @@ public final class UpfInterface {
     public String toString() {
         String typeStr;
         if (type.equals(Type.ACCESS)) {
-            typeStr = "Uplink";
+            typeStr = "Access";
         } else if (type.equals(Type.CORE)) {
-            typeStr = "Downlink";
+            typeStr = "Core";
         } else if (type.equals(Type.DBUF)) {
             typeStr = "Dbuf-Receiver";
         } else {
@@ -64,33 +64,23 @@ public final class UpfInterface {
     }
 
     /**
-     * Create an uplink UPF Interface from the given address, which will be treated as a /32 prefix.
+     * Create a core-facing UPF Interface from the given address, which will be treated as a /32 prefix.
      *
-     * @param address the address of the new uplink interface
+     * @param address the address of the new core-facing interface
      * @return a new UPF interface
      */
     public static UpfInterface createS1uFrom(Ip4Address address) {
-        return builder().setUplink().setPrefix(Ip4Prefix.valueOf(address, 32)).build();
+        return builder().setAccess().setPrefix(Ip4Prefix.valueOf(address, 32)).build();
     }
 
     /**
-     * Create an uplink UPF Interface from the given IP prefix.
+     * Create a core-facing UPF Interface from the given IP prefix.
      *
-     * @param prefix the prefix of the new uplink interface
-     * @return a new UPF interface
-     */
-    public static UpfInterface createS1uFrom(Ip4Prefix prefix) {
-        return builder().setUplink().setPrefix(prefix).build();
-    }
-
-    /**
-     * Create an downlink UPF Interface from the given IP prefix.
-     *
-     * @param prefix the prefix of the new downlink interface
+     * @param prefix the prefix of the new core-facing interface
      * @return a new UPF interface
      */
     public static UpfInterface createUePoolFrom(Ip4Prefix prefix) {
-        return builder().setDownlink().setPrefix(prefix).build();
+        return builder().setCore().setPrefix(prefix).build();
     }
 
     /**
@@ -113,22 +103,22 @@ public final class UpfInterface {
     }
 
     /**
-     * Check if this UPF interface is for uplink packets from UEs.
+     * Check if this UPF interface is for packets traveling from UEs.
      * This will be true for S1U interface table entries.
      *
-     * @return true if uplink
+     * @return true if interface receives from access
      */
-    public boolean isUplink() {
+    public boolean isAccess() {
         return type == Type.ACCESS;
     }
 
     /**
-     * Check if this UPF interface is for downlink packets towards UEs.
+     * Check if this UPF interface is for packets traveling towards UEs.
      * This will be true for UE IP address pool table entries.
      *
-     * @return true if downlink
+     * @return true if interface receives from core
      */
-    public boolean isDownlink() {
+    public boolean isCore() {
         return type == Type.CORE;
     }
 
@@ -159,13 +149,13 @@ public final class UpfInterface {
         UNKNOWN,
 
         /**
-         * Uplink interface that receives GTP encapsulated packets.
+         * Interface that receives GTP encapsulated packets.
          * This is the type of the S1U interface.
          */
         ACCESS,
 
         /**
-         * Downlink interface that receives unencapsulated packets from the core of the network.
+         * Interface that receives unencapsulated packets from the core of the network.
          * This is the type of UE IP address pool interfaces.
          */
         CORE,
@@ -207,21 +197,21 @@ public final class UpfInterface {
         }
 
         /**
-         * Make this an uplink interface.
+         * Make this an access-facing interface.
          *
          * @return this builder object
          */
-        public Builder setUplink() {
+        public Builder setAccess() {
             this.type = Type.ACCESS;
             return this;
         }
 
         /**
-         * Make this a downlink interface.
+         * Make this a core-facing interface.
          *
          * @return this builder object
          */
-        public Builder setDownlink() {
+        public Builder setCore() {
             this.type = Type.CORE;
             return this;
         }

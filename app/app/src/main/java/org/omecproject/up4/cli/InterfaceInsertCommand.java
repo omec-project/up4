@@ -9,7 +9,7 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfInterface;
-import org.onlab.packet.Ip4Prefix;
+import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
 
 /**
@@ -20,19 +20,19 @@ import org.onosproject.cli.AbstractShellCommand;
         description = "Insert a S1U interface address into the UP4 dataplane")
 public class InterfaceInsertCommand extends AbstractShellCommand {
 
-    @Argument(index = 0, name = "s1u-prefix",
-            description = "Prefix of the S1U interface",
+    @Argument(index = 0, name = "s1u-addr",
+            description = "Address of the S1U interface",
             required = true)
-    String s1uPrefix = null;
+    String s1uAddr = null;
 
     @Override
     protected void doExecute() {
         Up4Service app = get(Up4Service.class);
 
-        Ip4Prefix s1uPrefix = Ip4Prefix.valueOf(this.s1uPrefix);
+        Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
 
-        print("Adding S1U interface address: %s", s1uPrefix.toString());
-        app.getUpfProgrammable().addInterface(UpfInterface.createS1uFrom(s1uPrefix));
+        print("Adding S1U interface address: %s", s1uAddr.toString());
+        app.getUpfProgrammable().addInterface(UpfInterface.createS1uFrom(s1uAddr));
     }
 }
 

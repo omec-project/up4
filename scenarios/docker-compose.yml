@@ -3,6 +3,39 @@ version: "3"
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
 services:
+  pfcp-agent:
+    image: badhri85/upf-epc-pfcpiface:0.3.3-test
+    hostname: pfcp-agent
+    container_name: pfcp-agent
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./tmp:/tmp
+      - ./util:/util/
+    links:
+      - mininet
+      - onos
+    entrypoint: "/util/pfcp-entry.sh"
+    working_dir: /bin/
+    depends_on:
+      - mininet
+  pfcp-client:
+    build:
+      context: ./util
+      dockerfile: Dockerfile.scapy
+    hostname: pfcp-client
+    container_name: pfcp-client
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./tmp:/tmp
+      - ./util:/util/
+    links:
+      - pfcp-agent
+    entrypoint: "/bin/sh"
+    depends_on:
+      - pfcp-agent
+      - mininet
   p4rtsh:
     image: ${P4RTSH_IMAGE}
     hostname: p4rtsh
@@ -34,12 +67,6 @@ services:
       - ./topo:/topo
       - ./bin:/up4/bin
       - ./tmp/pcaps:/pcaps
-    ports:
-      - "50001:50001"
-      - "50002:50002"
-      - "50003:50003"
-      - "50004:50004"
-      - "10000:10000" # dbuf service
   onos1:
     # Tost image comes with latest trellis apps
     image: ${ONOS_IMAGE}

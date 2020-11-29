@@ -156,7 +156,7 @@
     "org.omecproject.up4": {
       "up4": {
         "deviceId": "device:leaf1",
-        "s1uPrefix": "140.0.100.254/24",
+        "s1uAddr": "140.0.100.254",
         "uePools": [
           "17.0.0.0/24"
         ],
