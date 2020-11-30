@@ -1,0 +1,16 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="pfcp-setup" description="PFCP client setup">
+    <group name="Pfcp-Setup">
+        <step name="Pfcp-Client-Start"
+              exec="bin/pfcp-client-cmd start"/>
+        <step name="Pfcp-Client-Associate" requires="^" delay="1"
+              exec="bin/pfcp-client-cmd associate"/>
+        <step name="Check-Pfcp-Client-Survived-Start" requires="Pfcp-Client-Associate" delay="1"
+              exec="echo FIXME - `bin/pfcp-client-cmd check` is no longer working"/>
+        <step name="Check-Pfcp-Agent-Survived-Start" requires="Pfcp-Client-Associate" delay="1"
+              exec="echo TODO"/>
+    </group>
+</scenario>

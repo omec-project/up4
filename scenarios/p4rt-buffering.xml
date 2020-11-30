@@ -2,8 +2,8 @@
  ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
  ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
   -->
-<scenario name="buffering" description="Buffering test">
-    <group name="Buffering">
+<scenario name="p4rt-buffering" description="Buffering test using p4runtime messages">
+    <group name="P4rt-Buffering">
         <group name="P4rt-Program-Buff">
             <step name="P4rt-Set-Buff"
                   exec="${DOCKER_COMPOSE_CMD} exec -T p4rtsh /p4rt/do_program.sh --buffer program"/>

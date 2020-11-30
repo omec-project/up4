@@ -2,8 +2,8 @@
  ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
  ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
   -->
-<scenario name="forwarding" description="Fwd test">
-    <group name="Forwarding">
+<scenario name="p4rt-forwarding" description="Forwarding test using p4runtime messages">
+    <group name="P4rt-Forwarding">
         <group name="P4rt-Program">
             <step name="P4rt-Set-Fwd"
                   exec="${DOCKER_COMPOSE_CMD} exec -T p4rtsh /p4rt/do_program.sh program"/>

@@ -22,3 +22,4 @@ else
     ARGS="$@"  # an intermediate variable is needed for some reason 
     docker-compose exec -d $IMG_NAME screen -S Messenger -p 0 -X stuff "${ARGS}"
 fi
+exit 0
