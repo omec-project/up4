@@ -9,7 +9,7 @@
         <step name="Pfcp-Client-Associate" requires="^" delay="1"
               exec="bin/pfcp-client-cmd associate"/>
         <step name="Check-Pfcp-Client-Survived-Start" requires="Pfcp-Client-Associate" delay="1"
-              exec="echo FIXME - `bin/pfcp-client-cmd check` is no longer working"/>
+              exec="echo bin/pfcp-client-cmd check"/>
         <step name="Check-Pfcp-Agent-Survived-Start" requires="Pfcp-Client-Associate" delay="1"
               exec="echo TODO"/>
     </group>

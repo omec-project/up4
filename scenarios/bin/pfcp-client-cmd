@@ -5,21 +5,37 @@
 IMG_NAME="pfcp-client"
 LOG_FILE="tmp/pfcp-messenger-screen.log"
 AGENT_NAME="pfcp-agent"
+echo provided command is $1
 if [ $1 = "start" ]; then
+    echo starting
     echo "" > $LOG_FILE
     docker-compose exec -d $IMG_NAME screen -L -Logfile /$LOG_FILE -m -S Messenger /up4/bin/pfcp-messenger.py $AGENT_NAME 
     docker-compose exec $IMG_NAME screen -S Messenger -X colon "logfile flush 0^M"
 elif [ $1 = "kill" ]; then
+    echo killing
     docker-compose exec -d $IMG_NAME screen -X -S Messenger quit
 elif [ $1 = "check" ]; then
-    tail -n 1 $LOG_FILE \
-        | grep "Enter your selection" || exit 1  # Check it started
-    docker-compose exec $IMG_NAME screen -ls \
-        | grep "Messenger" \
-        | grep "Attached" || exit 1  # Check its alive
-    exit 0
+    echo checking
+    for _ in {1..30}; do
+        echo checking
+        tail -n 1 $LOG_FILE \
+            | grep "Enter your selection" && \
+        echo first check passed && \
+        docker-compose exec $IMG_NAME screen -ls \
+            | grep "Messenger" \
+            | grep "Attached" && \
+        echo second check passed && exit 0 || sleep 1
+    done
+    echo check failed
+    OUTPUT=$(docker-compose exec pfcp-client screen -ls)
+    OUTPUT2=$(ls)
+    echo ${OUTPUT}
+    echo ${OUTPUT2}
+    exit 1
 else
+    echo stuffing
     ARGS="$@"  # an intermediate variable is needed for some reason 
     docker-compose exec -d $IMG_NAME screen -S Messenger -p 0 -X stuff "${ARGS}"
 fi
+echo done command
 exit 0

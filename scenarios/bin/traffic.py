@@ -8,7 +8,6 @@ import sys, signal
 import argparse
 
 RATE = 5  # packets per second
-TIMEOUT = 10  # seconds until timeout when waiting for a packet
 
 UE_ADDR = '17.0.0.1'
 ENB_ADDR = '140.0.100.1'
