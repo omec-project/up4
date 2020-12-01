@@ -2,14 +2,21 @@
  ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
  ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
   -->
-<scenario name="smoke" description="UP4 smoke test">
+<scenario name="pfcp-smoke" description="UP4 smoke test">
     <import file="./setup.xml"/>
     <import file="./net-setup.xml"/>
-    <import file="./p4rt-forwarding.xml"/>
-    <import file="./p4rt-buffering.xml"/>
+    <import file="./pfcp-forwarding.xml"/>
+    <import file="./pfcp-buffering.xml"/>
     <import file="./teardown.xml"/>
+    <import file="./pfcp-setup.xml"/>
+    <import file="./pfcp-teardown.xml"/>
+    <import file="./no-forwarding.xml"/>
     <dependency name="Net-Setup" requires="Setup"/>
-    <dependency name="P4rt-Forwarding" requires="Net-Setup"/>
-    <dependency name="P4rt-Buffering" requires="P4rt-Forwarding"/>
-    <dependency name="Teardown" requires="~P4rt-Forwarding,~P4rt-Buffering"/>
+    <dependency name="No-Forwarding" requires="Net-Setup"/>
+    <dependency name="Pfcp-Setup" requires="Net-Setup"/>
+    <dependency name="Pfcp-Forwarding" requires="No-Forwarding"/>
+    <dependency name="Pfcp-Forwarding" requires="Pfcp-Setup"/>
+    <dependency name="Pfcp-Buffering" requires="Pfcp-Forwarding"/>
+    <dependency name="Pfcp-Teardown" requires="~Pfcp-Forwarding,~Pfcp-Buffering"/>
+    <dependency name="Teardown" requires="~Pfcp-Teardown"/>
 </scenario>

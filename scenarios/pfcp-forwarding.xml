@@ -4,7 +4,7 @@
   -->
 <scenario name="pfcp-forwarding" description="Set up and test UE data forwarding with the PFCP client">
     <group name="Pfcp-Forwarding">
-        <group name="Pfcp-Setup-Fwd">
+        <group name="Pfcp-Setup-Fwd" requires="Check-Traffic-Doesnt-Fwd">
             <step name="Pfcp-Session-Create"
                   exec="bin/pfcp-client-cmd establish"/>
             <step name="Pfcp-Session" requires="^" delay="1"
@@ -16,12 +16,12 @@
             <step name="Downlink-Enb-Recv-Gtp-Fwd" requires="Pfcp-Setup-Fwd"
                   exec="mn-cmd enodeb traffic.py recv-gtp -t 10"/>
             <step name="Downlink-Pdn-Send-Udp-Fwd" requires="Pfcp-Setup-Fwd" delay="5"
-                  exec="mn-cmd pdn traffic.py send-udp-10"/>
+                  exec="mn-cmd pdn traffic.py send-udp -c 10"/>
             <!-- Uplink -->
-            <step name="Downlink-Pdn-Recv-Udp-Fwd" requires="Pfcp-Setup-Fwd"
+            <step name="Uplink-Pdn-Recv-Udp-Fwd" requires="Pfcp-Setup-Fwd"
                   exec="mn-cmd pdn traffic.py recv-udp -t 10"/>
-            <step name="Downlink-Enb-Send-Gtp-Fwd" requires="Pfcp-Setup-Fwd" delay="5"
-                  exec="mn-cmd enodeb traffic.py send-gtp-10"/>
+            <step name="Uplink-Enb-Send-Gtp-Fwd" requires="Pfcp-Setup-Fwd" delay="5"
+                  exec="mn-cmd enodeb traffic.py send-gtp -c 10"/>
         </group>
 
         <step name="Pfcp-Clear-Fwd" requires="~Check-Traffic-Fwd"

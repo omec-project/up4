@@ -5,6 +5,7 @@
 from scapy.contrib import gtp
 from scapy.all import send, sniff, Ether, IP, UDP
 import sys, signal
+import argparse
 
 RATE = 5  # packets per second
 TIMEOUT = 10  # seconds until timeout when waiting for a packet
@@ -33,7 +34,7 @@ def prep_brief_test(timeout):
     signal.alarm(timeout)
 
 
-def send_gtp(send_count=None):
+def send_gtp(args):
     pkt =   IP(src=ENB_ADDR, dst=S1U_ADDR) / \
             UDP(dport=GPDU_PORT) / \
             gtp.GTPHeader(version=1, gtp_type=0xff, teid=TEID) / \
@@ -41,23 +42,15 @@ def send_gtp(send_count=None):
             UDP(sport=UE_PORT, dport=PDN_PORT) / \
             ' '.join(['P4 is inevitable!'] * 50)
 
-    send(pkt, inter=1.0 / RATE, loop=send_count is None, count=send_count, verbose=True)
+    send(pkt, inter=1.0 / RATE, loop=args.count != 1, count=args.count, verbose=True)
 
 
-def send_gtp_10():
-    send_gtp(10)
+def send_udp(args):
+    pkt = IP(src=PDN_ADDR, dst=UE_ADDR) / \
+          UDP(sport=PDN_PORT, dport=UE_PORT) / \
+          ' '.join(['P4 is great!'] * 50)
 
-
-def send_udp(send_count=None):
-    pkt =   IP(src=PDN_ADDR, dst=UE_ADDR) / \
-            UDP(sport=PDN_PORT, dport=UE_PORT) / \
-            ' '.join(['P4 is great!'] * 50)
-
-    send(pkt, inter=1.0 / RATE, loop=send_count is None, count=send_count, verbose=True)
-
-
-def send_udp_10():
-    send_udp(10)
+    send(pkt, inter=1.0 / RATE, loop=args.count != 1, count=args.count, verbose=True)
 
 
 def handle_pkt(pkt, kind):
@@ -92,15 +85,31 @@ def handle_pkt(pkt, kind):
             exit(1)
 
 
-def sniff_gtp(kind="gtp"):
-    sniff_stuff(kind="gtp")
+def sniff_gtp(args):
+    sniff_stuff(args, kind="gtp")
 
 
-def sniff_udp():
-    sniff_stuff(kind="udp")
+def sniff_udp(args):
+    sniff_stuff(args, kind="udp")
 
 
-def sniff_stuff(kind):
+def sniff_nothing(args):
+    def succeed_on_timeout(signum, frame):
+        print("Received no packet after %d seconds, as expected." % args.timeout)
+        exit(0)
+
+    def fail_on_sniff(pkt):
+        print("Received unexpected packet!")
+        pkt.show()
+        exit(1)
+    signal.signal(signal.SIGALRM, succeed_on_timeout)
+    signal.alarm(args.timeout)
+    sniff(count=0, store=False, filter="udp", prn=fail_on_sniff)
+
+
+def sniff_stuff(args, kind):
+    if args.timeout != 0:
+        prep_brief_test(args.timeout)
     print("Will print a line for each UDP packet received...")
     sniff(count=0, store=False, filter="udp", prn=lambda x: handle_pkt(x, kind))
 
@@ -114,32 +123,17 @@ if __name__ == "__main__":
 
     funcs = {
         "send-gtp": send_gtp,
-        "send-gtp-10": send_gtp_10,
         "send-udp": send_udp,
-        "send-udp-10": send_udp_10,
         "recv-gtp": sniff_gtp,
-        "recv-udp": sniff_udp
+        "recv-udp": sniff_udp,
+        "recv-none": sniff_nothing
     }
 
-    usage = "usage: %s <%s> [-t <timeout>]" % (sys.argv[0], '|'.join(funcs.keys()))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", type=str, help="The action to perform",
+                        choices=funcs.keys())
+    parser.add_argument("-t", dest="timeout", type=int, default=0, help="How long to wait for packets before giving up")
+    parser.add_argument("-c", dest="count", type=int, default=1, help="How many packets to transmit")
+    args = parser.parse_args()
 
-    command = sys.argv[1] if len(sys.argv) > 1 else None
-
-    if len(sys.argv) > 2:
-        if sys.argv[2] == '-t':
-            try:
-                timeout = int(sys.argv[3])
-                prep_brief_test(timeout)
-            except:
-                print("Bad or no timeout provided with -t flag")
-                print(usage)
-                exit(1)
-        else:
-            print(usage)
-            exit(1)
-
-    if command not in funcs:
-        print(usage)
-        exit(1)
-
-    funcs[command]()
+    funcs[args.command](args)

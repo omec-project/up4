@@ -17,7 +17,7 @@
         <group name="Check-Traffic-Buff" requires="Pfcp-Set-Buff">
             <!-- Check Downlink only -->
             <step name="Downlink-Pdn-Send-Udp-Buff"
-                  exec="mn-cmd pdn traffic.py send-udp-10"/>
+                  exec="mn-cmd pdn traffic.py send-udp -c 10"/>
             <!-- FIXME: grep log tail to allow running scenarios in development where there can be
                     many FIRST_BUFFER in the log  -->
             <step name="Verify-First-Buffer" requires="^"
