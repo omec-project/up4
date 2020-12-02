@@ -1,0 +1,10 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+set -e
+
+container=$1
+
+# Perl magic to remove ANSII color codes
+# https://superuser.com/questions/380772/removing-ansi-color-codes-from-text-stream
+${DOCKER_COMPOSE_CMD} logs --no-color "$container" |  perl -pe 's/\e\[[0-9;]*m//g'
