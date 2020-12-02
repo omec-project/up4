@@ -11,6 +11,6 @@
         <step name="Check-Pfcp-Client-Survived-Start" requires="Pfcp-Client-Associate" delay="1"
               exec="echo bin/pfcp-client-cmd check"/>
         <step name="Check-Pfcp-Agent-Survived-Start" requires="Pfcp-Client-Associate" delay="1"
-              exec="echo TODO"/>
+              exec="bin/pfcp-agent-check-alive"/>
     </group>
 </scenario>

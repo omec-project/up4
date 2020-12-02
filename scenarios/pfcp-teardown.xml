@@ -7,7 +7,7 @@
         <step name="Pfcp-Client-Stop"
               exec="bin/pfcp-client-cmd stop"/>
         <step name="Check-Pfcp-Agent-Survived-Teardown" requires="~Pfcp-Client-Stop"
-              exec="echo TODO"/>
+              exec="bin/pfcp-agent-check-alive"/>
         <step name="Check-No-Flows-After-Pfcp-Teardown" requires="Pfcp-Client-Stop"
               exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
     </group>

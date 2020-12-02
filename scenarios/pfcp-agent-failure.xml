@@ -1,0 +1,37 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="pfcp-agent-failure"
+          description="Kill and restore the PFCP agent and verify flows are cleared on restart">
+    <group name="Pfcp-Agent-Failure">
+        <group name="Pfcp-Setup-Fwd">
+            <step name="Pfcp-Session-Create"
+                  exec="bin/pfcp-client-cmd establish"/>
+            <step name="Pfcp-Session-Modify" requires="^" delay="1"
+                  exec="bin/pfcp-client-cmd modify"/>
+        </group>
+
+        <step name="Check-Flows-Installed" requires="Pfcp-Setup-Fwd" delay="2"
+              exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
+
+        <step name="Kill-Smf" requires="Check-Flows-Installed"
+              exec="bin/pfcp-client-cmd kill"/>
+
+        <step name="Restart-Agent" requires="Check-Flows-Installed"
+              exec="${DOCKER_COMPOSE_CMD} restart pfcp-agent"/>
+
+        <step name="Wait-For-Agent-Reboot" requires="^" delay="2"
+              exec="bin/pfcp-agent-wait-for-start"/>
+
+        <group name="Pfcp-Client-Revive" requires="~Wait-For-Agent-Reboot">
+            <step name="Pfcp-Client-Start-Again" requires="Wait-For-Agent-Reboot"
+                  exec="bin/pfcp-client-cmd start"/>
+            <step name="Pfcp-Client-Associate-Again" requires="^" delay="1"
+                  exec="bin/pfcp-client-cmd associate"/>
+        </group>
+
+        <step name="Check-Flows-Deleted-After-Agent-Reboot" requires="Pfcp-Client-Revive"
+              exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
+    </group>
+</scenario>
