@@ -6,9 +6,9 @@
     <group name="Pfcp-Forwarding">
         <group name="Pfcp-Setup-Fwd">
             <step name="Pfcp-Session-Create"
-                  exec="pfcp-client-cmd establish"/>
+                  exec="mock-smf-cmd establish"/>
             <step name="Pfcp-Session" requires="^" delay="1"
-                  exec="pfcp-client-cmd modify"/>
+                  exec="mock-smf-cmd modify"/>
         </group>
 
         <group name="Check-Traffic-Fwd" requires="Pfcp-Setup-Fwd">
@@ -25,6 +25,6 @@
         </group>
 
         <step name="Pfcp-Clear-Fwd" requires="~Check-Traffic-Fwd"
-              exec="pfcp-client-cmd delete"/>
+              exec="mock-smf-cmd delete"/>
     </group>
 </scenario>

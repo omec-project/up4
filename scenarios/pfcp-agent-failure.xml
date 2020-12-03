@@ -7,31 +7,31 @@
     <group name="Pfcp-Agent-Failure">
         <group name="Pfcp-Setup-Fwd">
             <step name="Pfcp-Session-Create"
-                  exec="pfcp-client-cmd establish"/>
+                  exec="mock-smf-cmd establish"/>
             <step name="Pfcp-Session-Modify" requires="^" delay="1"
-                  exec="pfcp-client-cmd modify"/>
+                  exec="mock-smf-cmd modify"/>
         </group>
 
         <step name="Check-Flows-Installed" requires="Pfcp-Setup-Fwd" delay="2"
               exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
 
-        <step name="Kill-Smf" requires="Check-Flows-Installed"
-              exec="pfcp-client-cmd kill"/>
-
         <step name="Restart-Agent" requires="Check-Flows-Installed"
               exec="${DOCKER_COMPOSE_CMD} restart pfcp-agent"/>
+
+        <step name="Kill-Smf" requires="Restart-Agent"
+              exec="mock-smf-cmd kill"/>
 
         <step name="Wait-For-Agent-Reboot" requires="^" delay="2"
               exec="pfcp-agent-wait-for-start"/>
 
-        <group name="Pfcp-Client-Revive" requires="~Wait-For-Agent-Reboot">
-            <step name="Pfcp-Client-Start-Again" requires="Wait-For-Agent-Reboot"
-                  exec="pfcp-client-cmd start"/>
-            <step name="Pfcp-Client-Associate-Again" requires="^" delay="1"
-                  exec="pfcp-client-cmd associate"/>
+        <group name="Mock-Smf-Revive" requires="~Wait-For-Agent-Reboot">
+            <step name="Mock-Smf-Start-Again" requires="Wait-For-Agent-Reboot"
+                  exec="mock-smf-cmd start"/>
+            <step name="Mock-Smf-Associate-Again" requires="^" delay="1"
+                  exec="mock-smf-cmd associate"/>
         </group>
 
-        <step name="Check-Flows-Deleted-After-Agent-Reboot" requires="Pfcp-Client-Revive"
+        <step name="Check-Flows-Deleted-After-Agent-Reboot" requires="Mock-Smf-Revive"
               exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
     </group>
 </scenario>

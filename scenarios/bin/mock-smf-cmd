@@ -4,8 +4,8 @@
 
 set -ex
 
-imgName="pfcp-client"
-logFile="tmp/pfcp-messenger-screen.log"
+imgName="mock-smf"
+logFile="tmp/mock-smf.log"
 agentName="pfcp-agent"
 # STC doesn't allocate a TTY so without -T docker-compose exec will fail
 dockerExec="docker-compose exec -T $imgName"
@@ -13,27 +13,27 @@ dockerExec="docker-compose exec -T $imgName"
 echo "Provided command is $1"
 if [ "$1" = "start" ]; then
     echo "" > $logFile
-    # Start messenger in detached screen session
-    ${dockerExec} screen -d -L -Logfile /$logFile -S Messenger -m /up4/bin/pfcp-messenger.py $agentName
+    # Start mock SMF in detached screen session
+    ${dockerExec} screen -d -L -Logfile /$logFile -S MockSMF -m /up4/bin/mock-smf.py $agentName
     # Flush logs in real-time
     # If you don't know screen and wondering what the heck colon means:
     # https://www.gnu.org/software/screen/manual/html_node/Colon.html
-    ${dockerExec} screen -S Messenger -X colon "logfile flush 0^M"
+    ${dockerExec} screen -S MockSMF -X colon "logfile flush 0^M"
     exit 0
 elif [ "$1" = "kill" ]; then
     # Kill all windows and terminate screen, to emulate SMF crash.
     # shellcheck disable=SC2016
-    ${dockerExec} screen -S Messenger -X quit
+    ${dockerExec} screen -S MockSMF -X quit
     exit 0
 elif [ "$1" = "check" ]; then
     for _ in {1..30}; do
         set +e
-        # Make sure the last line of the pfcp-messenger stdout contains just the prompt message,
+        # Make sure the last line of the mock SMF's stdout contains just the prompt message,
         # without any unexecuted command, likely to happen if we forgot ^M.
         lastLine="$(tail -n 1 $logFile)"
         if [ "${lastLine}" = "Enter your selection : " ]; then
             # If the screen session still running?
-            ${dockerExec} screen -ls | grep "Messenger" | grep "Detached" && exit 0
+            ${dockerExec} screen -ls | grep "MockSMF" | grep "Detached" && exit 0
         fi
         set -e
         sleep 1
@@ -42,8 +42,8 @@ elif [ "$1" = "check" ]; then
     ${dockerExec} screen -ls
     exit 1
 else
-    # Send any other command to pfcp-messenger
+    # Send any other command to mock-smf
     # shellcheck disable=SC2068
     ARGS="$@"
-    ${dockerExec} screen -S Messenger -X -p 0 stuff "${ARGS}^M"
+    ${dockerExec} screen -S MockSMF -X -p 0 stuff "${ARGS}^M"
 fi

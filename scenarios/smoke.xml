@@ -8,14 +8,14 @@
     <import file="./pfcp-forwarding.xml"/>
     <import file="./pfcp-buffering.xml"/>
     <import file="./teardown.xml"/>
-    <import file="./pfcp-setup.xml"/>
-    <import file="./pfcp-teardown.xml"/>
+    <import file="./smf-setup.xml"/>
+    <import file="./smf-teardown.xml"/>
     <import file="./no-forwarding.xml"/>
     <dependency name="Net-Setup" requires="Setup"/>
     <dependency name="No-Forwarding" requires="Net-Setup"/>
-    <dependency name="Pfcp-Setup" requires="Net-Setup"/>
-    <dependency name="Pfcp-Forwarding" requires="Pfcp-Setup,No-Forwarding"/>
+    <dependency name="Smf-Setup" requires="Net-Setup"/>
+    <dependency name="Pfcp-Forwarding" requires="Smf-Setup,No-Forwarding"/>
     <dependency name="Pfcp-Buffering" requires="Pfcp-Forwarding"/>
-    <dependency name="Pfcp-Teardown" requires="Pfcp-Setup,~Pfcp-Forwarding,~Pfcp-Buffering"/>
-    <dependency name="Teardown" requires="~Pfcp-Teardown"/>
+    <dependency name="Smf-Teardown" requires="Smf-Setup,~Pfcp-Forwarding,~Pfcp-Buffering"/>
+    <dependency name="Teardown" requires="~Smf-Teardown"/>
 </scenario>

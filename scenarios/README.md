@@ -84,12 +84,12 @@ and for removing them after tests are completed.
 * Push netcfg.json to ONOS
 * Verify that all switches, links, and host are discovered successfully
 
-**pfcp-setup.xml**
+**smf-setup.xml**
 * Requires `setup.xml`, `net-setup.xml`
 * Initialize a Mock SMF for communication with the PFCP agent
 
-**pfcp-teardown.xml**
-* Requires `setup.xml`, `net-setup.xml`, `pfcp-setup.xml`
+**smf-teardown.xml**
+* Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
 * Stop the Mock SMF
 
 **teardown.xml**
@@ -112,22 +112,22 @@ and thus can be run repeatedly and consecutively.
 * Same as p4rt-forwarding.xml but checks the case where downlink buffering is enabled
 
 **pfcp-forwarding.xml**
-* Requires `setup.xml`, `net-setup.xml`, `pfcp-setup.xml`
+* Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
 * Use PFCP messages from the mock SMF to set up GTP termination and forwarding
 * Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts
 
 **pfcp-buffering**
-* Requires `setup.xml`, `net-setup.xml`, `pfcp-setup.xml`
+* Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
 * Same as pfcp-forwarding.xml but checks the case where downlink buffering is enabled
 
-**pfcp-client-failure**
-* Requires `setup.xml`, `net-setup.xml`, `pfcp-setup.xml`
+**smf-failure**
+* Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
 * Install flow rules for one UE via the mock SMF and verify the rules are installed in the switch
 * Kill the mock SMF and verify the orphaned flow rules are cleared from the switch
 * Restore the mock SMF and verify that forwarding for one UE can be re-established
 
 **pfcp-agent-failure**
-* Requires `setup.xml`, `net-setup.xml`, `pfcp-setup.xml`
+* Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
 * Install flow rules for one UE via the mock SMF and verify the rules are installed in the switch
 * Reboot the PFCP agent and verify the orphaned flow rules are cleared from the switch once the agent recovers.
 
@@ -139,8 +139,8 @@ These scenarios combine setup, single tests, and teardown all in one. Useful for
 scenarios in one test
 
 **smoke.xml**
-* Combines the `setup.xml`, `net-setup.xml`, `pfcp-setup`, `pfcp-forwarding`, `pfcp-buffering`,
- `pfcp-teardown.xml`, and`teardown.xml` scenarios in one test
+* Combines the `setup.xml`, `net-setup.xml`, `smf-setup`, `pfcp-forwarding`, `pfcp-buffering`,
+ `smf-teardown.xml`, and`teardown.xml` scenarios in one test
 
 ## Reusing ONOS STC commands with Docker
 

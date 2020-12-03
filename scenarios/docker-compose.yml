@@ -20,12 +20,12 @@ services:
     working_dir: /bin/
     depends_on:
       - mininet
-  pfcp-client:
+  mock-smf:
     build:
       context: ./topo
       dockerfile: Dockerfile.scapy
-    hostname: pfcp-client
-    container_name: pfcp-client
+    hostname: mock-smf 
+    container_name: mock-smf
     tty: true
     stdin_open: true
     volumes:

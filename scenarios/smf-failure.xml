@@ -2,43 +2,43 @@
  ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
  ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
   -->
-<scenario name="pfcp-client-failure"
-          description="Kill and restore the PFCP Client (MockSMF) and verify the PFCP agent reacts correctly">
-    <group name="Pfcp-Client-Failure">
+<scenario name="smf-failure"
+          description="Kill and restore the mock SMF and verify the PFCP agent reacts correctly">
+    <group name="Mock-Smf-Failure">
         <group name="Pfcp-Setup-Fwd">
             <step name="Pfcp-Session-Create"
-                  exec="pfcp-client-cmd establish"/>
+                  exec="mock-smf-cmd establish"/>
             <step name="Pfcp-Session-Modify" requires="^" delay="1"
-                  exec="pfcp-client-cmd modify"/>
+                  exec="mock-smf-cmd modify"/>
         </group>
 
         <step name="Check-Flows-Installed" requires="Pfcp-Setup-Fwd" delay="2"
               exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
 
-        <step name="Kill-Pfcp-Client" requires="^"
-              exec="pfcp-client-cmd kill"/>
+        <step name="Kill-Mock-Smf" requires="^"
+              exec="mock-smf-cmd kill"/>
 
-        <step name="Check-Flows-Deleted-On-Pfcp-Client-Failure" requires="^" delay="10"
+        <step name="Check-Flows-Deleted-On-Mock-Smf-Failure" requires="^" delay="10"
               exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
 
-        <group name="Pfcp-Client-Revive" requires="~Check-Flows-Deleted-On-Pfcp-Client-Failure">
-            <step name="Pfcp-Client-Start-Again" requires="~Check-Flows-Deleted-On-Pfcp-Client-Failure"
-                  exec="pfcp-client-cmd start"/>
-            <step name="Pfcp-Client-Associate-Again" requires="^" delay="1"
-                  exec="pfcp-client-cmd associate"/>
+        <group name="Mock-Smf-Revive" requires="~Check-Flows-Deleted-On-Mock-Smf-Failure">
+            <step name="Mock-Smf-Start-Again" requires="~Check-Flows-Deleted-On-Mock-Smf-Failure"
+                  exec="mock-smf-cmd start"/>
+            <step name="Mock-Smf-Associate-Again" requires="^" delay="1"
+                  exec="mock-smf-cmd associate"/>
         </group>
 
-        <group name="Pfcp-Restore-Fwd" requires="Pfcp-Client-Revive">
-            <step name="Pfcp-Session-Create-Again" requires="Pfcp-Client-Revive"
-                  exec="pfcp-client-cmd establish"/>
+        <group name="Pfcp-Restore-Fwd" requires="Mock-Smf-Revive">
+            <step name="Pfcp-Session-Create-Again" requires="Mock-Smf-Revive"
+                  exec="mock-smf-cmd establish"/>
             <step name="Pfcp-Session-Modify-Again" requires="^" delay="1"
-                  exec="pfcp-client-cmd modify"/>
+                  exec="mock-smf-cmd modify"/>
         </group>
 
         <step name="Check-Flows-Reinstalled" requires="Pfcp-Restore-Fwd" delay="2"
               exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
 
-        <group name="Check-Traffic-Fwd-After-Pfcp-Client-Failure" requires="Check-Flows-Reinstalled">
+        <group name="Check-Traffic-Fwd-After-Mock-Smf-Failure" requires="Check-Flows-Reinstalled">
             <!-- Downlink -->
             <step name="Downlink-Enb-Recv-Gtp-Fwd" requires="Check-Flows-Reinstalled"
                   exec="mn-cmd enodeb traffic.py recv-gtp -t 10"/>
@@ -51,8 +51,8 @@
                   exec="mn-cmd enodeb traffic.py send-gtp -c 10"/>
         </group>
 
-        <step name="Pfcp-Clear-Fwd" requires="~Check-Traffic-Fwd-After-Pfcp-Client-Failure"
-              exec="pfcp-client-cmd delete"/>
+        <step name="Pfcp-Clear-Fwd" requires="~Check-Traffic-Fwd-After-Mock-Smf-Failure"
+              exec="mock-smf-cmd delete"/>
 
         <step name="Check-Flows-Deleted-Again" requires="^" delay="2"
               exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
