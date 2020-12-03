@@ -589,6 +589,7 @@ def handle_user_input() -> None:
         for choice, (action_desc, action) in user_choices.items():
             print("\"%s\" - %s" % (choice, action_desc))
         try:
+
             args = parser.parse_args(input("Enter your selection : ").split())
         except Exception as e:
             print(e)

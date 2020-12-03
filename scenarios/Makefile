@@ -72,3 +72,6 @@ onos-log:
 
 onos-ui:
 	open http://localhost:8181/onos/ui
+
+mock-smf:
+	docker-compose exec mock-smf /up4/bin/mock-smf.py pfcp-agent

@@ -1,0 +1,37 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="pfcp-agent-failure"
+          description="Kill and restore the PFCP agent and verify flows are cleared on restart">
+    <group name="Pfcp-Agent-Failure">
+        <group name="Pfcp-Setup-Fwd">
+            <step name="Pfcp-Session-Create"
+                  exec="mock-smf-cmd establish"/>
+            <step name="Pfcp-Session-Modify" requires="^" delay="1"
+                  exec="mock-smf-cmd modify"/>
+        </group>
+
+        <step name="Check-Flows-Installed" requires="Pfcp-Setup-Fwd" delay="2"
+              exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
+
+        <step name="Restart-Agent" requires="Check-Flows-Installed"
+              exec="${DOCKER_COMPOSE_CMD} restart pfcp-agent"/>
+
+        <step name="Kill-Smf" requires="Restart-Agent"
+              exec="mock-smf-cmd kill"/>
+
+        <step name="Wait-For-Agent-Reboot" requires="^" delay="2"
+              exec="pfcp-agent-wait-for-start"/>
+
+        <group name="Mock-Smf-Revive" requires="~Wait-For-Agent-Reboot">
+            <step name="Mock-Smf-Start-Again" requires="Wait-For-Agent-Reboot"
+                  exec="mock-smf-cmd start"/>
+            <step name="Mock-Smf-Associate-Again" requires="^" delay="1"
+                  exec="mock-smf-cmd associate"/>
+        </group>
+
+        <step name="Check-Flows-Deleted-After-Agent-Reboot" requires="Mock-Smf-Revive"
+              exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
+    </group>
+</scenario>

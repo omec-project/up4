@@ -7,8 +7,10 @@
         <group name="Dump-Logs">
             <parallel var="${OD#}">
                 <step name="Log-Dump-${OD#}"
-                      exec="${DOCKER_COMPOSE_CMD} logs ${OD#}"/>
+                      exec="docker-log-dump ${OD#}"/>
             </parallel>
+            <step name="Log-Dump-Pfcp-Agent"
+                  exec="docker-log-dump pfcp-agent"/>
         </group>
         <step name="Docker-Compose-Down" requires="Dump-Logs"
               exec="${DOCKER_COMPOSE_CMD} down -t0"/>
