@@ -63,9 +63,16 @@ a graph of all the test steps and their dependencies.
 
 ## Scenarios
 
+Some scenarios depend on others executing first. For example, all scenarios except for the smoke tests
+ use the docker-compose topology launched by `setup.xml`. The dependencies for all scenarios are listed
+in the descriptions below.
 To execute a given scenario:
 
     make scenario.xml
+    
+### Setup and teardown scenarios
+These scenarios are used for launching containers and network functions, 
+and for removing them after tests are completed.
 
 **setup.xml**
 * Start Docker containers for Mininet and ONOS
@@ -73,32 +80,57 @@ To execute a given scenario:
 * Verify that all components have started correctly
 
 **net-setup.xml**
+* Run after `setup.xml`
 * Push netcfg.json to ONOS
 * Verify that all switches, links, and host are discovered successfully
 
 **pfcp-setup.xml**
+* Run after `setup.xml`, `net-setup.xml`
 * Initialize a Mock SMF for communication with the PFCP agent
 
-**p4rt-forwarding.xml**
-* Use UP4 northbound APIs to set up GTP termination and forwarding
-* Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts
-
-**p4rt-buffering.xml**
-* Same as p4rt-forwarding.xml but checks the case where downlink buffering is enabled
-
-**pfcp-forwarding.xml**
-* Use PFCP messages from the mock SMF to set up GTP termination and forwarding
-* Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts
-
-**pfcp-buffering**
-* Same as pfcp-forwarding.xml but checks the case where downlink buffering is enabled
-
 **pfcp-teardown.xml**
+* Run after `setup.xml`, `net-setup.xml`, `pfcp-setup.xml`
 * Stop the Mock SMF
 
 **teardown.xml**
 * Dump Docker container logs
 * Stop containers
+
+### Single test cases
+These scenarios each test small subsets of features, such as forwarding, buffering, or failure recovery. 
+These scenarios do not perform setup or teardown.
+
+**p4rt-forwarding.xml**
+* Requires `setup.xml`, `net-setup.xml`
+* Use UP4 northbound APIs to set up GTP termination and forwarding
+* Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts
+
+**p4rt-buffering.xml**
+* Requires `setup.xml`, `net-setup.xml`
+* Same as p4rt-forwarding.xml but checks the case where downlink buffering is enabled
+
+**pfcp-forwarding.xml**
+* Requires `setup.xml`, `net-setup.xml`, `pfcp-setup.xml`
+* Use PFCP messages from the mock SMF to set up GTP termination and forwarding
+* Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts
+
+**pfcp-buffering**
+* Requires `setup.xml`, `net-setup.xml`, `pfcp-setup.xml`
+* Same as pfcp-forwarding.xml but checks the case where downlink buffering is enabled
+
+**pfcp-client-failure**
+* Requires `setup.xml`, `net-setup.xml`, `pfcp-setup.xml`
+* Install flow rules for one UE via the mock SMF and verify the rules are installed in the switch
+* Kill the mock SMF and verify the orphaned flow rules are cleared from the switch
+* Restore the mock SMF and verify that forwarding for one UE can be re-established
+
+**pfcp-agent-failure**
+* Requires `setup.xml`, `net-setup.xml`, `pfcp-setup.xml`
+* Install flow rules for one UE via the mock SMF and verify the rules are installed in the switch
+* Reboot the PFCP agent and verify the orphaned flow rules are cleared from the switch once the agent recovers.
+
+### All-in-one tests
+These scenarios combine setup, single tests, and teardown all in one. Useful for quickly detecting issues.
 
 **p4rt-smoke.xml**
 * Combines the `setup.xml`, `net-setup.xml`, `p4rt-forwarding`, `p4rt-buffering`, and `teardown.xml` 
@@ -115,7 +147,7 @@ commands are:
 
 * `onos-check-apps`: to verify apps have been activated
 * `onos-check-logs`: to verify that the log is free of errors
-* `onos-check-flow`: the verify that no flows are in pending state
+* `onos-check-flow`: to verify that no flows are in pending state
 * `onos-check-summary`: to verify that devices, links, and hosts have been discovered
 * and many more
 
