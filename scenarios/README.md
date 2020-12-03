@@ -93,6 +93,7 @@ and for removing them after tests are completed.
 * Stop the Mock SMF
 
 **teardown.xml**
+* Requires `setup.xml`
 * Dump Docker container logs
 * Stop containers
 
