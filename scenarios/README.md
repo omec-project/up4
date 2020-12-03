@@ -80,16 +80,16 @@ and for removing them after tests are completed.
 * Verify that all components have started correctly
 
 **net-setup.xml**
-* Run after `setup.xml`
+* Requires `setup.xml`
 * Push netcfg.json to ONOS
 * Verify that all switches, links, and host are discovered successfully
 
 **pfcp-setup.xml**
-* Run after `setup.xml`, `net-setup.xml`
+* Requires `setup.xml`, `net-setup.xml`
 * Initialize a Mock SMF for communication with the PFCP agent
 
 **pfcp-teardown.xml**
-* Run after `setup.xml`, `net-setup.xml`, `pfcp-setup.xml`
+* Requires `setup.xml`, `net-setup.xml`, `pfcp-setup.xml`
 * Stop the Mock SMF
 
 **teardown.xml**
