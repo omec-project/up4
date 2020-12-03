@@ -98,7 +98,8 @@ and for removing them after tests are completed.
 
 ### Single test cases
 These scenarios each test small subsets of features, such as forwarding, buffering, or failure recovery. 
-These scenarios do not perform setup or teardown.
+These scenarios do not perform setup or teardown, but they do clean up after themselves 
+and thus can be run repeatedly and consecutively.
 
 **p4rt-forwarding.xml**
 * Requires `setup.xml`, `net-setup.xml`
