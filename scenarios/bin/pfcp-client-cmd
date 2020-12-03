@@ -7,6 +7,7 @@ set -ex
 imgName="pfcp-client"
 logFile="tmp/pfcp-messenger-screen.log"
 agentName="pfcp-agent"
+# STC doesn't allocate a TTY so without -T docker-compose exec will fail
 dockerExec="docker-compose exec -T $imgName"
 
 echo "Provided command is $1"
