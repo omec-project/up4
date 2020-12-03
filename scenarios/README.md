@@ -52,7 +52,7 @@ Run the smoke scenario:
 This scenario verifies UP4 app builds. It included a non-exhaustive set of tests that aim at
 ensuring that the most important functions work. Some functions tested in this scenario are:
 * UP4 app install and activation
-* UP4 northbound APIs (via P4Runtime calls)
+* UP4 northbound APIs (via P4Runtime calls received either from the PFCP agent or a mock controller)
 * Basic GTP termination for both uplink and downlink traffic
 * Basic downlink buffering capabilities
 
@@ -76,19 +76,37 @@ To execute a given scenario:
 * Push netcfg.json to ONOS
 * Verify that all switches, links, and host are discovered successfully
 
-**forwarding.xml**
+**pfcp-setup.xml**
+* Initialize a Mock SMF for communication with the PFCP agent
+
+**p4rt-forwarding.xml**
 * Use UP4 northbound APIs to set up GTP termination and forwarding
 * Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts
 
-**buffering.xml**
-* Same as forwarding.xml but checks the case where downlink buffering is enabled
+**p4rt-buffering.xml**
+* Same as p4rt-forwarding.xml but checks the case where downlink buffering is enabled
+
+**pfcp-forwarding.xml**
+* Use PFCP messages from the mock SMF to set up GTP termination and forwarding
+* Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts
+
+**pfcp-buffering**
+* Same as pfcp-forwarding.xml but checks the case where downlink buffering is enabled
+
+**pfcp-teardown.xml**
+* Stop the Mock SMF
 
 **teardown.xml**
 * Dump Docker container logs
 * Stop containers
 
+**p4rt-smoke.xml**
+* Combines the `setup.xml`, `net-setup.xml`, `p4rt-forwarding`, `p4rt-buffering`, and `teardown.xml` 
+scenarios in one test
+
 **smoke.xml**
-* Combines the above scenarios in one test
+* Combines the `setup.xml`, `net-setup.xml`, `pfcp-setup`, `pfcp-forwarding`, `pfcp-buffering`,
+ `pfcp-teardown.xml`, and`teardown.xml` scenarios in one test
 
 ## Reusing ONOS STC commands with Docker
 
