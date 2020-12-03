@@ -6,9 +6,9 @@
     <group name="Pfcp-Forwarding">
         <group name="Pfcp-Setup-Fwd" requires="Check-Traffic-Doesnt-Fwd">
             <step name="Pfcp-Session-Create"
-                  exec="bin/pfcp-client-cmd establish"/>
+                  exec="pfcp-client-cmd establish"/>
             <step name="Pfcp-Session" requires="^" delay="1"
-                  exec="bin/pfcp-client-cmd modify"/>
+                  exec="pfcp-client-cmd modify"/>
         </group>
 
         <group name="Check-Traffic-Fwd" requires="Pfcp-Setup-Fwd">
@@ -25,6 +25,6 @@
         </group>
 
         <step name="Pfcp-Clear-Fwd" requires="~Check-Traffic-Fwd"
-              exec="bin/pfcp-client-cmd delete"/>
+              exec="pfcp-client-cmd delete"/>
     </group>
 </scenario>

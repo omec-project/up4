@@ -4,7 +4,7 @@
 
 for _ in {1..30}; do
     docker ps | grep "pfcp-agent" && \
-        ${DOCKER_COMPOSE_CMD} logs pfcp-agent | grep "pfcpifaceMainLoop@ says hello!!!" \
+        docker-compose logs pfcp-agent | grep "pfcpifaceMainLoop@ says hello!!!" \
         && exit 0 || sleep 1
 done
 exit 1

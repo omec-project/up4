@@ -24,8 +24,6 @@ services:
     build:
       context: ./topo
       dockerfile: Dockerfile.scapy
-      args:
-        - SCAPY_BASE_IMAGE=${SCAPY_BASE_IMAGE}
     hostname: pfcp-client
     container_name: pfcp-client
     tty: true

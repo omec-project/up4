@@ -5,12 +5,12 @@
 <scenario name="pfcp-setup" description="PFCP client setup">
     <group name="Pfcp-Setup">
         <step name="Pfcp-Client-Start"
-              exec="bin/pfcp-client-cmd start"/>
-        <step name="Pfcp-Client-Associate" requires="^" delay="1"
-              exec="bin/pfcp-client-cmd associate"/>
-        <step name="Check-Pfcp-Client-Survived-Start" requires="Pfcp-Client-Associate" delay="1"
-              exec="echo bin/pfcp-client-cmd check"/>
-        <step name="Check-Pfcp-Agent-Survived-Start" requires="Pfcp-Client-Associate" delay="1"
-              exec="bin/pfcp-agent-check-alive"/>
+              exec="pfcp-client-cmd start"/>
+        <step name="Check-Pfcp-Client-Survived-Start" requires="^"
+              exec="pfcp-client-cmd check"/>
+        <step name="Pfcp-Client-Associate" requires="^"
+              exec="pfcp-client-cmd associate"/>
+<!--        <step name="Check-Pfcp-Agent-Survived-Start" requires="Pfcp-Client-Associate" delay="1"-->
+<!--              exec="pfcp-agent-check-alive"/>-->
     </group>
 </scenario>

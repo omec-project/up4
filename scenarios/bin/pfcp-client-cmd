@@ -2,41 +2,47 @@
 # SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
-IMG_NAME="pfcp-client"
-LOG_FILE="tmp/pfcp-messenger-screen.log"
-AGENT_NAME="pfcp-agent"
-echo provided command is $1
-if [ $1 = "start" ]; then
-    echo starting
-    echo "" > $LOG_FILE
-    ${DOCKER_COMPOSE_CMD} exec -d $IMG_NAME screen -L -Logfile /$LOG_FILE -m -S Messenger /up4/bin/pfcp-messenger.py $AGENT_NAME
-    ${DOCKER_COMPOSE_CMD} exec $IMG_NAME screen -S Messenger -X colon "logfile flush 0^M"
-elif [ $1 = "kill" ]; then
-    echo killing
-    ${DOCKER_COMPOSE_CMD} exec -d $IMG_NAME screen -X -S Messenger quit
-elif [ $1 = "check" ]; then
-    echo checking
+set -ex
+
+imgName="pfcp-client"
+logFile="tmp/pfcp-messenger-screen.log"
+agentName="pfcp-agent"
+dockerExec="docker-compose exec -T $imgName"
+
+echo "Provided command is $1"
+if [ "$1" = "start" ]; then
+    echo "" > $logFile
+    # Start messenger in detached screen session
+    ${dockerExec} screen -d -L -Logfile /$logFile -S Messenger -m /up4/bin/pfcp-messenger.py $agentName
+    # Flush logs in real-time
+    # If you don't know screen and wondering what the heck colon means:
+    # https://www.gnu.org/software/screen/manual/html_node/Colon.html
+    ${dockerExec} screen -S Messenger -X colon "logfile flush 0^M"
+    exit 0
+elif [ "$1" = "kill" ]; then
+    # Kill all windows and terminate screen, to emulate SMF crash.
+    # shellcheck disable=SC2016
+    ${dockerExec} screen -S Messenger -X quit
+    exit 0
+elif [ "$1" = "check" ]; then
     for _ in {1..30}; do
-        echo checking
-        tail -n 1 $LOG_FILE \
-            | grep "Enter your selection" && \
-        echo first check passed && \
-        ${DOCKER_COMPOSE_CMD} exec $IMG_NAME screen -ls \
-            | grep "Messenger" \
-            | grep "Attached" && \
-        echo second check passed && exit 0 || sleep 1
+        set +e
+        # Make sure the last line of the pfcp-messenger stdout contains just the prompt message,
+        # without any unexecuted command, likely to happen if we forgot ^M.
+        lastLine="$(tail -n 1 $logFile)"
+        if [ "${lastLine}" = "Enter your selection : " ]; then
+            # If the screen session still running?
+            ${dockerExec} screen -ls | grep "Messenger" | grep "Detached" && exit 0
+        fi
+        set -e
+        sleep 1
     done
-    echo check failed
-    OUTPUT=$(${DOCKER_COMPOSE_CMD} exec pfcp-client screen -ls)
-    OUTPUT2=$(ls)
-    echo ${OUTPUT}
-    echo ${OUTPUT2}
+    echo "${lastLine}"
+    ${dockerExec} screen -ls
     exit 1
 else
-    echo stuffing
-    ARGS="$@"  # an intermediate variable is needed for some reason 
-    ${DOCKER_COMPOSE_CMD} exec -d $IMG_NAME screen -S Messenger -p 0 -X stuff "${ARGS}
-"
+    # Send any other command to pfcp-messenger
+    # shellcheck disable=SC2068
+    ARGS="$@"
+    ${dockerExec} screen -S Messenger -X -p 0 stuff "${ARGS}^M"
 fi
-echo done command
-exit 0

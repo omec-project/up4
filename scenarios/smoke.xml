@@ -17,6 +17,6 @@
     <dependency name="Pfcp-Forwarding" requires="No-Forwarding"/>
     <dependency name="Pfcp-Forwarding" requires="Pfcp-Setup"/>
     <dependency name="Pfcp-Buffering" requires="Pfcp-Forwarding"/>
-    <dependency name="Pfcp-Teardown" requires="~Pfcp-Forwarding,~Pfcp-Buffering"/>
+    <dependency name="Pfcp-Teardown" requires="Pfcp-Setup,~Pfcp-Forwarding,~Pfcp-Buffering"/>
     <dependency name="Teardown" requires="~Pfcp-Teardown"/>
 </scenario>
