@@ -72,3 +72,6 @@ onos-log:
 
 onos-ui:
 	open http://localhost:8181/onos/ui
+
+pfcp-client:
+	docker-compose exec pfcp-client /up4/bin/pfcp-messenger.py pfcp-agent
