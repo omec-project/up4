@@ -7,6 +7,7 @@ package org.omecproject.up4.behavior;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.grpc.Context;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
@@ -379,7 +380,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             bufferFarIds.remove(ruleId);
             for (var ueAddr : farIdToUeAddrs.getOrDefault(ruleId, Set.of())) {
                 // Drain the buffer for every UE address that hits this FAR
-                bufferDrainer.drain(ueAddr);
+                Context ctx = Context.current().fork();
+                ctx.run(() -> {
+                    bufferDrainer.drain(ueAddr);
+                });
+
             }
         }
     }
