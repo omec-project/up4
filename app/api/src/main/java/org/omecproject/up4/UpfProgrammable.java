@@ -9,6 +9,8 @@ import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 
 import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
 
 
 /**
@@ -45,6 +47,20 @@ public interface UpfProgrammable {
      * @return the Device ID of the UPF-programmable device.
      */
     DeviceId deviceId();
+
+    /**
+     * Return the bufferFarIds set.
+     *
+     * @return the bufferFarIds set.
+     */
+    Set<UpfRuleIdentifier> getBufferFarIds();
+
+    /**
+     * Return the farIdToUeAddrs map.
+     *
+     * @return the farIdToUeAddrs map.
+     */
+    Map<UpfRuleIdentifier, Set<Ip4Address>> getFarIdToUeAddrs();
 
     /**
      * Get all UE data flows currently installed on the UPF-programmable device.

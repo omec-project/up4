@@ -514,6 +514,15 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         return false;
     }
 
+    public Set<UpfRuleIdentifier> getBufferFarIds() {
+        return Set.copyOf(bufferFarIds);
+    }
+
+    @Override
+    public Map<UpfRuleIdentifier, Set<Ip4Address>> getFarIdToUeAddrs() {
+        return Map.copyOf(farIdToUeAddrs.asJavaMap());
+    }
+
     @Override
     public Collection<UpfFlow> getFlows() throws UpfProgrammableException {
         Map<Integer, PdrStats> counterStats = new HashMap<>();

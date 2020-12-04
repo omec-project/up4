@@ -114,6 +114,11 @@ public class Up4TranslatorImpl implements Up4Translator {
     }
 
     @Override
+    public Map<UpfRuleIdentifier, Integer> getFarIdMap() {
+        return Map.copyOf(farIdMap.asJavaMap());
+    }
+
+    @Override
     public int globalFarIdOf(UpfRuleIdentifier farIdPair) {
         int globalFarId = farIdMap.compute(farIdPair,
                 (k, existingId) -> {
