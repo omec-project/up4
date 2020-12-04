@@ -1,0 +1,30 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="pfcp-forwarding" description="Set up and test UE data forwarding with the PFCP client">
+    <group name="Pfcp-Forwarding">
+        <group name="Pfcp-Setup-Fwd">
+            <step name="Pfcp-Session-Create"
+                  exec="mock-smf-cmd establish"/>
+            <step name="Pfcp-Session" requires="^" delay="1"
+                  exec="mock-smf-cmd modify"/>
+        </group>
+
+        <group name="Check-Traffic-Fwd" requires="Pfcp-Setup-Fwd">
+            <!-- Downlink -->
+            <step name="Downlink-Enb-Recv-Gtp-Fwd" requires="Pfcp-Setup-Fwd"
+                  exec="mn-cmd enodeb traffic.py recv-gtp -t 10"/>
+            <step name="Downlink-Pdn-Send-Udp-Fwd" requires="Pfcp-Setup-Fwd" delay="5"
+                  exec="mn-cmd pdn traffic.py send-udp -c 10"/>
+            <!-- Uplink -->
+            <step name="Uplink-Pdn-Recv-Udp-Fwd" requires="Pfcp-Setup-Fwd"
+                  exec="mn-cmd pdn traffic.py recv-udp -t 10"/>
+            <step name="Uplink-Enb-Send-Gtp-Fwd" requires="Pfcp-Setup-Fwd" delay="5"
+                  exec="mn-cmd enodeb traffic.py send-gtp -c 10"/>
+        </group>
+
+        <step name="Pfcp-Clear-Fwd" requires="~Check-Traffic-Fwd"
+              exec="mock-smf-cmd delete"/>
+    </group>
+</scenario>

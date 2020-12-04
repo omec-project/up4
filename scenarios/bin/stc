@@ -1,0 +1,63 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+
+#-------------------------------------------------------------------------------
+# STC runner
+# Same as onos/tools/test/bin/stc but we don't source envDefaults to allow
+# overriding some commands with up4/scenarios/bin
+#-------------------------------------------------------------------------------
+
+# If specifiy another env init script, load it.
+params=()
+index=0
+for i in $@; do
+    key=`echo $i | awk -F '=' '{print $1}'`
+    if [ "$key" == "-ENV_DEFAULT" ]; then
+	val=`echo $i | awk -F '=' '{print $2}'`
+	source $val
+    else
+	params[$index]=$i
+	let index+=1
+    fi
+done
+
+# Sourcing envDefaults will cause bin paths inside $ONOS_ROOT to take precedence over
+# up4/scenarios/bin. We want to override some default commands with up4/scenarios/bin, so please
+# don't source envDefaults!
+# . $ONOS_ROOT/tools/build/envDefaults
+
+VER=${STC_VERSION:-2.5}
+MVN_JAR=org/onosproject/onos-stc/$VER/onos-stc-$VER.jar
+JAR=${MAVEN_REPO:-$HOME/.m2/repository}/$MVN_JAR
+SCENARIOS=$ONOS_ROOT/tools/test/scenarios
+
+# Download the STC binary if needed
+if [ ! -f $JAR ]; then
+    printf "Downloading STC binary..."
+    mkdir -p /tmp/stc $(dirname $JAR)
+    curl https://repo1.maven.org/maven2/$MVN_JAR > $JAR
+    [ -f $JAR ] && printf "Done.\n"
+fi
+
+DEBUG_OPTS="-agentlib:jdwp=transport=dt_socket,address=5005,server=y,suspend=y"
+
+scenario=${params[0]:-smoke}
+
+if [ $scenario != "-?" -a $scenario != "-h" -a $scenario != "--help" ]; then
+    [ ! -f $scenario ] && scenario=$SCENARIOS/$scenario
+    [ ! -f $scenario ] && scenario=$scenario.xml
+    [ ! -f $scenario ] && echo "Scenario $scenario file not found" && exit 1
+fi
+
+# Remove the test name from the list of parameters, if one is specified
+[ $# -ge 1 ] && shift
+
+# If stcColor is not set, we will enable color if this is an interactive session
+[ -t 1 ] && interactive=true || interactive=false
+[ -t 1 ] && notInteractive=false || notInteractive=true
+
+# Run stc
+[ -z "$stcDebug" ] && DEBUG_OPTS=""
+stcTitle=${stcTitle:-} stcColor=${stcColor:-$interactive} stcDumpLogs=${stcDumpLogs:-$notInteractive} \
+    java $DEBUG_OPTS -jar $JAR $scenario "${params[*]}"

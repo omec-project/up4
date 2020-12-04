@@ -1,0 +1,10 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+
+for _ in {1..30}; do
+    docker ps | grep "pfcp-agent" && \
+        docker-compose logs pfcp-agent | grep "pfcpifaceMainLoop@ says hello!!!" \
+        && exit 0 || sleep 1
+done
+exit 1

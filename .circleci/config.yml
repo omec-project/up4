@@ -4,7 +4,8 @@
 version: 2.1
 jobs:
   build-and-test:
-    machine: true
+    machine:
+      image: ubuntu-2004:202010-01
     steps:
       - checkout
       - run:
@@ -12,7 +13,10 @@ jobs:
           command: docker login registry.aetherproject.org -u $AETHER_DOCKER_USER -p $AETHER_DOCKER_PASSWORD
       - run:
           name: Dependencies
-          command: make deps && cd app && make deps
+          command: |
+            make deps
+            cd app && make deps
+            cd ../scenarios && make deps
       - run:
           name: Build P4 program
           command: make build
@@ -33,13 +37,14 @@ jobs:
           name: Build ONOS app
           command: cd app && make build-ci
       - run:
-          name: App integration test
-          command: cd app && make check-slow
-      # FIXME: Should upload as build artifacts instead of printing on screen
-      - run:
-          name: Print ONOS logs
-          command: cd app && docker logs onos
-          when: on_fail
+          name: Smoke test
+          command: |
+            cd scenarios
+            # Add SSH key for passwordless access to ONOS CLI
+            ssh-keygen -t rsa -q -f "$HOME/.ssh/id_rsa" -N "" \<<<y
+            make smoke.xml stcColor=false stcDumpLogs=true
+      - store_artifacts:
+          path: scenarios/tmp
       - run:
           name: Upload coverage
           command: cd app && bash <(curl -s https://codecov.io/bash)

@@ -1,0 +1,11 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+set -x
+
+file=$1
+findString=$2
+for _ in {1..60}; do
+    grep "$findString" "$file" && exit 0 || sleep 1
+done
+exit 1

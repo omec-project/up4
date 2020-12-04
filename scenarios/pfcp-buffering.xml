@@ -1,0 +1,44 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="pfcp-buffering" description="Test downlink data buffering works with PFCP messaging">
+    <group name="Pfcp-Buffering">
+        <group name="Pfcp-Set-Buff">
+            <step name="Pfcp-Buffer-Session-Create"
+                  exec="mock-smf-cmd establish"/>
+            <step name="Pfcp-Buffer-Session-Modify" requires="^" delay="1"
+                  exec="mock-smf-cmd modify --buffer"/>
+            <step name="Check-Up4-Flows-Buff" requires="^"
+                  exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
+            <step name="Check-Flow-Rules-Buff" requires="^" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+        <group name="Check-Traffic-Buff" requires="Pfcp-Set-Buff">
+            <!-- Check Downlink only -->
+            <step name="Downlink-Pdn-Send-Udp-Buff"
+                  exec="mn-cmd pdn traffic.py send-udp -c 10"/>
+            <!-- FIXME: grep log tail to allow running scenarios in development where there can be
+                    many FIRST_BUFFER in the log  -->
+            <step name="Verify-First-Buffer" requires="^"
+                  exec="docker-log-grep ${ODI} 'Received FIRST_BUFFER'"/>
+            <!-- -t 30 to wait enough time for packets to be released after Pfcp-Set-Fwd-After-Buff -->
+            <step name="Downlink-Enb-Recv-Gtp-Buff" requires="Verify-First-Buffer"
+                  exec="mn-cmd enodeb traffic.py recv-gtp -t 30"/>
+            <step name="Pfcp-Set-Fwd-After-Buff" requires="Verify-First-Buffer" delay="5"
+                  exec="mock-smf-cmd modify"/>
+            <step name="Check-Drain-Started" requires="Pfcp-Set-Fwd-After-Buff"
+                  exec="docker-log-grep ${ODI} 'Started dbuf drain'"/>
+            <step name="Check-Drain-Completed" requires="Pfcp-Set-Fwd-After-Buff"
+                  exec="docker-log-grep ${ODI} 'Dbuf drain completed'"/>
+        </group>
+        <group name="Pfcp-Clear-Buff" requires="~Check-Traffic-Buff">
+            <step name="Pfcp-Unset-Fwd-After-Buff"
+                  exec="mock-smf-cmd delete"/>
+            <step name="Check-Up4-Flows-Fwd-After-Buff-Cleared" requires="Pfcp-Unset-Fwd-After-Buff"
+                  exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
+            <step name="Check-Flow-Rules-Fwd-After-Buff-Cleared" requires="Pfcp-Unset-Fwd-After-Buff" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+    </group>
+</scenario>

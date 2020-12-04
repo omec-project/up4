@@ -1,0 +1,18 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+
+# -----------------------------------------------------------------------------
+# Adds the current user SSH key for passwordless login to ONOS console.
+# -----------------------------------------------------------------------------
+
+set -ex
+
+container=${1:-$ODI}
+user=${2:-$(id -un)}
+key=${3:-$(cut -d\  -f2 ~/.ssh/id_rsa.pub)}
+
+# /root/onos/bin/onos-user-key at the end calls ssh-keygen which is missing in the container, hence
+# causing a non-zero exit status. However, adding the key to karaf properties should always be
+# successful, hence "| true".
+docker-compose exec -T "${container}" bash -c "/root/onos/bin/onos-user-key $user $key | true"

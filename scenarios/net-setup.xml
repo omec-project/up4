@@ -1,0 +1,25 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="net-setup" description="Network setup">
+    <group name="Net-Setup">
+        <!-- FIXME: support wipe-out with P4Runtime devices in ONOS.
+                There's an issue with deleting groups-->
+        <!--<step name="Wipe-Out-Data-Before" exec="onos-wipe-out" />-->
+        <step name="Initial-Summary-Check"
+              exec="onos-check-summary ${OCI} [0-9]* 0 0 0"/>
+        <step name="Push-Netcfg" requires="Initial-Summary-Check"
+              exec="onos-netcfg ${OCI} ${UP4_ROOT}/scenarios/topo/netcfg.json"/>
+        <!-- 4 devices, 8 links (unidirectional), 3 hosts -->
+        <step name="Check-Summary" requires="Push-Netcfg"
+              exec="onos-check-summary ${OCI} [0-9]* 4 8 3"/>
+        <!-- Wait enough time for segmentrouting to generate all necessary flow objectives -->
+        <step name="Check-Flows" requires="Check-Summary" delay="5"
+              exec="onos-check-flows ${OCI}"/>
+        <parallel var="${OD#}">
+            <step name="Check-Dbuf-Ready-${#}" requires="Check-Summary"
+                  exec="docker-log-grep ${ODI} 'Dbuf service at mininet:10000 is READY=true'"/>
+        </parallel>
+    </group>
+</scenario>

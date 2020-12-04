@@ -1,0 +1,93 @@
+version: "3"
+# SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+
+services:
+  pfcp-agent:
+    image: ${PFCP_AGENT_IMAGE} 
+    hostname: pfcp-agent
+    container_name: pfcp-agent
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./tmp:/tmp
+      - ./topo:/topo
+      - ./bin:/up4/bin
+    links:
+      - mininet
+      - onos1
+    entrypoint: "/topo/pfcp-entry.sh"
+    working_dir: /bin/
+    depends_on:
+      - mininet
+  mock-smf:
+    build:
+      context: ./topo
+      dockerfile: Dockerfile.scapy
+    hostname: mock-smf 
+    container_name: mock-smf
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./tmp:/tmp
+      - ./topo:/topo
+      - ./bin:/up4/bin
+    links:
+      - pfcp-agent
+    entrypoint: "/bin/sh"
+    depends_on:
+      - pfcp-agent
+      - mininet
+  p4rtsh:
+    image: ${P4RTSH_IMAGE}
+    hostname: p4rtsh
+    container_name: p4rtsh
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./tmp:/tmp
+      - ../p4src/build/:/p4c-out/
+      - ./p4rt:/p4rt
+    links:
+      - onos1
+    entrypoint: "/bin/bash"
+  mininet:
+    build:
+      context: ./topo
+      dockerfile: Dockerfile.mn
+      args:
+        - DBUF_IMAGE=${DBUF_IMAGE}
+        - MN_STRATUM_IMAGE=${MN_STRATUM_IMAGE}
+    hostname: mininet
+    container_name: mininet
+    privileged: true
+    tty: true
+    stdin_open: true
+    entrypoint: "/topo/mn-entrypoint.sh"
+    volumes:
+      - ./tmp:/tmp
+      - ./topo:/topo
+      - ./bin:/up4/bin
+      - ./tmp/pcaps:/pcaps
+  onos1:
+    # Tost image comes with latest trellis apps
+    image: ${ONOS_IMAGE}
+    hostname: onos1
+    container_name: onos1
+    ports:
+      - "8181:8181" # HTTP
+      - "8101:8101" # SSH (CLI)
+      - "51001:51001" # the UP4 app's gRPC server port
+      - "5005:5005" # Java debugger
+    volumes:
+      - ./tmp/onos:/root/onos/apache-karaf-4.2.9/data/tmp
+      - ./tmp/pcaps:/pcaps
+    environment:
+      - JAVA_DEBUG_PORT=0.0.0.0:5005
+    env_file:
+      # Includes ONOS_APPS
+      - .env.stc
+    entrypoint: "./bin/onos-service"
+    command: ["debug"]
+    links:
+      - mininet
