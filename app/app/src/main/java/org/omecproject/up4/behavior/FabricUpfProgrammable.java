@@ -4,6 +4,9 @@
  */
 package org.omecproject.up4.behavior;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
@@ -12,6 +15,7 @@ import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
+import org.omecproject.up4.UpfProgrammableException;
 import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
@@ -24,6 +28,7 @@ import org.onosproject.net.flow.FlowEntry;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.criteria.PiCriterion;
+import org.onosproject.net.pi.model.PiCounterModel;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.model.PiTableId;
 import org.onosproject.net.pi.runtime.PiCounterCell;
@@ -48,6 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.onosproject.net.pi.model.PiCounterType.INDIRECT;
 
@@ -73,6 +79,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Translator up4Translator;
     DeviceId deviceId;
+    @VisibleForTesting
+    int pdrCounterSize = -1;  // Cached value so we don't have to go through the pipeconf every time
     private ApplicationId appId;
 
     private BufferDrainer bufferDrainer;
@@ -80,6 +88,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     private Set<UpfRuleIdentifier> bufferFarIds;
     private Map<UpfRuleIdentifier, Set<Ip4Address>> farIdToUeAddrs;
+    private GtpTunnel dbufTunnel;
 
     @Activate
     protected void activate() {
@@ -106,8 +115,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         this.bufferDrainer = drainer;
     }
 
-    private GtpTunnel dbufTunnel;
-
     @Override
     public void setDbufTunnel(Ip4Address switchAddr, Ip4Address dbufAddr) {
         this.dbufTunnel = GtpTunnel.builder()
@@ -126,7 +133,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
      */
     private ForwardingActionRule convertToDbufFar(ForwardingActionRule far) {
         if (!far.buffers()) {
-            log.error("Converting a non-buffering FAR to a dbuf FAR! This shouldn't happen.");
+            throw new IllegalArgumentException("Converting a non-buffering FAR to a dbuf FAR! This shouldn't happen.");
         }
         return ForwardingActionRule.builder()
                 .setFarId(far.farId())
@@ -178,19 +185,116 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
 
     @Override
-    public PdrStats readCounter(int cellId) {
+    public Collection<PdrStats> readAllCounters() throws UpfProgrammableException {
+        // Get client and pipeconf.
+        P4RuntimeClient client = controller.get(deviceId);
+        if (client == null) {
+            throw new UpfProgrammableException("Unable to find p4runtime client for reading from device "
+                    + deviceId.toString());
+        }
+        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
+        if (optPipeconf.isEmpty()) {
+            throw new UpfProgrammableException("Unable to load pipeconf for device "
+                    + deviceId.toString());
+        }
+        PiPipeconf pipeconf = optPipeconf.get();
+
+        // Prepare PdrStats object builders, one for each counter ID currently in use
+        Map<Integer, PdrStats.Builder> pdrStatBuilders = Maps.newHashMap();
+        for (int cellId = 0; cellId < pdrCounterSize(); cellId++) {
+            pdrStatBuilders.put(cellId, PdrStats.builder().withCellId(cellId));
+        }
+
+        // Generate the counter cell IDs.
+        Set<PiCounterCellId> counterCellIds = Sets.newHashSet();
+        pdrStatBuilders.keySet().forEach(cellId -> {
+            counterCellIds.add(PiCounterCellId.ofIndirect(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER, cellId));
+            counterCellIds.add(PiCounterCellId.ofIndirect(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER, cellId));
+        });
+        Set<PiCounterCellHandle> counterCellHandles = counterCellIds.stream()
+                .map(id -> PiCounterCellHandle.of(deviceId, id))
+                .collect(Collectors.toSet());
+
+        // Query the device.
+        Collection<PiCounterCell> counterEntryResponse = client.read(
+                DEFAULT_P4_DEVICE_ID, pipeconf)
+                .handles(counterCellHandles).submitSync()
+                .all(PiCounterCell.class);
+
+        // Process response.
+        counterEntryResponse.forEach(counterCell -> {
+            if (counterCell.cellId().counterType() != INDIRECT) {
+                log.warn("Invalid counter data type {}, skipping", counterCell.cellId().counterType());
+                return;
+            }
+            if (!pdrStatBuilders.containsKey((int) counterCell.cellId().index())) {
+                log.warn("Unrecognized counter index {}, skipping", counterCell);
+                return;
+            }
+            PdrStats.Builder statsBuilder = pdrStatBuilders.get((int) counterCell.cellId().index());
+            if (counterCell.cellId().counterId().equals(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER)) {
+                statsBuilder.setIngress(counterCell.data().packets(),
+                        counterCell.data().bytes());
+            } else if (counterCell.cellId().counterId().equals(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER)) {
+                statsBuilder.setEgress(counterCell.data().packets(),
+                        counterCell.data().bytes());
+            } else {
+                log.warn("Unrecognized counter ID {}, skipping", counterCell);
+            }
+        });
+
+        return pdrStatBuilders
+                .values()
+                .stream()
+                .map(PdrStats.Builder::build)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public int pdrCounterSize() {
+        if (pdrCounterSize != -1) {
+            return pdrCounterSize;
+        }
+        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
+        if (optPipeconf.isEmpty()) {
+            log.warn("Unable to load piPipeconf for {}, cannot read counter properties", deviceId);
+            return -1;
+        }
+        PiPipeconf pipeconf = optPipeconf.get();
+
+        int ingressCounterSize = -1;
+        int egressCounterSize = -1;
+        for (PiCounterModel piCounter : pipeconf.pipelineModel().counters()) {
+            if (piCounter.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER)) {
+                ingressCounterSize = (int) piCounter.size();
+            } else if (piCounter.id().equals(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER)) {
+                egressCounterSize = (int) piCounter.size();
+            }
+        }
+        if (ingressCounterSize != egressCounterSize) {
+            log.warn("PDR ingress and egress counter sizes are not equal! Using the minimum of the two.");
+        }
+        pdrCounterSize = Math.min(ingressCounterSize, egressCounterSize);
+        return pdrCounterSize;
+    }
+
+    @Override
+    public PdrStats readCounter(int cellId) throws UpfProgrammableException {
+        if (cellId >= pdrCounterSize() || cellId < 0) {
+            throw new UpfProgrammableException("Requested PDR counter cell index is out of bounds.");
+        }
         PdrStats.Builder stats = PdrStats.builder().withCellId(cellId);
 
         // Get client and pipeconf.
         P4RuntimeClient client = controller.get(deviceId);
         if (client == null) {
-            log.warn("Unable to find client for {}, aborting operation", deviceId);
-            return stats.build();
+            throw new UpfProgrammableException(
+                    "Unable to find p4runtime client for device " + deviceId.toString());
         }
         Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
         if (optPipeconf.isEmpty()) {
-            log.warn("Unable to load piPipeconf for {}, aborting operation", deviceId);
-            return stats.build();
+            throw new UpfProgrammableException(
+                    "Unable to load pipeconf for device " + deviceId.toString());
         }
         PiPipeconf pipeconf = optPipeconf.get();
 
@@ -231,73 +335,66 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
 
     @Override
-    public void addPdr(PacketDetectionRule pdr) {
-        try {
-            FlowRule fabricPdr = up4Translator.pdrToFabricEntry(pdr, deviceId, appId, DEFAULT_PRIORITY);
-            log.info("Installing {}", pdr.toString());
-            flowRuleService.applyFlowRules(fabricPdr);
-            log.debug("FAR added with flowID {}", fabricPdr.id().value());
-
-            // If the flow rule was applied and the PDR matches unencapsulated packets,
-            // add the PDR to the farID->PDR mapping
-            if (pdr.matchesUnencapped()) {
-                UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(pdr.sessionId(), pdr.farId());
-                farIdToUeAddrs.compute(ruleId, (k, existingSet) -> {
-                    if (existingSet == null) {
-                        Set<Ip4Address> newSet = new HashSet<>();
-                        newSet.add(pdr.ueAddress());
-                        return newSet;
-                    } else {
-                        existingSet.add(pdr.ueAddress());
-                        return existingSet;
-                    }
-                });
-            }
-        } catch (Up4Translator.Up4TranslationException e) {
-            log.warn("Unable to insert malformed FAR to dataplane! {}", pdr.toString());
+    public void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException, Up4Translator.Up4TranslationException {
+        if (pdr.counterId() >= pdrCounterSize() || pdr.counterId() < 0) {
+            throw new UpfProgrammableException("Counter cell index referenced by PDR is out of bounds.");
         }
-    }
+        FlowRule fabricPdr = up4Translator.pdrToFabricEntry(pdr, deviceId, appId, DEFAULT_PRIORITY);
+        log.info("Installing {}", pdr.toString());
+        flowRuleService.applyFlowRules(fabricPdr);
+        log.debug("FAR added with flowID {}", fabricPdr.id().value());
 
-
-    @Override
-    public void addFar(ForwardingActionRule far) {
-        try {
-            UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(far.sessionId(), far.farId());
-            if (far.buffers()) {
-                // If the far has the buffer flag, modify its tunnel so it directs to dbuf
-                far = convertToDbufFar(far);
-                bufferFarIds.add(ruleId);
-            }
-            FlowRule fabricFar = up4Translator.farToFabricEntry(far, deviceId, appId, DEFAULT_PRIORITY);
-            log.info("Installing {}", far.toString());
-            flowRuleService.applyFlowRules(fabricFar);
-            log.debug("FAR added with flowID {}", fabricFar.id().value());
-            if (!far.buffers() && bufferFarIds.contains(ruleId)) {
-                // If this FAR does not buffer but used to, then drain all relevant buffers
-                bufferFarIds.remove(ruleId);
-                for (var ueAddr : farIdToUeAddrs.getOrDefault(ruleId, Set.of())) {
-                    // Drain the buffer for every UE address that hits this FAR
-                    bufferDrainer.drain(ueAddr);
+        // If the flow rule was applied and the PDR is downlink, add the PDR to the farID->PDR mapping
+        if (pdr.matchesUnencapped()) {
+            UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(pdr.sessionId(), pdr.farId());
+            farIdToUeAddrs.compute(ruleId, (k, existingSet) -> {
+                if (existingSet == null) {
+                    Set<Ip4Address> newSet = new HashSet<>();
+                    newSet.add(pdr.ueAddress());
+                    return newSet;
+                } else {
+                    existingSet.add(pdr.ueAddress());
+                    return existingSet;
                 }
+            });
+        }
+    }
+
+
+    @Override
+    public void addFar(ForwardingActionRule far) throws
+            UpfProgrammableException, Up4Translator.Up4TranslationException {
+        UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(far.sessionId(), far.farId());
+        if (far.buffers()) {
+            // If the far has the buffer flag, modify its tunnel so it directs to dbuf
+            far = convertToDbufFar(far);
+            bufferFarIds.add(ruleId);
+        }
+        FlowRule fabricFar = up4Translator.farToFabricEntry(far, deviceId, appId, DEFAULT_PRIORITY);
+        log.info("Installing {}", far.toString());
+        flowRuleService.applyFlowRules(fabricFar);
+        log.debug("FAR added with flowID {}", fabricFar.id().value());
+        if (!far.buffers() && bufferFarIds.contains(ruleId)) {
+            // If this FAR does not buffer but used to, then drain all relevant buffers
+            bufferFarIds.remove(ruleId);
+            for (var ueAddr : farIdToUeAddrs.getOrDefault(ruleId, Set.of())) {
+                // Drain the buffer for every UE address that hits this FAR
+                bufferDrainer.drain(ueAddr);
             }
-        } catch (Up4Translator.Up4TranslationException e) {
-            log.warn("Unable to insert FAR {} to dataplane! Error was: {}", far, e.getMessage());
         }
     }
 
     @Override
-    public void addInterface(UpfInterface upfInterface) {
-        try {
-            FlowRule flowRule = up4Translator.interfaceToFabricEntry(upfInterface, deviceId, appId, DEFAULT_PRIORITY);
-            log.info("Installing {}", upfInterface);
-            flowRuleService.applyFlowRules(flowRule);
-            log.debug("Interface added with flowID {}", flowRule.id().value());
-        } catch (Up4Translator.Up4TranslationException e) {
-            log.warn("Unable to install interface {} on dataplane! Error was: {}", upfInterface, e.getMessage());
-        }
+    public void addInterface(UpfInterface upfInterface) throws
+            UpfProgrammableException, Up4Translator.Up4TranslationException {
+        FlowRule flowRule = up4Translator.interfaceToFabricEntry(upfInterface, deviceId, appId, DEFAULT_PRIORITY);
+        log.info("Installing {}", upfInterface);
+        flowRuleService.applyFlowRules(flowRule);
+        log.debug("Interface added with flowID {}", flowRule.id().value());
     }
 
-    private boolean removeEntry(PiCriterion match, PiTableId tableId, boolean failSilent) {
+    private boolean removeEntry(PiCriterion match, PiTableId tableId, boolean failSilent)
+            throws UpfProgrammableException {
         FlowRule entry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
                 .forTable(tableId)
@@ -318,13 +415,18 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             }
         }
         if (!failSilent) {
-            log.error("Did not find a flow rule with the given match conditions! Deleting nothing.");
+            throw new UpfProgrammableException("Match criterion " + match.toString() +
+                    " not found in table " + tableId.toString());
         }
         return false;
     }
 
     @Override
-    public Collection<UpfFlow> getFlows() {
+    public Collection<UpfFlow> getFlows() throws UpfProgrammableException {
+        Map<Integer, PdrStats> counterStats = new HashMap<>();
+        readAllCounters().forEach(stats -> {
+            counterStats.put(stats.getCellId(), stats);
+        });
         // A flow is made of a PDR and the FAR that should apply to packets that hit the PDR.
         // Multiple PDRs can map to the same FAR, so create a one->many mapping of FAR Identifier to flow builder
         Map<UpfRuleIdentifier, List<UpfFlow.Builder>> globalFarToSessionBuilder = new HashMap<>();
@@ -335,7 +437,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 try {
                     fars.add(up4Translator.fabricEntryToFar(flowRule));
                 } catch (Up4Translator.Up4TranslationException e) {
-                    log.warn("Found what appears to be a FAR but we can't translate it?? {}", flowRule);
+                    throw new IllegalStateException("Found what appears to be an FAR table entry in the" +
+                            " switch that cannot be interpreted: " + flowRule.toString());
                 }
             } else if (up4Translator.isFabricPdr(flowRule)) {
                 // If its a PDR, create a flow builder for it
@@ -345,7 +448,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                             (k, existingVal) -> {
                                 final var builder = UpfFlow.builder()
                                         .setPdr(pdr)
-                                        .addStats(readCounter(pdr.counterId()));
+                                        .addStats(counterStats.get(pdr.counterId()));
                                 if (existingVal == null) {
                                     return List.of(builder);
                                 } else {
@@ -354,7 +457,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                                 }
                             });
                 } catch (Up4Translator.Up4TranslationException e) {
-                    log.warn("Found what appears to be a PDR but we can't translate it?? {}", flowRule);
+                    throw new IllegalStateException("Found what appears to be an PDR table entry in the" +
+                            " switch that cannot be interpreted: " + flowRule.toString());
                 }
             }
         }
@@ -380,7 +484,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                     UpfFlow flow = builder.build();
                     results.add(builder.build());
                 } catch (java.lang.IllegalArgumentException e) {
-                    log.warn("Corrupt UPF flow found in dataplane. Error was {}", e.getMessage());
+                    log.warn("Corrupt UPF flow found in dataplane: {}", e.getMessage());
                 }
             }
         }
@@ -395,7 +499,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 try {
                     pdrs.add(up4Translator.fabricEntryToPdr(flowRule));
                 } catch (Up4Translator.Up4TranslationException e) {
-                    log.warn("Found what appears to be a PDR but we can't translate it?? {}", flowRule);
+                    throw new IllegalStateException("Found what appears to be an PDR table entry in the" +
+                            " switch that cannot be interpreted: " + flowRule.toString());
                 }
             }
         }
@@ -410,7 +515,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 try {
                     fars.add(up4Translator.fabricEntryToFar(flowRule));
                 } catch (Up4Translator.Up4TranslationException e) {
-                    log.warn("Found what appears to be a FAR but we can't translate it?? {}", flowRule);
+                    throw new IllegalStateException("Found what appears to be an FAR table entry in the" +
+                            " switch that cannot be interpreted: " + flowRule.toString());
                 }
             }
         }
@@ -425,8 +531,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 try {
                     ifaces.add(up4Translator.fabricEntryToInterface(flowRule));
                 } catch (Up4Translator.Up4TranslationException e) {
-                    log.warn("Found what appears to be a interface table entry but we can't translate it?? {}",
-                            flowRule);
+                    throw new IllegalStateException("Found what appears to be an interface table entry in the" +
+                            " switch that cannot be interpreted: " + flowRule.toString());
                 }
             }
         }
@@ -435,7 +541,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
 
     @Override
-    public void removePdr(PacketDetectionRule pdr) {
+    public void removePdr(PacketDetectionRule pdr) throws UpfProgrammableException {
         PiCriterion match;
         PiTableId tableId;
         if (pdr.matchesEncapped()) {
@@ -461,7 +567,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public void removeFar(ForwardingActionRule far) {
+    public void removeFar(ForwardingActionRule far) throws UpfProgrammableException {
         log.info("Removing {}", far.toString());
 
         PiCriterion match = PiCriterion.builder()
@@ -472,7 +578,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public void removeInterface(UpfInterface upfInterface) {
+    public void removeInterface(UpfInterface upfInterface) throws UpfProgrammableException {
         Ip4Prefix ifacePrefix = upfInterface.getPrefix();
         // If it isn't a core interface (so it is either access or unknown), try removing core
         if (!upfInterface.isCore()) {

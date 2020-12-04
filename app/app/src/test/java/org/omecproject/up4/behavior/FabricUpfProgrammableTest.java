@@ -8,8 +8,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
-import org.omecproject.up4.UpfRuleIdentifier;
+import org.omecproject.up4.PdrStats;
 import org.omecproject.up4.UpfInterface;
+import org.omecproject.up4.UpfProgrammableException;
+import org.omecproject.up4.UpfRuleIdentifier;
 
 import java.util.Collection;
 
@@ -26,6 +28,9 @@ public class FabricUpfProgrammableTest {
         upfProgrammable.init(TestConstants.APP_ID, TestConstants.DEVICE_ID);
         upfProgrammable.flowRuleService = new MockFlowRuleService();
         upfProgrammable.up4Translator = up4Translator;
+        upfProgrammable.piPipeconfService = new MockPiPipeconfService();
+        upfProgrammable.controller = new MockP4RuntimeController();
+        upfProgrammable.pdrCounterSize = TestConstants.PHYSICAL_COUNTER_SIZE;
         setTranslationState();
     }
 
@@ -39,7 +44,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testUplinkPdr() {
+    public void testUplinkPdr() throws Exception {
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
         PacketDetectionRule expectedPdr = TestConstants.UPLINK_PDR;
         upfProgrammable.addPdr(expectedPdr);
@@ -53,7 +58,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testDownlinkPdr() {
+    public void testDownlinkPdr() throws Exception {
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
         PacketDetectionRule expectedPdr = TestConstants.DOWNLINK_PDR;
         upfProgrammable.addPdr(expectedPdr);
@@ -67,7 +72,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testUplinkFar() {
+    public void testUplinkFar() throws Exception {
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
         ForwardingActionRule expectedFar = TestConstants.UPLINK_FAR;
         upfProgrammable.addFar(expectedFar);
@@ -81,7 +86,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testDownlinkFar() {
+    public void testDownlinkFar() throws Exception {
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
         ForwardingActionRule expectedFar = TestConstants.DOWNLINK_FAR;
         upfProgrammable.addFar(expectedFar);
@@ -95,7 +100,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testUplinkInterface() {
+    public void testUplinkInterface() throws Exception {
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
         UpfInterface expectedInterface = TestConstants.UPLINK_INTERFACE;
         upfProgrammable.addInterface(expectedInterface);
@@ -109,7 +114,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testDownlinkInterface() {
+    public void testDownlinkInterface() throws Exception {
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
         UpfInterface expectedInterface = TestConstants.DOWNLINK_INTERFACE;
         upfProgrammable.addInterface(expectedInterface);
@@ -123,7 +128,7 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testClearInterfaces() {
+    public void testClearInterfaces() throws Exception {
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
         upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
         upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
@@ -133,17 +138,26 @@ public class FabricUpfProgrammableTest {
     }
 
     @Test
-    public void testFlows() {
+    public void testFlows() throws Exception {
         assertTrue(upfProgrammable.getFlows().isEmpty());
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         upfProgrammable.addFar(TestConstants.UPLINK_FAR);
         upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
-        // TODO: Can't call getFlows when flows are present because we cannot currently read counters.
-        // TODO: Need to mock PiPipeconfService and P4RuntimeController
-        assertThat(upfProgrammable.getInstalledPdrs().size(), equalTo((2)));
-        assertThat(upfProgrammable.getInstalledFars().size(), equalTo((2)));
+        assertThat(upfProgrammable.getFlows().size(), equalTo(2));
         upfProgrammable.clearFlows();
         assertTrue(upfProgrammable.getFlows().isEmpty());
+    }
+
+    @Test
+    public void testReadAllCounters() throws UpfProgrammableException {
+        Collection<PdrStats> allStats = upfProgrammable.readAllCounters();
+        assertThat(allStats.size(), equalTo(TestConstants.PHYSICAL_COUNTER_SIZE));
+        for (PdrStats stat : allStats) {
+            assertThat(stat.getIngressBytes(), equalTo(TestConstants.COUNTER_BYTES));
+            assertThat(stat.getEgressBytes(), equalTo(TestConstants.COUNTER_BYTES));
+            assertThat(stat.getIngressPkts(), equalTo(TestConstants.COUNTER_PKTS));
+            assertThat(stat.getEgressPkts(), equalTo(TestConstants.COUNTER_PKTS));
+        }
     }
 }

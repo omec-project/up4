@@ -37,7 +37,8 @@ public final class TestConstants {
     public static final ImmutableByteSequence ALL_ONES_32 = ImmutableByteSequence.ofOnes(4);
     public static final ImmutableByteSequence SESSION_ID =
             ImmutableByteSequence.ofOnes(NorthConstants.SESSION_ID_BITWIDTH / 8);
-    public static final int COUNTER_ID = 1;
+    public static final int UPLINK_COUNTER_CELL_ID = 1;
+    public static final int DOWNLINK_COUNTER_CELL_ID = 2;
     public static final int PDR_ID = 0;  // TODO: PDR ID currently not stored on writes, so all reads are 0
     public static final int UPLINK_FAR_ID = 1;
     public static final int UPLINK_PHYSICAL_FAR_ID = 4;
@@ -50,6 +51,11 @@ public final class TestConstants {
     public static final Ip4Prefix UE_POOL = Ip4Prefix.valueOf("17.0.0.0/16");
     // TODO: tunnel source port currently not stored on writes, so all reads are 0
     public static final short TUNNEL_SPORT = 2160;
+    public static final int PHYSICAL_COUNTER_SIZE = 512;
+
+    public static final long COUNTER_BYTES = 12;
+    public static final long COUNTER_PKTS = 15;
+
 
     public static final ImmutableByteSequence FALSE_BYTE = ImmutableByteSequence.copyFrom((byte) 0);
     public static final ImmutableByteSequence TRUE_BYTE = ImmutableByteSequence.copyFrom((byte) 1);
@@ -59,14 +65,14 @@ public final class TestConstants {
             .withTeid(TEID)
             .withLocalFarId(UPLINK_FAR_ID)
             .withSessionId(SESSION_ID)
-            .withCounterId(COUNTER_ID)
+            .withCounterId(UPLINK_COUNTER_CELL_ID)
             .build();
 
     public static final PacketDetectionRule DOWNLINK_PDR = PacketDetectionRule.builder()
             .withUeAddr(UE_ADDR)
             .withLocalFarId(DOWNLINK_FAR_ID)
             .withSessionId(SESSION_ID)
-            .withCounterId(COUNTER_ID)
+            .withCounterId(DOWNLINK_COUNTER_CELL_ID)
             .build();
 
     public static final ForwardingActionRule UPLINK_FAR = ForwardingActionRule.builder()
@@ -97,7 +103,7 @@ public final class TestConstants {
                     .withParameters(Arrays.asList(
                             new PiActionParam(NorthConstants.PDR_ID_PARAM, PDR_ID),
                             new PiActionParam(NorthConstants.SESSION_ID_PARAM, SESSION_ID),
-                            new PiActionParam(NorthConstants.CTR_ID, COUNTER_ID),
+                            new PiActionParam(NorthConstants.CTR_ID, UPLINK_COUNTER_CELL_ID),
                             new PiActionParam(NorthConstants.FAR_ID_PARAM, UPLINK_FAR_ID),
                             new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, TRUE_BYTE)
                     ))
@@ -117,7 +123,7 @@ public final class TestConstants {
                     .withParameters(Arrays.asList(
                             new PiActionParam(NorthConstants.PDR_ID_PARAM, PDR_ID),
                             new PiActionParam(NorthConstants.SESSION_ID_PARAM, SESSION_ID),
-                            new PiActionParam(NorthConstants.CTR_ID, COUNTER_ID),
+                            new PiActionParam(NorthConstants.CTR_ID, DOWNLINK_COUNTER_CELL_ID),
                             new PiActionParam(NorthConstants.FAR_ID_PARAM, DOWNLINK_FAR_ID),
                             new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, FALSE_BYTE)
                     ))
@@ -203,7 +209,7 @@ public final class TestConstants {
             .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
                     .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
                     .withParameters(Arrays.asList(
-                            new PiActionParam(SouthConstants.CTR_ID, COUNTER_ID),
+                            new PiActionParam(SouthConstants.CTR_ID, UPLINK_COUNTER_CELL_ID),
                             new PiActionParam(SouthConstants.FAR_ID, UPLINK_PHYSICAL_FAR_ID),
                             new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, 1)
                     ))
@@ -220,7 +226,7 @@ public final class TestConstants {
             .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
                     .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
                     .withParameters(Arrays.asList(
-                            new PiActionParam(SouthConstants.CTR_ID, COUNTER_ID),
+                            new PiActionParam(SouthConstants.CTR_ID, DOWNLINK_COUNTER_CELL_ID),
                             new PiActionParam(SouthConstants.FAR_ID, DOWNLINK_PHYSICAL_FAR_ID),
                             new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, 0)
                     ))
@@ -296,17 +302,17 @@ public final class TestConstants {
             .withPriority(DEFAULT_PRIORITY)
             .build();
 
+    /**
+     * Hidden constructor for utility class.
+     */
+    private TestConstants() {
+    }
+
     private static ImmutableByteSequence toSessionId(long value) {
         try {
             return ImmutableByteSequence.copyFrom(value).fit(NorthConstants.SESSION_ID_BITWIDTH);
         } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
             return ImmutableByteSequence.ofZeros(NorthConstants.SESSION_ID_BITWIDTH / 8);
         }
-    }
-
-    /**
-     * Hidden constructor for utility class.
-     */
-    private TestConstants() {
     }
 }

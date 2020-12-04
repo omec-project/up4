@@ -26,7 +26,7 @@ public class UePoolDeleteCommand extends AbstractShellCommand {
     String poolPrefix = null;
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
         Ip4Prefix poolPrefix = Ip4Prefix.valueOf(this.poolPrefix);

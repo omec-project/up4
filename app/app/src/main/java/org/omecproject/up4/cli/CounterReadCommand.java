@@ -26,7 +26,7 @@ public class CounterReadCommand extends AbstractShellCommand {
     int ctrIndex = 0;
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
         PdrStats stats = app.getUpfProgrammable().readCounter(ctrIndex);

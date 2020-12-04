@@ -50,8 +50,9 @@ public interface UpfProgrammable {
      * Get all UE data flows currently installed on the UPF-programmable device.
      *
      * @return a collection of installed flows
+     * @throws UpfProgrammableException if flows are unable to be read
      */
-    Collection<UpfFlow> getFlows();
+    Collection<UpfFlow> getFlows() throws UpfProgrammableException;
 
     /**
      * Remove all interfaces currently installed on the UPF-programmable device.
@@ -88,51 +89,78 @@ public interface UpfProgrammable {
      * Add a Packet Detection Rule (PDR) to the given device.
      *
      * @param pdr The PDR to be added
+     * @throws Up4Translator.Up4TranslationException if the PDR cannot be translated
+     * @throws UpfProgrammableException              if the PDR cannot be be installed, or the counter index
+     *                                               is out of bounds
      */
-    void addPdr(PacketDetectionRule pdr);
+    void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
 
     /**
      * Remove a previously installed Packet Detection Rule (PDR) from the target device.
      *
      * @param pdr The PDR to be removed
+     * @throws UpfProgrammableException if the PDR cannot be found
      */
-    void removePdr(PacketDetectionRule pdr);
+    void removePdr(PacketDetectionRule pdr) throws UpfProgrammableException;
 
     /**
      * Add a Forwarding Action Rule (FAR) to the given device.
      *
      * @param far The FAR to be added
+     * @throws Up4Translator.Up4TranslationException if the FAR cannot be translated
+     * @throws UpfProgrammableException              if the FAR cannot be installed
      */
-    void addFar(ForwardingActionRule far);
+    void addFar(ForwardingActionRule far) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
 
     /**
      * Remove a previously installed Forwarding Action Rule (FAR) from the target device.
      *
      * @param far The FAR to be removed
+     * @throws UpfProgrammableException if the FAR cannot be found
      */
-    void removeFar(ForwardingActionRule far);
+    void removeFar(ForwardingActionRule far) throws UpfProgrammableException;
 
     /**
      * Install a new interface on the UPF device's interface lookup tables.
      *
      * @param upfInterface the interface to install
+     * @throws Up4Translator.Up4TranslationException if the interface cannot be translated
+     * @throws UpfProgrammableException              if the interface cannot be installed
      */
-    void addInterface(UpfInterface upfInterface);
+    void addInterface(UpfInterface upfInterface) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
 
     /**
      * Remove a previously installed UPF interface from the target device.
      *
      * @param upfInterface the interface to be removed
+     * @throws UpfProgrammableException if the interface cannot be found
      */
-    void removeInterface(UpfInterface upfInterface);
+    void removeInterface(UpfInterface upfInterface) throws UpfProgrammableException;
 
     /**
      * Read the the given cell (Counter index) of the PDR counters from the given device.
      *
      * @param cellId The counter cell index from which to read
      * @return A structure containing ingress and egress packet and byte counts for the given cellId.
+     * @throws UpfProgrammableException if the cell ID is out of bounds
      */
-    PdrStats readCounter(int cellId);
+    PdrStats readCounter(int cellId) throws UpfProgrammableException;
+
+    /**
+     * Return the number of PDR counter cells available. The number of cells in the ingress and egress PDR counters
+     * are equivalent.
+     *
+     * @return PDR counter size
+     */
+    int pdrCounterSize();
+
+    /**
+     * Read the counter contents for all cell indices that are valid on the hardware switch.
+     *
+     * @return A collection of counter values for all valid hardware counter cells
+     * @throws UpfProgrammableException if the counters are unable to be read
+     */
+    Collection<PdrStats> readAllCounters() throws UpfProgrammableException;
 
     /**
      * Set the source and destination of the GTPU tunnel used to send packets to a dbuf buffering device.
@@ -162,4 +190,5 @@ public interface UpfProgrammable {
          */
         public void drain(Ip4Address ueAddr);
     }
+
 }

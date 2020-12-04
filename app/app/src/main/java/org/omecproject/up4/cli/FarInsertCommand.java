@@ -47,7 +47,7 @@ public class FarInsertCommand extends AbstractShellCommand {
     String tunnelDst = null;
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
         var farBuilder = ForwardingActionRule.builder()

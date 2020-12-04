@@ -30,7 +30,7 @@ public class FarDeleteCommand extends AbstractShellCommand {
     int farId = 0;
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
         ForwardingActionRule far = ForwardingActionRule.builder()

@@ -16,6 +16,8 @@ import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.runtime.PiCounterCell;
 import org.onosproject.net.pi.runtime.PiCounterCellId;
+import org.onosproject.net.pi.runtime.PiEntity;
+import org.onosproject.net.pi.runtime.PiEntityType;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.p4runtime.ctl.codec.CodecException;
 import org.onosproject.p4runtime.ctl.codec.Codecs;
@@ -36,66 +38,8 @@ public class Up4NorthComponentTest {
     private final Up4NorthComponent up4NorthComponent = new Up4NorthComponent();
     private final Up4NorthComponent.Up4NorthService up4NorthService = up4NorthComponent.up4NorthService;
     PiPipeconf pipeconf;
-    private P4InfoOuterClass.P4Info p4Info;
     UpfProgrammable upfProgrammable;
-
-    static class MockStreamObserver<T> implements StreamObserver<T> {
-        public List<T> responsesObserved = new ArrayList<>();
-        Throwable errorExpected;
-        Throwable errorObserved;
-
-        public T lastResponse() {
-            return responsesObserved.get(responsesObserved.size() - 1);
-        }
-
-        public void clearObservations() {
-            this.errorObserved = null;
-            this.responsesObserved.clear();
-        }
-
-        public void setErrorExpected(Throwable errorExpected) {
-            this.errorExpected = errorExpected;
-        }
-
-        public void assertErrorObserved() {
-            if (errorObserved == null) {
-                fail("gRPC stream error was not observed when expected.");
-            }
-        }
-
-        public Throwable lastError() {
-            return errorObserved;
-        }
-
-        @Override
-        public void onNext(T value) {
-            if (this.errorObserved != null) {
-                fail("Stream observer experienced an onNext call after an error was observed");
-            }
-            responsesObserved.add(value);
-        }
-
-        @Override
-        public void onError(Throwable t) {
-            if (errorExpected != null) {
-                if (this.errorObserved != null) {
-                    fail("Stream observer unexpectedly received more than one error");
-                }
-                this.errorObserved = t;
-                assertThat(errorObserved.getClass(), equalTo(errorExpected.getClass()));
-            } else {
-                fail("Stream observer shouldn't see any errors");
-            }
-        }
-
-        @Override
-        public void onCompleted() {
-            if (this.errorObserved != null) {
-                fail("Stream observer experienced an onCompleted call after an error was observed");
-            }
-
-        }
-    }
+    private P4InfoOuterClass.P4Info p4Info;
 
     @Before
     public void setUp() throws Exception {
@@ -147,6 +91,7 @@ public class Up4NorthComponentTest {
     /**
      * Attempt to read and write from the p4runtime service, and assert that the given error is returned in both
      * cases.
+     *
      * @param expectedReadWriteError the error expected to be returned by the p4runtime service
      */
     private void missingStateTest(Throwable expectedReadWriteError) {
@@ -237,6 +182,72 @@ public class Up4NorthComponentTest {
         assertThat(response.getEntitiesList().get(0), equalTo(entity));
     }
 
+    @Test
+    public void readWildcardCounterTest() {
+        // A counter read request with no counterID or cellId should return ALL active counter cells
+        MockStreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver = new MockStreamObserver<>();
+        P4RuntimeOuterClass.ReadRequest request = P4RuntimeOuterClass.ReadRequest.newBuilder()
+                .addEntities(P4RuntimeOuterClass.Entity.newBuilder()
+                        .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder().build())
+                        .build())
+                .build();
+        up4NorthService.read(request, responseObserver);
+        var response = responseObserver.lastResponse();
+        assertThat(response.getEntitiesList().size(), equalTo(TestConstants.PHYSICAL_COUNTER_SIZE * 2));
+    }
+
+    private void readPartialWildcardCounterTest(PiCounterId counterId) {
+        // A counter read request with a counterID but no cellId
+        // Encode a dummy cell just so we can get the p4runtime counter integer ID from the encoder
+        PiCounterCell dummyCell = new PiCounterCell(
+                PiCounterCellId.ofIndirect(counterId, 1), 0, 0);
+        P4RuntimeOuterClass.Entity dummyEntity;
+        try {
+            dummyEntity = Codecs.CODECS.entity().encode(dummyCell, null, pipeconf);
+        } catch (CodecException e) {
+            fail("Unable to encode counter cell to p4runtime entity.");
+            return;
+        }
+        int intCounterId = dummyEntity.getCounterEntry().getCounterId();
+        // Now build the actual request
+        MockStreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver = new MockStreamObserver<>();
+        P4RuntimeOuterClass.ReadRequest request = P4RuntimeOuterClass.ReadRequest.newBuilder()
+                .addEntities(P4RuntimeOuterClass.Entity.newBuilder()
+                        .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder()
+                                .setCounterId(intCounterId).build())
+                        .build())
+                .build();
+        up4NorthService.read(request, responseObserver);
+        var response = responseObserver.lastResponse();
+        assertThat(response.getEntitiesList().size(), equalTo(TestConstants.PHYSICAL_COUNTER_SIZE));
+        for (P4RuntimeOuterClass.Entity entity : response.getEntitiesList()) {
+            PiCounterCell responseCell = entityToCounterCell(entity);
+            assertThat(responseCell.cellId().counterId(), equalTo(counterId));
+        }
+    }
+
+    private PiCounterCell entityToCounterCell(P4RuntimeOuterClass.Entity entity) {
+        PiEntity responsePiEntity;
+        try {
+            responsePiEntity = Codecs.CODECS.entity().decode(entity, null, pipeconf);
+        } catch (CodecException e) {
+            fail("Unable to decode p4runtime entity from read response.");
+            return null;
+        }
+        assertThat(responsePiEntity.piEntityType(), equalTo(PiEntityType.COUNTER_CELL));
+        return (PiCounterCell) responsePiEntity;
+    }
+
+    @Test
+    public void readAllIngressCountersTest() {
+        readPartialWildcardCounterTest(NorthConstants.INGRESS_COUNTER_ID);
+    }
+
+    @Test
+    public void readAllEgressCountersTest() {
+        readPartialWildcardCounterTest(NorthConstants.EGRESS_COUNTER_ID);
+    }
+
     private void readCounterTest(PiCounterId counterId, long expectedPackets, long expectedBytes) {
         MockStreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver = new MockStreamObserver<>();
         int cellIndex = 1;
@@ -246,7 +257,7 @@ public class Up4NorthComponentTest {
         try {
             entity = Codecs.CODECS.entity().encode(requestedCell, null, pipeconf);
         } catch (CodecException e) {
-            fail("Unable to encode counter cell to p4runtime entity!");
+            fail("Unable to encode counter cell to p4runtime entity.");
             return;
         }
 
@@ -264,7 +275,7 @@ public class Up4NorthComponentTest {
         try {
             expectedEntity = Codecs.CODECS.entity().encode(expectedCell, null, pipeconf);
         } catch (CodecException e) {
-            fail("Unable to encode counter cell to p4runtime entity!");
+            fail("Unable to encode counter cell to p4runtime entity.");
             return;
         }
         assertThat(response.getEntitiesCount(), equalTo(1));
@@ -284,37 +295,37 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkFarReadTest() {
+    public void downlinkFarReadTest() throws Exception {
         upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
         readTest(TestConstants.UP4_DOWNLINK_FAR);
     }
 
     @Test
-    public void uplinkFarReadTest() {
+    public void uplinkFarReadTest() throws Exception {
         upfProgrammable.addFar(TestConstants.UPLINK_FAR);
         readTest(TestConstants.UP4_UPLINK_FAR);
     }
 
     @Test
-    public void downlinkPdrReadTest() {
+    public void downlinkPdrReadTest() throws Exception {
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         readTest(TestConstants.UP4_DOWNLINK_PDR);
     }
 
     @Test
-    public void uplinkPdrReadTest() {
+    public void uplinkPdrReadTest() throws Exception {
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         readTest(TestConstants.UP4_UPLINK_PDR);
     }
 
     @Test
-    public void downlinkInterfaceReadTest() {
+    public void downlinkInterfaceReadTest() throws Exception {
         upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
         readTest(TestConstants.UP4_DOWNLINK_INTERFACE);
     }
 
     @Test
-    public void uplinkInterfaceReadTest() {
+    public void uplinkInterfaceReadTest() throws Exception {
         upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
         readTest(TestConstants.UP4_UPLINK_INTERFACE);
     }
@@ -327,7 +338,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkFarDeletionTest() {
+    public void downlinkFarDeletionTest() throws Exception {
         upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
         deletionTest(TestConstants.UP4_DOWNLINK_FAR);
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
@@ -340,7 +351,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkFarDeletionTest() {
+    public void uplinkFarDeletionTest() throws Exception {
         upfProgrammable.addFar(TestConstants.UPLINK_FAR);
         deletionTest(TestConstants.UP4_UPLINK_FAR);
         assertTrue(upfProgrammable.getInstalledFars().isEmpty());
@@ -353,7 +364,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkPdrDeletionTest() {
+    public void downlinkPdrDeletionTest() throws Exception {
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         deletionTest(TestConstants.UP4_DOWNLINK_PDR);
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
@@ -366,7 +377,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkPdrDeletionTest() {
+    public void uplinkPdrDeletionTest() throws Exception {
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         deletionTest(TestConstants.UP4_UPLINK_PDR);
         assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
@@ -379,7 +390,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkInterfaceDeletionTest() {
+    public void downlinkInterfaceDeletionTest() throws Exception {
         upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
         deletionTest(TestConstants.UP4_DOWNLINK_INTERFACE);
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
@@ -393,12 +404,11 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkInterfaceDeletionTest() {
+    public void uplinkInterfaceDeletionTest() throws Exception {
         upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
         deletionTest(TestConstants.UP4_UPLINK_INTERFACE);
         assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
     }
-
 
     @Test
     public void arbitrationTest() {
@@ -429,7 +439,6 @@ public class Up4NorthComponentTest {
                 equalTo(Status.newBuilder().setCode(Code.OK.getNumber()).build()));
     }
 
-
     @Test
     public void setPipelineConfigTest() {
         MockStreamObserver<P4RuntimeOuterClass.SetForwardingPipelineConfigResponse> responseObserver
@@ -458,7 +467,66 @@ public class Up4NorthComponentTest {
                 .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
                 .build();
         up4NorthService.getForwardingPipelineConfig(getPipeRequest, responseObserver);
+        var modifiedP4info = up4NorthComponent.setPhysicalSizes(p4Info);
         var response = responseObserver.lastResponse();
-        assertThat(p4Info, equalTo(response.getConfig().getP4Info()));
+        assertThat(response.getConfig().getP4Info(), equalTo(modifiedP4info));
+    }
+
+    static class MockStreamObserver<T> implements StreamObserver<T> {
+        public List<T> responsesObserved = new ArrayList<>();
+        Throwable errorExpected;
+        Throwable errorObserved;
+
+        public T lastResponse() {
+            return responsesObserved.get(responsesObserved.size() - 1);
+        }
+
+        public void clearObservations() {
+            this.errorObserved = null;
+            this.responsesObserved.clear();
+        }
+
+        public void setErrorExpected(Throwable errorExpected) {
+            this.errorExpected = errorExpected;
+        }
+
+        public void assertErrorObserved() {
+            if (errorObserved == null) {
+                fail("gRPC stream error was not observed when expected.");
+            }
+        }
+
+        public Throwable lastError() {
+            return errorObserved;
+        }
+
+        @Override
+        public void onNext(T value) {
+            if (this.errorObserved != null) {
+                fail("Stream observer experienced an onNext call after an error was observed");
+            }
+            responsesObserved.add(value);
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            if (errorExpected != null) {
+                if (this.errorObserved != null) {
+                    fail("Stream observer unexpectedly received more than one error");
+                }
+                this.errorObserved = t;
+                assertThat(errorObserved.getClass(), equalTo(errorExpected.getClass()));
+            } else {
+                fail("Stream observer shouldn't see any errors");
+            }
+        }
+
+        @Override
+        public void onCompleted() {
+            if (this.errorObserved != null) {
+                fail("Stream observer experienced an onCompleted call after an error was observed");
+            }
+
+        }
     }
 }

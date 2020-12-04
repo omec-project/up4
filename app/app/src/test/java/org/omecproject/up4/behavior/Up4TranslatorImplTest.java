@@ -8,9 +8,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
-import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
+import org.omecproject.up4.UpfRuleIdentifier;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 

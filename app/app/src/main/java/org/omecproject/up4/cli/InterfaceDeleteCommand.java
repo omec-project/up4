@@ -26,7 +26,7 @@ public class InterfaceDeleteCommand extends AbstractShellCommand {
     String s1uAddr = null;
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
         Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);

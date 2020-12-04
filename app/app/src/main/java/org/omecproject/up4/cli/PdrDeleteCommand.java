@@ -32,7 +32,7 @@ public class PdrDeleteCommand extends AbstractShellCommand {
     int teid = -1;
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
         var pdrBuilder = PacketDetectionRule.builder();

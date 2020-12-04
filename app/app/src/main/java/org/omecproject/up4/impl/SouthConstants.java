@@ -14,15 +14,9 @@ import org.onosproject.net.pi.model.PiTableId;
 
 public final class SouthConstants {
 
-    // hide default constructor
-    private SouthConstants() {
-    }
-
     public static final int INTERFACE_ACCESS = 1;
     public static final int INTERFACE_CORE = 2;
     public static final int INTERFACE_DBUF = 3;
-
-
     // Header field IDs
     public static final PiMatchFieldId HDR_EG_PORT =
             PiMatchFieldId.of("eg_port");
@@ -259,5 +253,8 @@ public final class SouthConstants {
     public static final int INGRESS_PORT_BITWIDTH = 9;
     public static final PiPacketMetadataId PAD0 = PiPacketMetadataId.of("pad0");
     public static final int PAD0_BITWIDTH = 85;
+    // hide default constructor
+    private SouthConstants() {
+    }
 
 }
