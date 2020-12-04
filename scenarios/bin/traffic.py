@@ -93,6 +93,7 @@ def sniff_udp(args):
 
 
 def sniff_nothing(args):
+
     def succeed_on_timeout(signum, frame):
         print("Received no packet after %d seconds, as expected." % args.timeout)
         exit(0)
@@ -101,6 +102,7 @@ def sniff_nothing(args):
         print("Received unexpected packet!")
         pkt.show()
         exit(1)
+
     signal.signal(signal.SIGALRM, succeed_on_timeout)
     signal.alarm(args.timeout)
     sniff(count=0, store=False, filter="udp", prn=fail_on_sniff)
@@ -129,10 +131,11 @@ if __name__ == "__main__":
     }
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", type=str, help="The action to perform",
-                        choices=funcs.keys())
-    parser.add_argument("-t", dest="timeout", type=int, default=0, help="How long to wait for packets before giving up")
-    parser.add_argument("-c", dest="count", type=int, default=1, help="How many packets to transmit")
+    parser.add_argument("command", type=str, help="The action to perform", choices=funcs.keys())
+    parser.add_argument("-t", dest="timeout", type=int, default=0,
+                        help="How long to wait for packets before giving up")
+    parser.add_argument("-c", dest="count", type=int, default=1,
+                        help="How many packets to transmit")
     args = parser.parse_args()
 
     funcs[args.command](args)
