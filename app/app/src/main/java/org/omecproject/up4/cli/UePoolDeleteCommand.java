@@ -26,17 +26,13 @@ public class UePoolDeleteCommand extends AbstractShellCommand {
     String poolPrefix = null;
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
         Ip4Prefix poolPrefix = Ip4Prefix.valueOf(this.poolPrefix);
 
         print("Deleting UE IPv4 address pool prefix: %s", poolPrefix);
-        try {
-            app.getUpfProgrammable().removeInterface(UpfInterface.createUePoolFrom(poolPrefix));
-        } catch (Exception e) {
-            print("Command failed with error: " + e.getMessage());
-        }
+        app.getUpfProgrammable().removeInterface(UpfInterface.createUePoolFrom(poolPrefix));
     }
 }
 

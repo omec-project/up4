@@ -32,7 +32,7 @@ public class PdrDeleteCommand extends AbstractShellCommand {
     int teid = -1;
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
         var pdrBuilder = PacketDetectionRule.builder();
@@ -47,10 +47,6 @@ public class PdrDeleteCommand extends AbstractShellCommand {
 
         PacketDetectionRule pdr = pdrBuilder.build();
         print("Removing %s from UPF", pdr.toString());
-        try {
-            app.getUpfProgrammable().removePdr(pdrBuilder.build());
-        } catch (Exception e) {
-            print("Command failed with error: " + e.getMessage());
-        }
+        app.getUpfProgrammable().removePdr(pdrBuilder.build());
     }
 }

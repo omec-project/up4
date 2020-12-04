@@ -21,17 +21,13 @@ import java.util.Collection;
 public class ReadFlowsCommand extends AbstractShellCommand {
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
-        try {
-            Collection<UpfFlow> flows = app.getUpfProgrammable().getFlows();
-            for (UpfFlow flow : flows) {
-                print(flow.toString());
-            }
-            print("%d flows found", flows.size());
-        } catch (Exception e) {
-            print("Command failed with error: " + e.getMessage());
+        Collection<UpfFlow> flows = app.getUpfProgrammable().getFlows();
+        for (UpfFlow flow : flows) {
+            print(flow.toString());
         }
+        print("%d flows found", flows.size());
     }
 }

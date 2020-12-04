@@ -30,7 +30,7 @@ public class FarDeleteCommand extends AbstractShellCommand {
     int farId = 0;
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
         ForwardingActionRule far = ForwardingActionRule.builder()
@@ -38,10 +38,6 @@ public class FarDeleteCommand extends AbstractShellCommand {
                 .setFarId(farId)
                 .build();
         print("Deleting %s", far.toString());
-        try {
-            app.getUpfProgrammable().removeFar(far);
-        } catch (Exception e) {
-            print("Command failed with error: " + e.getMessage());
-        }
+        app.getUpfProgrammable().removeFar(far);
     }
 }

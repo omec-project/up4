@@ -46,7 +46,7 @@ public class PdrInsertCommand extends AbstractShellCommand {
     String s1uAddr = null;
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
         Ip4Address ueAddr = Ip4Address.valueOf(this.ueAddr);
@@ -66,10 +66,6 @@ public class PdrInsertCommand extends AbstractShellCommand {
 
         PacketDetectionRule pdr = pdrBuilder.build();
         print("Installing %s on UPF", pdr.toString());
-        try {
-            app.getUpfProgrammable().addPdr(pdrBuilder.build());
-        } catch (Exception e) {
-            print("Command failed with error: " + e.getMessage());
-        }
+        app.getUpfProgrammable().addPdr(pdrBuilder.build());
     }
 }

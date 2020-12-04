@@ -26,14 +26,10 @@ public class CounterReadCommand extends AbstractShellCommand {
     int ctrIndex = 0;
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
-        try {
-            PdrStats stats = app.getUpfProgrammable().readCounter(ctrIndex);
-            print(stats.toString());
-        } catch (Exception e) {
-            print("Command failed with error: " + e.getMessage());
-        }
+        PdrStats stats = app.getUpfProgrammable().readCounter(ctrIndex);
+        print(stats.toString());
     }
 }

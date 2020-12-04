@@ -26,17 +26,13 @@ public class UePoolInsertCommand extends AbstractShellCommand {
     String poolPrefix = null;
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
         Ip4Prefix poolPrefix = Ip4Prefix.valueOf(this.poolPrefix);
 
         print("Adding UE IPv4 address pool prefix: %s", poolPrefix.toString());
-        try {
-            app.getUpfProgrammable().addInterface(UpfInterface.createUePoolFrom(poolPrefix));
-        } catch (Exception e) {
-            print("Command failed with error: " + e.getMessage());
-        }
+        app.getUpfProgrammable().addInterface(UpfInterface.createUePoolFrom(poolPrefix));
     }
 }
 

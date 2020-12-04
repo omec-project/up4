@@ -26,17 +26,13 @@ public class InterfaceDeleteCommand extends AbstractShellCommand {
     String s1uAddr = null;
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
         Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
 
         print("Removing S1U interface address %s", s1uAddr.toString());
-        try {
-            app.getUpfProgrammable().removeInterface(UpfInterface.createS1uFrom(s1uAddr));
-        } catch (Exception e) {
-            print("Command failed with error: " + e.getMessage());
-        }
+        app.getUpfProgrammable().removeInterface(UpfInterface.createS1uFrom(s1uAddr));
     }
 }
 
