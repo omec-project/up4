@@ -4,6 +4,7 @@
  */
 package org.omecproject.up4.impl;
 
+import io.grpc.Context;
 import org.omecproject.dbuf.client.DbufClient;
 import org.omecproject.dbuf.client.DefaultDbufClient;
 import org.omecproject.up4.Up4Service;
@@ -291,14 +292,19 @@ public class Up4DeviceManager implements Up4Service {
             @Override
             public void drain(Ip4Address ueAddr) {
                 log.info("Started dbuf drain for {}", ueAddr);
-                dbufClient.drain(ueAddr, config.dbufDrainAddr(), 2152).whenComplete((result, ex) -> {
-                    if (ex != null) {
-                        log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
-                    } else if (result) {
-                        log.info("Dbuf drain completed for {}", ueAddr);
-                    } else {
-                        log.warn("Unknown error while draining dbuf for {}", ueAddr);
-                    }
+                // Run the outbound rpc in a forked context so it doesn't cancel if it was called
+                // by an inbound rpc that completes faster than the drain call
+                Context ctx = Context.current().fork();
+                ctx.run(() -> {
+                    dbufClient.drain(ueAddr, config.dbufDrainAddr(), 2152).whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
+                        } else if (result) {
+                            log.info("Dbuf drain completed for {}", ueAddr);
+                        } else {
+                            log.warn("Unknown error while draining dbuf for {}", ueAddr);
+                        }
+                    });
                 });
             }
         });
