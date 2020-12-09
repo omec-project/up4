@@ -39,9 +39,8 @@ class UeFlow:
 @dataclass()
 class Session:
     our_seid: int
-    peer_seid: int
     ue_addr: IPv4Address
-    established: bool = False
+    peer_seid: Optional[int] = None
     uplink: UeFlow = None
     downlink: UeFlow = None
     disable_caching: bool = False
@@ -60,8 +59,8 @@ class Session:
         self.sent_urrs.clear()
         self.sent_qers.clear()
 
-    def mark_established(self):
-        self.established = True
+    def is_created(self):
+        return self.peer_seid is not None
 
     def set_peer_seid(self, seid: int):
         self.peer_seid = seid
@@ -122,31 +121,31 @@ class Session:
 
         if add_fars:
             far_up = craft_far(session=self,
-                               id=self.uplink.far_id, forward_flag=True, dst_iface=IFACE_CORE,
+                               far_id=self.uplink.far_id, forward_flag=True, dst_iface=IFACE_CORE,
                                tunnel=False)
             self.add_to_req_if_rule_new(request, far_up, self.uplink.far_id, "far")
             # The downlink FAR should only tunnel if this is an update message. Our PFCP agent does not support
             #  outer header creation on session establishment, only session modification
             far_down = craft_far(session=self,
-                                 id=self.downlink.far_id, forward_flag=True, dst_iface=IFACE_ACCESS,
-                                 tunnel=self.established, tunnel_dst=args.enb_addr, teid=self.downlink.teid,
+                                 far_id=self.downlink.far_id, forward_flag=True, dst_iface=IFACE_ACCESS,
+                                 tunnel=self.is_created(), tunnel_dst=args.enb_addr, teid=self.downlink.teid,
                                  buffer_flag=args.buffer)
             self.add_to_req_if_rule_new(request, far_down, self.downlink.far_id, "far")
 
         if add_qers:
             qer_up = craft_qer(session=self,
-                               id=self.uplink.qer_id)
+                               qer_id=self.uplink.qer_id)
             self.add_to_req_if_rule_new(request, qer_up, self.uplink.qer_id, "qer")
             qer_down = craft_qer(session=self,
-                                 id=self.downlink.qer_id)
+                                 qer_id=self.downlink.qer_id)
             self.add_to_req_if_rule_new(request, qer_down, self.downlink.qer_id, "qer")
 
         if add_urrs:
             urr_up = craft_urr(session=self,
-                               id=self.uplink.urr_id, quota=100000, threshold=40000)
+                               urr_id=self.uplink.urr_id, quota=100000, threshold=40000)
             self.add_to_req_if_rule_new(request, urr_up, self.uplink.urr_id, "urr")
             urr_down = craft_urr(session=self,
-                                 id=self.downlink.urr_id, quota=100000, threshold=50000)
+                                 urr_id=self.downlink.urr_id, quota=100000, threshold=50000)
             self.add_to_req_if_rule_new(request, urr_down, self.downlink.urr_id, "urr")
 
 
@@ -164,30 +163,26 @@ verbosity: int = 0
 
 
 def capture(pkt: scapy.Packet):
-    pkt2 = pkt
+    """
+    Write the given packet to the PCAP file that was defined when the mock SMF was launched.
+    If no such file was given, do nothing.
+    :param pkt: The packet to record in the PCAP file
+    :return:
+    """
     if Ether not in pkt:
-        pkt2 = Ether() / pkt
+        pkt = Ether() / pkt
     if pcap_filename:
-        wrpcap(pcap_filename, pkt2, append=True)
-
-
-def already_sent(rule_id: int, rule: pfcp.IE_Compound, sent_rule_map: Dict[int, pfcp.IE_Compound]):
-    """
-    Check if the soon-to-be-sent rule has been previously sent to the PFCP agent,
-    and then optimistically store the rule as sent
-    :param rule_id: the ID of the rule that will soon be sent
-    :param rule: the rule that will soon be sent
-    :param sent_rule_map: the rule_id->rule mapping of previously sent rules
-    :return: None
-    """
-    previous_rule = sent_rule_map.get(rule_id, None)
-    sent_rule_map[rule_id] = rule
-    if previous_rule is None:
-        return False
-    return previous_rule == rule
+        wrpcap(pcap_filename, pkt, append=True)
 
 
 def get_sessions_from_args(args: argparse.Namespace, create_if_missing: bool = False):
+    """
+    Generate session objects from arguments passed along with the input command
+    :param args: the input arguments
+    :param create_if_missing: if no session object exists for a SEID specified in the input arguments,
+    create it. Otherwise the SEID is skipped
+    :return:
+    """
     ue_addr_gen = get_addresses_from_prefix(args.ue_pool, args.session_count)
     seid_gen = iter(range(args.seid_base, args.seid_base + args.session_count))
     teid_gen = iter(range(args.teid_base, args.teid_base + args.session_count * 2))
@@ -198,7 +193,6 @@ def get_sessions_from_args(args: argparse.Namespace, create_if_missing: bool = F
             yield active_sessions[seid]
         elif create_if_missing:
             active_sessions[seid] = Session(our_seid=seid,
-                                            peer_seid=-1,
                                             ue_addr=next(ue_addr_gen),
                                             uplink=UeFlow(teid=next(teid_gen), pdr_id=1, far_id=1, qer_id=1, urr_id=1),
                                             downlink=UeFlow(teid=next(teid_gen), pdr_id=2, far_id=2, qer_id=2,
@@ -325,14 +319,14 @@ def craft_pdr(session: Session, flow: UeFlow, src_iface: int,
     return pdr
 
 
-def craft_far(session: Session, id: int, forward_flag=False, drop_flag=False, buffer_flag=False,
+def craft_far(session: Session, far_id: int, forward_flag=False, drop_flag=False, buffer_flag=False,
               dst_iface: int = None, tunnel=False, tunnel_dst: str = None,
               teid: int = None) -> pfcp.IE_Compound:
-    update = id in session.sent_fars
+    update = far_id in session.sent_fars
     far = pfcp.IE_UpdateFAR() if update else pfcp.IE_CreateFAR()
-    far_id = pfcp.IE_FAR_Id()
-    far_id.id = id
-    far.IE_list.append(far_id)
+    _far_id = pfcp.IE_FAR_Id()
+    _far_id.id = far_id
+    far.IE_list.append(_far_id)
 
     # Apply Action
     apply_action = pfcp.IE_ApplyAction()
@@ -361,13 +355,13 @@ def craft_far(session: Session, id: int, forward_flag=False, drop_flag=False, bu
     return far
 
 
-def craft_qer(session: Session, id: int, max_bitrate_up=12345678, max_bitrate_down=12345678,
+def craft_qer(session: Session, qer_id: int, max_bitrate_up=12345678, max_bitrate_down=12345678,
               guaranteed_bitrate_up=12345678, guaranteed_bitrate_down=12345678) -> pfcp.IE_Compound:
-    qer = pfcp.IE_UpdateQER() if id in session.sent_qers else pfcp.IE_CreateQER()
+    qer = pfcp.IE_UpdateQER() if qer_id in session.sent_qers else pfcp.IE_CreateQER()
     # QER ID
-    qer_id = pfcp.IE_QER_Id()
-    qer_id.id = id
-    qer.IE_list.append(qer_id)
+    _qer_id = pfcp.IE_QER_Id()
+    _qer_id.id = qer_id
+    qer.IE_list.append(_qer_id)
     # Gate Status
     gate1 = pfcp.IE_GateStatus()
     qer.IE_list.append(gate1)
@@ -384,12 +378,12 @@ def craft_qer(session: Session, id: int, max_bitrate_up=12345678, max_bitrate_do
     return qer
 
 
-def craft_urr(session: Session, id: int, quota: int, threshold: int) -> pfcp.IE_Compound:
-    urr = pfcp.IE_UpdateURR() if id in session.sent_urrs else pfcp.IE_CreateURR()
+def craft_urr(session: Session, urr_id: int, quota: int, threshold: int) -> pfcp.IE_Compound:
+    urr = pfcp.IE_UpdateURR() if urr_id in session.sent_urrs else pfcp.IE_CreateURR()
     # URR ID
-    urr_id = pfcp.IE_URR_Id()
-    urr_id.id = id
-    urr.IE_list.append(urr_id)
+    _urr_id = pfcp.IE_URR_Id()
+    _urr_id.id = urr_id
+    urr.IE_list.append(_urr_id)
     # Measurement Method
     measure_method = pfcp.IE_MeasurementMethod()
     measure_method.VOLUM = 1
@@ -471,8 +465,8 @@ def craft_pfcp_session_modify_packet(args: argparse.Namespace, session: Session)
     pfcp_header.version = 1
     pfcp_header.S = 1
     pfcp_header.message_type = MSG_TYPES["session_modification_request"]
-    if not session.established:
-        raise Exception("Peer SEID has not yet been received.")
+    if not session.is_created():
+        raise Exception("Session %d has not yet been created, cannot modify" % session.our_seid)
     pfcp_header.seid = session.peer_seid
     pfcp_header.seq = get_sequence_num()
 
@@ -510,7 +504,7 @@ def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, session: Opti
     :param pkt: The packet to be sent to the server
     :param expected_response_type: The expected PFCP message type of the response
     :param session: If the message to be transmitted is associated with a session, this parameter will contain
-    details about that session
+    details about that session. For session-less messages (like association request and release), pass None.
     :param verbosity_override: Override for the script-wide verbosity
     :return: None
     """
@@ -539,7 +533,6 @@ def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, session: Opti
             if ie.ie_type == 57:
                 if session is None:
                     raise Exception("Received PFCP response with session ID that we have no Session object to save to!")
-                session.mark_established()
                 session.set_peer_seid(int(ie.seid))
     else:
         print("ERROR: Expected response of type %s but received %s" %
@@ -697,7 +690,6 @@ def handle_user_input(input_file: Optional[IO] = None, output_file: Optional[IO]
         for choice, (action_desc, action) in user_choices.items():
             print("\"%s\" - %s" % (choice, action_desc))
         try:
-
             args = parser.parse_args(input("Enter your selection : ").split())
         except Exception as e:
             print(e)

@@ -174,6 +174,16 @@ public class MockUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
+    public int farTableSize() {
+        return TestConstants.PHYSICAL_MAX_FARS;
+    }
+
+    @Override
+    public int pdrTableSize() {
+        return TestConstants.PHYSICAL_MAX_PDRS;
+    }
+
+    @Override
     public Collection<PdrStats> readAllCounters() {
         List<PdrStats> allStats = new ArrayList<>();
         for (int i = 0; i < TestConstants.PHYSICAL_COUNTER_SIZE; i++) {

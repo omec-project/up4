@@ -26,6 +26,7 @@ public class Up4Config extends Config<ApplicationId> {
     private final Logger log = LoggerFactory.getLogger(getClass());
     // JSON keys to look for in the network config
     public static final String KEY = "up4";  // base key that signals the presence of this config
+    public static final String MAX_UES = "maxUes";
     public static final String DEVICE_ID = "deviceId";
     public static final String UE_POOLS = "uePools";
     public static final String S1U_PREFIX = "s1uPrefix";  // TODO: remove this field after all configs updated
@@ -65,7 +66,7 @@ public class Up4Config extends Config<ApplicationId> {
     @Override
     public boolean isValid() {
         return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_ADDR, S1U_PREFIX, DBUF_SERVICE_ADDR,
-                DBUF_DATAPLANE_ADDR, DBUF_DRAIN_ADDR) &&
+                DBUF_DATAPLANE_ADDR, DBUF_DRAIN_ADDR, MAX_UES) &&
                 // Mandatory fields.
                 hasFields(DEVICE_ID, UE_POOLS) &&
                 (hasField(S1U_ADDR) || hasField(S1U_PREFIX)) &&
@@ -200,6 +201,14 @@ public class Up4Config extends Config<ApplicationId> {
     public Ip4Address dbufDrainAddr() {
         String addr = get(DBUF_DRAIN_ADDR, null);
         return addr != null ? Ip4Address.valueOf(addr) : null;
+    }
+
+    /**
+     * Returns the maximum number of UEs the UPF can support, or -1 if not configured.
+     * @return the maximum number of UEs the UPF can support
+     */
+    public int maxUes() {
+        return get(MAX_UES, -1);
     }
 }
 

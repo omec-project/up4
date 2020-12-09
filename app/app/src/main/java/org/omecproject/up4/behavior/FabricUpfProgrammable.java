@@ -31,6 +31,7 @@ import org.onosproject.net.flow.criteria.PiCriterion;
 import org.onosproject.net.pi.model.PiCounterModel;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.model.PiTableId;
+import org.onosproject.net.pi.model.PiTableModel;
 import org.onosproject.net.pi.runtime.PiCounterCell;
 import org.onosproject.net.pi.runtime.PiCounterCellHandle;
 import org.onosproject.net.pi.runtime.PiCounterCellId;
@@ -81,6 +82,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     DeviceId deviceId;
     @VisibleForTesting
     int pdrCounterSize = -1;  // Cached value so we don't have to go through the pipeconf every time
+    int farTableSize = -1;
+    int pdrTableSize = -1;
     private ApplicationId appId;
 
     private BufferDrainer bufferDrainer;
@@ -276,6 +279,63 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         }
         pdrCounterSize = Math.min(ingressCounterSize, egressCounterSize);
         return pdrCounterSize;
+    }
+
+    @Override
+    public int farTableSize() {
+        if (farTableSize != -1) {
+            return farTableSize;
+        }
+        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
+        if (optPipeconf.isEmpty()) {
+            log.warn("Unable to load piPipeconf for {}, cannot read FAR table properties", deviceId);
+            return -1;
+        }
+        PiPipeconf pipeconf = optPipeconf.get();
+
+        for (PiTableModel piTable : pipeconf.pipelineModel().tables()) {
+            if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS)) {
+                farTableSize = (int) piTable.maxSize();
+                return farTableSize;
+            }
+        }
+        log.warn("Unable to find FAR table in pipeline model.");
+        return -1;
+    }
+
+    @Override
+    public int pdrTableSize() {
+        if (pdrTableSize != -1) {
+            return pdrTableSize;
+        }
+        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
+        if (optPipeconf.isEmpty()) {
+            log.warn("Unable to load piPipeconf for {}, cannot read PDR table properties", deviceId);
+            return -1;
+        }
+        PiPipeconf pipeconf = optPipeconf.get();
+        int uplinkPdrTableSize = -1;
+        int downlinkPdrTableSize = -1;
+        for (PiTableModel piTable : pipeconf.pipelineModel().tables()) {
+            if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
+                uplinkPdrTableSize = (int) piTable.maxSize();
+            } else if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)) {
+                downlinkPdrTableSize = (int) piTable.maxSize();
+            }
+        }
+        if (uplinkPdrTableSize == -1) {
+            log.warn("Unable to find uplink PDR table in pipeline model.");
+            return -1;
+        } else if (downlinkPdrTableSize == -1) {
+            log.warn("Unable to find downlink PDR table in pipeline model.");
+            return -1;
+        }
+        int smallerSize = Math.min(uplinkPdrTableSize, downlinkPdrTableSize);
+        if (uplinkPdrTableSize != downlinkPdrTableSize) {
+            log.warn("The uplink and downlink PDR tables don't have equal sizes! Using the minimum of the two.");
+        }
+        pdrTableSize = smallerSize * 2;
+        return pdrTableSize;
     }
 
     @Override

@@ -155,6 +155,21 @@ public interface UpfProgrammable {
     int pdrCounterSize();
 
     /**
+     * Return the number of maximum number of table entries the FAR table supports.
+     *
+     * @return the number of FARs that can be installed
+     */
+    int farTableSize();
+
+    /**
+     * Return the total number of table entries the downlink and uplink PDR tables support. Both tables
+     * support an equal number of entries, so the total is twice the size of either.
+     *
+     * @return the total number of PDRs that can be installed
+     */
+    int pdrTableSize();
+
+    /**
      * Read the counter contents for all cell indices that are valid on the hardware switch.
      *
      * @return A collection of counter values for all valid hardware counter cells

@@ -344,6 +344,36 @@ public class Up4DeviceManager implements Up4Service {
         }
     }
 
+    @Override
+    public int maxFars() {
+        if (config == null) {
+            return 0;
+        }
+        int maxConfigUes = config.maxUes();
+        if (maxConfigUes != -1) {
+            return maxConfigUes * 2;
+        }
+        if (upfProgrammable == null) {
+            return 0;
+        }
+        return getUpfProgrammable().farTableSize();
+    }
+
+    @Override
+    public int maxPdrs() {
+        if (config == null) {
+            return 0;
+        }
+        int maxConfigUes = config.maxUes();
+        if (maxConfigUes != -1) {
+            return maxConfigUes * 2;
+        }
+        if (upfProgrammable == null) {
+            return 0;
+        }
+        return getUpfProgrammable().pdrTableSize();
+    }
+
     /**
      * React to new devices. The first device recognized to have UPF functionality is taken as the
      * UPF device.

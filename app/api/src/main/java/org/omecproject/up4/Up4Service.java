@@ -54,4 +54,15 @@ public interface Up4Service {
      */
     boolean isUpfDevice(DeviceId deviceId);
 
+    /**
+     * Return the maximum number of FARs the UPF can support.
+     * @return max number of FARs
+     */
+    int maxFars();
+
+    /**
+     * Return the maximum number of PDRs the UPF can support.
+     * @return max number of PDRs
+     */
+    int maxPdrs();
 }

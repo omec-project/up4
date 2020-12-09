@@ -267,15 +267,26 @@ public class Up4NorthComponent {
      */
     @VisibleForTesting
     P4InfoOuterClass.P4Info setPhysicalSizes(P4InfoOuterClass.P4Info p4Info) {
-        var newP4InfoBuilder = P4InfoOuterClass.P4Info.newBuilder(p4Info).clearCounters();
+        var newP4InfoBuilder = P4InfoOuterClass.P4Info.newBuilder(p4Info)
+                .clearCounters()
+                .clearTables();
         int physicalCounterSize = up4Service.getUpfProgrammable().pdrCounterSize();
+        int physicalFarTableSize = up4Service.maxFars();
+        int physicalPdrTableSize = up4Service.maxPdrs();
         int ingressPdrCounterId;
         int egressPdrCounterId;
+        int pdrTableId;
+        int farTableId;
         try {
-            ingressPdrCounterId = PipeconfHelper.getP4InfoBrowser(pipeconf).counters()
+            P4InfoBrowser browser = PipeconfHelper.getP4InfoBrowser(pipeconf);
+            ingressPdrCounterId = browser.counters()
                     .getByName(NorthConstants.INGRESS_COUNTER_ID.id()).getPreamble().getId();
-            egressPdrCounterId = PipeconfHelper.getP4InfoBrowser(pipeconf).counters()
+            egressPdrCounterId = browser.counters()
                     .getByName(NorthConstants.EGRESS_COUNTER_ID.id()).getPreamble().getId();
+            pdrTableId = browser.tables()
+                    .getByName(NorthConstants.PDR_TBL.id()).getPreamble().getId();
+            farTableId = browser.tables()
+                    .getByName(NorthConstants.FAR_TBL.id()).getPreamble().getId();
         } catch (P4InfoBrowser.NotFoundException e) {
             throw new NoSuchElementException("A UP4 counter that should always exist does not exist.");
         }
@@ -289,6 +300,20 @@ public class Up4NorthComponent {
             } else {
                 // Any other counters go unchanged (for now)
                 newP4InfoBuilder.addCounters(counter);
+            }
+        });
+        p4Info.getTablesList().forEach(table -> {
+            if (table.getPreamble().getId() == pdrTableId) {
+                newP4InfoBuilder.addTables(
+                        P4InfoOuterClass.Table.newBuilder(table)
+                                .setSize(physicalPdrTableSize).build());
+            } else if (table.getPreamble().getId() == farTableId) {
+                newP4InfoBuilder.addTables(
+                        P4InfoOuterClass.Table.newBuilder(table)
+                                .setSize(physicalFarTableSize).build());
+            } else {
+                // Any tables aside from the PDR and FAR tables go unchanged
+                newP4InfoBuilder.addTables(table);
             }
         });
         return newP4InfoBuilder.build();
@@ -385,7 +410,7 @@ public class Up4NorthComponent {
         for (PiCounterCell cell : responseCells) {
             try {
                 responseEntities.add(Codecs.CODECS.entity().encode(cell, null, pipeconf));
-                log.debug("Encoded response to counter read request for counter {} and index {}",
+                log.trace("Encoded response to counter read request for counter {} and index {}",
                         cell.cellId().counterId(), cell.cellId().index());
             } catch (CodecException e) {
                 log.error("Unable to encode counter cell into a p4runtime entity: {}",
@@ -395,6 +420,7 @@ public class Up4NorthComponent {
                         .asException();
             }
         }
+        log.debug("Encoded response to counter read request for {} cells", responseEntities.size());
         return responseEntities;
     }
 

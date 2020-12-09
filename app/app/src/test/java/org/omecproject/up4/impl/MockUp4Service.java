@@ -39,6 +39,16 @@ public class MockUp4Service implements Up4Service {
         }
 
         @Override
+        public int farTableSize() {
+            return TestConstants.PHYSICAL_MAX_FARS;
+        }
+
+        @Override
+        public int pdrTableSize() {
+            return TestConstants.PHYSICAL_MAX_PDRS;
+        }
+
+        @Override
         public int pdrCounterSize() {
             return TestConstants.PHYSICAL_COUNTER_SIZE;
         }
@@ -189,5 +199,15 @@ public class MockUp4Service implements Up4Service {
     @Override
     public boolean isUpfDevice(DeviceId deviceId) {
         return true;
+    }
+
+    @Override
+    public int maxFars() {
+        return TestConstants.PHYSICAL_MAX_FARS;
+    }
+
+    @Override
+    public int maxPdrs() {
+        return TestConstants.PHYSICAL_MAX_PDRS;
     }
 }
