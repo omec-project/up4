@@ -1,0 +1,24 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="pfcp-many-flows" description="Set up a bunch of UE sessions">
+    <group name="Pfcp-Many-flows">
+        <group name="Pfcp-Setup-Many-Flows">
+            <step name="Pfcp-Session-Create"
+                  exec="mock-smf-cmd create --session-count 128"/>
+            <step name="Pfcp-Session" requires="^" delay="10"
+                  exec="mock-smf-cmd modify"/>
+        </group>
+
+        <step name="Check-Up4-Flows-Are-Many" requires="Pfcp-Setup-Many-Flows"
+              exec="onos-cli-grep ${OCI} up4:read-flows '256 flows found'"/>
+        <step name="Check-Flow-Rules-Are-Many" requires="^" delay="5"
+              exec="onos-check-flows ${OCI}"/>
+
+        <step name="Pfcp-Clear-Many-Flows" requires="~^"
+              exec="mock-smf-cmd delete --session-count 128"/>
+        <step name="Check-Up4-Flows-Are-Flows-No-Longer" requires="^" delay="10"
+              exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
+    </group>
+</scenario>
