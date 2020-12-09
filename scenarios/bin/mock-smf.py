@@ -5,24 +5,21 @@
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
 import argparse
-import socket
 import struct
 import time
+import socket
 from dataclasses import dataclass, field
 from ipaddress import IPv4Network, IPv4Address, AddressValueError
 from threading import Lock, Thread
 from typing import Dict, Generator, Optional, IO, Union
 
 import ifcfg
-import logging
 from scapy import all as scapy
 from scapy.contrib import pfcp
 from scapy.layers.inet import IP, UDP
 from scapy.layers.l2 import Ether
 from scapy.utils import wrpcap
 
-
-logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 MSG_TYPES = {name: num for num, name in pfcp.PFCPmessageType.items()}
 HEARTBEAT_PERIOD = 5  # in seconds
 UDP_PORT_PFCP = 8805
@@ -154,7 +151,6 @@ class Session:
 
 
 # Global non-constants
-sock: Optional[socket.socket] = None
 our_addr: str = ""
 peer_addr: str = ""
 sequence_number: int = 0
@@ -164,8 +160,6 @@ script_terminating = False
 active_sessions: Dict[int, Session] = {}
 pcap_filename: Optional[str] = None
 verbosity: int = 0
-
-
 # End global non-constants
 
 
@@ -255,15 +249,6 @@ def get_sequence_num(reset=False):
     sequence_number += 1
     thread_lock.release()
     return sequence_number
-
-
-def open_socket(our_addr: str):
-    sock = socket.socket(
-        socket.AF_INET,  # Internet
-        socket.SOCK_DGRAM)  # UDP
-    sock.bind((our_addr, UDP_PORT_PFCP))
-    print("Socket opened ")
-    return sock
 
 
 def craft_fseid(seid: int, address: str) -> pfcp.IE_Compound:
@@ -521,8 +506,8 @@ def craft_pfcp_session_delete_packet(session: Session) -> scapy.Packet:
 def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, session: Optional[Session],
                    verbosity_override: int = verbosity) -> None:
     """
-    Send the given PFCP packet out the global socket, and wait for a response with the given PFCP message type.
-    :param pkt: The packet to be sent out the global socket
+    Send the given PFCP packet to the PFCP server, and wait for a response with the given PFCP message type.
+    :param pkt: The packet to be sent to the server
     :param expected_response_type: The expected PFCP message type of the response
     :param session: If the message to be transmitted is associated with a session, this parameter will contain
     details about that session
@@ -533,14 +518,7 @@ def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, session: Opti
     if verbosity_override > 1:
         pkt.show()
     capture(pkt)
-    scapy.send(pkt, verbose=verbosity_override)
-    if verbosity_override > 0:
-        print("Waiting for PFCP response..")
-    data, addr = sock.recvfrom(1024)  # buffer size is 1024 bytes
-    if verbosity_override > 1:
-        print("Received message: %s" % data)
-    response = pfcp.PFCP()
-    response.dissect(data)
+    response = scapy.sr1(pkt, verbose=verbosity_override)
     capture(response)
     if verbosity_override > 1:
         response.show()
@@ -670,10 +648,10 @@ def handle_user_input(input_file: Optional[IO] = None, output_file: Optional[IO]
     parser = ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("choice", type=str, help="The PFCP client operation to perform",
                         choices=user_choices.keys())
-    parser.add_argument("--buffer", action='store_true',
-                        help="If this argument is present, downlink FARs will have the buffering flag set to true")
     parser.add_argument("--session-count", type=int, default=1,
                         help="The number of sessions for which UE flows should be created.")
+    parser.add_argument("--buffer", action='store_true',
+                        help="If this argument is present, downlink FARs will have the buffering flag set to true")
     parser.add_argument("--ue-pool", type=IPv4Network, default=IPv4Network("17.0.0.0/24"),
                         help="The IPv4 prefix from which UE addresses will be drawn.")
     parser.add_argument("--s1u-addr", type=IPv4Address, default=IPv4Address("140.0.100.254"),
@@ -736,10 +714,9 @@ def handle_user_input(input_file: Optional[IO] = None, output_file: Optional[IO]
 
 
 def main():
-    global our_addr, peer_addr, sock, pcap_filename
+    global our_addr, peer_addr, pcap_filename
 
     our_addr = ifcfg.interfaces()['eth0']['inet']
-    sock = open_socket(our_addr)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("upfaddr", help="Address or hostname of the UPF")
