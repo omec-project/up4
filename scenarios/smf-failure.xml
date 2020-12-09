@@ -7,7 +7,7 @@
     <group name="Mock-Smf-Failure">
         <group name="Pfcp-Setup-Fwd">
             <step name="Pfcp-Session-Create"
-                  exec="mock-smf-cmd establish"/>
+                  exec="mock-smf-cmd create"/>
             <step name="Pfcp-Session-Modify" requires="^" delay="1"
                   exec="mock-smf-cmd modify"/>
         </group>
@@ -30,7 +30,7 @@
 
         <group name="Pfcp-Restore-Fwd" requires="Mock-Smf-Revive">
             <step name="Pfcp-Session-Create-Again" requires="Mock-Smf-Revive"
-                  exec="mock-smf-cmd establish"/>
+                  exec="mock-smf-cmd create"/>
             <step name="Pfcp-Session-Modify-Again" requires="^" delay="1"
                   exec="mock-smf-cmd modify"/>
         </group>

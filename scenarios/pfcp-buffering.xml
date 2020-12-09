@@ -6,7 +6,7 @@
     <group name="Pfcp-Buffering">
         <group name="Pfcp-Set-Buff">
             <step name="Pfcp-Buffer-Session-Create"
-                  exec="mock-smf-cmd establish"/>
+                  exec="mock-smf-cmd create"/>
             <step name="Pfcp-Buffer-Session-Modify" requires="^" delay="1"
                   exec="mock-smf-cmd modify --buffer"/>
             <step name="Check-Up4-Flows-Buff" requires="^"

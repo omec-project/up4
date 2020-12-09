@@ -6,6 +6,7 @@ set -ex
 
 imgName="mock-smf"
 logFile="tmp/mock-smf.log"
+pcapFile="tmp/mock-smf.pcap"
 agentName="pfcp-agent"
 # STC doesn't allocate a TTY so without -T docker-compose exec will fail
 dockerExec="docker-compose exec -T $imgName"
@@ -14,7 +15,7 @@ echo "Provided command is $1"
 if [ "$1" = "start" ]; then
     echo "" > $logFile
     # Start mock SMF in detached screen session
-    ${dockerExec} screen -d -L -Logfile /$logFile -S MockSMF -m /up4/bin/mock-smf.py $agentName
+    ${dockerExec} screen -d -L -Logfile /$logFile -S MockSMF -m /up4/bin/mock-smf.py $agentName --pcap-file /$pcapFile
     # Flush logs in real-time
     # If you don't know screen and wondering what the heck colon means:
     # https://www.gnu.org/software/screen/manual/html_node/Colon.html

@@ -11,14 +11,18 @@ import time
 from dataclasses import dataclass, field
 from ipaddress import IPv4Network, IPv4Address, AddressValueError
 from threading import Lock, Thread
-from typing import Dict, Generator, Optional, IO
+from typing import Dict, Generator, Optional, IO, Union
 
 import ifcfg
+import logging
 from scapy import all as scapy
 from scapy.contrib import pfcp
 from scapy.layers.inet import IP, UDP
+from scapy.layers.l2 import Ether
 from scapy.utils import wrpcap
 
+
+logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 MSG_TYPES = {name: num for num, name in pfcp.PFCPmessageType.items()}
 HEARTBEAT_PERIOD = 5  # in seconds
 UDP_PORT_PFCP = 8805
@@ -26,14 +30,127 @@ IFACE_ACCESS = 0
 IFACE_CORE = 1
 
 
-@dataclass
+@dataclass()
+class UeFlow:
+    teid: int
+    pdr_id: int
+    far_id: int
+    qer_id: int
+    urr_id: int
+
+
+@dataclass()
 class Session:
     our_seid: int
     peer_seid: int
+    ue_addr: IPv4Address
+    established: bool = False
+    uplink: UeFlow = None
+    downlink: UeFlow = None
+    disable_caching: bool = False
     sent_pdrs: Dict[int, pfcp.IE_Compound] = field(default_factory=dict)
     sent_fars: Dict[int, pfcp.IE_Compound] = field(default_factory=dict)
     sent_urrs: Dict[int, pfcp.IE_Compound] = field(default_factory=dict)
     sent_qers: Dict[int, pfcp.IE_Compound] = field(default_factory=dict)
+
+    def clear_sent_rules(self):
+        """
+        Wipe out the cache of previously sent rules
+        :return: None
+        """
+        self.sent_pdrs.clear()
+        self.sent_fars.clear()
+        self.sent_urrs.clear()
+        self.sent_qers.clear()
+
+    def mark_established(self):
+        self.established = True
+
+    def set_peer_seid(self, seid: int):
+        self.peer_seid = seid
+
+    def add_to_req_if_rule_new(self,
+                               req: Union[pfcp.PFCPSessionEstablishmentRequest, pfcp.PFCPSessionModificationRequest],
+                               rule: pfcp.IE_Compound, rule_id: int, rule_type: str):
+        """
+        Check if the soon-to-be-sent rule has been previously sent to the PFCP agent,
+        and then optimistically store the rule as sent
+        :param req: the request in which the rule will be added
+        :param rule: the rule to add to the request if an identical rule wasn't already sent
+        :param rule_id: the ID of the rule to be sent
+        :param rule_type: the rule type as a string: 'pdr', 'far', 'urr', or 'qer'
+        :return: None
+        """
+        if self.disable_caching:
+            if verbosity > 0:
+                print("Adding %s with ID %d to request for SEID %d" % (rule_type, rule_id, self.our_seid))
+            req.IE_list.append(rule)
+            return
+        rule_cache: dict
+        rule_type_to_dict = {
+            "pdr": self.sent_pdrs,
+            "far": self.sent_fars,
+            "urr": self.sent_urrs,
+            "qer": self.sent_qers
+        }
+        rule_cache = rule_type_to_dict.get(rule_type, None)
+        if rule_cache is None:
+            raise Exception("Bad rule type passed to rule cacher")
+
+        previous_rule = rule_cache.get(rule_id, None)
+        rule_cache[rule_id] = rule
+        if previous_rule is None or previous_rule != rule:
+            if verbosity > 0:
+                print("Adding %s with ID %d to request for SEID %d" % (rule_type, rule_id, self.our_seid))
+            req.IE_list.append(rule)
+        else:
+            if verbosity > 0:
+                print("Not adding %s with ID %d, already sent for SEID %d" % (rule_type, rule_id, self.our_seid))
+
+    def add_rules_to_request(self, args: argparse.Namespace,
+                             request: Union[pfcp.PFCPSessionEstablishmentRequest, pfcp.PFCPSessionModificationRequest],
+                             add_pdrs=True, add_fars=True, add_urrs=True, add_qers=True):
+        if add_pdrs:
+            pdr_up = craft_pdr(session=self,
+                               flow=self.uplink,
+                               src_iface=IFACE_ACCESS, from_tunnel=True,
+                               tunnel_dst=args.s1u_addr,
+                               precedence=args.pdr_precedence)
+            self.add_to_req_if_rule_new(request, pdr_up, self.uplink.pdr_id, "pdr")
+            pdr_down = craft_pdr(session=self,
+                                 flow=self.downlink,
+                                 src_iface=IFACE_CORE, from_tunnel=False,
+                                 precedence=args.pdr_precedence)
+            self.add_to_req_if_rule_new(request, pdr_down, self.downlink.pdr_id, "pdr")
+
+        if add_fars:
+            far_up = craft_far(session=self,
+                               id=self.uplink.far_id, forward_flag=True, dst_iface=IFACE_CORE,
+                               tunnel=False)
+            self.add_to_req_if_rule_new(request, far_up, self.uplink.far_id, "far")
+            # The downlink FAR should only tunnel if this is an update message. Our PFCP agent does not support
+            #  outer header creation on session establishment, only session modification
+            far_down = craft_far(session=self,
+                                 id=self.downlink.far_id, forward_flag=True, dst_iface=IFACE_ACCESS,
+                                 tunnel=self.established, tunnel_dst=args.enb_addr, teid=self.downlink.teid,
+                                 buffer_flag=args.buffer)
+            self.add_to_req_if_rule_new(request, far_down, self.downlink.far_id, "far")
+
+        if add_qers:
+            qer_up = craft_qer(session=self,
+                               id=self.uplink.qer_id)
+            self.add_to_req_if_rule_new(request, qer_up, self.uplink.qer_id, "qer")
+            qer_down = craft_qer(session=self,
+                                 id=self.downlink.qer_id)
+            self.add_to_req_if_rule_new(request, qer_down, self.downlink.qer_id, "qer")
+
+        if add_urrs:
+            urr_up = craft_urr(session=self,
+                               id=self.uplink.urr_id, quota=100000, threshold=40000)
+            self.add_to_req_if_rule_new(request, urr_up, self.uplink.urr_id, "urr")
+            urr_down = craft_urr(session=self,
+                                 id=self.downlink.urr_id, quota=100000, threshold=50000)
+            self.add_to_req_if_rule_new(request, urr_down, self.downlink.urr_id, "urr")
 
 
 # Global non-constants
@@ -46,12 +163,18 @@ association_established = False
 script_terminating = False
 active_sessions: Dict[int, Session] = {}
 pcap_filename: Optional[str] = None
+verbosity: int = 0
+
+
 # End global non-constants
 
 
 def capture(pkt: scapy.Packet):
+    pkt2 = pkt
+    if Ether not in pkt:
+        pkt2 = Ether() / pkt
     if pcap_filename:
-        wrpcap(pcap_filename, pkt, append=True)
+        wrpcap(pcap_filename, pkt2, append=True)
 
 
 def already_sent(rule_id: int, rule: pfcp.IE_Compound, sent_rule_map: Dict[int, pfcp.IE_Compound]):
@@ -70,15 +193,26 @@ def already_sent(rule_id: int, rule: pfcp.IE_Compound, sent_rule_map: Dict[int, 
     return previous_rule == rule
 
 
-def clear_sent_rules():
-    """
-    Wipe out the cache of previously sent rules
-    :return: None
-    """
-    sent_pdrs.clear()
-    sent_fars.clear()
-    sent_urrs.clear()
-    sent_qers.clear()
+def get_sessions_from_args(args: argparse.Namespace, create_if_missing: bool = False):
+    ue_addr_gen = get_addresses_from_prefix(args.ue_pool, args.session_count)
+    seid_gen = iter(range(args.seid_base, args.seid_base + args.session_count))
+    teid_gen = iter(range(args.teid_base, args.teid_base + args.session_count * 2))
+
+    for _ in range(args.session_count):
+        seid: int = next(seid_gen)
+        if seid in active_sessions:
+            yield active_sessions[seid]
+        elif create_if_missing:
+            active_sessions[seid] = Session(our_seid=seid,
+                                            peer_seid=-1,
+                                            ue_addr=next(ue_addr_gen),
+                                            uplink=UeFlow(teid=next(teid_gen), pdr_id=1, far_id=1, qer_id=1, urr_id=1),
+                                            downlink=UeFlow(teid=next(teid_gen), pdr_id=2, far_id=2, qer_id=2,
+                                                            urr_id=2))
+            yield active_sessions[seid]
+        else:
+            print("WARNING: skipping invalid session with ID %d" % seid)
+            continue
 
 
 def get_addresses_from_prefix(prefix: IPv4Network,
@@ -140,12 +274,11 @@ def craft_fseid(seid: int, address: str) -> pfcp.IE_Compound:
     return fseid
 
 
-def craft_pdr(session: Session, id: int, far_id: int, qer_id: int, urr_id: int, src_iface: int,
-              ue_addr: IPv4Address = None, from_tunnel=False, tunnel_dst: str = None,
-              teid: int = None, precedence=2) -> pfcp.IE_Compound:
-    pdr = pfcp.IE_UpdatePDR() if id in session.sent_pdrs else pfcp.IE_CreatePDR()
+def craft_pdr(session: Session, flow: UeFlow, src_iface: int,
+              from_tunnel=False, tunnel_dst: str = None, precedence=2) -> pfcp.IE_Compound:
+    pdr = pfcp.IE_UpdatePDR() if flow.pdr_id in session.sent_pdrs else pfcp.IE_CreatePDR()
     pdr_id = pfcp.IE_PDR_Id()
-    pdr_id.id = id
+    pdr_id.id = flow.pdr_id
     pdr.IE_list.append(pdr_id)
     _precedence = pfcp.IE_Precedence()
     _precedence.precedence = precedence
@@ -160,12 +293,12 @@ def craft_pdr(session: Session, id: int, far_id: int, qer_id: int, urr_id: int, 
     pdi.IE_list.append(source_interface)
 
     if from_tunnel:
-        if tunnel_dst is None or teid is None:
+        if tunnel_dst is None or flow.teid is None:
             raise Exception("ERROR: tunnel dst and teid should be provided for tunnel PDR")
         # Add the F-TEID to the PDI
         fteid = pfcp.IE_FTEID()
         fteid.V4 = 1
-        fteid.TEID = teid
+        fteid.TEID = flow.teid
         fteid.ipv4 = tunnel_dst
         pdi.IE_list.append(fteid)
         # Add outer header removal instruction to PDR
@@ -173,12 +306,12 @@ def craft_pdr(session: Session, id: int, far_id: int, qer_id: int, urr_id: int, 
         outer_header_removal.header = 0
         pdr.IE_list.append(outer_header_removal)
     else:
-        if ue_addr is None:
+        if session.ue_addr is None:
             raise Exception("UE address required for downlink PDRs!")
         # Add UE IPv4 address to the PDI
         _ue_addr = pfcp.IE_UE_IP_Address()
         _ue_addr.V4 = 1
-        _ue_addr.ipv4 = ue_addr
+        _ue_addr.ipv4 = session.ue_addr
         pdi.IE_list.append(_ue_addr)
         # If its not from a tunnel, then its from the internet
         net_instance = pfcp.IE_NetworkInstance()
@@ -195,11 +328,11 @@ def craft_pdr(session: Session, id: int, far_id: int, qer_id: int, urr_id: int, 
 
     # Add all rule IDs
     _far_id = pfcp.IE_FAR_Id()
-    _far_id.id = far_id
+    _far_id.id = flow.far_id
     _qer_id = pfcp.IE_QER_Id()
-    _qer_id.id = qer_id
+    _qer_id.id = flow.qer_id
     _urr_id = pfcp.IE_URR_Id()
-    _urr_id.id = urr_id
+    _urr_id.id = flow.urr_id
     pdr.IE_list.append(_far_id)
     pdr.IE_list.append(_qer_id)
     pdr.IE_list.append(_urr_id)
@@ -210,7 +343,8 @@ def craft_pdr(session: Session, id: int, far_id: int, qer_id: int, urr_id: int, 
 def craft_far(session: Session, id: int, forward_flag=False, drop_flag=False, buffer_flag=False,
               dst_iface: int = None, tunnel=False, tunnel_dst: str = None,
               teid: int = None) -> pfcp.IE_Compound:
-    far = pfcp.IE_UpdateFAR() if id in session.sent_fars else pfcp.IE_CreateFAR()
+    update = id in session.sent_fars
+    far = pfcp.IE_UpdateFAR() if update else pfcp.IE_CreateFAR()
     far_id = pfcp.IE_FAR_Id()
     far_id.id = id
     far.IE_list.append(far_id)
@@ -321,83 +455,7 @@ def craft_pfcp_association_release_packet() -> scapy.Packet:
     return IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header / release_request
 
 
-def add_rules_to_request(args: argparse.Namespace, request, update=False, add_pdrs=False,
-                         add_fars=False, add_urrs=False, add_qers=False, force_add=False) -> None:
-    rule_count = args.ue_count * 2
-    ue_addr_gen = get_addresses_from_prefix(args.ue_pool, args.ue_count)
-    seid_gen = iter(range(args.seid_base, args.seid_base + rule_count))
-    teid_gen = iter(range(args.teid_base, args.teid_base + rule_count))
-    far_id_gen = iter(range(args.far_base, args.far_base + rule_count))
-    pdr_id_gen = iter(range(args.pdr_base, args.pdr_base + rule_count))
-    urr_id_gen = iter(range(args.urr_base, args.urr_base + rule_count))
-    qer_id_gen = iter(range(args.urr_base, args.urr_base + rule_count))
-
-    for ue_index in range(args.ue_count):
-        seid = next(seid_gen)
-        ue_addr = next(ue_addr_gen)
-        teid1 = next(teid_gen)
-        teid2 = next(teid_gen)
-
-        pdr_id1 = next(pdr_id_gen)
-        pdr_id2 = next(pdr_id_gen)
-
-        far_id1 = next(far_id_gen)
-        far_id2 = next(far_id_gen)
-
-        urr_id1 = next(urr_id_gen)
-        urr_id2 = next(urr_id_gen)
-
-        qer_id1 = next(qer_id_gen)
-        qer_id2 = next(qer_id_gen)
-
-        if add_pdrs:
-            # uplink
-            pdr1 = craft_pdr(id=pdr_id1, far_id=far_id1, qer_id=qer_id1, urr_id=urr_id1,
-                             src_iface=IFACE_ACCESS, from_tunnel=True, teid=teid1,
-                             tunnel_dst=args.s1u_addr, update=update,
-                             precedence=args.pdr_precedence)
-            if force_add or not already_sent(pdr_id1, pdr1, sent_pdrs):
-                request.IE_list.append(pdr1)
-            # downlink
-            pdr2 = craft_pdr(id=pdr_id2, far_id=far_id2, qer_id=qer_id2, urr_id=urr_id2,
-                             src_iface=IFACE_CORE, from_tunnel=False, ue_addr=ue_addr,
-                             update=update)
-            if force_add or not already_sent(pdr_id2, pdr2, sent_pdrs):
-                request.IE_list.append(pdr2)
-
-        if add_fars:
-            # uplink
-            far1 = craft_far(id=far_id1, update=update, forward_flag=True, dst_iface=IFACE_CORE,
-                             tunnel=False)
-            if force_add or not already_sent(far_id1, far1, sent_fars):
-                request.IE_list.append(far1)
-            # The downlink FAR should only tunnel if this is an update message. Our PFCP agent does not support
-            #  outer header creation on session establishment, only session modification
-            # downlink
-            far2 = craft_far(id=far_id2, update=update, forward_flag=True, dst_iface=IFACE_ACCESS,
-                             tunnel=update, tunnel_dst=args.enb_addr, teid=teid2,
-                             buffer_flag=args.buffer)
-            if force_add or not already_sent(far_id2, far2, sent_fars):
-                request.IE_list.append(far2)
-
-        if add_qers:
-            qer1 = craft_qer(id=qer_id1, update=update)
-            if force_add or not already_sent(qer_id1, qer1, sent_qers):
-                request.IE_list.append(qer1)
-            qer2 = craft_qer(id=qer_id2, update=update)
-            if force_add or not already_sent(qer_id2, qer2, sent_qers):
-                request.IE_list.append(qer2)
-
-        if add_urrs:
-            urr1 = craft_urr(id=urr_id1, quota=100000, threshold=40000, update=update)
-            if force_add or not already_sent(urr_id1, urr1, sent_urrs):
-                request.IE_list.append(urr1)
-            urr2 = craft_urr(id=urr_id2, quota=100000, threshold=50000, update=update)
-            if force_add or not already_sent(urr_id2, urr2, sent_urrs):
-                request.IE_list.append(urr2)
-
-
-def craft_pfcp_session_est_packet(args: argparse.Namespace) -> scapy.Packet:
+def craft_pfcp_session_est_packet(args: argparse.Namespace, session: Session) -> scapy.Packet:
     pfcp_header = pfcp.PFCP()
     pfcp_header.version = 1
     pfcp_header.S = 1
@@ -411,34 +469,33 @@ def craft_pfcp_session_est_packet(args: argparse.Namespace) -> scapy.Packet:
     nodeid.ipv4 = our_addr
     establishment_request.IE_list.append(nodeid)
 
-    fseid = craft_fseid(our_seid, our_addr)
+    fseid = craft_fseid(session.our_seid, our_addr)
     establishment_request.IE_list.append(fseid)
 
     pdn_type = pfcp.IE_PDNType()
     establishment_request.IE_list.append(pdn_type)
 
-    add_rules_to_request(args=args, request=establishment_request, update=False, add_pdrs=True,
-                         add_fars=True, add_urrs=True, add_qers=True)
+    session.add_rules_to_request(args=args, request=establishment_request)
 
     return IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header / establishment_request
 
 
-def craft_pfcp_session_modify_packet(args: argparse.Namespace) -> scapy.Packet:
+def craft_pfcp_session_modify_packet(args: argparse.Namespace, session: Session) -> scapy.Packet:
     # fill pfcp header
     pfcp_header = pfcp.PFCP()
     pfcp_header.version = 1
     pfcp_header.S = 1
     pfcp_header.message_type = MSG_TYPES["session_modification_request"]
-    if peer_seid == -1:
+    if not session.established:
         raise Exception("Peer SEID has not yet been received.")
-    pfcp_header.seid = peer_seid
+    pfcp_header.seid = session.peer_seid
     pfcp_header.seq = get_sequence_num()
 
     modification_request = pfcp.PFCPSessionModificationRequest()
-    fseid = craft_fseid(our_seid, our_addr)
+    fseid = craft_fseid(session.our_seid, our_addr)
     modification_request.IE_list.append(fseid)
 
-    add_rules_to_request(args, modification_request, update=True, add_fars=True)
+    session.add_rules_to_request(args, modification_request, add_pdrs=False, add_urrs=False, add_qers=False)
 
     return IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header / modification_request
 
@@ -461,31 +518,35 @@ def craft_pfcp_session_delete_packet(session: Session) -> scapy.Packet:
     return delete_pkt
 
 
-def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, verbosity=0) -> None:
+def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, session: Optional[Session],
+                   verbosity_override: int = verbosity) -> None:
     """
     Send the given PFCP packet out the global socket, and wait for a response with the given PFCP message type.
     :param pkt: The packet to be sent out the global socket
     :param expected_response_type: The expected PFCP message type of the response
-    :param verbosity: 0 for no printing, 1 to print some stuff, 2 to print the dissected sent and received packets
+    :param session: If the message to be transmitted is associated with a session, this parameter will contain
+    details about that session
+    :param verbosity_override: Override for the script-wide verbosity
     :return: None
     """
-    global peer_seid
 
-    if verbosity > 1:
+    if verbosity_override > 1:
         pkt.show()
     capture(pkt)
-    scapy.send(pkt, verbose=verbosity)
+    scapy.send(pkt, verbose=verbosity_override)
+    if verbosity_override > 0:
+        print("Waiting for PFCP response..")
     data, addr = sock.recvfrom(1024)  # buffer size is 1024 bytes
-    if verbosity > 0:
+    if verbosity_override > 1:
         print("Received message: %s" % data)
     response = pfcp.PFCP()
     response.dissect(data)
     capture(response)
-    if verbosity > 1:
+    if verbosity_override > 1:
         response.show()
     if response.message_type == expected_response_type:
         for ie in response.payload.IE_list:
-            if verbosity > 0:
+            if verbosity_override > 0:
                 if ie.ie_type == 60:
                     print("decoded node type : ", ie)
                 elif ie.ie_type == 19:
@@ -498,7 +559,10 @@ def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, verbosity=0) 
                 elif ie.ie_type == 116:
                     print("decoded ip resource information received")
             if ie.ie_type == 57:
-                peer_seid = int(ie.seid)
+                if session is None:
+                    raise Exception("Received PFCP response with session ID that we have no Session object to save to!")
+                session.mark_established()
+                session.set_peer_seid(int(ie.seid))
     else:
         print("ERROR: Expected response of type %s but received %s" %
               (pfcp.PFCPmessageType[expected_response_type],
@@ -509,34 +573,40 @@ def setup_pfcp_association(args: argparse.Namespace) -> None:
     get_sequence_num(reset=True)  # zero out the sequence number
     global association_established
     pkt = craft_pfcp_association_setup_packet()
-    send_recv_pfcp(pkt, MSG_TYPES["association_setup_response"])
+    send_recv_pfcp(pkt, MSG_TYPES["association_setup_response"], session=None)
     association_established = True  # signal the heartbeat thread to start sending
 
 
 def teardown_pfcp_association(args: argparse.Namespace) -> None:
     global association_established
     pkt = craft_pfcp_association_release_packet()
-    send_recv_pfcp(pkt, MSG_TYPES["association_release_response"])
+    send_recv_pfcp(pkt, MSG_TYPES["association_release_response"], session=None)
     association_established = False
 
 
 def create_pfcp_sessions(args: argparse.Namespace) -> None:
-    session_ids = range(args.seid_base, args.seid_base + args.ue_count)
-    pkt = craft_pfcp_session_est_packet(args)
-    send_recv_pfcp(pkt, MSG_TYPES["session_establishment_response"])
+    for session in get_sessions_from_args(args, create_if_missing=True):
+        if verbosity > 0:
+            print("Creating session with SEID %d" % session.our_seid)
+        pkt = craft_pfcp_session_est_packet(args, session)
+        send_recv_pfcp(pkt, MSG_TYPES["session_establishment_response"], session)
 
 
 def modify_pfcp_sessions(args: argparse.Namespace) -> None:
-    pkt = craft_pfcp_session_modify_packet(args)
-    send_recv_pfcp(pkt, MSG_TYPES["session_modification_response"])
+    for session in get_sessions_from_args(args, create_if_missing=False):
+        if verbosity > 0:
+            print("Modifying session with SEID %d" % session.our_seid)
+        pkt = craft_pfcp_session_modify_packet(args, session)
+        send_recv_pfcp(pkt, MSG_TYPES["session_modification_response"], session)
 
 
 def delete_pfcp_sessions(args: argparse.Namespace) -> None:
-    for seid in range(args.seid_base, args.seid_base + args.ue_count):
-        session = active_sessions[seid]
+    for session in get_sessions_from_args(args, create_if_missing=False):
+        if verbosity > 0:
+            print("Deleting session with SEID %d" % session.our_seid)
         pkt = craft_pfcp_session_delete_packet(session)
-    send_recv_pfcp(pkt, MSG_TYPES["session_deletion_response"])
-    clear_sent_rules()
+        send_recv_pfcp(pkt, MSG_TYPES["session_deletion_response"], session)
+        del active_sessions[session.our_seid]
 
 
 def send_pfcp_heartbeats() -> None:
@@ -560,7 +630,7 @@ def send_pfcp_heartbeats() -> None:
         heartbeat.IE_list.append(pfcp.IE_RecoveryTimeStamp())
 
         pkt = IP(src=our_addr, dst=peer_addr) / UDP() / pfcp_header / heartbeat
-        send_recv_pfcp(pkt, MSG_TYPES["heartbeat_response"], verbosity=0)
+        send_recv_pfcp(pkt, MSG_TYPES["heartbeat_response"], session=None, verbosity_override=0)
 
 
 class ArgumentParser(argparse.ArgumentParser):
@@ -572,7 +642,7 @@ class ArgumentParser(argparse.ArgumentParser):
 def interrupt_association(args: argparse.Namespace) -> None:
     global association_established
     association_established = False  # stop the heartbeat thread
-    active_sessions.clear()
+    active_sessions.clear()  # kill all the active sessions
 
 
 def terminate(args: argparse.Namespace) -> None:
@@ -645,6 +715,7 @@ def handle_user_input(input_file: Optional[IO] = None, output_file: Optional[IO]
                 input_file.seek(read_head)
 
     while True:
+        print("=" * 40)
         for choice, (action_desc, action) in user_choices.items():
             print("\"%s\" - %s" % (choice, action_desc))
         try:
@@ -675,6 +746,7 @@ def main():
     parser.add_argument("--input-file", help="File to poll for input commands. Default is stdin")
     parser.add_argument("--output-file", help="File in which to write output. Default is stdout")
     parser.add_argument("--pcap-file", help="File in which to write sent/received PFCP packets. Default is no capture")
+    parser.add_argument('--verbose', '-v', action='count', default=0)
     args = parser.parse_args()
     input_file: Optional[IO] = None
     output_file: Optional[IO] = None
@@ -687,6 +759,8 @@ def main():
         # clear the pcap file
         pcap_filename = args.pcap_file
         open(pcap_filename, 'w').close()
+    global verbosity
+    verbosity = args.verbose
 
     try:
         peer_addr = socket.gethostbyname(args.upfaddr)
