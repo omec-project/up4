@@ -25,6 +25,12 @@
             <version>${onos.version}</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-api</artifactId>
+            <version>1.22.1</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
 </project>

@@ -4,9 +4,10 @@
  */
 package org.omecproject.up4.behavior;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.grpc.Status;
+import io.grpc.StatusException;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
@@ -26,7 +27,11 @@ import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.DefaultTrafficSelector;
 import org.onosproject.net.flow.FlowEntry;
 import org.onosproject.net.flow.FlowRule;
+import org.onosproject.net.flow.FlowRuleEvent;
+import org.onosproject.net.flow.FlowRuleListener;
 import org.onosproject.net.flow.FlowRuleService;
+import org.onosproject.net.flow.FlowRuleStore;
+import org.onosproject.net.flow.TableId;
 import org.onosproject.net.flow.criteria.PiCriterion;
 import org.onosproject.net.pi.model.PiCounterModel;
 import org.onosproject.net.pi.model.PiPipeconf;
@@ -74,19 +79,55 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowRuleService flowRuleService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected FlowRuleStore flowRuleStore;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected P4RuntimeController controller;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Translator up4Translator;
     DeviceId deviceId;
-    @VisibleForTesting
-    int pdrCounterSize = -1;  // Cached value so we don't have to go through the pipeconf every time
-    int farTableSize = -1;
-    int pdrTableSize = -1;
+    private int pdrCounterSize;
+    private int farTableSize;
+    private int encappedPdrTableSize;
+    private int unencappedPdrTableSize;
+    private int farTableOccupancy;
+    private int encappedPdrTableOccupancy;
+    private int unencappedPdrTableOccupancy;
+    private int ueLimit = -1;
+    private final Object occupancyLock = new Object();
     private ApplicationId appId;
 
     private BufferDrainer bufferDrainer;
+    private final FlowRuleListener flowRuleListener = new FlowRuleListener() {
+        @Override
+        public void event(FlowRuleEvent event) {
+            TableId tableId = event.subject().table();
+            int change;
+            if (event.type() == FlowRuleEvent.Type.RULE_ADD_REQUESTED) {
+                change = +1;
+            } else if (event.type() == FlowRuleEvent.Type.RULE_REMOVE_REQUESTED) {
+                change = -1;
+            } else {
+                return;
+            }
+            synchronized (occupancyLock) {
+                if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS)) {
+                    farTableOccupancy += change;
+                } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
+                    encappedPdrTableOccupancy += change;
+                } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)) {
+                    unencappedPdrTableOccupancy += change;
+                }
+            }
+        }
+
+        @Override
+        public boolean isRelevant(FlowRuleEvent event) {
+            return event.subject().appId() == appId.id() &&
+                    event.subject().deviceId().equals(deviceId);
+        }
+    };
 
 
     private Set<UpfRuleIdentifier> bufferFarIds;
@@ -100,6 +141,10 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Deactivate
     protected void deactivate() {
+        if (this.deviceId != null) {
+            // If the deviceId was set, the listener must've been added
+            flowRuleService.removeListener(flowRuleListener);
+        }
         log.info("Stopped");
     }
 
@@ -109,8 +154,81 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         this.farIdToUeAddrs = new HashMap<>();
         this.appId = appId;
         this.deviceId = deviceId;
+        computeHardwareResourceSizes();
+        computeTableOccupancies();
+        flowRuleService.addListener(flowRuleListener);
         log.info("UpfProgrammable initialized for appId {} and deviceId {}", appId, deviceId);
         return true;
+    }
+
+    @Override
+    public void setUeLimit(int ueLimit) {
+        this.ueLimit = ueLimit;
+    }
+
+    private void computeTableOccupancies() {
+        synchronized (occupancyLock) {
+            farTableOccupancy = getInstalledFars().size();
+            encappedPdrTableOccupancy = 0;
+            unencappedPdrTableOccupancy = 0;
+            for (var pdr : getInstalledPdrs()) {
+                if (pdr.matchesEncapped()) {
+                    encappedPdrTableOccupancy += 1;
+                } else if (pdr.matchesUnencapped()) {
+                    unencappedPdrTableOccupancy += 1;
+                }
+            }
+        }
+    }
+
+    private void computeHardwareResourceSizes() {
+        farTableSize = 0;
+        encappedPdrTableSize = 0;
+        unencappedPdrTableSize = 0;
+        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
+        if (optPipeconf.isEmpty()) {
+            log.error("Unable to load piPipeconf for {}, cannot fetch table and counter properties. Sizes will be 0",
+                    deviceId);
+            return;
+        }
+        PiPipeconf pipeconf = optPipeconf.get();
+        // Get table sizes of interest
+
+        for (PiTableModel piTable : pipeconf.pipelineModel().tables()) {
+            if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
+                encappedPdrTableSize = (int) piTable.maxSize();
+            } else if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)) {
+                unencappedPdrTableSize = (int) piTable.maxSize();
+            } else if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS)) {
+                farTableSize = (int) piTable.maxSize();
+            }
+        }
+        if (encappedPdrTableSize == 0) {
+            throw new IllegalStateException("Unable to find uplink PDR table in pipeline model.");
+        }
+        if (unencappedPdrTableSize == 0) {
+            throw new IllegalStateException("Unable to find downlink PDR table in pipeline model.");
+        }
+        if (encappedPdrTableSize != unencappedPdrTableSize) {
+            log.warn("The uplink and downlink PDR tables don't have equal sizes! Using the minimum of the two.");
+        }
+        if (farTableSize == 0) {
+            throw new IllegalStateException("Unable to find FAR table in pipeline model.");
+        }
+        // Get counter sizes of interest
+        int ingressCounterSize = 0;
+        int egressCounterSize = 0;
+        for (PiCounterModel piCounter : pipeconf.pipelineModel().counters()) {
+            if (piCounter.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER)) {
+                ingressCounterSize = (int) piCounter.size();
+            } else if (piCounter.id().equals(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER)) {
+                egressCounterSize = (int) piCounter.size();
+            }
+        }
+        if (ingressCounterSize != egressCounterSize) {
+            log.warn("PDR ingress and egress counter sizes are not equal! Using the minimum of the two.");
+        }
+        pdrCounterSize = Math.min(ingressCounterSize, egressCounterSize);
     }
 
     @Override
@@ -255,87 +373,25 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public int pdrCounterSize() {
-        if (pdrCounterSize != -1) {
-            return pdrCounterSize;
-        }
-        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
-        if (optPipeconf.isEmpty()) {
-            log.warn("Unable to load piPipeconf for {}, cannot read counter properties", deviceId);
-            return -1;
-        }
-        PiPipeconf pipeconf = optPipeconf.get();
-
-        int ingressCounterSize = -1;
-        int egressCounterSize = -1;
-        for (PiCounterModel piCounter : pipeconf.pipelineModel().counters()) {
-            if (piCounter.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER)) {
-                ingressCounterSize = (int) piCounter.size();
-            } else if (piCounter.id().equals(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER)) {
-                egressCounterSize = (int) piCounter.size();
-            }
-        }
-        if (ingressCounterSize != egressCounterSize) {
-            log.warn("PDR ingress and egress counter sizes are not equal! Using the minimum of the two.");
-        }
-        pdrCounterSize = Math.min(ingressCounterSize, egressCounterSize);
         return pdrCounterSize;
     }
 
     @Override
     public int farTableSize() {
-        if (farTableSize != -1) {
-            return farTableSize;
+        if (ueLimit >= 0) {
+            return Math.min(ueLimit * 2, farTableSize);
         }
-        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
-        if (optPipeconf.isEmpty()) {
-            log.warn("Unable to load piPipeconf for {}, cannot read FAR table properties", deviceId);
-            return -1;
-        }
-        PiPipeconf pipeconf = optPipeconf.get();
-
-        for (PiTableModel piTable : pipeconf.pipelineModel().tables()) {
-            if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS)) {
-                farTableSize = (int) piTable.maxSize();
-                return farTableSize;
-            }
-        }
-        log.warn("Unable to find FAR table in pipeline model.");
-        return -1;
+        return farTableSize;
     }
+
 
     @Override
     public int pdrTableSize() {
-        if (pdrTableSize != -1) {
-            return pdrTableSize;
+        int physicalSize = Math.min(encappedPdrTableSize, unencappedPdrTableSize) * 2;
+        if (ueLimit >= 0) {
+            return Math.min(ueLimit * 2, physicalSize);
         }
-        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
-        if (optPipeconf.isEmpty()) {
-            log.warn("Unable to load piPipeconf for {}, cannot read PDR table properties", deviceId);
-            return -1;
-        }
-        PiPipeconf pipeconf = optPipeconf.get();
-        int uplinkPdrTableSize = -1;
-        int downlinkPdrTableSize = -1;
-        for (PiTableModel piTable : pipeconf.pipelineModel().tables()) {
-            if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
-                uplinkPdrTableSize = (int) piTable.maxSize();
-            } else if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)) {
-                downlinkPdrTableSize = (int) piTable.maxSize();
-            }
-        }
-        if (uplinkPdrTableSize == -1) {
-            log.warn("Unable to find uplink PDR table in pipeline model.");
-            return -1;
-        } else if (downlinkPdrTableSize == -1) {
-            log.warn("Unable to find downlink PDR table in pipeline model.");
-            return -1;
-        }
-        int smallerSize = Math.min(uplinkPdrTableSize, downlinkPdrTableSize);
-        if (uplinkPdrTableSize != downlinkPdrTableSize) {
-            log.warn("The uplink and downlink PDR tables don't have equal sizes! Using the minimum of the two.");
-        }
-        pdrTableSize = smallerSize * 2;
-        return pdrTableSize;
+        return physicalSize;
     }
 
     @Override
@@ -395,11 +451,22 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
 
     @Override
-    public void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException, Up4Translator.Up4TranslationException {
+    public void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException,
+            Up4Translator.Up4TranslationException, StatusException {
         if (pdr.counterId() >= pdrCounterSize() || pdr.counterId() < 0) {
             throw new UpfProgrammableException("Counter cell index referenced by PDR is out of bounds.");
         }
         FlowRule fabricPdr = up4Translator.pdrToFabricEntry(pdr, deviceId, appId, DEFAULT_PRIORITY);
+        // Check if the PDR match key is already installed
+        if (flowRuleStore.getFlowEntry(fabricPdr) == null) {
+            // if it isn't, then check if the table is full
+            int encappedTableSize = ueLimit >= 0 ? ueLimit : this.encappedPdrTableSize;
+            int unencappedTableSize = ueLimit >= 0 ? ueLimit : this.unencappedPdrTableSize;
+            if ((pdr.matchesEncapped() && encappedPdrTableOccupancy >= encappedTableSize) ||
+                    (pdr.matchesUnencapped() && unencappedPdrTableOccupancy >= unencappedTableSize)) {
+                throw Status.RESOURCE_EXHAUSTED.withDescription("Physical PDR table exhausted").asException();
+            }
+        }
         log.info("Installing {}", pdr.toString());
         flowRuleService.applyFlowRules(fabricPdr);
         log.debug("FAR added with flowID {}", fabricPdr.id().value());
@@ -423,7 +490,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public void addFar(ForwardingActionRule far) throws
-            UpfProgrammableException, Up4Translator.Up4TranslationException {
+            UpfProgrammableException, Up4Translator.Up4TranslationException, StatusException {
         UpfRuleIdentifier ruleId = UpfRuleIdentifier.of(far.sessionId(), far.farId());
         if (far.buffers()) {
             // If the far has the buffer flag, modify its tunnel so it directs to dbuf
@@ -431,6 +498,14 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             bufferFarIds.add(ruleId);
         }
         FlowRule fabricFar = up4Translator.farToFabricEntry(far, deviceId, appId, DEFAULT_PRIORITY);
+        // Check if the FAR match key is already installed
+        if (flowRuleStore.getFlowEntry(fabricFar) == null) {
+            // if it isn't, then check if the table is full
+            int tableSizeLimit = ueLimit >= 0 ? ueLimit : farTableSize;
+            if (farTableOccupancy >= tableSizeLimit) {
+                throw Status.RESOURCE_EXHAUSTED.withDescription("Physical FAR table exhausted").asException();
+            }
+        }
         log.info("Installing {}", far.toString());
         flowRuleService.applyFlowRules(fabricFar);
         log.debug("FAR added with flowID {}", fabricFar.id().value());

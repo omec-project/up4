@@ -193,6 +193,7 @@ public class Up4DeviceManager implements Up4Service {
 
             upfProgrammable.cleanUp(appId);
             upfProgrammable.init(appId, deviceId);
+            upfProgrammable.setUeLimit(config.maxUes());
 
             installInterfaces();
 

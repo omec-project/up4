@@ -34,6 +34,11 @@ public class MockUp4Service implements Up4Service {
         }
 
         @Override
+        public void setUeLimit(int ueLimit) {
+
+        }
+
+        @Override
         public void cleanUp(ApplicationId appId) {
 
         }

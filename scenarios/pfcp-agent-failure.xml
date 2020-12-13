@@ -15,23 +15,23 @@
         <step name="Check-Flows-Installed" requires="Pfcp-Setup-Fwd" delay="2"
               exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
 
-        <step name="Restart-Agent" requires="Check-Flows-Installed"
+        <step name="Restart-Agent" requires="^"
               exec="${DOCKER_COMPOSE_CMD} restart pfcp-agent"/>
-
-        <step name="Kill-Smf" requires="Restart-Agent"
-              exec="mock-smf-cmd kill"/>
 
         <step name="Wait-For-Agent-Reboot" requires="^" delay="2"
               exec="pfcp-agent-wait-for-start"/>
 
-        <group name="Mock-Smf-Revive" requires="~Wait-For-Agent-Reboot">
-            <step name="Mock-Smf-Start-Again" requires="Wait-For-Agent-Reboot"
+        <step name="Check-Flows-Deleted-After-Agent-Reboot" requires="^"
+              exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
+
+        <!-- Reboot SMF because it probably doesn't react well to failures -->
+        <group name="Mock-Smf-Restart" requires="~Check-Flows-Deleted-After-Agent-Reboot">
+            <step name="Mock-Smf-Kill" requires="~Check-Flows-Deleted-After-Agent-Reboot"
+                  exec="mock-smf-cmd kill"/>
+            <step name="Mock-Smf-Start-Again" requires="^"
                   exec="mock-smf-cmd start"/>
             <step name="Mock-Smf-Associate-Again" requires="^" delay="1"
                   exec="mock-smf-cmd associate"/>
         </group>
-
-        <step name="Check-Flows-Deleted-After-Agent-Reboot" requires="Mock-Smf-Revive"
-              exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
     </group>
 </scenario>

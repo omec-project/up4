@@ -46,7 +46,7 @@ public class MockPiPipeconfService implements PiPipeconfService {
 
             @Override
             public PiPipelineModel pipelineModel() {
-                return null;
+                return new MockPiPipelineModel();
             }
 
             @Override

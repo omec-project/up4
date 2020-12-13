@@ -22,6 +22,10 @@ import java.util.stream.Collectors;
  */
 
 public class MockFlowRuleService extends FlowRuleServiceAdapter {
+    MockFlowRuleStore store;
+    public MockFlowRuleService(MockFlowRuleStore store) {
+        this.store = store;
+    }
 
     final Set<FlowRule> flows = Sets.newHashSet();
     boolean success;
@@ -46,10 +50,12 @@ public class MockFlowRuleService extends FlowRuleServiceAdapter {
                 switch (flow.type()) {
                     case ADD:
                     case MODIFY: //TODO is this the right behavior for modify?
+                        store.storeFlowRule(flow.rule());
                         flows.add(flow.rule());
                         break;
                     case REMOVE:
                         flows.remove(flow.rule());
+                        store.deleteFlowRule(flow.rule());
                         break;
                     default:
                         break;

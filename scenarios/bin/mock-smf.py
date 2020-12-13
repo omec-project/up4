@@ -553,6 +553,7 @@ def teardown_pfcp_association(args: argparse.Namespace) -> None:
     pkt = craft_pfcp_association_release_packet()
     send_recv_pfcp(pkt, MSG_TYPES["association_release_response"], session=None)
     association_established = False
+    active_sessions.clear()
 
 
 def create_pfcp_sessions(args: argparse.Namespace) -> None:
