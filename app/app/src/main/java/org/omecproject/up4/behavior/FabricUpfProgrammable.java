@@ -8,6 +8,10 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import org.jboss.netty.util.HashedWheelTimer;
+import org.jboss.netty.util.Timeout;
+import org.jboss.netty.util.Timer;
+import org.jboss.netty.util.TimerTask;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
@@ -59,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.onosproject.net.pi.model.PiCounterType.INDIRECT;
@@ -97,6 +102,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     private int ueLimit = -1;
     private final Object occupancyLock = new Object();
     private ApplicationId appId;
+    private final Timer timer = new HashedWheelTimer();
+    private Timeout tableOccupancyRecomputationTimeout;
+    private static final int TABLE_OCCUPANCY_RECOMPUTATION_PERIOD = 15;  // seconds
 
     private BufferDrainer bufferDrainer;
     private final FlowRuleListener flowRuleListener = new FlowRuleListener() {
@@ -128,6 +136,28 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                     event.subject().deviceId().equals(deviceId);
         }
     };
+
+
+    void restartTableOccupancyComputationTask() {
+        tableOccupancyRecomputationTimeout = timer.newTimeout(new RecomputeTableOccupancyTask(),
+                TABLE_OCCUPANCY_RECOMPUTATION_PERIOD,
+                TimeUnit.SECONDS);
+    }
+
+
+    private final class RecomputeTableOccupancyTask implements TimerTask {
+        @Override
+        public void run(Timeout timeout) throws Exception {
+            if (timeout.isCancelled()) {
+                return;
+            }
+            // Recompute table occupancies
+            computeTableOccupancies();
+
+            // Restart the timer
+            restartTableOccupancyComputationTask();
+        }
+    }
 
 
     private Set<UpfRuleIdentifier> bufferFarIds;
@@ -163,10 +193,13 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public void setUeLimit(int ueLimit) {
+        String limitStr = ueLimit < 0 ? "unlimited" : Integer.toString(ueLimit);
+        log.info("Setting UE limit of UPF {} to {}", deviceId, limitStr);
         this.ueLimit = ueLimit;
     }
 
     private void computeTableOccupancies() {
+        log.debug("Computing table occupancies");
         synchronized (occupancyLock) {
             farTableOccupancy = getInstalledFars().size();
             encappedPdrTableOccupancy = 0;
@@ -193,7 +226,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         }
         PiPipeconf pipeconf = optPipeconf.get();
         // Get table sizes of interest
-
         for (PiTableModel piTable : pipeconf.pipelineModel().tables()) {
             if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
                 encappedPdrTableSize = (int) piTable.maxSize();
@@ -464,6 +496,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             int unencappedTableSize = ueLimit >= 0 ? ueLimit : this.unencappedPdrTableSize;
             if ((pdr.matchesEncapped() && encappedPdrTableOccupancy >= encappedTableSize) ||
                     (pdr.matchesUnencapped() && unencappedPdrTableOccupancy >= unencappedTableSize)) {
+                log.warn("Failed to add a PDR due to reaching table capacity.");
                 throw Status.RESOURCE_EXHAUSTED.withDescription("Physical PDR table exhausted").asException();
             }
         }
@@ -501,8 +534,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         // Check if the FAR match key is already installed
         if (flowRuleStore.getFlowEntry(fabricFar) == null) {
             // if it isn't, then check if the table is full
-            int tableSizeLimit = ueLimit >= 0 ? ueLimit : farTableSize;
+            int tableSizeLimit = ueLimit >= 0 ? ueLimit * 2 : farTableSize;
             if (farTableOccupancy >= tableSizeLimit) {
+                log.warn("Failed to add a FAR due to reaching table capacity.");
                 throw Status.RESOURCE_EXHAUSTED.withDescription("Physical FAR table exhausted").asException();
             }
         }
