@@ -524,7 +524,8 @@ def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, session: Opti
         for ie in response.payload.IE_list:
             if ie.ie_type == IE_TYPES["Cause"]:
                 if ie.cause not in [CAUSE_TYPES["Reserved"], CAUSE_TYPES["Request accepted"]]:
-                    print("PFCP response contained an error:", pfcp.CauseValues[ie.cause])
+                    response_type_str = pfcp.PFCPmessageType[response.message_type]
+                    print("ERROR in PFCP message of type %s: %s" % (response_type_str, pfcp.CauseValues[ie.cause]))
                     return False
             elif ie.ie_type == IE_TYPES["F-SEID"]:
                 if session is None:
