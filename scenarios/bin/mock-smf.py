@@ -21,6 +21,8 @@ from scapy.layers.l2 import Ether
 from scapy.utils import wrpcap
 
 MSG_TYPES = {name: num for num, name in pfcp.PFCPmessageType.items()}
+CAUSE_TYPES = {name: num for num, name in pfcp.CauseValues.items()}
+IE_TYPES = {name: num for num, name in pfcp.IEType.items()}
 HEARTBEAT_PERIOD = 5  # in seconds
 UDP_PORT_PFCP = 8805
 IFACE_ACCESS = 0
@@ -498,7 +500,7 @@ def craft_pfcp_session_delete_packet(session: Session) -> scapy.Packet:
 
 
 def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, session: Optional[Session],
-                   verbosity_override: int = verbosity) -> None:
+                   verbosity_override: int = verbosity) -> bool:
     """
     Send the given PFCP packet to the PFCP server, and wait for a response with the given PFCP message type.
     :param pkt: The packet to be sent to the server
@@ -506,31 +508,25 @@ def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, session: Opti
     :param session: If the message to be transmitted is associated with a session, this parameter will contain
     details about that session. For session-less messages (like association request and release), pass None.
     :param verbosity_override: Override for the script-wide verbosity
-    :return: None
+    :return: True if no errors are encountered, false otherwise
     """
 
     if verbosity_override > 1:
         pkt.show()
     capture(pkt)
     response = scapy.sr1(pkt, verbose=verbosity_override)
+    if response is None:
+        return False
     capture(response)
     if verbosity_override > 1:
         response.show()
     if response.message_type == expected_response_type:
         for ie in response.payload.IE_list:
-            if verbosity_override > 0:
-                if ie.ie_type == 60:
-                    print("decoded node type : ", ie)
-                elif ie.ie_type == 19:
-                    print("decoded cause : ", ie.cause)
-                elif ie.ie_type == 57:
-                    print("FSEID recieved ")
-                    print("FSEID seid {} and ip address {} ", ie.seid, ie.ipv4)
-                elif ie.ie_type == 96:
-                    print("recovery timestamp received")
-                elif ie.ie_type == 116:
-                    print("decoded ip resource information received")
-            if ie.ie_type == 57:
+            if ie.ie_type == IE_TYPES["Cause"]:
+                if ie.cause not in [CAUSE_TYPES["Reserved"], CAUSE_TYPES["Request accepted"]]:
+                    print("PFCP response contained an error:", pfcp.CauseValues[ie.cause])
+                    return False
+            elif ie.ie_type == IE_TYPES["F-SEID"]:
                 if session is None:
                     raise Exception("Received PFCP response with session ID that we have no Session object to save to!")
                 session.set_peer_seid(int(ie.seid))
@@ -538,6 +534,8 @@ def send_recv_pfcp(pkt: scapy.Packet, expected_response_type: int, session: Opti
         print("ERROR: Expected response of type %s but received %s" %
               (pfcp.PFCPmessageType[expected_response_type],
                pfcp.PFCPmessageType[response.message_type]))
+        return False
+    return True
 
 
 def setup_pfcp_association(args: argparse.Namespace) -> None:
