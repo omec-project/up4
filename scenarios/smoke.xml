@@ -11,11 +11,17 @@
     <import file="./smf-setup.xml"/>
     <import file="./smf-teardown.xml"/>
     <import file="./no-forwarding.xml"/>
+    <import file="./pfcp-agent-failure.xml"/>
+    <import file="./smf-failure.xml"/>
+    <import file="./pfcp-fill-tables.xml"/>
     <dependency name="Net-Setup" requires="Setup"/>
     <dependency name="No-Forwarding" requires="Net-Setup"/>
     <dependency name="Smf-Setup" requires="Net-Setup"/>
     <dependency name="Pfcp-Forwarding" requires="Smf-Setup,No-Forwarding"/>
     <dependency name="Pfcp-Buffering" requires="Pfcp-Forwarding"/>
-    <dependency name="Smf-Teardown" requires="Smf-Setup,~Pfcp-Forwarding,~Pfcp-Buffering"/>
+    <dependency name="Pfcp-Agent-Failure" requires="Pfcp-Buffering"/>
+    <dependency name="Smf-Failure" requires="Pfcp-Agent-Failure"/>
+    <dependency name="Pfcp-Fill-Tables" requires="Smf-Failure"/>
+    <dependency name="Smf-Teardown" requires="~Pfcp-Fill-Tables"/>
     <dependency name="Teardown" requires="~Smf-Teardown"/>
 </scenario>
