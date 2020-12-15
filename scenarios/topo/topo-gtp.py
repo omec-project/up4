@@ -29,6 +29,8 @@ def ip2long(ip):
 DBUF_QUEUE_ID_LOW = ip2long('17.0.0.1')  # included
 DBUF_QUEUE_ID_HIGH = ip2long('17.0.0.4')  # excluded
 DBUF_DROP_TIMEOUT_SEC = "30s"
+DBUF_NUM_QUEUES = 10
+DBUF_MAX_PKTS_PER_QUEUE = 16
 
 
 class IPv4Host(Host):
@@ -67,8 +69,9 @@ class DbufHost(IPv4Host):
             [
                 #"-queue_id_high", DBUF_QUEUE_ID_HIGH,
                 #"-queue_id_low", DBUF_QUEUE_ID_LOW,
-                "-queue_drop_timeout",
-                DBUF_DROP_TIMEOUT_SEC,
+                "-max_queues", DBUF_NUM_QUEUES,
+                "-max_packet_slots_per_queue", DBUF_MAX_PKTS_PER_QUEUE,
+                "-queue_drop_timeout", DBUF_DROP_TIMEOUT_SEC,
             ])
         # Send to background
         cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
@@ -132,13 +135,13 @@ def main():
     net.start()
     CLI(net)
     net.stop()
-    print '#' * 80
-    print 'ATTENTION: Mininet was stopped! Perhaps accidentally?'
-    print 'No worries, it will restart automatically in a few seconds...'
-    print 'To access again the Mininet CLI, use `make mn-cli`'
-    print 'To detach from the CLI (without stopping), press Ctrl-D'
-    print 'To permanently quit Mininet, use `make stop`'
-    print '#' * 80
+    print('#' * 80)
+    print('ATTENTION: Mininet was stopped! Perhaps accidentally?')
+    print('No worries, it will restart automatically in a few seconds...')
+    print('To access again the Mininet CLI, use `make mn-cli`')
+    print('To detach from the CLI (without stopping), press Ctrl-D')
+    print('To permanently quit Mininet, use `make stop`')
+    print('#' * 80)
 
 
 if __name__ == "__main__":
