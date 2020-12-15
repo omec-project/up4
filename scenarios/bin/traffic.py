@@ -77,8 +77,12 @@ def handle_pkt(pkt: Packet, kind: str, exit_on_success: bool):
              is_gtp_encap, pkt.summary()))
 
     if exit_on_success:
+        # If not encapped, the UE address is the outer source
         ue_addr = IPv4Address(pkt[IP].src)
+        # If encapped, the UE address is the inner dest
+        print("Outer src %s, dst %s" % (pkt[IP].src, pkt[IP].dst))
         if is_gtp_encap:
+            print("Inner src %s, dst %s" % (pkt[gtp.GTP_U_Header][IP].src, pkt[gtp.GTP_U_Header][IP].dst))
             ue_addr = IPv4Address(pkt[gtp.GTP_U_Header][IP].dst)
 
         if exp_gtp_encap == is_gtp_encap:

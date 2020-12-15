@@ -205,14 +205,4 @@ public class MockUp4Service implements Up4Service {
     public boolean isUpfDevice(DeviceId deviceId) {
         return true;
     }
-
-    @Override
-    public int maxFars() {
-        return TestConstants.PHYSICAL_MAX_FARS;
-    }
-
-    @Override
-    public int maxPdrs() {
-        return TestConstants.PHYSICAL_MAX_PDRS;
-    }
 }

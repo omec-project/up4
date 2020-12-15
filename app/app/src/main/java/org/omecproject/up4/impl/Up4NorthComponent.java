@@ -197,9 +197,21 @@ public class Up4NorthComponent {
                     .asException();
         } catch (UpfProgrammableException e) {
             log.warn("Failed to complete table entry insertion request: {}", e.getMessage());
-            throw io.grpc.Status.UNAVAILABLE
-                    .withDescription(e.getMessage())
-                    .asException();
+            switch (e.getType()) {
+                case TABLE_EXHAUSTED:
+                    throw io.grpc.Status.RESOURCE_EXHAUSTED
+                            .withDescription(e.getMessage())
+                            .asException();
+                case COUNTER_INDEX_OUT_OF_RANGE:
+                    throw io.grpc.Status.INVALID_ARGUMENT
+                            .withDescription(e.getMessage())
+                            .asException();
+                case UNKNOWN:
+                default:
+                    throw io.grpc.Status.UNAVAILABLE
+                            .withDescription(e.getMessage())
+                            .asException();
+            }
         }
     }
 
@@ -271,8 +283,8 @@ public class Up4NorthComponent {
                 .clearCounters()
                 .clearTables();
         int physicalCounterSize = up4Service.getUpfProgrammable().pdrCounterSize();
-        int physicalFarTableSize = up4Service.maxFars();
-        int physicalPdrTableSize = up4Service.maxPdrs();
+        int physicalFarTableSize = up4Service.getUpfProgrammable().farTableSize();
+        int physicalPdrTableSize = up4Service.getUpfProgrammable().pdrTableSize();
         int ingressPdrCounterId;
         int egressPdrCounterId;
         int pdrTableId;

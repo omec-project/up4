@@ -4,7 +4,6 @@
  */
 package org.omecproject.up4;
 
-import io.grpc.StatusException;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
@@ -101,12 +100,10 @@ public interface UpfProgrammable {
      *
      * @param pdr The PDR to be added
      * @throws Up4Translator.Up4TranslationException if the PDR cannot be translated
-     * @throws StatusException                       if the PDR cannot be installed because the table is full
-     * @throws UpfProgrammableException              if the PDR cannot be be installed for some other reason,
-     *                                               or the counter index is out of bounds
+     * @throws UpfProgrammableException              if the PDR cannot be installed because the table is full,
+     *                                               the counter index is out of bounds, or some other reason
      */
-    void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException, Up4Translator.Up4TranslationException,
-            StatusException;
+    void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
 
     /**
      * Remove a previously installed Packet Detection Rule (PDR) from the target device.
@@ -121,11 +118,10 @@ public interface UpfProgrammable {
      *
      * @param far The FAR to be added
      * @throws Up4Translator.Up4TranslationException if the FAR cannot be translated
-     * @throws StatusException                       if the FAR cannot be installed because the table is full
-     * @throws UpfProgrammableException              if the FAR cannot be installed for some other reason
+     * @throws UpfProgrammableException              if the FAR cannot be installed either because the table is full,
+     *                                               or some other reason
      */
-    void addFar(ForwardingActionRule far) throws UpfProgrammableException, Up4Translator.Up4TranslationException,
-            StatusException;
+    void addFar(ForwardingActionRule far) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
 
     /**
      * Remove a previously installed Forwarding Action Rule (FAR) from the target device.

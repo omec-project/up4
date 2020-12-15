@@ -21,16 +21,16 @@
             <!-- FIXME: grep log tail to allow running scenarios in development where there can be
                     many FIRST_BUFFER in the log  -->
             <step name="Verify-First-Buffer" requires="^"
-                  exec="docker-log-grep ${ODI} 'Received FIRST_BUFFER'"/>
+                  exec="docker-log-grep ${ODI} 'Received FIRST_BUFFER' 5"/>
             <!-- -t 30 to wait enough time for packets to be released after Pfcp-Set-Fwd-After-Buff -->
             <step name="Downlink-Enb-Recv-Gtp-Buff" requires="Verify-First-Buffer"
                   exec="mn-cmd enodeb traffic.py recv-gtp -t 30 --flow-count 5"/>
             <step name="Pfcp-Set-Fwd-After-Buff" requires="Verify-First-Buffer" delay="5"
                   exec="mock-smf-cmd modify --session-count 5"/>
             <step name="Check-Drain-Started" requires="Pfcp-Set-Fwd-After-Buff" delay="5"
-                  exec="docker-log-grep ${ODI} 'Started dbuf drain'"/>
+                  exec="docker-log-grep ${ODI} 'Started dbuf drain' 5"/>
             <step name="Check-Drain-Completed" requires="Pfcp-Set-Fwd-After-Buff" delay="5"
-                  exec="docker-log-grep ${ODI} 'Dbuf drain completed'"/>
+                  exec="docker-log-grep ${ODI} 'Dbuf drain completed' 5"/>
         </group>
         <group name="Pfcp-Clear-Buff" requires="~Check-Traffic-Buff">
             <step name="Pfcp-Unset-Fwd-After-Buff"

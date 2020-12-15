@@ -5,7 +5,19 @@ set -x
 
 container=$1
 findString=$2
+findCount=$3
+if [ -z "$findCount" ]; then
+  findCount=1
+fi
+foundCount=0
 for _ in {1..60}; do
-    docker-compose logs "$container" | grep "$findString" && exit 0 || sleep 1
+    foundCount=$(docker-compose logs "$container" | grep "$findString" | wc -l)
+    if [ "$foundCount" -ge "$findCount" ]; then
+        echo "Found $foundCount occurrences of search string. Success!"
+        exit 0
+    else
+        sleep 1
+    fi
 done
+echo "Only found $foundCount occurrences of search string. Not enough!"
 exit 1

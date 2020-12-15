@@ -149,7 +149,7 @@ scenarios in one test
 
 **smoke.xml**
 * Combines the `setup.xml`, `net-setup.xml`, `smf-setup`, `pfcp-forwarding`, `pfcp-buffering`,
- `smf-failure.xml`, `pfcp-agent-failure`, `pfcp-fill-tables.xml`,
+ `smf-failure.xml`, `pfcp-agent-failure`,
  `smf-teardown.xml`, and`teardown.xml` scenarios in one test
 
 ## Reusing ONOS STC commands with Docker
