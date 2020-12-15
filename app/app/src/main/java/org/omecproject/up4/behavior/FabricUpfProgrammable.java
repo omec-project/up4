@@ -6,10 +6,6 @@ package org.omecproject.up4.behavior;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import org.jboss.netty.util.HashedWheelTimer;
-import org.jboss.netty.util.Timeout;
-import org.jboss.netty.util.Timer;
-import org.jboss.netty.util.TimerTask;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
@@ -29,11 +25,7 @@ import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.DefaultTrafficSelector;
 import org.onosproject.net.flow.FlowEntry;
 import org.onosproject.net.flow.FlowRule;
-import org.onosproject.net.flow.FlowRuleEvent;
-import org.onosproject.net.flow.FlowRuleListener;
 import org.onosproject.net.flow.FlowRuleService;
-import org.onosproject.net.flow.FlowRuleStore;
-import org.onosproject.net.flow.TableId;
 import org.onosproject.net.flow.criteria.PiCriterion;
 import org.onosproject.net.pi.model.PiCounterModel;
 import org.onosproject.net.pi.model.PiPipeconf;
@@ -61,7 +53,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.onosproject.net.pi.model.PiCounterType.INDIRECT;
@@ -82,8 +73,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowRuleService flowRuleService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected FlowRuleStore flowRuleStore;
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected P4RuntimeController controller;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PiPipeconfService piPipeconfService;
@@ -94,15 +83,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     private int farTableSize;
     private int encappedPdrTableSize;
     private int unencappedPdrTableSize;
-    private final Set<Long> installedEncappedPdrFlowIds = new HashSet<>();
-    private final Set<Long> installedUnencappedPdrFlowIds = new HashSet<>();
-    private final Set<Long> installedFarFlowIds = new HashSet<>();
     private int ueLimit = -1;
-    private final Object occupancyLock = new Object();
     private ApplicationId appId;
-    private final Timer timer = new HashedWheelTimer();
-    private Timeout tableOccupancyRecomputationTimeout;
-    private static final int TABLE_OCCUPANCY_RECOMPUTATION_PERIOD = 300;  // seconds
 
     private BufferDrainer bufferDrainer;
 
@@ -117,12 +99,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Deactivate
     protected void deactivate() {
-        if (this.deviceId != null) {
-            // If the deviceId was set, the listener must've been added
-            flowRuleService.removeListener(flowRuleListener);
-            // And the timer task must've been started
-            tableOccupancyRecomputationTimeout.cancel();
-        }
         log.info("Stopped");
     }
 
@@ -133,9 +109,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         this.appId = appId;
         this.deviceId = deviceId;
         computeHardwareResourceSizes();
-        computeTableOccupancies();
-        //restartTableOccupancyComputationTask(); //FIXME: uncomment once the apparent race condition is resolved
-        flowRuleService.addListener(flowRuleListener);
         log.info("UpfProgrammable initialized for appId {} and deviceId {}", appId, deviceId);
         return true;
     }
@@ -145,36 +118,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         String limitStr = ueLimit < 0 ? "unlimited" : Integer.toString(ueLimit);
         log.info("Setting UE limit of UPF {} to {}", deviceId, limitStr);
         this.ueLimit = ueLimit;
-    }
-
-    void restartTableOccupancyComputationTask() {
-        tableOccupancyRecomputationTimeout = timer.newTimeout(new RecomputeTableOccupancyTask(),
-                TABLE_OCCUPANCY_RECOMPUTATION_PERIOD,
-                TimeUnit.SECONDS);
-    }
-
-    /**
-     * Compute the number of table entries present in the PDR and FAR tables. Runs periodically.
-     */
-    private void computeTableOccupancies() {
-        log.debug("Computing table occupancies");
-        // FIXME: There is apparently a race condition between this and `flowRuleListener`
-        synchronized (occupancyLock) {
-            installedEncappedPdrFlowIds.clear();
-            installedUnencappedPdrFlowIds.clear();
-            installedFarFlowIds.clear();
-            for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
-                long flowId = flowRule.id().id();
-                TableId tableId = flowRule.table();
-                if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS)) {
-                    installedFarFlowIds.add(flowId);
-                } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
-                    installedEncappedPdrFlowIds.add(flowId);
-                } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)) {
-                    installedUnencappedPdrFlowIds.add(flowId);
-                }
-            }
-        }
     }
 
     /**
@@ -460,24 +403,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                     UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
         }
         FlowRule fabricPdr = up4Translator.pdrToFabricEntry(pdr, deviceId, appId, DEFAULT_PRIORITY);
-        // Check if the PDR match key is already installed
-        if (flowRuleStore.getFlowEntry(fabricPdr) == null) {
-            // if it isn't, then check if the table is full
-            int encappedTableSize = ueLimit >= 0 ? ueLimit : this.encappedPdrTableSize;
-            int unencappedTableSize = ueLimit >= 0 ? ueLimit : this.unencappedPdrTableSize;
-            int encappedOccupancy;
-            int unencappedOccupancy;
-            synchronized (occupancyLock) {
-                encappedOccupancy = installedEncappedPdrFlowIds.size();
-                unencappedOccupancy = installedUnencappedPdrFlowIds.size();
-            }
-            if ((pdr.matchesEncapped() && encappedOccupancy >= encappedTableSize) ||
-                    (pdr.matchesUnencapped() && unencappedOccupancy >= unencappedTableSize)) {
-                log.warn("Failed to add a PDR due to reaching table capacity.");
-                throw new UpfProgrammableException("Physical PDR table exhausted",
-                        UpfProgrammableException.Type.TABLE_EXHAUSTED);
-            }
-        }
         log.info("Installing {}", pdr.toString());
         flowRuleService.applyFlowRules(fabricPdr);
         log.debug("FAR added with flowID {}", fabricPdr.id().value());
@@ -509,20 +434,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             bufferFarIds.add(ruleId);
         }
         FlowRule fabricFar = up4Translator.farToFabricEntry(far, deviceId, appId, DEFAULT_PRIORITY);
-        // Check if the FAR match key is already installed
-        if (flowRuleStore.getFlowEntry(fabricFar) == null) {
-            // if it isn't, then check if the table is full
-            int tableSizeLimit = ueLimit >= 0 ? ueLimit * 2 : farTableSize;
-            int tableOccupancy;
-            synchronized (occupancyLock) {
-                tableOccupancy = installedFarFlowIds.size();
-            }
-            if (tableOccupancy >= tableSizeLimit) {
-                log.warn("Failed to add a FAR due to reaching table capacity.");
-                throw new UpfProgrammableException("Physical FAR table exhausted",
-                        UpfProgrammableException.Type.TABLE_EXHAUSTED);
-            }
-        }
         log.info("Installing {}", far.toString());
         flowRuleService.applyFlowRules(fabricFar);
         log.debug("FAR added with flowID {}", fabricFar.id().value());
@@ -749,52 +660,5 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .matchExact(SouthConstants.HDR_GTPU_IS_VALID, 0)
                 .build();
         removeEntry(match2, SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES, false);
-    }
-
-    private final FlowRuleListener flowRuleListener = new FlowRuleListener() {
-        @Override
-        public void event(FlowRuleEvent event) {
-            TableId tableId = event.subject().table();
-            long flowId = event.subject().id().id();
-            synchronized (occupancyLock) {
-                if (event.type() == FlowRuleEvent.Type.RULE_ADD_REQUESTED) {
-                    if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS)) {
-                        installedFarFlowIds.add(flowId);
-                    } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
-                        installedEncappedPdrFlowIds.add(flowId);
-                    } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)) {
-                        installedUnencappedPdrFlowIds.add(flowId);
-                    }
-                } else if (event.type() == FlowRuleEvent.Type.RULE_REMOVE_REQUESTED) {
-                    if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS)) {
-                        installedFarFlowIds.remove(flowId);
-                    } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
-                        installedEncappedPdrFlowIds.remove(flowId);
-                    } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)) {
-                        installedUnencappedPdrFlowIds.remove(flowId);
-                    }
-                }
-            }
-        }
-
-        @Override
-        public boolean isRelevant(FlowRuleEvent event) {
-            return event.subject().appId() == appId.id() &&
-                    event.subject().deviceId().equals(deviceId);
-        }
-    };
-
-    private final class RecomputeTableOccupancyTask implements TimerTask {
-        @Override
-        public void run(Timeout timeout) throws Exception {
-            if (timeout.isCancelled()) {
-                return;
-            }
-            // Recompute table occupancies
-            computeTableOccupancies();
-
-            // Restart the timer
-            restartTableOccupancyComputationTask();
-        }
     }
 }

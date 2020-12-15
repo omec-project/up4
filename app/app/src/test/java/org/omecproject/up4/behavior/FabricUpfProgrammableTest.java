@@ -25,9 +25,7 @@ public class FabricUpfProgrammableTest {
 
     @Before
     public void setUp() throws Exception {
-        MockFlowRuleStore store = new MockFlowRuleStore();
-        upfProgrammable.flowRuleStore = store;
-        upfProgrammable.flowRuleService = new MockFlowRuleService(store);
+        upfProgrammable.flowRuleService = new MockFlowRuleService();
         upfProgrammable.up4Translator = up4Translator;
         upfProgrammable.piPipeconfService = new MockPiPipeconfService();
         upfProgrammable.controller = new MockP4RuntimeController();
