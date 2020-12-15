@@ -100,8 +100,8 @@ public interface UpfProgrammable {
      *
      * @param pdr The PDR to be added
      * @throws Up4Translator.Up4TranslationException if the PDR cannot be translated
-     * @throws UpfProgrammableException              if the PDR cannot be installed because the table is full,
-     *                                               the counter index is out of bounds, or some other reason
+     * @throws UpfProgrammableException              if the PDR cannot be installed, or the counter index
+     *                                               is out of bounds
      */
     void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
 
@@ -118,8 +118,7 @@ public interface UpfProgrammable {
      *
      * @param far The FAR to be added
      * @throws Up4Translator.Up4TranslationException if the FAR cannot be translated
-     * @throws UpfProgrammableException              if the FAR cannot be installed either because the table is full,
-     *                                               or some other reason
+     * @throws UpfProgrammableException              if the FAR cannot be installed
      */
     void addFar(ForwardingActionRule far) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
 
