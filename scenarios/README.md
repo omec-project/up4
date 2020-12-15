@@ -136,7 +136,7 @@ and thus can be run repeatedly and consecutively.
 **pfcp-fill-tables.xml**
 * Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
 * Installs enough flow rules to fill the switch's tables, verifies that all were installed, then deletes them all.
-* Installs too many flow rules and verifies and error is returned.
+* Installs too many flow rules and verifies that an error is returned.
 * Sends an association release request to the PFCP agent and verifies all flow rules were cleared.
 * Re-establish an association with the PFCP agent to clean up.
 
