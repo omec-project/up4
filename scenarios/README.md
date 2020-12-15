@@ -115,10 +115,12 @@ and thus can be run repeatedly and consecutively.
 * Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
 * Use PFCP messages from the mock SMF to set up GTP termination and forwarding
 * Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts
+* Checks are performed for 10 UEs in parallel
 
 **pfcp-buffering**
 * Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
 * Same as pfcp-forwarding.xml but checks the case where downlink buffering is enabled
+* Checks are performed for 10 UEs in parallel
 
 **smf-failure**
 * Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
@@ -131,6 +133,13 @@ and thus can be run repeatedly and consecutively.
 * Install flow rules for one UE via the mock SMF and verify the rules are installed in the switch
 * Reboot the PFCP agent and verify the orphaned flow rules are cleared from the switch once the agent recovers.
 
+**pfcp-fill-tables.xml**
+* Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
+* Installs enough flow rules to fill the switch's tables, verifies that all were installed, then deletes them all.
+* Installs too many flow rules and verifies and error is returned.
+* Sends an association release request to the PFCP agent and verifies all flow rules were cleared.
+* Re-establish an association with the PFCP agent to clean up.
+
 ### All-in-one tests
 These scenarios combine setup, single tests, and teardown all in one. Useful for quickly detecting issues.
 
@@ -140,6 +149,7 @@ scenarios in one test
 
 **smoke.xml**
 * Combines the `setup.xml`, `net-setup.xml`, `smf-setup`, `pfcp-forwarding`, `pfcp-buffering`,
+ `smf-failure.xml`, `pfcp-agent-failure`, `pfcp-fill-tables.xml`,
  `smf-teardown.xml`, and`teardown.xml` scenarios in one test
 
 ## Reusing ONOS STC commands with Docker
