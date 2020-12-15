@@ -124,9 +124,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
      * Grab the capacities for the PDR and FAR tables from the pipeconf. Runs only once, on initialization.
      */
     private void computeHardwareResourceSizes() {
-        farTableSize = 0;
-        encappedPdrTableSize = 0;
-        unencappedPdrTableSize = 0;
+        long farTableSize = 0;
+        long encappedPdrTableSize = 0;
+        long unencappedPdrTableSize = 0;
         Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
         if (optPipeconf.isEmpty()) {
             log.error("Unable to load piPipeconf for {}, cannot fetch table and counter properties. Sizes will be 0",
@@ -169,7 +169,10 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         if (ingressCounterSize != egressCounterSize) {
             log.warn("PDR ingress and egress counter sizes are not equal! Using the minimum of the two.");
         }
-        pdrCounterSize = Math.min(ingressCounterSize, egressCounterSize);
+        this.farTableSize = farTableSize;
+        this.encappedPdrTableSize = encappedPdrTableSize;
+        this.unencappedPdrTableSize = unencappedPdrTableSize;
+        this.pdrCounterSize = Math.min(ingressCounterSize, egressCounterSize);
     }
 
     @Override
