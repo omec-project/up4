@@ -93,7 +93,7 @@ public interface UpfProgrammable {
      *
      * @param ueLimit the maximum number of UEs that can have flows installed on the UPF
      */
-    void setUeLimit(int ueLimit);
+    void setUeLimit(long ueLimit);
 
     /**
      * Add a Packet Detection Rule (PDR) to the given device.
@@ -163,14 +163,14 @@ public interface UpfProgrammable {
      *
      * @return PDR counter size
      */
-    int pdrCounterSize();
+    long pdrCounterSize();
 
     /**
      * Return the number of maximum number of table entries the FAR table supports.
      *
      * @return the number of FARs that can be installed
      */
-    int farTableSize();
+    long farTableSize();
 
     /**
      * Return the total number of table entries the downlink and uplink PDR tables support. Both tables
@@ -178,7 +178,7 @@ public interface UpfProgrammable {
      *
      * @return the total number of PDRs that can be installed
      */
-    int pdrTableSize();
+    long pdrTableSize();
 
     /**
      * Read the counter contents for all cell indices that are valid on the hardware switch.

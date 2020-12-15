@@ -34,7 +34,7 @@ public class MockUp4Service implements Up4Service {
         }
 
         @Override
-        public void setUeLimit(int ueLimit) {
+        public void setUeLimit(long ueLimit) {
 
         }
 
@@ -44,17 +44,17 @@ public class MockUp4Service implements Up4Service {
         }
 
         @Override
-        public int farTableSize() {
+        public long farTableSize() {
             return TestConstants.PHYSICAL_MAX_FARS;
         }
 
         @Override
-        public int pdrTableSize() {
+        public long pdrTableSize() {
             return TestConstants.PHYSICAL_MAX_PDRS;
         }
 
         @Override
-        public int pdrCounterSize() {
+        public long pdrCounterSize() {
             return TestConstants.PHYSICAL_COUNTER_SIZE;
         }
 

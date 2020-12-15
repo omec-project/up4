@@ -207,7 +207,7 @@ public class Up4Config extends Config<ApplicationId> {
      * Returns the maximum number of UEs the UPF can support, or -1 if not configured.
      * @return the maximum number of UEs the UPF can support
      */
-    public int maxUes() {
+    public long maxUes() {
         return get(MAX_UES, -1);
     }
 }

@@ -79,11 +79,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Translator up4Translator;
     DeviceId deviceId;
-    private int pdrCounterSize;
-    private int farTableSize;
-    private int encappedPdrTableSize;
-    private int unencappedPdrTableSize;
-    private int ueLimit = -1;
+    private long pdrCounterSize;
+    private long farTableSize;
+    private long encappedPdrTableSize;
+    private long unencappedPdrTableSize;
+    private long ueLimit = -1;
     private ApplicationId appId;
 
     private BufferDrainer bufferDrainer;
@@ -114,8 +114,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public void setUeLimit(int ueLimit) {
-        String limitStr = ueLimit < 0 ? "unlimited" : Integer.toString(ueLimit);
+    public void setUeLimit(long ueLimit) {
+        String limitStr = ueLimit < 0 ? "unlimited" : Long.toString(ueLimit);
         log.info("Setting UE limit of UPF {} to {}", deviceId, limitStr);
         this.ueLimit = ueLimit;
     }
@@ -137,11 +137,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         // Get table sizes of interest
         for (PiTableModel piTable : pipeconf.pipelineModel().tables()) {
             if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
-                encappedPdrTableSize = (int) piTable.maxSize();
+                encappedPdrTableSize = piTable.maxSize();
             } else if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)) {
-                unencappedPdrTableSize = (int) piTable.maxSize();
+                unencappedPdrTableSize = piTable.maxSize();
             } else if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS)) {
-                farTableSize = (int) piTable.maxSize();
+                farTableSize = piTable.maxSize();
             }
         }
         if (encappedPdrTableSize == 0) {
@@ -157,13 +157,13 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             throw new IllegalStateException("Unable to find FAR table in pipeline model.");
         }
         // Get counter sizes of interest
-        int ingressCounterSize = 0;
-        int egressCounterSize = 0;
+        long ingressCounterSize = 0;
+        long egressCounterSize = 0;
         for (PiCounterModel piCounter : pipeconf.pipelineModel().counters()) {
             if (piCounter.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER)) {
-                ingressCounterSize = (int) piCounter.size();
+                ingressCounterSize = piCounter.size();
             } else if (piCounter.id().equals(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER)) {
-                egressCounterSize = (int) piCounter.size();
+                egressCounterSize = piCounter.size();
             }
         }
         if (ingressCounterSize != egressCounterSize) {
@@ -313,7 +313,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public int pdrCounterSize() {
+    public long pdrCounterSize() {
         if (ueLimit >= 0) {
             return Math.min(ueLimit * 2, pdrCounterSize);
         }
@@ -321,7 +321,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public int farTableSize() {
+    public long farTableSize() {
         if (ueLimit >= 0) {
             return Math.min(ueLimit * 2, farTableSize);
         }
@@ -330,8 +330,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
 
     @Override
-    public int pdrTableSize() {
-        int physicalSize = Math.min(encappedPdrTableSize, unencappedPdrTableSize) * 2;
+    public long pdrTableSize() {
+        long physicalSize = Math.min(encappedPdrTableSize, unencappedPdrTableSize) * 2;
         if (ueLimit >= 0) {
             return Math.min(ueLimit * 2, physicalSize);
         }

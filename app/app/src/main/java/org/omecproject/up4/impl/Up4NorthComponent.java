@@ -282,9 +282,9 @@ public class Up4NorthComponent {
         var newP4InfoBuilder = P4InfoOuterClass.P4Info.newBuilder(p4Info)
                 .clearCounters()
                 .clearTables();
-        int physicalCounterSize = up4Service.getUpfProgrammable().pdrCounterSize();
-        int physicalFarTableSize = up4Service.getUpfProgrammable().farTableSize();
-        int physicalPdrTableSize = up4Service.getUpfProgrammable().pdrTableSize();
+        long physicalCounterSize = up4Service.getUpfProgrammable().pdrCounterSize();
+        long physicalFarTableSize = up4Service.getUpfProgrammable().farTableSize();
+        long physicalPdrTableSize = up4Service.getUpfProgrammable().pdrTableSize();
         int ingressPdrCounterId;
         int egressPdrCounterId;
         int pdrTableId;

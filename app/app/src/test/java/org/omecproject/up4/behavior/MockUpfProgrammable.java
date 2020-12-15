@@ -28,7 +28,7 @@ public class MockUpfProgrammable implements UpfProgrammable {
     List<ForwardingActionRule> fars;
     List<UpfInterface> ifaces;
     DeviceId deviceId;
-    int ueLimit = -1;
+    long ueLimit = -1;
 
     public MockUpfProgrammable() {
         pdrs = new ArrayList<>();
@@ -121,7 +121,7 @@ public class MockUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public void setUeLimit(int ueLimit) {
+    public void setUeLimit(long ueLimit) {
         this.ueLimit = ueLimit;
     }
 
@@ -174,17 +174,17 @@ public class MockUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public int pdrCounterSize() {
+    public long pdrCounterSize() {
         return TestConstants.PHYSICAL_COUNTER_SIZE;
     }
 
     @Override
-    public int farTableSize() {
+    public long farTableSize() {
         return TestConstants.PHYSICAL_MAX_FARS;
     }
 
     @Override
-    public int pdrTableSize() {
+    public long pdrTableSize() {
         return TestConstants.PHYSICAL_MAX_PDRS;
     }
 

@@ -53,4 +53,5 @@ public interface Up4Service {
      * @return True if the device is a valid UPF data plane, and False otherwise
      */
     boolean isUpfDevice(DeviceId deviceId);
+
 }
