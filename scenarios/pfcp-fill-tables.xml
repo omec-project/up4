@@ -8,7 +8,7 @@
             <step name="FT-Create-Sessions-1"
                   exec="mock-smf-cmd create --session-count 32"/>
             <step name="FT-Modify-Sessions-1" requires="^" delay="10"
-                  exec="mock-smf-cmd modify"/>
+                  exec="mock-smf-cmd modify --session-count 32"/>
         </group>
 
         <step name="FT-Check-Flows-1" requires="FT-Setup-Flows-1" delay="5"
