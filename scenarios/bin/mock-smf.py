@@ -561,6 +561,7 @@ def create_pfcp_sessions(args: argparse.Namespace) -> None:
             print("Creating session with SEID %d" % session.our_seid)
         pkt = craft_pfcp_session_est_packet(args, session)
         send_recv_pfcp(pkt, MSG_TYPES["session_establishment_response"], session)
+        time.sleep(args.sleep_time)  # sleep before the next session creation
 
 
 def modify_pfcp_sessions(args: argparse.Namespace) -> None:
@@ -569,6 +570,7 @@ def modify_pfcp_sessions(args: argparse.Namespace) -> None:
             print("Modifying session with SEID %d" % session.our_seid)
         pkt = craft_pfcp_session_modify_packet(args, session)
         send_recv_pfcp(pkt, MSG_TYPES["session_modification_response"], session)
+        time.sleep(args.sleep_time)  # sleep before the next session modification
 
 
 def delete_pfcp_sessions(args: argparse.Namespace) -> None:
@@ -578,6 +580,7 @@ def delete_pfcp_sessions(args: argparse.Namespace) -> None:
         pkt = craft_pfcp_session_delete_packet(session)
         send_recv_pfcp(pkt, MSG_TYPES["session_deletion_response"], session)
         del active_sessions[session.our_seid]
+        time.sleep(args.sleep_time)  # sleep before the next session deletion
 
 
 def send_pfcp_heartbeats() -> None:
@@ -643,6 +646,8 @@ def handle_user_input(input_file: Optional[IO] = None, output_file: Optional[IO]
                         choices=user_choices.keys())
     parser.add_argument("--session-count", type=int, default=1,
                         help="The number of sessions for which UE flows should be created.")
+    parser.add_argument("--sleep-time", type=float, default=0.0,
+                        help="How much time to sleep between sending PFCP requests for multiple sessions")
     parser.add_argument("--buffer", action='store_true',
                         help="If this argument is present, downlink FARs will have the buffering flag set to true")
     parser.add_argument("--ue-pool", type=IPv4Network, default=IPv4Network("17.0.0.0/24"),
