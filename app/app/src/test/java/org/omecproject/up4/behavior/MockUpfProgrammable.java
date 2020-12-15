@@ -28,6 +28,7 @@ public class MockUpfProgrammable implements UpfProgrammable {
     List<ForwardingActionRule> fars;
     List<UpfInterface> ifaces;
     DeviceId deviceId;
+    long ueLimit = -1;
 
     public MockUpfProgrammable() {
         pdrs = new ArrayList<>();
@@ -120,9 +121,13 @@ public class MockUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
+    public void setUeLimit(long ueLimit) {
+        this.ueLimit = ueLimit;
+    }
+
+    @Override
     public void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException {
         pdrs.add(pdr);
-
     }
 
     private <E> void removeEntry(List<E> entries, E entryToRemove) throws UpfProgrammableException {
@@ -169,8 +174,18 @@ public class MockUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public int pdrCounterSize() {
+    public long pdrCounterSize() {
         return TestConstants.PHYSICAL_COUNTER_SIZE;
+    }
+
+    @Override
+    public long farTableSize() {
+        return TestConstants.PHYSICAL_MAX_FARS;
+    }
+
+    @Override
+    public long pdrTableSize() {
+        return TestConstants.PHYSICAL_MAX_PDRS;
     }
 
     @Override

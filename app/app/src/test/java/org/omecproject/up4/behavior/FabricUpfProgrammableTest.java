@@ -25,12 +25,11 @@ public class FabricUpfProgrammableTest {
 
     @Before
     public void setUp() throws Exception {
-        upfProgrammable.init(TestConstants.APP_ID, TestConstants.DEVICE_ID);
         upfProgrammable.flowRuleService = new MockFlowRuleService();
         upfProgrammable.up4Translator = up4Translator;
         upfProgrammable.piPipeconfService = new MockPiPipeconfService();
         upfProgrammable.controller = new MockP4RuntimeController();
-        upfProgrammable.pdrCounterSize = TestConstants.PHYSICAL_COUNTER_SIZE;
+        upfProgrammable.init(TestConstants.APP_ID, TestConstants.DEVICE_ID);
         setTranslationState();
     }
 

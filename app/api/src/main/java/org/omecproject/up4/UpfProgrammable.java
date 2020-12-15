@@ -85,12 +85,22 @@ public interface UpfProgrammable {
      */
     Collection<UpfInterface> getInstalledInterfaces();
 
+
+    /**
+     * Limit the number of UE flows that can be installed on the UPF. Intended for capacity testing.
+     * If the limit given is larger than physical resources permit, the physical limit will be used.
+     * A limit of 0 prevents any UE flow installations, and a limit of -1 removes limitations.
+     *
+     * @param ueLimit the maximum number of UEs that can have flows installed on the UPF
+     */
+    void setUeLimit(long ueLimit);
+
     /**
      * Add a Packet Detection Rule (PDR) to the given device.
      *
      * @param pdr The PDR to be added
      * @throws Up4Translator.Up4TranslationException if the PDR cannot be translated
-     * @throws UpfProgrammableException              if the PDR cannot be be installed, or the counter index
+     * @throws UpfProgrammableException              if the PDR cannot be installed, or the counter index
      *                                               is out of bounds
      */
     void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
@@ -152,7 +162,22 @@ public interface UpfProgrammable {
      *
      * @return PDR counter size
      */
-    int pdrCounterSize();
+    long pdrCounterSize();
+
+    /**
+     * Return the number of maximum number of table entries the FAR table supports.
+     *
+     * @return the number of FARs that can be installed
+     */
+    long farTableSize();
+
+    /**
+     * Return the total number of table entries the downlink and uplink PDR tables support. Both tables
+     * support an equal number of entries, so the total is twice the size of either.
+     *
+     * @return the total number of PDRs that can be installed
+     */
+    long pdrTableSize();
 
     /**
      * Read the counter contents for all cell indices that are valid on the hardware switch.

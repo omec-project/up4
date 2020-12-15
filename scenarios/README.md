@@ -115,10 +115,12 @@ and thus can be run repeatedly and consecutively.
 * Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
 * Use PFCP messages from the mock SMF to set up GTP termination and forwarding
 * Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts
+* Checks are performed for 5 UEs in parallel
 
 **pfcp-buffering**
 * Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
 * Same as pfcp-forwarding.xml but checks the case where downlink buffering is enabled
+* Checks are performed for 5 UEs in parallel
 
 **smf-failure**
 * Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
@@ -140,6 +142,7 @@ scenarios in one test
 
 **smoke.xml**
 * Combines the `setup.xml`, `net-setup.xml`, `smf-setup`, `pfcp-forwarding`, `pfcp-buffering`,
+ `smf-failure.xml`, `pfcp-agent-failure`,
  `smf-teardown.xml`, and`teardown.xml` scenarios in one test
 
 ## Reusing ONOS STC commands with Docker

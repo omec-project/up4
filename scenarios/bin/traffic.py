@@ -1,59 +1,63 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
-from scapy.contrib import gtp
-from scapy.all import send, sniff, Ether, IP, UDP
-import sys, signal
 import argparse
+import signal
+from ipaddress import IPv4Network, IPv4Address
 
-RATE = 5  # packets per second
-
-UE_ADDR = '17.0.0.1'
-ENB_ADDR = '140.0.100.1'
-PDN_ADDR = '140.0.200.1'
-S1U_ADDR = '140.0.100.254'
+from scapy.all import send, sniff, Packet
+from scapy.contrib import gtp
+from scapy.layers.inet import IP, UDP
 
 UE_PORT = 400
 PDN_PORT = 80
 GPDU_PORT = 2152
 
-TEID = 255
-
 pkt_count = 0
 
-exitOnSuccess = False
+ue_addresses_expected = set()  # UE addresses that we expect to receive packets for/from
 
 
-def prep_brief_test(timeout):
-    global exitOnSuccess
-    exitOnSuccess = True
-    # wait timeout seconds or exit
-    signal.signal(signal.SIGALRM, handle_timeout)
-    signal.alarm(timeout)
+def addrs_from_prefix(prefix: IPv4Network, count: int):
+    addr_gen = iter(prefix)
+    next(addr_gen)  # discard the address with all 0 host bits
+    result = []
+    for _ in range(count):
+        result.append(str(next(addr_gen)))
+    return result
 
 
-def send_gtp(args):
-    pkt =   IP(src=ENB_ADDR, dst=S1U_ADDR) / \
-            UDP(dport=GPDU_PORT) / \
-            gtp.GTPHeader(version=1, gtp_type=0xff, teid=TEID) / \
-            IP(src=UE_ADDR, dst=PDN_ADDR) / \
-            UDP(sport=UE_PORT, dport=PDN_PORT) / \
-            ' '.join(['P4 is inevitable!'] * 50)
+def send_gtp(args: argparse.Namespace):
+    pkts = []
+    # Uplink TEIDs each differ by 2, since each UE is assigned two TEIDs: one for up, one for down
+    for (teid, ue_addr) in zip(range(args.teid_base, args.teid_base + args.flow_count * 2, 2),
+                               addrs_from_prefix(args.ue_pool, args.flow_count)):
+        pkt = IP(src=str(args.enb_addr), dst=str(args.s1u_addr)) / \
+              UDP(dport=GPDU_PORT) / \
+              gtp.GTPHeader(version=1, gtp_type=0xff, teid=teid) / \
+              IP(src=ue_addr, dst=str(args.pdn_addr)) / \
+              UDP(sport=UE_PORT, dport=PDN_PORT) / \
+              ' '.join(['P4 is inevitable!'] * 50)
+        pkts.append(pkt)
 
-    send(pkt, inter=1.0 / RATE, loop=args.count != 1, count=args.count, verbose=True)
-
-
-def send_udp(args):
-    pkt = IP(src=PDN_ADDR, dst=UE_ADDR) / \
-          UDP(sport=PDN_PORT, dport=UE_PORT) / \
-          ' '.join(['P4 is great!'] * 50)
-
-    send(pkt, inter=1.0 / RATE, loop=args.count != 1, count=args.count, verbose=True)
+    print("Sending %d packets, %d times each" % (len(pkts), args.count))
+    send(pkts, inter=1.0 / (args.rate * args.flow_count), loop=args.count != 1, count=args.count, verbose=True)
 
 
-def handle_pkt(pkt, kind):
-    global exitOnSuccess
+def send_udp(args: argparse.Namespace):
+    pkts = []
+    for ue_addr in addrs_from_prefix(args.ue_pool, args.flow_count):
+        pkt = IP(src=args.pdn_addr, dst=ue_addr) / \
+              UDP(sport=PDN_PORT, dport=UE_PORT) / \
+              ' '.join(['P4 is great!'] * 50)
+        pkts.append(pkt)
+
+    print("Sending %d packets, %d times each" % (len(pkts), args.count))
+    send(pkts, inter=1.0 / (args.rate * args.flow_count), loop=args.count != 1, count=args.count, verbose=True)
+
+
+def handle_pkt(pkt: Packet, kind: str, exit_on_success: bool):
     exp_gtp_encap = False
     if kind == "gtp":
         exp_gtp_encap = True
@@ -72,28 +76,38 @@ def handle_pkt(pkt, kind):
           % (pkt_count, len(pkt), pkt[IP].src, pkt[IP].dst,
              is_gtp_encap, pkt.summary()))
 
-    if exitOnSuccess:
+    if exit_on_success:
+        # If not encapped, the UE address is the outer source
+        ue_addr = IPv4Address(pkt[IP].src)
+        # If encapped, the UE address is the inner dest
+        print("Outer src %s, dst %s" % (pkt[IP].src, pkt[IP].dst))
+        if is_gtp_encap:
+            print("Inner src %s, dst %s" % (pkt[gtp.GTP_U_Header][IP].src, pkt[gtp.GTP_U_Header][IP].dst))
+            ue_addr = IPv4Address(pkt[gtp.GTP_U_Header][IP].dst)
+
         if exp_gtp_encap == is_gtp_encap:
-            print("Received expected packet!")
-            exit(0)
+            print("Received an expected packet with UE address %s!" % str(ue_addr))
+            ue_addresses_expected.discard(ue_addr)
         else:
             if exp_gtp_encap:
                 print("Expected a GTP encapped packet but received non-encapped!")
             else:
                 print("Expected a non-GTP-encapped packet but received encapped!")
             exit(1)
+        if len(ue_addresses_expected) == 0:
+            print("Received packets for/from all UEs!")
+            exit(0)
 
 
-def sniff_gtp(args):
+def sniff_gtp(args: argparse.Namespace):
     sniff_stuff(args, kind="gtp")
 
 
-def sniff_udp(args):
+def sniff_udp(args: argparse.Namespace):
     sniff_stuff(args, kind="udp")
 
 
-def sniff_nothing(args):
-
+def sniff_nothing(args: argparse.Namespace):
     def succeed_on_timeout(signum, frame):
         print("Received no packet after %d seconds, as expected." % args.timeout)
         exit(0)
@@ -108,20 +122,29 @@ def sniff_nothing(args):
     sniff(count=0, store=False, filter="udp", prn=fail_on_sniff)
 
 
-def sniff_stuff(args, kind):
+def sniff_stuff(args: argparse.Namespace, kind: str):
+    exit_on_success = False
     if args.timeout != 0:
-        prep_brief_test(args.timeout)
+        exit_on_success = True
+        # wait timeout seconds or exit
+        signal.signal(signal.SIGALRM, handle_timeout)
+        signal.alarm(args.timeout)
+
+    # Add UE addresses for which we expect to receive packets to the global set
+    for ue_addr in addrs_from_prefix(args.ue_pool, args.flow_count):
+        ue_addresses_expected.add(IPv4Address(ue_addr))
+
+    print("Expecting packets for/from the following UEs:", list(ue_addresses_expected))
     print("Will print a line for each UDP packet received...")
-    sniff(count=0, store=False, filter="udp", prn=lambda x: handle_pkt(x, kind))
+    sniff(count=0, store=False, filter="udp", prn=lambda x: handle_pkt(x, kind, exit_on_success))
 
 
 def handle_timeout(signum, frame):
-    print("Timeout! Did not receive expected packet")
+    print("Timeout! Did not receive expected packets for the following addresses:", ue_addresses_expected)
     exit(1)
 
 
-if __name__ == "__main__":
-
+def main():
     funcs = {
         "send-gtp": send_gtp,
         "send-udp": send_udp,
@@ -130,12 +153,31 @@ if __name__ == "__main__":
         "recv-none": sniff_nothing
     }
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("command", type=str, help="The action to perform", choices=funcs.keys())
     parser.add_argument("-t", dest="timeout", type=int, default=0,
                         help="How long to wait for packets before giving up")
     parser.add_argument("-c", dest="count", type=int, default=1,
-                        help="How many packets to transmit")
+                        help="How many packets to transmit for each flow")
+    parser.add_argument("--rate", type=int, default=2,
+                        help="Packets per second to send for each flow")
+    parser.add_argument("--flow-count", type=int, default=1,
+                        help="How many flows to send/receive.")
+    parser.add_argument("--ue-pool", type=IPv4Network, default=IPv4Network("17.0.0.0/24"),
+                        help="The IPv4 prefix from which UE addresses will be drawn.")
+    parser.add_argument("--s1u-addr", type=IPv4Address, default=IPv4Address("140.0.100.254"),
+                        help="The IPv4 address of the UPF's S1U interface")
+    parser.add_argument("--enb-addr", type=IPv4Address, default=IPv4Address("140.0.100.1"),
+                        help="The IPv4 address of the eNodeB")
+    parser.add_argument("--pdn-addr", type=IPv4Address, default=IPv4Address("140.0.200.1"),
+                        help="The IPv4 address of the PDN")
+    parser.add_argument("--teid-base", type=int, default=255,
+                        help="The first TEID to use for the first UE flow. " +
+                             "Further TEIDs will be generated by incrementing.")
     args = parser.parse_args()
 
     funcs[args.command](args)
+
+
+if __name__ == "__main__":
+    main()

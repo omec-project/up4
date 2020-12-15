@@ -4,7 +4,6 @@
  */
 package org.omecproject.up4.behavior;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.omecproject.up4.ForwardingActionRule;
@@ -31,6 +30,7 @@ import org.onosproject.net.flow.criteria.PiCriterion;
 import org.onosproject.net.pi.model.PiCounterModel;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.model.PiTableId;
+import org.onosproject.net.pi.model.PiTableModel;
 import org.onosproject.net.pi.runtime.PiCounterCell;
 import org.onosproject.net.pi.runtime.PiCounterCellHandle;
 import org.onosproject.net.pi.runtime.PiCounterCellId;
@@ -79,12 +79,14 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Translator up4Translator;
     DeviceId deviceId;
-    @VisibleForTesting
-    int pdrCounterSize = -1;  // Cached value so we don't have to go through the pipeconf every time
+    private long pdrCounterSize;
+    private long farTableSize;
+    private long encappedPdrTableSize;
+    private long unencappedPdrTableSize;
+    private long ueLimit = -1;
     private ApplicationId appId;
 
     private BufferDrainer bufferDrainer;
-
 
     private Set<UpfRuleIdentifier> bufferFarIds;
     private Map<UpfRuleIdentifier, Set<Ip4Address>> farIdToUeAddrs;
@@ -106,8 +108,71 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         this.farIdToUeAddrs = new HashMap<>();
         this.appId = appId;
         this.deviceId = deviceId;
+        computeHardwareResourceSizes();
         log.info("UpfProgrammable initialized for appId {} and deviceId {}", appId, deviceId);
         return true;
+    }
+
+    @Override
+    public void setUeLimit(long ueLimit) {
+        String limitStr = ueLimit < 0 ? "unlimited" : Long.toString(ueLimit);
+        log.info("Setting UE limit of UPF {} to {}", deviceId, limitStr);
+        this.ueLimit = ueLimit;
+    }
+
+    /**
+     * Grab the capacities for the PDR and FAR tables from the pipeconf. Runs only once, on initialization.
+     */
+    private void computeHardwareResourceSizes() {
+        long farTableSize = 0;
+        long encappedPdrTableSize = 0;
+        long unencappedPdrTableSize = 0;
+        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
+        if (optPipeconf.isEmpty()) {
+            log.error("Unable to load piPipeconf for {}, cannot fetch table and counter properties. Sizes will be 0",
+                    deviceId);
+            return;
+        }
+        PiPipeconf pipeconf = optPipeconf.get();
+        // Get table sizes of interest
+        for (PiTableModel piTable : pipeconf.pipelineModel().tables()) {
+            if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
+                encappedPdrTableSize = piTable.maxSize();
+            } else if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)) {
+                unencappedPdrTableSize = piTable.maxSize();
+            } else if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS)) {
+                farTableSize = piTable.maxSize();
+            }
+        }
+        if (encappedPdrTableSize == 0) {
+            throw new IllegalStateException("Unable to find uplink PDR table in pipeline model.");
+        }
+        if (unencappedPdrTableSize == 0) {
+            throw new IllegalStateException("Unable to find downlink PDR table in pipeline model.");
+        }
+        if (encappedPdrTableSize != unencappedPdrTableSize) {
+            log.warn("The uplink and downlink PDR tables don't have equal sizes! Using the minimum of the two.");
+        }
+        if (farTableSize == 0) {
+            throw new IllegalStateException("Unable to find FAR table in pipeline model.");
+        }
+        // Get counter sizes of interest
+        long ingressCounterSize = 0;
+        long egressCounterSize = 0;
+        for (PiCounterModel piCounter : pipeconf.pipelineModel().counters()) {
+            if (piCounter.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER)) {
+                ingressCounterSize = piCounter.size();
+            } else if (piCounter.id().equals(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER)) {
+                egressCounterSize = piCounter.size();
+            }
+        }
+        if (ingressCounterSize != egressCounterSize) {
+            log.warn("PDR ingress and egress counter sizes are not equal! Using the minimum of the two.");
+        }
+        this.farTableSize = farTableSize;
+        this.encappedPdrTableSize = encappedPdrTableSize;
+        this.unencappedPdrTableSize = unencappedPdrTableSize;
+        this.pdrCounterSize = Math.min(ingressCounterSize, egressCounterSize);
     }
 
     @Override
@@ -251,37 +316,36 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public int pdrCounterSize() {
-        if (pdrCounterSize != -1) {
-            return pdrCounterSize;
+    public long pdrCounterSize() {
+        if (ueLimit >= 0) {
+            return Math.min(ueLimit * 2, pdrCounterSize);
         }
-        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
-        if (optPipeconf.isEmpty()) {
-            log.warn("Unable to load piPipeconf for {}, cannot read counter properties", deviceId);
-            return -1;
-        }
-        PiPipeconf pipeconf = optPipeconf.get();
-
-        int ingressCounterSize = -1;
-        int egressCounterSize = -1;
-        for (PiCounterModel piCounter : pipeconf.pipelineModel().counters()) {
-            if (piCounter.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER)) {
-                ingressCounterSize = (int) piCounter.size();
-            } else if (piCounter.id().equals(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER)) {
-                egressCounterSize = (int) piCounter.size();
-            }
-        }
-        if (ingressCounterSize != egressCounterSize) {
-            log.warn("PDR ingress and egress counter sizes are not equal! Using the minimum of the two.");
-        }
-        pdrCounterSize = Math.min(ingressCounterSize, egressCounterSize);
         return pdrCounterSize;
+    }
+
+    @Override
+    public long farTableSize() {
+        if (ueLimit >= 0) {
+            return Math.min(ueLimit * 2, farTableSize);
+        }
+        return farTableSize;
+    }
+
+
+    @Override
+    public long pdrTableSize() {
+        long physicalSize = Math.min(encappedPdrTableSize, unencappedPdrTableSize) * 2;
+        if (ueLimit >= 0) {
+            return Math.min(ueLimit * 2, physicalSize);
+        }
+        return physicalSize;
     }
 
     @Override
     public PdrStats readCounter(int cellId) throws UpfProgrammableException {
         if (cellId >= pdrCounterSize() || cellId < 0) {
-            throw new UpfProgrammableException("Requested PDR counter cell index is out of bounds.");
+            throw new UpfProgrammableException("Requested PDR counter cell index is out of bounds.",
+                    UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
         }
         PdrStats.Builder stats = PdrStats.builder().withCellId(cellId);
 
@@ -335,9 +399,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
 
     @Override
-    public void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException, Up4Translator.Up4TranslationException {
+    public void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException,
+            Up4Translator.Up4TranslationException {
         if (pdr.counterId() >= pdrCounterSize() || pdr.counterId() < 0) {
-            throw new UpfProgrammableException("Counter cell index referenced by PDR is out of bounds.");
+            throw new UpfProgrammableException("Counter cell index referenced by PDR is out of bounds.",
+                    UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
         }
         FlowRule fabricPdr = up4Translator.pdrToFabricEntry(pdr, deviceId, appId, DEFAULT_PRIORITY);
         log.info("Installing {}", pdr.toString());
@@ -538,7 +604,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         }
         return ifaces;
     }
-
 
     @Override
     public void removePdr(PacketDetectionRule pdr) throws UpfProgrammableException {

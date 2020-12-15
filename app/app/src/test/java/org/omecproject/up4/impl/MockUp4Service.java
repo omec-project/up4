@@ -34,12 +34,27 @@ public class MockUp4Service implements Up4Service {
         }
 
         @Override
+        public void setUeLimit(long ueLimit) {
+
+        }
+
+        @Override
         public void cleanUp(ApplicationId appId) {
 
         }
 
         @Override
-        public int pdrCounterSize() {
+        public long farTableSize() {
+            return TestConstants.PHYSICAL_MAX_FARS;
+        }
+
+        @Override
+        public long pdrTableSize() {
+            return TestConstants.PHYSICAL_MAX_PDRS;
+        }
+
+        @Override
+        public long pdrCounterSize() {
             return TestConstants.PHYSICAL_COUNTER_SIZE;
         }
 

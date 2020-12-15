@@ -4,57 +4,57 @@
   -->
 <scenario name="smf-failure"
           description="Kill and restore the mock SMF and verify the PFCP agent reacts correctly">
-    <group name="Mock-Smf-Failure">
-        <group name="Pfcp-Setup-Fwd">
-            <step name="Pfcp-Session-Create"
-                  exec="mock-smf-cmd establish"/>
-            <step name="Pfcp-Session-Modify" requires="^" delay="1"
+    <group name="Smf-Failure">
+        <group name="SF-Setup-Fwd-1">
+            <step name="SF-Create-Session-1"
+                  exec="mock-smf-cmd create"/>
+            <step name="SF-Modify-Session-1" requires="^" delay="1"
                   exec="mock-smf-cmd modify"/>
         </group>
 
-        <step name="Check-Flows-Installed" requires="Pfcp-Setup-Fwd" delay="2"
+        <step name="SF-Check-Flows-1" requires="SF-Setup-Fwd-1" delay="2"
               exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
 
-        <step name="Kill-Mock-Smf" requires="^"
+        <step name="SF-Kill-Smf" requires="^"
               exec="mock-smf-cmd kill"/>
 
-        <step name="Check-Flows-Deleted-On-Mock-Smf-Failure" requires="^" delay="10"
+        <step name="SF-Check-Flows-2" requires="^" delay="10"
               exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
 
-        <group name="Mock-Smf-Revive" requires="~Check-Flows-Deleted-On-Mock-Smf-Failure">
-            <step name="Mock-Smf-Start-Again" requires="~Check-Flows-Deleted-On-Mock-Smf-Failure"
+        <group name="SF-Revive-Smf" requires="~SF-Check-Flows-2">
+            <step name="SF-Start-Smf"
                   exec="mock-smf-cmd start"/>
-            <step name="Mock-Smf-Associate-Again" requires="^" delay="1"
+            <step name="SF-Associate-Smf" requires="^" delay="1"
                   exec="mock-smf-cmd associate"/>
         </group>
 
-        <group name="Pfcp-Restore-Fwd" requires="Mock-Smf-Revive">
-            <step name="Pfcp-Session-Create-Again" requires="Mock-Smf-Revive"
-                  exec="mock-smf-cmd establish"/>
-            <step name="Pfcp-Session-Modify-Again" requires="^" delay="1"
+        <group name="SF-Setup-Fwd-2" requires="SF-Revive-Smf">
+            <step name="SF-Create-Session-2"
+                  exec="mock-smf-cmd create"/>
+            <step name="SF-Modify-Session-2" requires="^" delay="1"
                   exec="mock-smf-cmd modify"/>
         </group>
 
-        <step name="Check-Flows-Reinstalled" requires="Pfcp-Restore-Fwd" delay="2"
+        <step name="SF-Check-Flows-3" requires="SF-Setup-Fwd-2" delay="2"
               exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
 
-        <group name="Check-Traffic-Fwd-After-Mock-Smf-Failure" requires="Check-Flows-Reinstalled">
+        <group name="SF-Check-Fwding" requires="SF-Check-Flows-3">
             <!-- Downlink -->
-            <step name="Downlink-Enb-Recv-Gtp-Fwd" requires="Check-Flows-Reinstalled"
+            <step name="SF-Downlink-Enb-Recv-Gtp-Fwd"
                   exec="mn-cmd enodeb traffic.py recv-gtp -t 10"/>
-            <step name="Downlink-Pdn-Send-Udp-Fwd" requires="Check-Flows-Reinstalled" delay="5"
+            <step name="SF-Downlink-Pdn-Send-Udp-Fwd" requires="SF-Check-Flows-3" delay="5"
                   exec="mn-cmd pdn traffic.py send-udp -c 10"/>
             <!-- Uplink -->
-            <step name="Uplink-Pdn-Recv-Udp-Fwd" requires="Check-Flows-Reinstalled"
+            <step name="SF-Uplink-Pdn-Recv-Udp-Fwd"
                   exec="mn-cmd pdn traffic.py recv-udp -t 10"/>
-            <step name="Uplink-Enb-Send-Gtp-Fwd" requires="Check-Flows-Reinstalled" delay="5"
+            <step name="SF-Uplink-Enb-Send-Gtp-Fwd" delay="5"
                   exec="mn-cmd enodeb traffic.py send-gtp -c 10"/>
         </group>
 
-        <step name="Pfcp-Clear-Fwd" requires="~Check-Traffic-Fwd-After-Mock-Smf-Failure"
+        <step name="SF-Clear-Flows" requires="~SF-Check-Fwding"
               exec="mock-smf-cmd delete"/>
 
-        <step name="Check-Flows-Deleted-Again" requires="^" delay="2"
+        <step name="SF-Check-Flows-4" requires="^" delay="2"
               exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
     </group>
 </scenario>

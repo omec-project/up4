@@ -13,7 +13,8 @@ RUN cp $(which dbuf) /output/dbuf
 FROM $MN_STRATUM_IMAGE
 COPY --from=dbuf /output/dbuf /usr/local/bin
 
-RUN install_packages python-pip python-setuptools
-RUN pip install scapy==2.4.4
+RUN install_packages python3 python3-pip python3-setuptools
+RUN pip3 install wheel
+RUN pip3 install scapy==2.4.4
 
 ENV PATH=/up4/bin:${PATH}

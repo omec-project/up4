@@ -74,4 +74,11 @@ onos-ui:
 	open http://localhost:8181/onos/ui
 
 mock-smf:
-	docker-compose exec mock-smf /up4/bin/mock-smf.py pfcp-agent
+	docker-compose exec mock-smf /up4/bin/mock-smf.py pfcp-agent \
+		--pcap-file /tmp/mock-smf.pcap -vvv
+
+p4rt-sh:
+	docker-compose exec p4rtsh \
+		/p4runtime-sh/docker_entry_point.sh \
+		--grpc-addr onos1:51001 \
+		--device-id 0 --election-id 0,1
