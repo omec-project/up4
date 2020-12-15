@@ -96,9 +96,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     private int farTableSize;
     private int encappedPdrTableSize;
     private int unencappedPdrTableSize;
-    private int farTableOccupancy;
-    private int encappedPdrTableOccupancy;
-    private int unencappedPdrTableOccupancy;
+    private Set<Long> installedEncappedPdrFlowIds = new HashSet<>();
+    private Set<Long> installedUnencappedPdrFlowIds = new HashSet<>();
+    private Set<Long> installedFarFlowIds = new HashSet<>();
     private int ueLimit = -1;
     private final Object occupancyLock = new Object();
     private ApplicationId appId;
@@ -111,21 +111,24 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         @Override
         public void event(FlowRuleEvent event) {
             TableId tableId = event.subject().table();
-            int change;
-            if (event.type() == FlowRuleEvent.Type.RULE_ADD_REQUESTED) {
-                change = +1;
-            } else if (event.type() == FlowRuleEvent.Type.RULE_REMOVE_REQUESTED) {
-                change = -1;
-            } else {
-                return;
-            }
+            long flowId = event.subject().id().id();
             synchronized (occupancyLock) {
-                if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS)) {
-                    farTableOccupancy += change;
-                } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
-                    encappedPdrTableOccupancy += change;
-                } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)) {
-                    unencappedPdrTableOccupancy += change;
+                if (event.type() == FlowRuleEvent.Type.RULE_ADD_REQUESTED) {
+                    if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS)) {
+                        installedFarFlowIds.add(flowId);
+                    } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
+                        installedEncappedPdrFlowIds.add(flowId);
+                    } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)) {
+                        installedUnencappedPdrFlowIds.add(flowId);
+                    }
+                } else if (event.type() == FlowRuleEvent.Type.RULE_REMOVE_REQUESTED) {
+                    if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS)) {
+                        installedFarFlowIds.remove(flowId);
+                    } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
+                        installedEncappedPdrFlowIds.remove(flowId);
+                    } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)) {
+                        installedUnencappedPdrFlowIds.remove(flowId);
+                    }
                 }
             }
         }
@@ -201,14 +204,18 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     private void computeTableOccupancies() {
         log.debug("Computing table occupancies");
         synchronized (occupancyLock) {
-            farTableOccupancy = getInstalledFars().size();
-            encappedPdrTableOccupancy = 0;
-            unencappedPdrTableOccupancy = 0;
-            for (var pdr : getInstalledPdrs()) {
-                if (pdr.matchesEncapped()) {
-                    encappedPdrTableOccupancy += 1;
-                } else if (pdr.matchesUnencapped()) {
-                    unencappedPdrTableOccupancy += 1;
+            installedEncappedPdrFlowIds.clear();
+            installedUnencappedPdrFlowIds.clear();
+            installedFarFlowIds.clear();
+            for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
+                long flowId = flowRule.id().id();
+                TableId tableId = flowRule.table();
+                if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS)) {
+                    installedFarFlowIds.add(flowId);
+                } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
+                    installedEncappedPdrFlowIds.add(flowId);
+                } else if (tableId.equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS)) {
+                    installedUnencappedPdrFlowIds.add(flowId);
                 }
             }
         }
@@ -494,8 +501,14 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             // if it isn't, then check if the table is full
             int encappedTableSize = ueLimit >= 0 ? ueLimit : this.encappedPdrTableSize;
             int unencappedTableSize = ueLimit >= 0 ? ueLimit : this.unencappedPdrTableSize;
-            if ((pdr.matchesEncapped() && encappedPdrTableOccupancy >= encappedTableSize) ||
-                    (pdr.matchesUnencapped() && unencappedPdrTableOccupancy >= unencappedTableSize)) {
+            int encappedOccupancy;
+            int unencappedOccupancy;
+            synchronized (occupancyLock) {
+                encappedOccupancy = installedEncappedPdrFlowIds.size();
+                unencappedOccupancy = installedUnencappedPdrFlowIds.size();
+            }
+            if ((pdr.matchesEncapped() && encappedOccupancy >= encappedTableSize) ||
+                    (pdr.matchesUnencapped() && unencappedOccupancy >= unencappedTableSize)) {
                 log.warn("Failed to add a PDR due to reaching table capacity.");
                 throw Status.RESOURCE_EXHAUSTED.withDescription("Physical PDR table exhausted").asException();
             }
@@ -535,7 +548,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         if (flowRuleStore.getFlowEntry(fabricFar) == null) {
             // if it isn't, then check if the table is full
             int tableSizeLimit = ueLimit >= 0 ? ueLimit * 2 : farTableSize;
-            if (farTableOccupancy >= tableSizeLimit) {
+            int tableOccupancy;
+            synchronized (occupancyLock) {
+                tableOccupancy = installedFarFlowIds.size();
+            }
+            if (tableOccupancy >= tableSizeLimit) {
                 log.warn("Failed to add a FAR due to reaching table capacity.");
                 throw Status.RESOURCE_EXHAUSTED.withDescription("Physical FAR table exhausted").asException();
             }
