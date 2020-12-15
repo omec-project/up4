@@ -155,7 +155,7 @@ def main():
                         help="How long to wait for packets before giving up")
     parser.add_argument("-c", dest="count", type=int, default=1,
                         help="How many packets to transmit for each flow")
-    parser.add_argument("--rate", type=int, default=10,
+    parser.add_argument("--rate", type=int, default=2,
                         help="Packets per second to send for each flow")
     parser.add_argument("--flow-count", type=int, default=1,
                         help="How many flows to send/receive.")
