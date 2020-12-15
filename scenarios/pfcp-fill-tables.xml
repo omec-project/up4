@@ -24,8 +24,6 @@
         <group name="FT-Setup-Flows-2" requires="FT-Check-Flows-3">
             <step name="FT-Create-Sessions-2"
                   exec="mock-smf-cmd create --session-count 33"/>
-            <step name="FT-Modify-Sessions-2" requires="^" delay="10"
-                  exec="mock-smf-cmd modify"/>
         </group>
 
         <!-- Check that 32 of the 33 sessions have been installed, and the 33rd was rejected -->
