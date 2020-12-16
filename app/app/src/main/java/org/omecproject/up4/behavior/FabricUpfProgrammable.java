@@ -24,6 +24,7 @@ import org.onosproject.net.DeviceId;
 import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.DefaultTrafficSelector;
 import org.onosproject.net.flow.FlowEntry;
+import org.onosproject.net.flow.FlowId;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.criteria.PiCriterion;
@@ -85,12 +86,14 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     private long unencappedPdrTableSize;
     private long ueLimit = -1;
     private ApplicationId appId;
-
     private BufferDrainer bufferDrainer;
-
-    private Set<UpfRuleIdentifier> bufferFarIds;
-    private Map<UpfRuleIdentifier, Set<Ip4Address>> farIdToUeAddrs;
+    private final Set<UpfRuleIdentifier> bufferFarIds = new HashSet<>();
+    private final Map<UpfRuleIdentifier, Set<Ip4Address>> farIdToUeAddrs = new HashMap<>();
     private GtpTunnel dbufTunnel;
+    // FIXME: should use FlowRuleStore or FlowRuleService events to maintain these three sets
+    private final Set<FlowId> installedFarFlowIds = new HashSet<>();
+    private final Set<FlowId> installedEncappedPdrFlowIds = new HashSet<>();
+    private final Set<FlowId> installedUnencappedPdrFlowIds = new HashSet<>();
 
     @Activate
     protected void activate() {
@@ -104,8 +107,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public boolean init(ApplicationId appId, DeviceId deviceId) {
-        this.bufferFarIds = new HashSet<>();
-        this.farIdToUeAddrs = new HashMap<>();
         this.appId = appId;
         this.deviceId = deviceId;
         computeHardwareResourceSizes();
@@ -209,11 +210,20 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .build();
     }
 
+    private void clearStructs() {
+        farIdToUeAddrs.clear();
+        bufferFarIds.clear();
+        installedEncappedPdrFlowIds.clear();
+        installedUnencappedPdrFlowIds.clear();
+        installedFarFlowIds.clear();
+        up4Translator.reset();
+    }
+
     @Override
     public void cleanUp(ApplicationId appId) {
         log.info("Clearing all UPF-related table entries.");
         flowRuleService.removeFlowRulesById(appId);
-        up4Translator.reset();
+        clearStructs();
     }
 
     @Override
@@ -240,6 +250,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 flowRuleService.removeFlowRules(entry);
             }
         }
+        clearStructs();  // There's no state associated with interface entries, so this is OK
         log.info("Cleared {} PDRs and {} FARS.", pdrsCleared, farsCleared);
     }
 
@@ -406,9 +417,35 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                     UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
         }
         FlowRule fabricPdr = up4Translator.pdrToFabricEntry(pdr, deviceId, appId, DEFAULT_PRIORITY);
+        // Check if the PDR match key is already installed
+        if (pdr.matchesEncapped()) {
+            if (!installedEncappedPdrFlowIds.contains(fabricPdr.id())) {
+                long encappedTableSize = ueLimit >= 0 ? ueLimit : this.encappedPdrTableSize;
+                if (installedEncappedPdrFlowIds.size() >= encappedTableSize) {
+                    log.warn("Failed to add a PDR due to reaching table capacity.");
+                    throw new UpfProgrammableException("Physical PDR table exhausted",
+                            UpfProgrammableException.Type.TABLE_EXHAUSTED);
+                }
+            }
+        } else {
+            if (!installedUnencappedPdrFlowIds.contains(fabricPdr.id())) {
+                long unencappedTableSize = ueLimit >= 0 ? ueLimit : this.unencappedPdrTableSize;
+                if (installedUnencappedPdrFlowIds.size() >= unencappedTableSize) {
+                    log.warn("Failed to add a PDR due to reaching table capacity.");
+                    throw new UpfProgrammableException("Physical PDR table exhausted",
+                            UpfProgrammableException.Type.TABLE_EXHAUSTED);
+                }
+            }
+        }
         log.info("Installing {}", pdr.toString());
         flowRuleService.applyFlowRules(fabricPdr);
         log.debug("FAR added with flowID {}", fabricPdr.id().value());
+        if (pdr.matchesEncapped()) {
+
+            installedEncappedPdrFlowIds.add(fabricPdr.id());
+        } else {
+            installedUnencappedPdrFlowIds.add(fabricPdr.id());
+        }
 
         // If the flow rule was applied and the PDR is downlink, add the PDR to the farID->PDR mapping
         if (pdr.matchesUnencapped()) {
@@ -437,9 +474,17 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             bufferFarIds.add(ruleId);
         }
         FlowRule fabricFar = up4Translator.farToFabricEntry(far, deviceId, appId, DEFAULT_PRIORITY);
+        if (!installedFarFlowIds.contains(fabricFar.id())) {
+            if (installedFarFlowIds.size() >= farTableSize()) {
+                log.warn("Failed to add a FAR due to reaching table capacity.");
+                throw new UpfProgrammableException("Physical FAR table exhausted",
+                        UpfProgrammableException.Type.TABLE_EXHAUSTED);
+            }
+        }
         log.info("Installing {}", far.toString());
         flowRuleService.applyFlowRules(fabricFar);
         log.debug("FAR added with flowID {}", fabricFar.id().value());
+        installedFarFlowIds.add(fabricFar.id());
         if (!far.buffers() && bufferFarIds.contains(ruleId)) {
             // If this FAR does not buffer but used to, then drain all relevant buffers
             bufferFarIds.remove(ruleId);
@@ -459,8 +504,13 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         log.debug("Interface added with flowID {}", flowRule.id().value());
     }
 
-    private boolean removeEntry(PiCriterion match, PiTableId tableId, boolean failSilent)
-            throws UpfProgrammableException {
+    /**
+     *
+     * @param match criterion of the entry to remove
+     * @param tableId the ID of the table of the entry to remove
+     * @return the FlowEntry that was removed, or null if no matching entry was found to remove
+     */
+    private FlowEntry removeEntry(PiCriterion match, PiTableId tableId) {
         FlowRule entry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
                 .forTable(tableId)
@@ -477,14 +527,10 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             if (installedEntry.selector().equals(entry.selector())) {
                 log.info("Found matching entry to remove, it has FlowID {}", installedEntry.id());
                 flowRuleService.removeFlowRules(installedEntry);
-                return true;
+                return installedEntry;
             }
         }
-        if (!failSilent) {
-            throw new UpfProgrammableException("Match criterion " + match.toString() +
-                    " not found in table " + tableId.toString());
-        }
-        return false;
+        return null;
     }
 
     @Override
@@ -622,8 +668,16 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             tableId = SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS;
         }
         log.info("Removing {}", pdr.toString());
-        removeEntry(match, tableId, false);
+        FlowEntry removedEntry = removeEntry(match, tableId);
+        if (removedEntry == null) {
+            throw new UpfProgrammableException(pdr.toString() + " not found on switch, cannot delete.");
+        }
 
+        if (pdr.matchesEncapped()) {
+            installedEncappedPdrFlowIds.remove(removedEntry.id());
+        } else {
+            installedUnencappedPdrFlowIds.remove(removedEntry.id());
+        }
         // Remove the PDR from the farID->PDR mapping
         // This is an inefficient hotfix FIXME: remove UE addrs from the mapping in sublinear time
         if (pdr.matchesUnencapped()) {
@@ -639,7 +693,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .matchExact(SouthConstants.HDR_FAR_ID, up4Translator.globalFarIdOf(far.sessionId(), far.farId()))
                 .build();
 
-        removeEntry(match, SouthConstants.FABRIC_INGRESS_SPGW_FARS, false);
+        FlowEntry removedEntry = removeEntry(match, SouthConstants.FABRIC_INGRESS_SPGW_FARS);
+        if (removedEntry == null) {
+            throw new UpfProgrammableException(far.toString() + " not found on switch, cannot delete.");
+        }
+        installedFarFlowIds.remove(removedEntry.id());
     }
 
     @Override
@@ -652,7 +710,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                             ifacePrefix.prefixLength())
                     .matchExact(SouthConstants.HDR_GTPU_IS_VALID, 1)
                     .build();
-            if (removeEntry(match1, SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES, true)) {
+            if (removeEntry(match1, SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES) != null) {
                 return;
             }
         }
@@ -662,6 +720,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                         ifacePrefix.prefixLength())
                 .matchExact(SouthConstants.HDR_GTPU_IS_VALID, 0)
                 .build();
-        removeEntry(match2, SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES, false);
+        if (removeEntry(match2, SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES) == null) {
+            throw new UpfProgrammableException(upfInterface.toString() + " not found on switch, cannot delete.");
+        }
     }
 }
