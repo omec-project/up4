@@ -69,9 +69,12 @@ class DbufHost(IPv4Host):
             [
                 #"-queue_id_high", DBUF_QUEUE_ID_HIGH,
                 #"-queue_id_low", DBUF_QUEUE_ID_LOW,
-                "-max_queues", DBUF_NUM_QUEUES,
-                "-max_packet_slots_per_queue", DBUF_MAX_PKTS_PER_QUEUE,
-                "-queue_drop_timeout", DBUF_DROP_TIMEOUT_SEC,
+                "-max_queues",
+                DBUF_NUM_QUEUES,
+                "-max_packet_slots_per_queue",
+                DBUF_MAX_PKTS_PER_QUEUE,
+                "-queue_drop_timeout",
+                DBUF_DROP_TIMEOUT_SEC,
             ])
         # Send to background
         cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
