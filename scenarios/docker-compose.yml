@@ -4,7 +4,7 @@ version: "3"
 
 services:
   pfcp-agent:
-    image: ${PFCP_AGENT_IMAGE} 
+    image: ${PFCP_AGENT_IMAGE}
     hostname: pfcp-agent
     container_name: pfcp-agent
     tty: true
@@ -13,18 +13,18 @@ services:
       - ./tmp:/tmp
       - ./topo:/topo
       - ./bin:/up4/bin
-    links:
-      - mininet
       - onos1
     entrypoint: "/topo/pfcp-entry.sh"
     working_dir: /bin/
+    expose:
+      - 8805
     depends_on:
       - mininet
   mock-smf:
     build:
       context: ./topo
       dockerfile: Dockerfile.scapy
-    hostname: mock-smf 
+    hostname: mock-smf
     container_name: mock-smf
     tty: true
     stdin_open: true
@@ -32,8 +32,6 @@ services:
       - ./tmp:/tmp
       - ./topo:/topo
       - ./bin:/up4/bin
-    links:
-      - pfcp-agent
     entrypoint: "/bin/sh"
     depends_on:
       - pfcp-agent
@@ -48,8 +46,6 @@ services:
       - ./tmp:/tmp
       - ../p4src/build/:/p4c-out/
       - ./p4rt:/p4rt
-    links:
-      - onos1
     entrypoint: "/bin/bash"
   mininet:
     build:
@@ -69,6 +65,11 @@ services:
       - ./topo:/topo
       - ./bin:/up4/bin
       - ./tmp/pcaps:/pcaps
+    expose:
+      - 50001
+      - 50002
+      - 50003
+      - 50004
   onos1:
     # Tost image comes with latest trellis apps
     image: ${ONOS_IMAGE}
@@ -80,14 +81,70 @@ services:
       - "51001:51001" # the UP4 app's gRPC server port
       - "5005:5005" # Java debugger
     volumes:
-      - ./tmp/onos:/root/onos/apache-karaf-4.2.9/data/tmp
-      - ./tmp/pcaps:/pcaps
-    environment:
-      - JAVA_DEBUG_PORT=0.0.0.0:5005
+      - ./config/onos/onos1.json:/root/onos/config/cluster.json
+      - ./tmp/onos1:/root/onos/apache-karaf-4.2.9/data/tmp
     env_file:
-      # Includes ONOS_APPS
+      - .env.stc # Includes ONOS_APPS
+    entrypoint: "./bin/onos-service"
+    command: [ "debug" ]
+  onos2:
+    image: ${ONOS_IMAGE}
+    hostname: onos2
+    container_name: onos2
+    ports:
+      - "8182:8181"
+      - "8102:8101"
+      - "5006:5005"
+    expose:
+      - 51001
+    volumes:
+      - ./config/onos/onos2.json:/root/onos/config/cluster.json
+      - ./tmp/onos2:/root/onos/apache-karaf-4.2.9/data/tmp
+    env_file:
       - .env.stc
     entrypoint: "./bin/onos-service"
-    command: ["debug"]
-    links:
-      - mininet
+    command: [ "debug" ]
+  onos3:
+    image: ${ONOS_IMAGE}
+    hostname: onos3
+    container_name: onos3
+    ports:
+      - "8183:8181"
+      - "8103:8101"
+      - "5007:5005"
+    expose:
+      - 51001
+    volumes:
+      - ./config/onos/onos3.json:/root/onos/config/cluster.json
+      - ./tmp/onos3:/root/onos/apache-karaf-4.2.9/data/tmp
+    env_file:
+      - .env.stc
+    entrypoint: "./bin/onos-service"
+    command: [ "debug" ]
+  atomix1:
+    image: ${ATOMIX_IMAGE}
+    container_name: atomix1
+    hostname: atomix1
+    expose:
+      - 5678
+      - 5679
+    volumes:
+      - ./config/atomix/atomix1.conf:/opt/atomix/conf/atomix.conf
+  atomix2:
+    image: ${ATOMIX_IMAGE}
+    container_name: atomix2
+    hostname: atomix2
+    expose:
+      - 5678
+      - 5679
+    volumes:
+      - ./config/atomix/atomix2.conf:/opt/atomix/conf/atomix.conf
+  atomix3:
+    image: ${ATOMIX_IMAGE}
+    container_name: atomix3
+    hostname: atomix3
+    expose:
+      - 5678
+      - 5679
+    volumes:
+      - ./config/atomix/atomix3.conf:/opt/atomix/conf/atomix.conf

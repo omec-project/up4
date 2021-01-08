@@ -15,20 +15,22 @@
                   requires="Docker-Compose-Up"/>
         </parallel>
 
-        <parallel var="${OD#}">
-            <step name="Onos-Wait-For-Start-${#}" exec="onos-wait-for-start ${OD#}"
-                  requires="Docker-Compose-Up"/>
-            <!-- tost image comes with up4 pre-installed -->
-            <step name="Up4-App-Wait-For-Installed-${#}" requires="Onos-Wait-For-Start-${#}"
-                  exec="docker-log-grep ${ODI} 'Application org.omecproject.up4 has been installed'"/>
-            <!-- Add current users key for passwordless SSH access to the ONOS CLI
-            required by most onos-* commands -->
-            <step name="Onos-User-Key-${#}" exec="onos-user-key ${OD#}"
-                  requires="~Onos-Wait-For-Start-${#}"/>
-        </parallel>
+        <group name="Onos-Wait-For-Ready" requires="Docker-Compose-Up">
+            <parallel var="${OD#}">
+                <step name="Onos-Wait-For-Start-${#}" exec="onos-wait-for-start ${OD#}"
+                      requires="Docker-Compose-Up"/>
+                <!-- tost image comes with up4 pre-installed -->
+                <step name="Up4-App-Wait-For-Installed-${#}" requires="Onos-Wait-For-Start-${#}"
+                      exec="docker-log-grep ${ODI} 'Application org.omecproject.up4 has been installed'"/>
+                <!-- Add current users key for passwordless SSH access to the ONOS CLI
+                required by most onos-* commands -->
+                <step name="Onos-User-Key-${#}" exec="onos-user-key ${OD#}"
+                      requires="~Onos-Wait-For-Start-${#}"/>
+            </parallel>
+        </group>
 
         <!-- remove pre-installed up4, install local build -->
-        <step name="Up4-App-Uninstall" requires="Up4-App-Wait-For-Installed-1"
+        <step name="Up4-App-Uninstall" requires="Onos-Wait-For-Ready"
               exec="onos-app ${OC1} uninstall org.omecproject.up4"/>
         <step name="Up4-App-Wait-For-Uninstalled" requires="^"
               exec="docker-log-grep ${ODI} 'Application org.omecproject.up4 has been uninstalled'"/>
