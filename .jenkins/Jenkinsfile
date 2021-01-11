@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Jenkinsfile-omec-up4-verify.groovy
-// Main verification job for UP4
+// Main verification job for UP4.
 
 
 pipeline {
