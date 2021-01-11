@@ -106,7 +106,9 @@ pipeline {
       options { retry(3) }
       steps {
         dir("${env.WORKSPACE}/up4/scenarios") {
-          sh "make reset smoke.xml stcColor=false stcDumpLogs=true"
+          // Sudo because some folders to clean up are owned by root (container user)
+          sh "sudo make reset"
+          sh "make smoke.xml stcColor=false stcDumpLogs=true"
         }
       }
       post {
@@ -116,7 +118,7 @@ pipeline {
             // TODO: keep grpc logs, e.g.
             //  tmp/onos/grpc___mininet_50001_device_id_1_10895743235847776841.log
             // Sudo because some folder are owned by Docker.
-            sh "sudo find ./tmp -type d -name 'onos*' -exec rm -rf {} +"
+            sh "sudo rm -rf tmp/onos*"
             sh "sudo tar -czvf scenarios-tmp.tar.gz ./tmp"
             archiveArtifacts artifacts: "scenarios-tmp.tar.gz"
           }
