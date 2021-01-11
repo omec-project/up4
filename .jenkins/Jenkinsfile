@@ -107,7 +107,7 @@ pipeline {
       steps {
         dir("${env.WORKSPACE}/up4/scenarios") {
           // Sudo because some folders to clean up are owned by root (container user)
-          sh "sudo make reset"
+          sh "make reset"
           sh "make smoke.xml stcColor=false stcDumpLogs=true"
         }
       }
@@ -117,9 +117,9 @@ pipeline {
             // Onos shared folders contain jars and other stuff that is too big and unnecessary.
             // TODO: keep grpc logs, e.g.
             //  tmp/onos/grpc___mininet_50001_device_id_1_10895743235847776841.log
-            // Sudo because some folder are owned by Docker.
-            sh "sudo rm -rf tmp/onos*"
-            sh "sudo tar -czvf scenarios-tmp.tar.gz ./tmp"
+            sh "make fix-permissions"
+            sh "rm -rf tmp/onos*"
+            sh "tar -czvf scenarios-tmp.tar.gz ./tmp"
             archiveArtifacts artifacts: "scenarios-tmp.tar.gz"
           }
         }

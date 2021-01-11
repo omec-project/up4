@@ -9,6 +9,7 @@ UP4_ROOT           := $(abspath $(CURRENT_DIR)/..)
 ONOS_ROOT          := $(CURRENT_DIR)/onos
 SCENARIOS          := *.xml
 DOCKER_COMPOSE_CMD := docker-compose --env-file $(UP4_ROOT)/.env.docker
+CURRENT_USER       := $(shell id -u):$(shell id -g)
 
 # TODO: release 2.6 with support for quotes in step commands
 STC_VERSION ?= 2.6-SNAPSHOT
@@ -47,6 +48,7 @@ build:
 
 reset:
 	-${DOCKER_COMPOSE_CMD} down -t0 --remove-orphans
+	-make fix-permissions
 	-rm -rf ./tmp
 	-rm -rf /tmp/stc
 
@@ -82,3 +84,9 @@ p4rt-sh:
 		/p4runtime-sh/docker_entry_point.sh \
 		--grpc-addr onos1:51001 \
 		--device-id 0 --election-id 0,1
+
+# This is required for Jenkins to be able to archive build artifacts.
+# Files created by onos and other containers will have root owner.
+# FIXME: The right solution is to run onos as non-root.
+fix-permissions:
+	${DOCKER_COMPOSE_CMD} run --rm --no-deps --entrypoint bash onos1 -c "chown -c -R ${CURRENT_USER} /root/onos/apache-karaf-*/data/tmp"
