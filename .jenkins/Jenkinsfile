@@ -15,6 +15,7 @@
 // Jenkinsfile-omec-up4-verify.groovy
 // Main verification job for UP4.
 
+// TODO: send email to ghprbPullAuthorEmail if failure
 
 pipeline {
 
@@ -32,20 +33,20 @@ pipeline {
         step([$class: "WsCleanup"])
       }
     }
-     stage("Checkout") {
-       steps {
-         checkout([
-             $class           : "GitSCM",
-             userRemoteConfigs: [[url          : "ssh://git@github.com/omec-project/${params.project}.git",
-                                  refspec      : "pull/${params.ghprbPullId}/head",
-                                  credentialsId: "github-onf-bot-ssh-key",]],
-             branches         : [[name: "FETCH_HEAD"]],
-             extensions       : [
-                 [$class: "RelativeTargetDirectory", relativeTargetDir: "${params.project}"],
-                 [$class: "SubmoduleOption", recursiveSubmodules: true, parentCredentials: true]]
-         ],)
-       }
-     }
+    stage("Checkout") {
+      steps {
+        checkout([
+            $class           : "GitSCM",
+            userRemoteConfigs: [[url          : "git@github.com/omec-project/up4.git",
+                                 refspec      : "+refs/pull/*:refs/remotes/origin/pr/*",
+                                 credentialsId: "github-onf-bot-ssh-key",]],
+            branches         : [[name: "${params.sha1}"]],
+            extensions       : [
+                [$class: "RelativeTargetDirectory", relativeTargetDir: "up4"],
+                [$class: "SubmoduleOption", recursiveSubmodules: true, parentCredentials: true]]
+        ],)
+      }
+    }
     stage("Docker login") {
       steps {
         withCredentials([[$class          : "UsernamePasswordMultiBinding",
@@ -83,9 +84,10 @@ pipeline {
         dir("${env.WORKSPACE}/up4") {
           script {
             def modifiedFiles = sh returnStdout: true, script: "git status --porcelain"
-            if (modifiedFiles.toString().length() > 0) {
+            if (modifiedFiles?.trim()) {
               error("The following P4 build artifacts do not correspond to the expected ones, " +
-                  "please run the build locally and commit any changes to these files:\n" + modifiedFiles.toString())
+                  "please run the build locally and commit any changes to these files:\n" +
+                  modifiedFiles)
             }
           }
         }
