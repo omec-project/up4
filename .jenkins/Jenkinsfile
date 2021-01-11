@@ -37,7 +37,7 @@ pipeline {
       steps {
         checkout([
             $class           : "GitSCM",
-            userRemoteConfigs: [[url          : "git@github.com/omec-project/up4.git",
+            userRemoteConfigs: [[url          : "ssh://git@github.com/omec-project/up4.git",
                                  refspec      : "+refs/pull/*:refs/remotes/origin/pr/*",
                                  credentialsId: "github-onf-bot-ssh-key",]],
             branches         : [[name: "${params.sha1}"]],
