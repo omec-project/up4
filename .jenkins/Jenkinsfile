@@ -111,8 +111,14 @@ pipeline {
       }
       post {
         always {
-          sh "tar -czvf scenarios-tmp.tar.gz ${env.WORKSPACE}/up4/scenarios/tmp"
-          archiveArtifacts artifacts: "scenarios-tmp.tar.gz"
+          dir("${env.WORKSPACE}/up4/scenarios") {
+            // Onos shared folders contain jars and other stuff that is too big and unnecessary.
+            // TODO: keep grpc logs, e.g.
+            //  tmp/onos/grpc___mininet_50001_device_id_1_10895743235847776841.log
+            sh 'find ./tmp -type d -name \'onos*\' -exec rm -rf {} +'
+            sh "tar -czvf scenarios-tmp.tar.gz ./tmp"
+            archiveArtifacts artifacts: "scenarios-tmp.tar.gz"
+          }
         }
       }
     }
