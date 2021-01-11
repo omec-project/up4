@@ -30,10 +30,22 @@ pipeline {
     stage("Environment Cleanup") {
       steps {
         step([$class: "WsCleanup"])
-        sh "pwd && ls"
       }
     }
-
+     stage("Checkout") {
+       steps {
+         checkout([
+             $class           : "GitSCM",
+             userRemoteConfigs: [[url          : "ssh://git@github.com/omec-project/${params.project}.git",
+                                  refspec      : "pull/${params.ghprbPullId}/head",
+                                  credentialsId: "github-onf-bot-ssh-key",]],
+             branches         : [[name: "FETCH_HEAD"]],
+             extensions       : [
+                 [$class: "RelativeTargetDirectory", relativeTargetDir: "${params.project}"],
+                 [$class: "SubmoduleOption", recursiveSubmodules: true, parentCredentials: true]]
+         ],)
+       }
+     }
     stage("Docker login") {
       steps {
         withCredentials([[$class          : "UsernamePasswordMultiBinding",
@@ -52,46 +64,60 @@ pipeline {
     stage("Dependencies") {
       options { retry(3) }
       steps {
-        sh "make deps"
-        sh "cd app && make deps"
-        sh "cd scenarios && make deps"
+        dir("${env.WORKSPACE}/up4") {
+          sh "make deps"
+          sh "cd app && make deps"
+          sh "cd scenarios && make deps"
+        }
       }
     }
     stage("Build P4 program") {
       steps {
-        sh "make build"
+        dir("${env.WORKSPACE}/up4") {
+          sh "make build"
+        }
       }
     }
     stage("Check P4Info") {
       steps {
-        script {
-          def modifiedFiles = sh returnStdout: true, script: "git status --porcelain"
-          if (modifiedFiles.toString().length() > 0) {
-            error("The following P4 build artifacts do not correspond to the expected ones, " +
-                "please run the build locally and commit any changes to these files:\n" + modifiedFiles.toString())
+        dir("${env.WORKSPACE}/up4") {
+          script {
+            def modifiedFiles = sh returnStdout: true, script: "git status --porcelain"
+            if (modifiedFiles.toString().length() > 0) {
+              error("The following P4 build artifacts do not correspond to the expected ones, " +
+                  "please run the build locally and commit any changes to these files:\n" + modifiedFiles.toString())
+            }
           }
         }
       }
     }
     stage("Run PTF tests") {
       steps {
-        sh "make check"
+        dir("${env.WORKSPACE}/up4") {
+          sh "make check"
+        }
       }
     }
     stage("Build ONOS app") {
       steps {
-        sh "make build-ci"
+        dir("${env.WORKSPACE}/up4/app") {
+          sh "make build-ci"
+        }
       }
       post {
         success {
-          sh "bash <(curl -s https://codecov.io/bash)"
+          dir("${env.WORKSPACE}/up4/app") {
+            sh "bash <(curl -s https://codecov.io/bash)"
+          }
         }
       }
     }
     stage("Smoke test") {
       options { retry(3) }
       steps {
-        sh "make reset smoke.xml stcColor=false stcDumpLogs=true"
+        dir("${env.WORKSPACE}/up4/scenarios") {
+          sh "make reset smoke.xml stcColor=false stcDumpLogs=true"
+        }
       }
       post {
         always {
