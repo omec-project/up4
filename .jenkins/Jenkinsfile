@@ -118,7 +118,7 @@ pipeline {
             // TODO: keep grpc logs, e.g.
             //  tmp/onos/grpc___mininet_50001_device_id_1_10895743235847776841.log
             sh "make fix-permissions"
-            sh "rm -rf tmp/onos*"
+            sh "rm -rf tmp/onos/*"
             sh "tar -czvf scenarios-tmp.tar.gz ./tmp"
             archiveArtifacts artifacts: "scenarios-tmp.tar.gz"
           }
