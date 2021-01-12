@@ -9,6 +9,7 @@ UP4_ROOT           := $(abspath $(CURRENT_DIR)/..)
 ONOS_ROOT          := $(CURRENT_DIR)/onos
 SCENARIOS          := *.xml
 DOCKER_COMPOSE_CMD := docker-compose --env-file $(UP4_ROOT)/.env.docker
+CURRENT_USER       := $(shell id -u):$(shell id -g)
 
 # TODO: release 2.6 with support for quotes in step commands
 STC_VERSION ?= 2.6-SNAPSHOT
@@ -21,7 +22,11 @@ STC_VERSION ?= 2.6-SNAPSHOT
 /tmp/stc:
 	@mkdir -p /tmp/stc
 
-$(SCENARIOS): /tmp/stc
+# Create ./tmp before Docker does so it doesn't have root owner.
+./tmp:
+	@mkdir -p ./tmp
+
+$(SCENARIOS): ./tmp /tmp/stc
 	$(info *** Running STC scenario: $@)
 	@export $(shell cat "${CURRENT_DIR}"/.env.stc | grep -v '#' | xargs) && \
 		export PATH="${CURRENT_DIR}/bin:${ONOS_ROOT}/tools/test/bin:${ONOS_ROOT}/tools/test/scenarios/bin:${ONOS_ROOT}/tools/package/runtime/bin:${PATH}" && \
@@ -47,6 +52,7 @@ build:
 
 reset:
 	-${DOCKER_COMPOSE_CMD} down -t0 --remove-orphans
+	-make fix-permissions
 	-rm -rf ./tmp
 	-rm -rf /tmp/stc
 
@@ -82,3 +88,10 @@ p4rt-sh:
 		/p4runtime-sh/docker_entry_point.sh \
 		--grpc-addr onos1:51001 \
 		--device-id 0 --election-id 0,1
+
+# This is required for Jenkins to be able to archive build artifacts. Files created by most
+# containers will have root owner. Jenkins doesn't allow sudo, run chown inside a container as there
+# we can be root.
+# FIXME: The right solution is to run containers as non-root.
+fix-permissions:
+	test -d ./tmp && docker run --rm -v ${CURRENT_DIR}/tmp:/tmp privatebin/chown -R ${CURRENT_USER} /tmp || true

@@ -55,7 +55,7 @@ build: _build_resources
 # It's used to run javadoc validation and other checks that should not
 # run on local build, but during CI.
 build-ci: MVN_FLAGS := -Pci-verify -Pcoverage
-build-ci: build
+build-ci: local-build
 
 clean:
 	rm -rf app/target/
