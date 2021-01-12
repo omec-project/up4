@@ -5,9 +5,9 @@
 
 // TODO: send email to ghprbPullAuthorEmail if failure
 
-pipeline {
+def blueOceanBuildUrl = "https://jenkins.opencord.org/blue/organizations/jenkins/${env.JOB_NAME}/detail/${env.JOB_NAME}/${env.BUILD_NUMBER}/pipeline"
 
-  def blueOceanBuildUrl = "https://jenkins.opencord.org/blue/organizations/jenkins/${env.JOB_NAME}/detail/${env.JOB_NAME}/${env.BUILD_NUMBER}/pipeline"
+pipeline {
 
   agent {
     label "${params.buildNode}"
