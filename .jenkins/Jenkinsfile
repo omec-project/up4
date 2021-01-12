@@ -126,13 +126,11 @@ pipeline {
   }
   post {
     failure {
-      mail to: "foo@foomail.com", bcc: '', cc: '',
-          subject: "[${params.JOB_NAME}] ${currentBuild.currentResult}: pull request #${params.ghprbPullId}",
-          body: "<b>${currentBuild.currentResult}</b><br>Project: ${params.ghprbGhRepository}<br>Pull request: ${params.ghprbPullLink}<br>Jenkins build: ${env.BUILD_URL}",
-          charset: 'UTF-8',
-          from: 'noreply@jenkins.opencord.org',
-          mimeType: 'text/html',
-          replyTo: '';
+      emailext (
+          subject: "[${env.JOB_NAME}] ${currentBuild.currentResult}: pull request #${params.ghprbPullId}",
+          body: "Check console output at $BUILD_URL to view the results.\nTriggered by GitHub pull request at ${params.ghprbPullLink}",
+          to: "${params.ghprbPullAuthorEmail}"
+      )
     }
   }
 }
