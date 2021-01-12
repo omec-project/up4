@@ -3,8 +3,6 @@
 
 // To validate: ./jflint.sh Jenkinsfile
 
-// TODO: send email to ghprbPullAuthorEmail if failure
-
 def blueOceanBuildUrl = "https://jenkins.opencord.org/blue/organizations/jenkins/${env.JOB_NAME}/detail/${env.JOB_NAME}/${env.BUILD_NUMBER}"
 
 pipeline {
@@ -28,7 +26,7 @@ pipeline {
         checkout([
             $class           : "GitSCM",
             userRemoteConfigs: [[url          : "ssh://git@github.com/omec-project/up4.git",
-                                 refspec      : "+refs/pull/*:refs/remotes/origin/pr/*",
+                                 refspec      : "+refs/heads/*:refs/remotes/origin/* +refs/pull/*:refs/remotes/origin/pr/*",
                                  credentialsId: "github-onf-bot-ssh-key",]],
             branches         : [[name: "${params.sha1}"]],
             extensions       : [
@@ -37,18 +35,16 @@ pipeline {
         ],)
       }
     }
-    stage("Docker login") {
+    stage("Prep") {
       steps {
+        // Docker login
         withCredentials([[$class          : "UsernamePasswordMultiBinding",
                           credentialsId   : "registry.aetherproject.org",
                           usernameVariable: "USERNAME",
                           passwordVariable: "PASSWORD"]]) {
-          sh "foo bar docker login registry.aetherproject.org -u $USERNAME -p $PASSWORD"
+          sh "docker login registry.aetherproject.org -u $USERNAME -p $PASSWORD"
         }
-      }
-    }
-    stage("Set JDK 11") {
-      steps {
+        // Set JDK 11
         sh "sudo update-java-alternatives -s java-11-amazon-corretto"
       }
     }
@@ -62,7 +58,7 @@ pipeline {
         }
       }
     }
-    stage("Build P4 program") {
+    stage("Build P4") {
       steps {
         dir("${env.WORKSPACE}/up4") {
           sh "make build"
@@ -128,11 +124,23 @@ pipeline {
   }
   post {
     failure {
-      emailext (
-          subject: "[${env.JOB_NAME}] ${currentBuild.currentResult}: pull request #${params.ghprbPullId}",
-          body: "Check results at ${blueOceanBuildUrl}\nTriggered by GitHub pull request at ${params.ghprbPullLink}",
-          to: "${params.ghprbPullAuthorEmail}"
-      )
+      script {
+        if (params.ghprbPullId?.trim()) {
+          // Pull request, alert author
+          emailext(
+              subject: "[${env.JOB_NAME}] ${currentBuild.currentResult}: pull request #${params.ghprbPullId}",
+              body: "Check results at ${blueOceanBuildUrl}\n\nTriggered by GitHub pull request at ${params.ghprbPullLink}",
+              to: "${params.ghprbPullAuthorEmail}"
+          )
+        } else {
+          // Post-merge, alert project maintainers
+          emailext(
+              subject: "[${env.JOB_NAME}] ${currentBuild.currentResult}: ${params.sha1}",
+              body: "Check results at ${blueOceanBuildUrl}",
+              to: "carmelo@opennetworking.org"
+          )
+        }
+      }
     }
   }
 }
