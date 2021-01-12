@@ -7,6 +7,8 @@
 
 pipeline {
 
+  def blueOceanBuildUrl = "https://jenkins.opencord.org/blue/organizations/jenkins/${env.JOB_NAME}/detail/${env.JOB_NAME}/${env.BUILD_NUMBER}/pipeline"
+
   agent {
     label "${params.buildNode}"
   }
@@ -128,7 +130,7 @@ pipeline {
     failure {
       emailext (
           subject: "[${env.JOB_NAME}] ${currentBuild.currentResult}: pull request #${params.ghprbPullId}",
-          body: "Check console output at $BUILD_URL to view the results.\nTriggered by GitHub pull request at ${params.ghprbPullLink}",
+          body: "Check results at ${blueOceanBuildUrl}\nTriggered by GitHub pull request at ${params.ghprbPullLink}",
           to: "${params.ghprbPullAuthorEmail}"
       )
     }
