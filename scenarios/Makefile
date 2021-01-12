@@ -22,7 +22,11 @@ STC_VERSION ?= 2.6-SNAPSHOT
 /tmp/stc:
 	@mkdir -p /tmp/stc
 
-$(SCENARIOS): /tmp/stc
+# Create ./tmp before Docker does so it doesn't have root owner.
+./tmp:
+	@mkdir -p ./tmp
+
+$(SCENARIOS): ./tmp /tmp/stc
 	$(info *** Running STC scenario: $@)
 	@export $(shell cat "${CURRENT_DIR}"/.env.stc | grep -v '#' | xargs) && \
 		export PATH="${CURRENT_DIR}/bin:${ONOS_ROOT}/tools/test/bin:${ONOS_ROOT}/tools/test/scenarios/bin:${ONOS_ROOT}/tools/package/runtime/bin:${PATH}" && \
@@ -85,8 +89,9 @@ p4rt-sh:
 		--grpc-addr onos1:51001 \
 		--device-id 0 --election-id 0,1
 
-# This is required for Jenkins to be able to archive build artifacts.
-# Files created by onos and other containers will have root owner.
-# FIXME: The right solution is to run onos as non-root.
+# This is required for Jenkins to be able to archive build artifacts. Files created by most
+# containers will have root owner. Jenkins doesn't allow sudo, run chown inside a container as there
+# we can be root.
+# FIXME: The right solution is to run containers as non-root.
 fix-permissions:
-	${DOCKER_COMPOSE_CMD} run --rm --no-deps --entrypoint bash onos1 -c "chown -c -R ${CURRENT_USER} /root/onos/apache-karaf-*/data/tmp"
+	test -d ./tmp && docker run --rm -v ${CURRENT_DIR}/tmp:/tmp privatebin/chown -R ${CURRENT_USER} /tmp || true

@@ -106,7 +106,6 @@ pipeline {
       options { retry(3) }
       steps {
         dir("${env.WORKSPACE}/up4/scenarios") {
-          // Sudo because some folders to clean up are owned by root (container user)
           sh "make reset"
           sh "make smoke.xml stcColor=false stcDumpLogs=true"
         }
@@ -114,11 +113,10 @@ pipeline {
       post {
         always {
           dir("${env.WORKSPACE}/up4/scenarios") {
-            // Onos shared folders contain jars and other stuff that is too big and unnecessary.
-            // TODO: keep grpc logs, e.g.
-            //  tmp/onos/grpc___mininet_50001_device_id_1_10895743235847776841.log
+            // Onos shared folders contain jars and other stuff that is too big and unnecessary,
+            // keep just the grpc logs.
             sh "make fix-permissions"
-            sh "rm -rf tmp/onos/*"
+            sh "find ./tmp/onos*/ -type f -not -name \"grpc_*.log\" -print -delete"
             sh "tar -czvf scenarios-tmp.tar.gz ./tmp"
             archiveArtifacts artifacts: "scenarios-tmp.tar.gz"
           }
