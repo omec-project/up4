@@ -8,38 +8,42 @@ PTF_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 P4SRC_DIR=${PTF_DIR}/../p4src
 P4C_OUT=${P4SRC_DIR}/build
 PTF_IMAGE=${PTF_IMAGE:-undefined}
+MN_STRATUM_IMAGE=${MN_STRATUM_IMAGE:-undefined}
 
-runName=ptf-${RANDOM}
-exitVal=0
+rnd=${RANDOM}
 
 function stop() {
-        echo "Stopping container ${runName}..."
-        docker stop -t0 "${runName}" > /dev/null
-        exit ${exitVal}
+    set +e
+    echo "*** Stopping ${bmv2RunName}..."
+    docker stop -t0 "${bmv2RunName}" > /dev/null
 }
-trap stop INT
+trap stop EXIT
 
-echo "*** Starting stratum_bmv2 in Docker (${runName})..."
-docker run --name "${runName}" -d --privileged --rm \
+it=$(test -t 0 && echo "-it" || echo "-t")
+
+# stratum_bmv2
+bmv2RunName=stratum-bmv2-${rnd}
+echo "*** Starting ${bmv2RunName}..."
+docker run --name ${bmv2RunName} ${it} -d --privileged --rm \
     -v "${PTF_DIR}":/ptf -w /ptf \
-    -v "${P4C_OUT}":/p4c-out \
-    "${PTF_IMAGE}" \
-    ./lib/start_bmv2.sh > /dev/null
-
+    --entrypoint ./lib/start_bmv2.sh \
+    "${MN_STRATUM_IMAGE}"
 sleep 2
 
-set +e
-
-printf "*** Starting tests...\n"
-docker exec "${runName}" ./lib/runner.py \
-    --bmv2-json /p4c-out/bmv2.json \
-    --p4info /p4c-out/p4info.bin \
-    --grpc-addr localhost:28000 \
-    --device-id 1 \
-    --ptf-dir ./tests \
-    --cpu-port 255 \
-    --port-map /ptf/lib/port_map.json "${@}"
-
-exitVal=$?
-
-stop
+# tester
+# Run and show log
+testerRunName=tester-${rnd}
+echo "*** Starting ${testerRunName}..."
+# Do not attach stdin if running in an environment without it (e.g., Jenkins)
+docker run --name ${testerRunName} ${it} --privileged --rm \
+    --network "container:${bmv2RunName}" \
+    -v "${PTF_DIR}":/ptf -w /ptf \
+    -v "${P4C_OUT}":/p4c-out \
+    "${PTF_IMAGE}" python3 -u ./lib/runner.py \
+        --bmv2-json /p4c-out/bmv2.json \
+        --p4info /p4c-out/p4info.bin \
+        --grpc-addr localhost:28000 \
+        --device-id 1 \
+        --ptf-dir ./tests \
+        --cpu-port 255 \
+        --port-map /ptf/lib/port_map.json "${@}"

@@ -78,7 +78,7 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
         self.read_pdr_counters(ctr_id)
 
         # send packet and verify it is decapsulated and routed
-        testutils.send_packet(self, self.port1, str(pkt))
+        testutils.send_packet(self, self.port1, pkt)
         testutils.verify_packet(self, exp_pkt, self.port2)
 
         # Check if pre and post-QoS packet and byte counters incremented
@@ -124,7 +124,7 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         self.read_pdr_counters(ctr_id)
 
         # send packet and verify it is decapsulated and routed
-        testutils.send_packet(self, self.port1, str(pkt))
+        testutils.send_packet(self, self.port1, pkt)
         testutils.verify_packet(self, exp_pkt, self.port2)
 
         # Check if pre and post-QoS packet and byte counters incremented
@@ -170,7 +170,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         self.read_pdr_counters(ctr_id)
 
         # send packet and verify it is dropped
-        testutils.send_packet(self, self.port1, str(pkt))
+        testutils.send_packet(self, self.port1, pkt)
         testutils.verify_no_other_packets(self)
 
         # Check if pre-QoS packet and byte counters incremented,
@@ -219,7 +219,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         self.read_pdr_counters(ctr_id)
 
         # send packet and verify it is dropped
-        testutils.send_packet(self, self.port1, str(pkt))
+        testutils.send_packet(self, self.port1, pkt)
         testutils.verify_no_other_packets(self)
 
         # Check if pre-QoS packet and byte counters incremented,
@@ -256,7 +256,7 @@ class AclPuntTest(GtpuBaseTest):
         self.add_acl_entry(clone_to_cpu=True, eth_type=pkt[Ether].type, ipv4_src=pkt[IP].src,
                            ipv4_dst=pkt[IP].dst, ipv4_proto=pkt[IP].proto)
 
-        testutils.send_packet(self, self.port1, str(pkt))
+        testutils.send_packet(self, self.port1, pkt)
 
         self.verify_packet_in(exp_pkt_in_msg)
 
@@ -306,7 +306,7 @@ class GtpuUplinkDhcpTest(GtpuBaseTest):
         self.read_pdr_counters(ctr_id)
 
         # send packet and verify it is decapsulated and routed
-        testutils.send_packet(self, self.port1, str(pkt))
+        testutils.send_packet(self, self.port1, pkt)
         testutils.verify_packet(self, exp_pkt, self.port2)
 
         # Check if pre and post-QoS packet and byte counters incremented

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #
 # SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
 # Copyright 2013-present Barefoot Networks, Inc.
@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 # SPDX-License-Identifier: Apache-2.0
 #
-import Queue
+import queue
 import argparse
 import json
 import logging
@@ -48,8 +48,8 @@ def check_ifaces(ifaces):
     """
     Checks that required interfaces exist.
     """
-    ifconfig_out = subprocess.check_output(['ifconfig'])
-    iface_list = re.findall(r'^([a-zA-Z0-9]+)', ifconfig_out, re.S | re.M)
+    ifconfig_out = subprocess.check_output(["ifconfig"]).decode("utf-8")
+    iface_list = re.findall(r"^([a-zA-Z0-9]+)", ifconfig_out, re.S | re.M)
     present_ifaces = set(iface_list)
     ifaces = set(ifaces)
     return ifaces <= present_ifaces
@@ -59,7 +59,7 @@ def build_bmv2_config(bmv2_json_path):
     """
     Builds the device config for BMv2
     """
-    with open(bmv2_json_path) as f:
+    with open(bmv2_json_path, 'rb') as f:
         return f.read()
 
 
@@ -74,8 +74,8 @@ def update_config(p4info_path, bmv2_json_path, grpc_addr, device_id):
 
     # Send master arbitration via stream channel
     # This should go in library, to be re-used also by base_test.py.
-    stream_out_q = Queue.Queue()
-    stream_in_q = Queue.Queue()
+    stream_out_q = queue.Queue()
+    stream_in_q = queue.Queue()
 
     def stream_req_iterator():
         while True:
@@ -128,7 +128,7 @@ def update_config(p4info_path, bmv2_json_path, grpc_addr, device_id):
         election_id.high = 0
         election_id.low = 1
         config = request.config
-        with open(p4info_path, 'r') as p4info_f:
+        with open(p4info_path, 'rb') as p4info_f:
             config.p4info.ParseFromString(p4info_f.read())
         config.p4_device_config = build_bmv2_config(bmv2_json_path)
         request.action = p4runtime_pb2.SetForwardingPipelineConfigRequest.VERIFY_AND_COMMIT
@@ -241,7 +241,7 @@ def main():
         error("BMv2 json file {} not found".format(args.bmv2_json))
         sys.exit(1)
     if not os.path.exists(args.port_map):
-        print "Port map path '{}' does not exist".format(args.port_map)
+        print("Port map path '{}' does not exist".format(args.port_map))
         sys.exit(1)
 
     try:

@@ -13,11 +13,11 @@ import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
 import itertools
-import Queue
+import queue
 import sys
 import threading
 import time
-from StringIO import StringIO
+from io import StringIO
 from functools import wraps, partial
 from unittest import SkipTest
 
@@ -121,17 +121,17 @@ def format_pkt_match(received_pkt, expected_pkt):
         # so we have to redirect stdout to a string.
         sys.stdout = StringIO()
 
-        print "========== EXPECTED =========="
+        print("========== EXPECTED ==========")
         if isinstance(expected_pkt, scapy.packet.Packet):
             scapy.packet.ls(expected_pkt)
-            print '--'
+            print('--')
         scapy.utils.hexdump(expected_pkt)
-        print "========== RECEIVED =========="
+        print("========== RECEIVED ==========")
         if isinstance(received_pkt, scapy.packet.Packet):
             scapy.packet.ls(received_pkt)
-            print '--'
+            print('--')
         scapy.utils.hexdump(received_pkt)
-        print "=============================="
+        print("==============================")
 
         return sys.stdout.getvalue()
     finally:
@@ -228,7 +228,7 @@ class P4RuntimeErrorIterator:
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         while self.idx < len(self.errors):
             p4_error = p4runtime_pb2.Error()
             one_error_any = self.errors[self.idx]
@@ -326,8 +326,8 @@ class P4RuntimeTest(BaseTest):
         self.set_up_stream()
 
     def set_up_stream(self):
-        self.stream_out_q = Queue.Queue()
-        self.stream_in_q = Queue.Queue()
+        self.stream_out_q = queue.Queue()
+        self.stream_in_q = queue.Queue()
 
         def stream_req_iterator():
             while True:
