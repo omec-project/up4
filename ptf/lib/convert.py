@@ -23,7 +23,7 @@ def matchesMac(mac_addr_string):
 
 
 def encodeMac(mac_addr_string):
-    return mac_addr_string.replace(':', '').decode('hex')
+    return bytes.fromhex(mac_addr_string.replace(':', ''))
 
 
 def decodeMac(encoded_mac_addr):
@@ -38,7 +38,7 @@ def matchesIPv4(ip_addr_string):
 
 
 def encodeIPv4(ip_addr_string):
-    return socket.inet_aton(ip_addr_string)
+    return bytes(socket.inet_aton(ip_addr_string))
 
 
 def decodeIPv4(encoded_ip_addr):
@@ -47,14 +47,14 @@ def decodeIPv4(encoded_ip_addr):
 
 def matchesIPv6(ip_addr_string):
     try:
-        addr = ipaddress.ip_address(unicode(ip_addr_string, "utf-8"))
+        addr = ipaddress.ip_address(str(ip_addr_string, "utf-8"))
         return isinstance(addr, ipaddress.IPv6Address)
     except ValueError:
         return False
 
 
 def encodeIPv6(ip_addr_string):
-    return socket.inet_pton(socket.AF_INET6, ip_addr_string)
+    return bytes(socket.inet_pton(socket.AF_INET6, ip_addr_string))
 
 
 def bitwidthToBytes(bitwidth):
@@ -66,7 +66,7 @@ def encodeNum(number, bitwidth):
     num_str = '%x' % number
     if number >= 2**bitwidth:
         raise Exception("Number, %d, does not fit in %d bits" % (number, bitwidth))
-    return ('0' * (byte_len * 2 - len(num_str)) + num_str).decode('hex')
+    return bytes.fromhex('0' * (byte_len * 2 - len(num_str)) + num_str)
 
 
 def decodeNum(encoded_number):
@@ -92,7 +92,9 @@ def encode(x, bitwidth):
     elif type(x) == int:
         encoded_bytes = encodeNum(x, bitwidth)
     elif type(x) == bool:
-        encoded_bytes = '\x01' if x else '\x00'
+        encoded_bytes = b'\x01' if x else b'\x00'
+    elif type(x) == bytes:
+        encoded_bytes = x
     else:
         raise Exception("Encoding objects of %r is not supported" % type(x))
     assert (len(encoded_bytes) == byte_len)
@@ -141,7 +143,7 @@ def test():
         encodeNum(num, 8)
         raise Exception("expected exception")
     except Exception as e:
-        print e
+        print(e)
 
 
 if __name__ == '__main__':

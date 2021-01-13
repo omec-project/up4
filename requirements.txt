@@ -1,0 +1,4 @@
+git+https://github.com/secdev/scapy.git@31bf7cea2bb44f9dc52708db7e989a525757f288
+git+https://github.com/p4lang/ptf.git@10a2d4b7d704a430218adc8accf8115376a356eb
+ipaddress
+p4runtime==1.3.0
