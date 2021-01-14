@@ -20,7 +20,8 @@ We use STC to test the UP4 ONOS app in a Mininet-based emulated environment incl
 * Emulated eNodeB and Packet Data Network (PDN) hosts (regular Mininet hosts)
 * DBUF service (running in a Mininet host)
 * 1 ONOS instance
-* PFCP agent (WIP)
+* PFCP agent
+* Mock SMF
 
 Scenarios are defined using XML files contained in this directory.
 
