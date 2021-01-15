@@ -4,6 +4,7 @@
 *.code-workspace
 *.iml
 *.swp
+/venv/
 /.idea/
 /app/.idea/
 /.yapf/
