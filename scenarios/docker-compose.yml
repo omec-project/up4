@@ -66,10 +66,10 @@ services:
       - ./bin:/up4/bin
       - ./tmp/pcaps:/pcaps
     expose:
-      - 50001
-      - 50002
-      - 50003
-      - 50004
+      - 50001 # leaf1
+      - 50002 # leaf2
+      - 50003 # spine1
+      - 50004 # spine2
   onos1:
     # Tost image comes with latest trellis apps
     image: ${ONOS_IMAGE}
@@ -78,7 +78,7 @@ services:
     ports:
       - "8181:8181" # HTTP
       - "8101:8101" # SSH (CLI)
-      - "51001:51001" # the UP4 app's gRPC server port
+      - "51001:51001" # UP4 app's P4Runtime server
       - "5005:5005" # Java debugger
     volumes:
       - ./config/onos/onos1.json:/root/onos/config/cluster.json
@@ -96,6 +96,9 @@ services:
       - "8102:8101"
       - "5006:5005"
     expose:
+      # Same UP4's P4Runtime server as onos1, but no need to publish to the host machine (onos1 is
+      # published for development/debugging). For other onos instances it will only be accessible to
+      # linked services.
       - 51001
     volumes:
       - ./config/onos/onos2.json:/root/onos/config/cluster.json
