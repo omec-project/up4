@@ -19,19 +19,22 @@
             <parallel var="${OD#}">
                 <step name="Onos-Wait-For-Start-${#}" exec="onos-wait-for-start ${OD#}"
                       requires="Docker-Compose-Up"/>
-                <!-- tost image comes with up4 pre-installed -->
-                <step name="Up4-App-Wait-For-Installed-${#}" requires="Onos-Wait-For-Start-${#}"
+                <!-- tost image should come with up4 pre-installed -->
+                <step name="Up4-App-Wait-For-Pre-Installed-${#}" requires="Onos-Wait-For-Start-${#}"
                       exec="docker-log-grep ${ODI} 'Application org.omecproject.up4 has been installed'"/>
                 <!-- Add current users key for passwordless SSH access to the ONOS CLI
                 required by most onos-* commands -->
                 <step name="Onos-User-Key-${#}" exec="onos-user-key ${OD#}"
                       requires="~Onos-Wait-For-Start-${#}"/>
+                <!-- Wait for cluster READY status -->
+                <step name="Onos-Wait-For-Ready-${#}" exec="onos-cli-grep ${OCI} nodes '${OD#}.*READY'"
+                      requires="Onos-Wait-For-Start-${#}"/>
             </parallel>
         </group>
 
         <!-- remove pre-installed up4, install local build -->
         <step name="Up4-App-Uninstall" requires="Onos-Wait-For-Ready"
-              exec="onos-app ${OC1} uninstall org.omecproject.up4"/>
+              exec="onos-app ${OCI} uninstall org.omecproject.up4"/>
         <step name="Up4-App-Wait-For-Uninstalled" requires="^"
               exec="docker-log-grep ${ODI} 'Application org.omecproject.up4 has been uninstalled'"/>
         <step name="Up4-Oar-Exists" requires="^"
@@ -40,19 +43,19 @@
               exec="onos-app ${OCI} reinstall! ${UP4_ROOT}/app/app/target/up4-app-1.0.0-SNAPSHOT.oar"/>
 
         <parallel var="${OD#}">
-            <step name="Onos-Enable-Grpc-Log-${#}"
-                  exec="onos ${OC#} cfg set org.onosproject.grpc.ctl.GrpcChannelControllerImpl enableMessageLog true"
-                  requires="Onos-User-Key-${#}"/>
-            <step name="Up4-Set-Log-Debug-${#}"
-                  exec="onos ${OC#} log:set DEBUG org.omecproject.up4"
-                  requires="Up4-App-Install-Local-Build"/>
             <step name="Onos-Check-Apps-${#}"
                   exec="onos-check-apps ${OC#} ${ONOS_APPS},org.omecproject.up4 includes"
                   requires="Up4-App-Install-Local-Build"/>
+            <step name="Up4-Set-Log-Debug-${#}"
+                  exec="onos ${OC#} log:set DEBUG org.omecproject.up4"
+                  requires="Onos-Check-Apps-${#}"/>
+            <step name="Onos-Enable-Grpc-Log-${#}"
+                  exec="onos ${OC#} cfg set org.onosproject.grpc.ctl.GrpcChannelControllerImpl enableMessageLog true"
+                  requires="Onos-Check-Apps-${#}"/>
             <step name="Onos-Check-Components-${#}" exec="onos-check-components ${OC#}"
                   delay="5" requires="Onos-Check-Apps-${#}"/>
             <step name="Onos-Check-Logs-${#}" exec="onos-check-logs ${OD#}"
-                  requires="Onos-Check-Apps-${#}"/>
+                  requires="Onos-Check-Components-${#}"/>
         </parallel>
     </group>
 </scenario>
