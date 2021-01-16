@@ -426,7 +426,7 @@ class GtpuBaseTest(P4RuntimeTest):
                                    egress_port=outport)
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                     session_id=None, pdr_id=None, far_id=None):
+                                     buffer=False, session_id=None, pdr_id=None, far_id=None):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -471,7 +471,7 @@ class GtpuBaseTest(P4RuntimeTest):
             needs_gtpu_decap=False,
         )
 
-        self.add_far(far_id=far_id, session_id=session_id, drop=drop, tunnel=True,
+        self.add_far(far_id=far_id, session_id=session_id, drop=drop, buffer=buffer, tunnel=True,
                      teid=exp_pkt[gtp.GTP_U_Header].teid, src_addr=exp_pkt[IP].src,
                      dst_addr=exp_pkt[IP].dst)
         if not drop:

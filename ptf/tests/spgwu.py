@@ -227,6 +227,52 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
 
 
+class GtpuDdnDigestTest(GtpuBaseTest):
+    """ Tests that the switch sends digests for buffered packets.
+    """
+
+    def runTest(self):
+        # Test with different type of packets.
+        for pkt_type in self.supported_l4:
+            print_inline("%s ... " % pkt_type)
+            pkt = getattr(testutils,
+                          "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
+                                                         ip_src=PDN_IPV4, ip_dst=UE_IPV4)
+            self.testPacket(pkt)
+
+    @autocleanup
+    def testPacket(self, pkt):
+        # build the expected encapsulated packet that we would receive as output without buffering.
+        # Required to populate FAR with tunneling info.
+        exp_pkt = pkt.copy()
+        dst_mac = ENODEB_MAC
+
+        # Should be encapped too obv.
+        exp_pkt = self.gtpu_encap(exp_pkt, ip_src=S1U_IPV4, ip_dst=ENODEB_IPV4)
+
+        # Expected pkt should have routed MAC addresses and decremented hop
+        # limit (TTL).
+        pkt_route(exp_pkt, dst_mac)
+        pkt_decrement_ttl(exp_pkt)
+
+        # PDR counter ID
+        ctr_id = self.new_counter_id()
+
+        # program all the tables
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, buffer=True)
+
+        # read pre and post-QoS packet and byte counters
+        self.read_pdr_counters(ctr_id)
+
+        # send packet
+        testutils.send_packet(self, self.port1, pkt)
+        testutils.verify_no_other_packets(self)
+
+        # Check if pre and post-QoS packet and byte counters incremented
+        self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
+
+        # TODO: Verify that we received digest on stream channel.
+
 @group("gtpu")
 @skip("ACL punting not yet robust")
 class AclPuntTest(GtpuBaseTest):

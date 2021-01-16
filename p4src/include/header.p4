@@ -122,6 +122,10 @@ struct bar_metadata_t {
     bit<32> suggest_pkt_count; // unused so far
 }
 
+struct ddn_digest_t {
+    bit<32> ue_addr;
+}
+
 
 // Data associated with a FAR entry. Loaded by a FAR (except ID which is loaded by a PDR)
 struct far_metadata_t {
