@@ -19,7 +19,8 @@ We use STC to test the UP4 ONOS app in a Mininet-based emulated environment incl
 * 2x2 fabric of `stratum_bmv2` switches
 * Emulated eNodeB and Packet Data Network (PDN) hosts (regular Mininet hosts)
 * DBUF service (running in a Mininet host)
-* 1 ONOS instance
+* 3 ONOS instances
+* 3 Atomix instances
 * PFCP agent
 * Mock SMF
 
