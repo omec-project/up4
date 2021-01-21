@@ -123,7 +123,8 @@ struct bar_metadata_t {
 }
 
 struct ddn_digest_t {
-    bit<32> ue_addr;
+    fseid_t  fseid;
+    pdr_id_t pdr_id;
 }
 
 
