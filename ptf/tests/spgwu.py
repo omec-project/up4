@@ -242,6 +242,8 @@ class GtpuDdnDigestTest(GtpuBaseTest):
 
     @autocleanup
     def testPacket(self, pkt):
+        self.set_up_ddn_digest()
+
         # build the expected encapsulated packet that we would receive as output without buffering.
         # Required to populate FAR with tunneling info.
         exp_pkt = pkt.copy()
@@ -271,10 +273,11 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         # Check if pre and post-QoS packet and byte counters incremented
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
 
-        # TODO: Verify that we received digest on stream channel.
+        # TODO: pass expected digest
+        self.verify_digest_list(None)
+
 
 @group("gtpu")
-@skip("ACL punting not yet robust")
 class AclPuntTest(GtpuBaseTest):
     """ Test that the ACL table punts a packet to the CPU
     """
@@ -291,7 +294,7 @@ class AclPuntTest(GtpuBaseTest):
         # exp_pkt = CpuHeader(port_num=self.port1) / pkt
         exp_pkt = pkt
         exp_pkt_in_msg = self.helper.build_packet_in(
-            str(exp_pkt), metadata={
+            exp_pkt, metadata={
                 "ingress_port": self.port1,
                 "_pad": 0
             })

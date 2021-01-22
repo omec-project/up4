@@ -359,7 +359,7 @@ class P4InfoHelper(object):
 
     def build_packet_in(self, payload, metadata=None):
         packet_in = p4runtime_pb2.PacketIn()
-        packet_in.payload = payload
+        packet_in.payload = bytes(payload)
         if not metadata:
             return packet_in
         for name, value in metadata.items():
@@ -368,3 +368,12 @@ class P4InfoHelper(object):
             meta.metadata_id = p4info_meta.id
             meta.value = encode(value, p4info_meta.bitwidth)
         return packet_in
+
+    def build_digest_entry(self, digest_name, max_timeout_ns, max_list_size, ack_timeout_ns):
+        digest_entry = p4runtime_pb2.DigestEntry()
+        digest_entry.digest_id = self.get_digests_id(digest_name)
+        config = digest_entry.config
+        config.max_timeout_ns = max_timeout_ns
+        config.max_list_size = max_list_size
+        config.ack_timeout_ns = ack_timeout_ns
+        return digest_entry

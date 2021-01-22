@@ -355,7 +355,7 @@ class P4RuntimeTest(BaseTest):
         election_id.low = self.election_id
         self.stream_out_q.put(req)
 
-        rep = self.get_stream_packet("arbitration", timeout=2)
+        rep = self.get_stream_message("arbitration", timeout=2)
         if rep is None:
             self.fail("Failed to establish handshake")
 
@@ -368,11 +368,19 @@ class P4RuntimeTest(BaseTest):
         self.stream_recv_thread.join()
 
     def get_packet_in(self, timeout=2):
-        msg = self.get_stream_packet("packet", timeout)
+        msg = self.get_stream_message("packet", timeout)
         if msg is None:
             self.fail("PacketIn message not received")
         else:
             return msg.packet
+
+    def get_digest_list(self, timeout=2):
+        msg = self.get_stream_message("digest", timeout)
+        if msg is None:
+            self.fail("DigestList message not received")
+        else:
+            return msg.digest
+
 
     def verify_packet_in(self, exp_packet_in_msg, timeout=2):
         rx_packet_in_msg = self.get_packet_in(timeout=timeout)
@@ -397,7 +405,12 @@ class P4RuntimeTest(BaseTest):
             self.fail("Received PacketIn.metadata is not the expected one\n" +
                       format_pb_msg_match(rx_packet_in_msg, exp_packet_in_msg))
 
-    def get_stream_packet(self, type_, timeout=1):
+    def verify_digest_list(self, exp_digest_list_msg=None, timeout=2):
+        rx_digest_list_msg = self.get_digest_list(timeout=timeout)
+        # TODO: compare actual with expected
+        print(rx_digest_list_msg)
+
+    def get_stream_message(self, type_, timeout=1):
         start = time.time()
         try:
             while True:
@@ -447,7 +460,7 @@ class P4RuntimeTest(BaseTest):
         if isinstance(entity, p4runtime_pb2.TableEntry):
             msg_entity = update.entity.table_entry
         else:
-            self.fail("Entity %s not supported" % entity.__name__)
+            self.fail("Entity %s not supported" % entity.__class__.__name__)
         msg_entity.CopyFrom(entity)
         self.write_request(req)
 
@@ -465,8 +478,10 @@ class P4RuntimeTest(BaseTest):
             msg_entity = update.entity.action_profile_group
         elif isinstance(entity, p4runtime_pb2.ActionProfileMember):
             msg_entity = update.entity.action_profile_member
+        elif isinstance(entity, p4runtime_pb2.DigestEntry):
+            msg_entity = update.entity.digest_entry
         else:
-            self.fail("Entity %s not supported" % entity.__name__)
+            self.fail("Entity %s not supported" % entity.__class__.__name__)
         msg_entity.CopyFrom(entity)
         self.write_request(req)
 
@@ -481,7 +496,7 @@ class P4RuntimeTest(BaseTest):
         if isinstance(entity, p4runtime_pb2.TableEntry):
             msg_entity = update.entity.table_entry
         else:
-            self.fail("Entity %s not supported" % entity.__name__)
+            self.fail("Entity %s not supported" % entity.__class__.__name__)
         msg_entity.CopyFrom(entity)
         self.write_request(req)
 
