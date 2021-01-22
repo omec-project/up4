@@ -196,7 +196,8 @@ control ExecuteFar (inout parsed_headers_t    hdr,
     }
 
     action do_buffer() {
-        // Notify control plane to initiate paging procedure.
+        // Send digest. This is equivalent to a PFCP Downlink Data Notification (DDN), used to
+        // notify control plane to initiate the paging procedure to locate and wake-up the UE.
         // FIXME: what is the first argument 1 used for?
         digest<ddn_digest_t>(1, { local_meta.fseid });
         // The actual buffering cannot be expressed in the logical pipeline.
