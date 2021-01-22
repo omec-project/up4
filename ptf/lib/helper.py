@@ -7,7 +7,7 @@ import google.protobuf.text_format
 import grpc
 from ptf import testutils as testutils
 from p4.config.v1 import p4info_pb2
-from p4.v1 import p4runtime_pb2, p4runtime_pb2_grpc
+from p4.v1 import p4runtime_pb2, p4runtime_pb2_grpc, p4data_pb2
 
 from convert import encode
 
@@ -377,3 +377,16 @@ class P4InfoHelper(object):
         config.max_list_size = max_list_size
         config.ack_timeout_ns = ack_timeout_ns
         return digest_entry
+
+    def build_p4data_bitstring(self, value):
+        data = p4data_pb2.P4Data()
+        data.bitstring = value
+        return data
+
+    def build_p4data_struct(self, members):
+        data = p4data_pb2.P4Data()
+        struct = data.struct
+        for m in members:
+            x = struct.members.add()
+            x.CopyFrom(m)
+        return data

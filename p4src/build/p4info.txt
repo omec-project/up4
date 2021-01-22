@@ -557,16 +557,6 @@ type_info {
           }
         }
       }
-      members {
-        name: "pdr_id"
-        type_spec {
-          bitstring {
-            bit {
-              bitwidth: 32
-            }
-          }
-        }
-      }
     }
   }
   serializable_enums {

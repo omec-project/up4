@@ -479,6 +479,7 @@ class GtpuBaseTest(P4RuntimeTest):
                                    egress_port=outport)
 
     def set_up_ddn_digest(self):
+        # No timeout, not batching. Not recommended for production.
         self.insert(
             self.helper.build_digest_entry(
-                digest_name="ddn_digest_t", max_timeout_ns=500, max_list_size=1, ack_timeout_ns=0))
+                digest_name="ddn_digest_t", max_timeout_ns=0, max_list_size=1, ack_timeout_ns=0))

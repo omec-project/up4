@@ -20,14 +20,15 @@ from ptf.testutils import group
 from ptf import testutils as testutils
 from scapy.contrib import gtp
 from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
-from time import sleep
 
+from convert import encode
 from spgwu_base import GtpuBaseTest
 from unittest import skip
 
 from extra_headers import CpuHeader
 
 CPU_CLONE_SESSION_ID = 99
+FSEID_BITWIDTH = 96
 UE_IPV4 = "17.0.0.1"
 ENODEB_IPV4 = "140.0.100.1"
 S1U_IPV4 = "140.0.100.2"
@@ -244,37 +245,38 @@ class GtpuDdnDigestTest(GtpuBaseTest):
     def testPacket(self, pkt):
         self.set_up_ddn_digest()
 
-        # build the expected encapsulated packet that we would receive as output without buffering.
-        # Required to populate FAR with tunneling info.
+        # Build the expected encapsulated pkt that we would receive as output without buffering.
+        # The actual pkt will be dropped, but we still need it to populate FAR with tunneling info.
         exp_pkt = pkt.copy()
-        dst_mac = ENODEB_MAC
-
-        # Should be encapped too obv.
         exp_pkt = self.gtpu_encap(exp_pkt, ip_src=S1U_IPV4, ip_dst=ENODEB_IPV4)
-
-        # Expected pkt should have routed MAC addresses and decremented hop
-        # limit (TTL).
-        pkt_route(exp_pkt, dst_mac)
+        pkt_route(exp_pkt, ENODEB_MAC)
         pkt_decrement_ttl(exp_pkt)
 
         # PDR counter ID
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, buffer=True)
+        fseid = 0xBEEF
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, buffer=True,
+                                          session_id=fseid)
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)
 
         # send packet
         testutils.send_packet(self, self.port1, pkt)
-        testutils.verify_no_other_packets(self)
 
-        # Check if pre and post-QoS packet and byte counters incremented
+        # Only pre-QoS counters should increase
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
 
-        # TODO: pass expected digest
-        self.verify_digest_list(None)
+        # Verify that we have received the DDN digest
+        exp_digest_data = self.helper.build_p4data_struct([
+            self.helper.build_p4data_bitstring(encode(fseid, FSEID_BITWIDTH))
+        ])
+        self.verify_digest_list(exp_digest_data)
+
+        # no packet should come out of the switch.
+        testutils.verify_no_other_packets(self)
 
 
 @group("gtpu")

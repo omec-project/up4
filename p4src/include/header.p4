@@ -124,7 +124,6 @@ struct bar_metadata_t {
 
 struct ddn_digest_t {
     fseid_t  fseid;
-    pdr_id_t pdr_id;
 }
 
 
