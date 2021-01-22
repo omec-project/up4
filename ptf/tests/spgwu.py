@@ -13,6 +13,7 @@
 # For example:
 #     make check TEST=spgw.GtpuEncapDownlinkTest
 # ------------------------------------------------------------------------------
+from time import sleep
 
 from base_test import pkt_route, pkt_decrement_ttl, P4RuntimeTest, \
                       autocleanup, print_inline
@@ -229,7 +230,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
 
 
 class GtpuDdnDigestTest(GtpuBaseTest):
-    """ Tests that the switch sends digests for buffered packets.
+    """ Tests that the switch sends digests for buffering FARs.
     """
 
     def runTest(self):
@@ -243,7 +244,8 @@ class GtpuDdnDigestTest(GtpuBaseTest):
 
     @autocleanup
     def testPacket(self, pkt):
-        self.set_up_ddn_digest()
+        # Wait up to 1 seconds before sending duplicate digests for the same FSEID.
+        self.set_up_ddn_digest(ack_timeout_ns=1*10**9)
 
         # Build the expected encapsulated pkt that we would receive as output without buffering.
         # The actual pkt will be dropped, but we still need it to populate FAR with tunneling info.
@@ -252,30 +254,42 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         pkt_route(exp_pkt, ENODEB_MAC)
         pkt_decrement_ttl(exp_pkt)
 
-        # PDR counter ID
+        # PDR counter ID.
         ctr_id = self.new_counter_id()
 
-        # program all the tables
+        # Program all the tables.
         fseid = 0xBEEF
         self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, buffer=True,
                                           session_id=fseid)
 
-        # read pre and post-QoS packet and byte counters
+        # Read pre and post-QoS packet and byte counters.
         self.read_pdr_counters(ctr_id)
 
-        # send packet
+        # Send 1st packet.
         testutils.send_packet(self, self.port1, pkt)
-
         # Only pre-QoS counters should increase
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
-
         # Verify that we have received the DDN digest
         exp_digest_data = self.helper.build_p4data_struct([
             self.helper.build_p4data_bitstring(encode(fseid, FSEID_BITWIDTH))
         ])
         self.verify_digest_list(exp_digest_data)
 
-        # no packet should come out of the switch.
+        # Send 2nd packet immediately, verify counter increase but NO digest should be generated.
+        self.read_pdr_counters(ctr_id)
+        testutils.send_packet(self, self.port1, pkt)
+        self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
+        self.verify_no_other_digest_list(timeout=1)
+
+        # Send third packet after waiting at least ack_timeout_ns.
+        # We should receive a new digest.
+        sleep(1.1)
+        self.read_pdr_counters(ctr_id)
+        testutils.send_packet(self, self.port1, pkt)
+        self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
+        self.verify_digest_list(exp_digest_data)
+
+        # All packets should have been buffered, not forwarded.
         testutils.verify_no_other_packets(self)
 
 

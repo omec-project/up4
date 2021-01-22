@@ -478,8 +478,8 @@ class GtpuBaseTest(P4RuntimeTest):
             self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', dst_mac=exp_pkt[Ether].dst,
                                    egress_port=outport)
 
-    def set_up_ddn_digest(self):
+    def set_up_ddn_digest(self, ack_timeout_ns):
         # No timeout, not batching. Not recommended for production.
         self.insert(
             self.helper.build_digest_entry(
-                digest_name="ddn_digest_t", max_timeout_ns=0, max_list_size=1, ack_timeout_ns=0))
+                digest_name="ddn_digest_t", max_timeout_ns=0, max_list_size=1, ack_timeout_ns=ack_timeout_ns))

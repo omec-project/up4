@@ -374,10 +374,13 @@ class P4RuntimeTest(BaseTest):
         else:
             return msg.packet
 
-    def get_digest_list(self, timeout=2):
+    def get_digest_list(self, timeout=2, fail=True):
         msg = self.get_stream_message("digest", timeout)
         if msg is None:
-            self.fail("DigestList message not received")
+            if fail:
+                self.fail("DigestList message not received")
+            else:
+                pass
         else:
             return msg.digest
 
@@ -414,6 +417,11 @@ class P4RuntimeTest(BaseTest):
         if exp_data != rx_data:
             self.fail("Received DigestList.data[0] is not the expected one\n" +
                       format_pb_msg_match(rx_data, exp_data))
+
+    def verify_no_other_digest_list(self, timeout=1):
+        rx_digest_list_msg = self.get_digest_list(timeout=timeout, fail=False)
+        if rx_digest_list_msg is not None:
+            self.fail("Received DigestList but expected none")
 
     def get_stream_message(self, type_, timeout=1):
         start = time.time()
