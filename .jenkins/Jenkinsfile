@@ -61,7 +61,7 @@ pipeline {
     stage("Build P4") {
       steps {
         dir("${env.WORKSPACE}/up4") {
-          sh "make build"
+          sh "make foo bar"
         }
       }
     }

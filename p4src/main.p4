@@ -4,7 +4,6 @@
  */
 
 
-foo bar
 
 #include <core.p4>
 #include <v1model.p4>
@@ -118,7 +117,7 @@ control Routing(inout parsed_headers_t    hdr,
         } else if (hdr.ipv4.isValid()){
             local_meta.next_hop_ip = hdr.ipv4.dst_addr;
             hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
-            
+
         }
 
         if (hdr.ipv4.ttl == 0) {
