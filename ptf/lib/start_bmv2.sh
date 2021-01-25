@@ -47,7 +47,10 @@ for idx in 0 1 2 3 4 5 6 7; do
 done
 
 # shellcheck disable=SC2086
-stratum_bmv2 \
+
+if command -v stratum_bmv2 &> /dev/null
+then
+    stratum_bmv2 \
     --external_stratum_urls=0.0.0.0:${GRPC_PORT} \
     --persistent_config_dir=/tmp \
     --forwarding_pipeline_configs_file=/dev/null \
@@ -57,3 +60,20 @@ stratum_bmv2 \
     --bmv2_log_level=trace \
     --cpu_port ${CPU_PORT} \
     > stratum_bmv2.log 2>&1
+
+elif command -v simple_switch_grpc &> /dev/null
+then
+  simple_switch_grpc \
+  --device-id 1 \
+  -i 1@veth0 -i 2@veth2 3@veth4 -i 4@veth6 5@veth8 -i 6@veth10 7@veth12 -i 8@veth14 \
+  --log-console \
+  -Ltrace \
+  --no-p4 -- \
+  --cpu-port ${CPU_PORT} \
+  --grpc-server-addr 0.0.0.0:${GRPC_PORT} \
+  > stratum_bmv2.log 2>&1
+
+else
+  echo "BMv2 switch process not found"
+  exit 1
+fi

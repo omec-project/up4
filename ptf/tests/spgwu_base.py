@@ -426,7 +426,7 @@ class GtpuBaseTest(P4RuntimeTest):
                                    egress_port=outport)
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                     session_id=None, pdr_id=None, far_id=None):
+                                     buffer=False, session_id=None, pdr_id=None, far_id=None):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -471,9 +471,15 @@ class GtpuBaseTest(P4RuntimeTest):
             needs_gtpu_decap=False,
         )
 
-        self.add_far(far_id=far_id, session_id=session_id, drop=drop, tunnel=True,
+        self.add_far(far_id=far_id, session_id=session_id, drop=drop, buffer=buffer, tunnel=True,
                      teid=exp_pkt[gtp.GTP_U_Header].teid, src_addr=exp_pkt[IP].src,
                      dst_addr=exp_pkt[IP].dst)
         if not drop:
             self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', dst_mac=exp_pkt[Ether].dst,
                                    egress_port=outport)
+
+    def set_up_ddn_digest(self, ack_timeout_ns):
+        # No timeout, not batching. Not recommended for production.
+        self.insert(
+            self.helper.build_digest_entry(
+                digest_name="ddn_digest_t", max_timeout_ns=0, max_list_size=1, ack_timeout_ns=ack_timeout_ns))

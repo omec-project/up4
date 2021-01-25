@@ -8,7 +8,7 @@ PTF_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 P4SRC_DIR=${PTF_DIR}/../p4src
 P4C_OUT=${P4SRC_DIR}/build
 PTF_IMAGE=${PTF_IMAGE:-undefined}
-MN_STRATUM_IMAGE=${MN_STRATUM_IMAGE:-undefined}
+PTF_BMV2_IMAGE=${PTF_BMV2_IMAGE:-undefined}
 
 rnd=${RANDOM}
 
@@ -27,7 +27,7 @@ echo "*** Starting ${bmv2RunName}..."
 docker run --name ${bmv2RunName} ${it} -d --privileged --rm \
     -v "${PTF_DIR}":/ptf -w /ptf \
     --entrypoint ./lib/start_bmv2.sh \
-    "${MN_STRATUM_IMAGE}"
+    "${PTF_BMV2_IMAGE}"
 sleep 2
 
 # tester

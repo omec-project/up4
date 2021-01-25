@@ -14,6 +14,7 @@ default: build check
 _docker_pull_all:
 	docker pull ${P4C_IMAGE}
 	docker pull ${PTF_IMAGE}
+	docker pull ${PTF_BMV2_IMAGE}
 
 deps: _docker_pull_all
 
@@ -64,7 +65,7 @@ graph: ${main_file}
 	@echo "*** Done! Graph files are in p4src/build/graphs"
 
 check:
-	@cd ptf && PTF_IMAGE=$(PTF_IMAGE) MN_STRATUM_IMAGE=$(MN_STRATUM_IMAGE) ./run_tests ${PTF_TEST_PARAMS} $(TEST)
+	@cd ptf && PTF_IMAGE=$(PTF_IMAGE) PTF_BMV2_IMAGE=$(PTF_BMV2_IMAGE) ./run_tests ${PTF_TEST_PARAMS} $(TEST)
 
 .yapf:
 	rm -rf ./yapf

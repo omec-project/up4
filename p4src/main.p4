@@ -2,10 +2,6 @@
  * SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
  * SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
-
-
-
-
 #include <core.p4>
 #include <v1model.p4>
 
@@ -13,8 +9,6 @@
 #include "include/header.p4"
 #include "include/parser.p4"
 #include "include/checksum.p4"
-
-
 
 //------------------------------------------------------------------------------
 // ACL BLOCK
@@ -118,7 +112,7 @@ control Routing(inout parsed_headers_t    hdr,
         } else if (hdr.ipv4.isValid()){
             local_meta.next_hop_ip = hdr.ipv4.dst_addr;
             hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
-            
+
         }
 
         if (hdr.ipv4.ttl == 0) {
@@ -202,8 +196,13 @@ control ExecuteFar (inout parsed_headers_t    hdr,
     }
 
     action do_buffer() {
-        // Buffering cannot be expressed in the logical pipeline. This
-        // is a placeholder for an actual implementation.
+        // Send digest. This is equivalent to a PFCP Downlink Data Notification (DDN), used to
+        // notify control plane to initiate the paging procedure to locate and wake-up the UE.
+        // FIXME: what is the first argument 1 used for?
+        digest<ddn_digest_t>(1, { local_meta.fseid });
+        // The actual buffering cannot be expressed in the logical pipeline.
+        mark_to_drop(std_meta);
+        exit;
     }
 
     action do_drop() {

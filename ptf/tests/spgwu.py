@@ -13,6 +13,7 @@
 # For example:
 #     make check TEST=spgw.GtpuEncapDownlinkTest
 # ------------------------------------------------------------------------------
+from time import sleep
 
 from base_test import pkt_route, pkt_decrement_ttl, P4RuntimeTest, \
                       autocleanup, print_inline
@@ -20,14 +21,15 @@ from ptf.testutils import group
 from ptf import testutils as testutils
 from scapy.contrib import gtp
 from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
-from time import sleep
 
+from convert import encode
 from spgwu_base import GtpuBaseTest
 from unittest import skip
 
 from extra_headers import CpuHeader
 
 CPU_CLONE_SESSION_ID = 99
+FSEID_BITWIDTH = 96
 UE_IPV4 = "17.0.0.1"
 ENODEB_IPV4 = "140.0.100.1"
 S1U_IPV4 = "140.0.100.2"
@@ -227,8 +229,71 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
 
 
+class GtpuDdnDigestTest(GtpuBaseTest):
+    """ Tests that the switch sends digests for buffering FARs.
+    """
+
+    def runTest(self):
+        # Test with different type of packets.
+        for pkt_type in self.supported_l4:
+            print_inline("%s ... " % pkt_type)
+            pkt = getattr(testutils,
+                          "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
+                                                         ip_src=PDN_IPV4, ip_dst=UE_IPV4)
+            self.testPacket(pkt)
+
+    @autocleanup
+    def testPacket(self, pkt):
+        # Wait up to 1 seconds before sending duplicate digests for the same FSEID.
+        self.set_up_ddn_digest(ack_timeout_ns=1*10**9)
+
+        # Build the expected encapsulated pkt that we would receive as output without buffering.
+        # The actual pkt will be dropped, but we still need it to populate FAR with tunneling info.
+        exp_pkt = pkt.copy()
+        exp_pkt = self.gtpu_encap(exp_pkt, ip_src=S1U_IPV4, ip_dst=ENODEB_IPV4)
+        pkt_route(exp_pkt, ENODEB_MAC)
+        pkt_decrement_ttl(exp_pkt)
+
+        # PDR counter ID.
+        ctr_id = self.new_counter_id()
+
+        # Program all the tables.
+        fseid = 0xBEEF
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, buffer=True,
+                                          session_id=fseid)
+
+        # Read pre and post-QoS packet and byte counters.
+        self.read_pdr_counters(ctr_id)
+
+        # Send 1st packet.
+        testutils.send_packet(self, self.port1, pkt)
+        # Only pre-QoS counters should increase
+        self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
+        # Verify that we have received the DDN digest
+        exp_digest_data = self.helper.build_p4data_struct([
+            self.helper.build_p4data_bitstring(encode(fseid, FSEID_BITWIDTH))
+        ])
+        self.verify_digest_list(exp_digest_data)
+
+        # Send 2nd packet immediately, verify counter increase but NO digest should be generated.
+        self.read_pdr_counters(ctr_id)
+        testutils.send_packet(self, self.port1, pkt)
+        self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
+        self.verify_no_other_digest_list(timeout=1)
+
+        # Send third packet after waiting at least ack_timeout_ns.
+        # We should receive a new digest.
+        sleep(1.1)
+        self.read_pdr_counters(ctr_id)
+        testutils.send_packet(self, self.port1, pkt)
+        self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
+        self.verify_digest_list(exp_digest_data)
+
+        # All packets should have been buffered, not forwarded.
+        testutils.verify_no_other_packets(self)
+
+
 @group("gtpu")
-@skip("ACL punting not yet robust")
 class AclPuntTest(GtpuBaseTest):
     """ Test that the ACL table punts a packet to the CPU
     """
@@ -245,7 +310,7 @@ class AclPuntTest(GtpuBaseTest):
         # exp_pkt = CpuHeader(port_num=self.port1) / pkt
         exp_pkt = pkt
         exp_pkt_in_msg = self.helper.build_packet_in(
-            str(exp_pkt), metadata={
+            exp_pkt, metadata={
                 "ingress_port": self.port1,
                 "_pad": 0
             })
