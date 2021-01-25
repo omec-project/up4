@@ -245,7 +245,7 @@ class GtpuDdnDigestTest(GtpuBaseTest):
     @autocleanup
     def testPacket(self, pkt):
         # Wait up to 1 seconds before sending duplicate digests for the same FSEID.
-        self.set_up_ddn_digest(ack_timeout_ns=1*10**9)
+        self.set_up_ddn_digest(ack_timeout_ns=1 * 10**9)
 
         # Build the expected encapsulated pkt that we would receive as output without buffering.
         # The actual pkt will be dropped, but we still need it to populate FAR with tunneling info.
@@ -270,9 +270,8 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         # Only pre-QoS counters should increase
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
         # Verify that we have received the DDN digest
-        exp_digest_data = self.helper.build_p4data_struct([
-            self.helper.build_p4data_bitstring(encode(fseid, FSEID_BITWIDTH))
-        ])
+        exp_digest_data = self.helper.build_p4data_struct(
+            [self.helper.build_p4data_bitstring(encode(fseid, FSEID_BITWIDTH))])
         self.verify_digest_list(exp_digest_data)
 
         # Send 2nd packet immediately, verify counter increase but NO digest should be generated.
