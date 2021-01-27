@@ -5,6 +5,7 @@
 package org.omecproject.up4;
 
 
+import org.onosproject.event.ListenerService;
 import org.onosproject.net.DeviceId;
 
 
@@ -12,7 +13,7 @@ import org.onosproject.net.DeviceId;
  * The service provided by the UP4 Device Manager. This API is a work in progress. Currently the only important
  * service it provides is retrieving the available UpfProgrammable.
  */
-public interface Up4Service {
+public interface Up4Service extends ListenerService<Up4Event, Up4EventListener> {
 
     /**
      * Grab a reference to the current UpfProgrammable, for installing PDRs, FARs and Interfaces.
