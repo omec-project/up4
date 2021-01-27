@@ -384,7 +384,6 @@ class P4RuntimeTest(BaseTest):
         else:
             return msg.digest
 
-
     def verify_packet_in(self, exp_packet_in_msg, timeout=2):
         rx_packet_in_msg = self.get_packet_in(timeout=timeout)
 
@@ -412,7 +411,8 @@ class P4RuntimeTest(BaseTest):
         rx_digest_list_msg = self.get_digest_list(timeout=timeout)
         rx_data_list = rx_digest_list_msg.data
         if len(rx_data_list) != 1:
-            self.fail("Received DigestList.data should have only 1 entry, %s found" % len(rx_data_list))
+            self.fail("Received DigestList.data should have only 1 entry, %s found" %
+                      len(rx_data_list))
         rx_data = rx_data_list[0]
         if exp_data != rx_data:
             self.fail("Received DigestList.data[0] is not the expected one\n" +
