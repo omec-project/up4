@@ -1,3 +1,8 @@
+/*
+ * SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ * SPDX-FileCopyrightText: {year}-present Open Networking Foundation <info@opennetworking.org>
+ */
+
 package org.omecproject.up4;
 
 import com.google.common.annotations.Beta;

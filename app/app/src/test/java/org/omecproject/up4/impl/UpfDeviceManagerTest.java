@@ -8,6 +8,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.onosproject.core.CoreServiceAdapter;
+import org.onosproject.event.EventDeliveryServiceAdapter;
 import org.onosproject.net.config.NetworkConfigRegistryAdapter;
 import org.onosproject.net.device.DeviceServiceAdapter;
 import org.onosproject.net.flow.FlowRuleServiceAdapter;
@@ -28,6 +29,7 @@ public class UpfDeviceManagerTest {
         component.deviceService = new DeviceServiceAdapter();
         component.piPipeconfService = new PiPipeconfServiceAdapter();
         component.netCfgService = new NetworkConfigRegistryAdapter();
+        component.eventDispatcher = new EventDeliveryServiceAdapter();
         component.activate();
     }
 
