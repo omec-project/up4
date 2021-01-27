@@ -5,6 +5,8 @@
 package org.omecproject.up4.impl;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Maps;
+import com.google.protobuf.TextFormat;
 import com.google.rpc.Code;
 import com.google.rpc.Status;
 import io.grpc.Server;
@@ -14,6 +16,8 @@ import io.grpc.stub.StreamObserver;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
+import org.omecproject.up4.Up4Event;
+import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
@@ -51,7 +55,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentMap;
 
+import static io.grpc.Status.INVALID_ARGUMENT;
+import static io.grpc.Status.PERMISSION_DENIED;
+import static io.grpc.Status.UNIMPLEMENTED;
 import static org.omecproject.up4.impl.AppConstants.PIPECONF_ID;
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
 
@@ -63,6 +71,7 @@ import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT
 @Component(immediate = true)
 public class Up4NorthComponent {
     private static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
+    private static final int DEFAULT_DEVICE_ID = 1;
     protected final Up4NorthService up4NorthService = new Up4NorthService();
     private final Logger log = LoggerFactory.getLogger(getClass());
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
@@ -73,6 +82,11 @@ public class Up4NorthComponent {
     protected PiPipeconf pipeconf;
     private Server server;
     private long pipeconfCookie = 0xbeefbeef;
+    private final Up4EventListener up4EventListener = new InternalUp4EventListener();
+    // Stores open P4Runtime StreamChannel(s)
+    private final ConcurrentMap<P4RuntimeOuterClass.Uint128,
+            StreamObserver<P4RuntimeOuterClass.StreamMessageResponse>> streams =
+            Maps.newConcurrentMap();
 
     protected static PiPipeconf buildPipeconf() throws P4InfoParserException {
         final URL p4InfoUrl = Up4NorthComponent.class.getResource(AppConstants.P4INFO_PATH);
@@ -106,12 +120,14 @@ public class Up4NorthComponent {
             log.error("Unable to start gRPC server", e);
             throw new IllegalStateException("Unable to start gRPC server", e);
         }
+        up4Service.addListener(up4EventListener);
         log.info("Started.");
     }
 
     @Deactivate
     protected void deactivate() {
         log.info("Shutting down...");
+        up4Service.removeListener(up4EventListener);
         if (server != null) {
             server.shutdown();
         }
@@ -143,13 +159,13 @@ public class Up4NorthComponent {
 
             } else {
                 log.warn("Received unknown table entry for table {} in UP4 delete request:", entry.table().id());
-                throw io.grpc.Status.INVALID_ARGUMENT
+                throw INVALID_ARGUMENT
                         .withDescription("Deletion request was for an unknown table.")
                         .asException();
             }
         } catch (Up4Translator.Up4TranslationException e) {
             log.warn("Failed to translate UP4 entry in deletion request: {}", e.getMessage());
-            throw io.grpc.Status.INVALID_ARGUMENT
+            throw INVALID_ARGUMENT
                     .withDescription("Failed to translate entry in deletion request: " + e.getMessage())
                     .asException();
         } catch (UpfProgrammableException e) {
@@ -170,7 +186,7 @@ public class Up4NorthComponent {
         log.debug("Translating UP4 write request to fabric entry.");
         if (entry.action().type() != PiTableAction.Type.ACTION) {
             log.warn("Action profile entry insertion not supported. Ignoring.");
-            throw io.grpc.Status.UNIMPLEMENTED
+            throw UNIMPLEMENTED
                     .withDescription("Action profile entries not supported by UP4.")
                     .asException();
         }
@@ -186,13 +202,13 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().addFar(far);
             } else {
                 log.warn("Received entry for unsupported table in UP4 write request: {}", entry.table().id());
-                throw io.grpc.Status.INVALID_ARGUMENT
+                throw INVALID_ARGUMENT
                         .withDescription("Write request was for an unknown table.")
                         .asException();
             }
         } catch (Up4Translator.Up4TranslationException e) {
             log.warn("Failed to parse entry from a write request: {}", e.getMessage());
-            throw io.grpc.Status.INVALID_ARGUMENT
+            throw INVALID_ARGUMENT
                     .withDescription("Translation error: " + e.getMessage())
                     .asException();
         } catch (UpfProgrammableException e) {
@@ -203,7 +219,7 @@ public class Up4NorthComponent {
                             .withDescription(e.getMessage())
                             .asException();
                 case COUNTER_INDEX_OUT_OF_RANGE:
-                    throw io.grpc.Status.INVALID_ARGUMENT
+                    throw INVALID_ARGUMENT
                             .withDescription(e.getMessage())
                             .asException();
                 case UNKNOWN:
@@ -217,8 +233,8 @@ public class Up4NorthComponent {
 
 
     /**
-     * Find all table entries that match the requested entry, and translate them to p4runtime entities for
-     * responding to a read request.
+     * Find all table entries that match the requested entry, and translate them to p4runtime
+     * entities for responding to a read request.
      *
      * @param requestedEntry the entry from a p4runtime read request
      * @return all entries that match the request, translated to p4runtime entities
@@ -257,14 +273,14 @@ public class Up4NorthComponent {
                 }
             } else {
                 log.warn("Unknown entry requested by UP4 read request: {}", requestedEntry);
-                throw io.grpc.Status.INVALID_ARGUMENT
+                throw INVALID_ARGUMENT
                         .withDescription("Read request was for an unknown table.")
                         .asException();
             }
         } catch (Up4Translator.Up4TranslationException | CodecException e) {
             log.warn("Unable to encode/translate a read entry to a UP4 read response: {}",
                     e.getMessage());
-            throw io.grpc.Status.INVALID_ARGUMENT
+            throw INVALID_ARGUMENT
                     .withDescription("Unable to translate a read table entry to a p4runtime entity.")
                     .asException();
         }
@@ -333,8 +349,8 @@ public class Up4NorthComponent {
 
 
     /**
-     * Read the all p4 counter cell requested by the message, and translate them to p4runtime entities for crafting
-     * a p4runtime read response.
+     * Read the all p4 counter cell requested by the message, and translate them to p4runtime
+     * entities for crafting a p4runtime read response.
      *
      * @param message a p4runtime CounterEntry message from a read request
      * @return the requested counter cells' contents, as a list of p4runtime entities
@@ -361,7 +377,7 @@ public class Up4NorthComponent {
                 piCounterId = PiCounterId.of(counterName);
             } catch (P4InfoBrowser.NotFoundException e) {
                 log.warn("Unable to find UP4 counter with ID {}", counterId);
-                throw io.grpc.Status.INVALID_ARGUMENT
+                throw INVALID_ARGUMENT
                         .withDescription("Invalid UP4 counter identifier.")
                         .asException();
             }
@@ -375,7 +391,7 @@ public class Up4NorthComponent {
             try {
                 ctrValues = up4Service.getUpfProgrammable().readCounter(index);
             } catch (UpfProgrammableException e) {
-                throw io.grpc.Status.INVALID_ARGUMENT
+                throw INVALID_ARGUMENT
                         .withDescription(e.getMessage())
                         .asException();
             }
@@ -389,7 +405,7 @@ public class Up4NorthComponent {
                 bytes = ctrValues.getEgressBytes();
             } else {
                 log.warn("Received read request for unknown counter {}", piCounterId);
-                throw io.grpc.Status.INVALID_ARGUMENT
+                throw INVALID_ARGUMENT
                         .withDescription("Invalid UP4 counter identifier.")
                         .asException();
             }
@@ -442,63 +458,135 @@ public class Up4NorthComponent {
     public class Up4NorthService extends P4RuntimeGrpc.P4RuntimeImplBase {
 
         /**
-         * A streamChannel represents a P4Runtime session. This session should persist for the lifetime of a connected
-         * controller. The streamChannel is used for master/slave arbitration. Currently this implementation does not
-         * track a master, and blindly tells every controller that they are the master as soon as they send an
-         * arbitration request. We also do not yet handle anything except arbitration requests.
+         * A streamChannel represents a P4Runtime session. This session should persist for the
+         * lifetime of a connected controller. The streamChannel is used for master/slave
+         * arbitration. Currently this implementation does not track a master, and blindly tells
+         * every controller that they are the master as soon as they send an arbitration request. We
+         * also do not yet handle anything except arbitration requests.
          *
          * @param responseObserver The thing that is fed responses to arbitration requests.
          * @return A thing that will be fed arbitration requests.
          */
         @Override
-        public StreamObserver<P4RuntimeOuterClass.StreamMessageRequest>
-        streamChannel(StreamObserver<P4RuntimeOuterClass.StreamMessageResponse> responseObserver) {
-            // streamChannel handles packet I/O and master arbitration. It persists as long as the controller is active.
-            log.info("streamChannel opened.");
+        public StreamObserver<P4RuntimeOuterClass.StreamMessageRequest> streamChannel(
+                StreamObserver<P4RuntimeOuterClass.StreamMessageResponse> responseObserver) {
             return new StreamObserver<>() {
+                // On instance of this class is created for each stream.
+                // A stream without electionId is invalid.
+                private P4RuntimeOuterClass.Uint128 electionId;
+
                 @Override
-                public void onNext(P4RuntimeOuterClass.StreamMessageRequest value) {
-                    log.info("Received streamChannel message.");
-                    if (value.hasArbitration()) {
-                        log.info("Stream message was arbitration request. " +
-                                "Blindly telling requester they are the new master.");
-                        // This response should tell every requester that it is now the master controller,
-                        // due to the OK status.
-                        responseObserver.onNext(P4RuntimeOuterClass.StreamMessageResponse.newBuilder()
-                                .setArbitration(P4RuntimeOuterClass.MasterArbitrationUpdate.newBuilder()
-                                        .setDeviceId(value.getArbitration().getDeviceId())
-                                        .setRole(value.getArbitration().getRole())
-                                        .setElectionId(value.getArbitration().getElectionId())
-                                        .setStatus(Status.newBuilder().setCode(Code.OK.getNumber()).build())
-                                        .build()
-                                ).build()
-                        );
-                    } else {
-                        log.warn("streamChannel message was not an  arbitration message.");
-                        // We currently only respond to arbitration requests. Anything else gets a default response.
-                        responseObserver.onNext(P4RuntimeOuterClass.StreamMessageResponse.getDefaultInstance());
+                public void onNext(P4RuntimeOuterClass.StreamMessageRequest request) {
+                    log.info("Received {} on StreamChannel", request.getUpdateCase());
+                    // Arbitration with valid election_id should be the first message
+                    if (!request.hasArbitration() && electionId == null) {
+                        handleErrorResponse(PERMISSION_DENIED
+                                .withDescription("Election_id not received for this stream"));
+                        return;
+                    }
+                    switch (request.getUpdateCase()) {
+                        case ARBITRATION:
+                            handleArbitration(request.getArbitration());
+                            return;
+                        case PACKET:
+                        case DIGEST_ACK:
+                        case OTHER:
+                        case UPDATE_NOT_SET:
+                        default:
+                            handleErrorResponse(UNIMPLEMENTED
+                                    .withDescription(request.getUpdateCase() + " not supported"));
                     }
                 }
 
                 @Override
                 public void onError(Throwable t) {
                     // No idea what to do here yet.
-                    log.error("P4runtime streamChannel error", t);
+                    log.error("StreamChannel error", t);
                 }
 
                 @Override
                 public void onCompleted() {
-                    // Session termination. Is anything needed here?
-                    log.info("streamChannel closed.");
+                    log.info("StreamChannel closed");
+                    if (electionId != null) {
+                        streams.remove(electionId);
+                    } else {
+                        log.error("Client is closing StreamChannel but we don't have an election_id");
+                    }
                     responseObserver.onCompleted();
+                }
+
+                private void handleArbitration(P4RuntimeOuterClass.MasterArbitrationUpdate request) {
+                    if (request.getDeviceId() != DEFAULT_DEVICE_ID) {
+                        handleErrorResponse(INVALID_ARGUMENT
+                                .withDescription("Invalid device_id"));
+                        return;
+                    }
+                    if (!P4RuntimeOuterClass.Role.getDefaultInstance().equals(request.getRole())) {
+                        handleErrorResponse(UNIMPLEMENTED
+                                .withDescription("Role config not supported"));
+                        return;
+                    }
+                    if (P4RuntimeOuterClass.Uint128.getDefaultInstance()
+                            .equals(request.getElectionId())) {
+                        handleErrorResponse(INVALID_ARGUMENT
+                                .withDescription("Missing election_id"));
+                        return;
+                    }
+                    streams.compute(electionId, (uint128, storedResponseObserver) -> {
+                        if (storedResponseObserver == null) {
+                            electionId = request.getElectionId();
+                            log.info("Received arbitration request with election_id {}, blindly telling requester " +
+                                    "they are the primary controller", TextFormat.shortDebugString(electionId));
+                            // FIXME: implement election_id handling
+                            responseObserver.onNext(P4RuntimeOuterClass.StreamMessageResponse.newBuilder()
+                                    .setArbitration(P4RuntimeOuterClass.MasterArbitrationUpdate.newBuilder()
+                                            .setDeviceId(DEFAULT_DEVICE_ID)
+                                            .setElectionId(electionId)
+                                            .setStatus(Status.newBuilder().setCode(Code.OK.getNumber()).build())
+                                            .build()
+                                    ).build());
+                            // Store in map.
+                            return responseObserver;
+                        } else if (responseObserver != storedResponseObserver) {
+                            handleErrorResponse(INVALID_ARGUMENT
+                                    .withDescription("Election_id already in use by another client"));
+                            // Map value unchanged.
+                            return storedResponseObserver;
+                        } else {
+                            // Client is sending a second arbitration request for the same or a new
+                            // election_id. Not supported.
+                            handleErrorResponse(UNIMPLEMENTED
+                                    .withDescription("Update of master arbitration not supported"));
+                            // Remove from map.
+                            return null;
+                        }
+                    });
+                }
+
+                private void handleErrorResponse(io.grpc.Status status) {
+                    log.warn("Closing StreamChannel with client: {}", status.toString());
+                    responseObserver.onError(status.asException());
+                    // Remove stream from map.
+                    if (electionId != null) {
+                        streams.computeIfPresent(electionId, (uint128, storedResponseObserver) -> {
+                            if (responseObserver == storedResponseObserver) {
+                                // Remove.
+                                return null;
+                            } else {
+                                // This is another stream with same election_id. Do not remove.
+                                return storedResponseObserver;
+                            }
+                        });
+                    }
                 }
             };
         }
 
         /**
-         * Receives a pipeline config from a client. Discards all but the p4info file and cookie, and compares the
-         * received p4info to the already present hardcoded p4info. If the two match, the cookie is stored and a
-         * success response is sent. If they do not, the cookie is disarded and an error is reported.
+         * Receives a pipeline config from a client. Discards all but the p4info file and cookie,
+         * and compares the received p4info to the already present hardcoded p4info. If the two
+         * match, the cookie is stored and a success response is sent. If they do not, the cookie is
+         * disarded and an error is reported.
          *
          * @param request          A request containing a p4info and cookie
          * @param responseObserver The thing that is fed a response to the config request.
@@ -586,7 +674,7 @@ public class Up4NorthComponent {
                             piEntity = Codecs.CODECS.entity().decode(requestEntity, null, pipeconf);
                         } catch (CodecException e) {
                             log.warn("Unable to decode p4runtime entity update message", e);
-                            throw io.grpc.Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
+                            throw INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
                         }
                         PiTableEntry entry = (PiTableEntry) piEntity;
                         switch (update.getType()) {
@@ -599,7 +687,7 @@ public class Up4NorthComponent {
                                 break;
                             default:
                                 log.warn("Unsupported update type for a table entry");
-                                throw io.grpc.Status.INVALID_ARGUMENT
+                                throw INVALID_ARGUMENT
                                         .withDescription("Unsupported update type")
                                         .asException();
                         }
@@ -607,7 +695,7 @@ public class Up4NorthComponent {
                     default:
                         log.warn("Received write request for unsupported entity type {}",
                                 requestEntity.getEntityCase());
-                        throw io.grpc.Status.INVALID_ARGUMENT
+                        throw INVALID_ARGUMENT
                                 .withDescription("Unsupported entity type")
                                 .asException();
                 }
@@ -654,7 +742,7 @@ public class Up4NorthComponent {
                                     requestEntity, null, pipeconf);
                         } catch (CodecException e) {
                             log.warn("Unable to decode p4runtime read request entity", e);
-                            throw io.grpc.Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
+                            throw INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
                         }
                         responseObserver.onNext(P4RuntimeOuterClass.ReadResponse.newBuilder()
                                 .addAllEntities(readEntriesAndTranslate(requestEntry))
@@ -685,6 +773,28 @@ public class Up4NorthComponent {
                 responseObserver.onError(e);
             }
             log.debug("Done with read request.");
+        }
+    }
+
+    class InternalUp4EventListener implements Up4EventListener {
+
+        @Override
+        public void event(Up4Event event) {
+            if (event.type() == Up4Event.Type.DOWNLINK_DATA_NOTIFICATION) {
+                // Send digest to all open streams.
+                // FIXME: send to master only?
+                streams.values().forEach(responseObserver -> {
+                    log.warn("TODO: build and send digest");
+                });
+            }
+        }
+
+        @Override
+        public boolean isRelevant(Up4Event event) {
+            if (event.type() == Up4Event.Type.DOWNLINK_DATA_NOTIFICATION) {
+                return !streams.isEmpty();
+            }
+            return false;
         }
     }
 }
