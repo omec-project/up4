@@ -4,6 +4,7 @@
  */
 package org.omecproject.up4.behavior;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.omecproject.up4.ForwardingActionRule;
@@ -555,7 +556,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                                         .setPdr(pdr)
                                         .addStats(counterStats.get(pdr.counterId()));
                                 if (existingVal == null) {
-                                    return List.of(builder);
+                                    return Lists.newArrayList(builder);
                                 } else {
                                     existingVal.add(builder);
                                     return existingVal;
