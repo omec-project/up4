@@ -91,8 +91,7 @@ public class Up4DeviceManager implements Up4Service {
     @Activate
     protected void activate() {
         log.info("Starting...");
-        appId = coreService.registerApplication(AppConstants.APP_NAME,
-                () -> log.info("Periscope down."));
+        appId = coreService.registerApplication(AppConstants.APP_NAME, this::preDeactivate);
         deviceListener = new InternalDeviceListener();
         netCfgListener = new InternalConfigListener();
         netCfgService.addListener(netCfgListener);
@@ -104,17 +103,22 @@ public class Up4DeviceManager implements Up4Service {
         log.info("Started.");
     }
 
+    protected void preDeactivate() {
+        // Only clean up the state when the deactivation is triggered by ApplicationService
+        log.info("Running Up4DeviceManager preDeactivation hook.");
+        if (upfProgrammableAvailable()) {
+            upfProgrammable.cleanUp(appId);
+        }
+        teardownDbufClient();
+        upfInitialized.set(false);
+    }
+
     @Deactivate
     protected void deactivate() {
         log.info("Stopping...");
         deviceService.removeListener(deviceListener);
         netCfgService.removeListener(netCfgListener);
         netCfgService.unregisterConfigFactory(appConfigFactory);
-        if (upfProgrammableAvailable()) {
-            upfProgrammable.cleanUp(appId);
-        }
-        teardownDbufClient();
-        upfInitialized.set(false);
         log.info("Stopped.");
     }
 
@@ -178,10 +182,6 @@ public class Up4DeviceManager implements Up4Service {
                 log.info("UPF is currently unavailable, skip setup.");
                 return;
             }
-            if (!isUpfDevice(deviceId)) {
-                log.warn("{} is not a UPF, cannot setup.", deviceId);
-                return;
-            }
             if (upfProgrammable != null && !upfProgrammable.deviceId().equals(deviceId)) {
                 log.warn("Change of the UPF while UPF device is available is not supported!");
                 return;
@@ -191,7 +191,6 @@ public class Up4DeviceManager implements Up4Service {
             upfDeviceId = deviceId;
             upfProgrammable = upfProgrammableService; // TODO: change this once UpfProgrammable moves to the onos core
 
-            upfProgrammable.cleanUp(appId);
             upfProgrammable.init(appId, deviceId);
             upfProgrammable.setUeLimit(config.maxUes());
 

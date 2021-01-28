@@ -110,16 +110,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Activate
     protected void activate() {
-        log.info("Started");
-    }
-
-    @Deactivate
-    protected void deactivate() {
-        log.info("Stopped");
-    }
-
-    @Override
-    public boolean init(ApplicationId appId, DeviceId deviceId) {
         // Allow unit test to inject bufferFarIds and farIdToUeAddrs here.
         if (storageService != null) {
             this.bufferFarIds = storageService.<UpfRuleIdentifier>setBuilder()
@@ -133,6 +123,17 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                     .withSerializer(Serializer.using(SERIALIZER.build()))
                     .build();
         }
+
+        log.info("Started");
+    }
+
+    @Deactivate
+    protected void deactivate() {
+        log.info("Stopped");
+    }
+
+    @Override
+    public boolean init(ApplicationId appId, DeviceId deviceId) {
         this.appId = appId;
         this.deviceId = deviceId;
         computeHardwareResourceSizes();
@@ -241,6 +242,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         log.info("Clearing all UPF-related table entries.");
         flowRuleService.removeFlowRulesById(appId);
         up4Translator.reset();
+        bufferFarIds.clear();
+        farIdToUeAddrs.clear();
     }
 
     @Override
