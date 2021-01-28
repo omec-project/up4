@@ -6,6 +6,7 @@ package org.omecproject.up4.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.TextFormat;
 import com.google.rpc.Code;
 import com.google.rpc.Status;
@@ -22,6 +23,7 @@ import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammableException;
+import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.pi.model.DefaultPiPipeconf;
 import org.onosproject.net.pi.model.PiCounterId;
@@ -38,6 +40,10 @@ import org.onosproject.p4runtime.ctl.utils.P4InfoBrowser;
 import org.onosproject.p4runtime.ctl.utils.PipeconfHelper;
 import org.onosproject.p4runtime.model.P4InfoParser;
 import org.onosproject.p4runtime.model.P4InfoParserException;
+import org.onosproject.store.serializers.KryoNamespaces;
+import org.onosproject.store.service.EventuallyConsistentMap;
+import org.onosproject.store.service.StorageService;
+import org.onosproject.store.service.WallClockTimestamp;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -46,6 +52,7 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import p4.config.v1.P4InfoOuterClass;
+import p4.v1.P4DataOuterClass;
 import p4.v1.P4RuntimeGrpc;
 import p4.v1.P4RuntimeOuterClass;
 
@@ -56,11 +63,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.grpc.Status.INVALID_ARGUMENT;
 import static io.grpc.Status.PERMISSION_DENIED;
 import static io.grpc.Status.UNIMPLEMENTED;
 import static org.omecproject.up4.impl.AppConstants.PIPECONF_ID;
+import static org.omecproject.up4.impl.NorthConstants.DDN_DIGEST_ID;
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
 
 
@@ -72,21 +81,32 @@ import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT
 public class Up4NorthComponent {
     private static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
     private static final int DEFAULT_DEVICE_ID = 1;
-    protected final Up4NorthService up4NorthService = new Up4NorthService();
-    private final Logger log = LoggerFactory.getLogger(getClass());
+
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Service up4Service;
+
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Translator up4Translator;
-    protected P4InfoOuterClass.P4Info p4Info;
-    protected PiPipeconf pipeconf;
-    private Server server;
-    private long pipeconfCookie = 0xbeefbeef;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected StorageService storageService;
+
+    protected final Up4NorthService up4NorthService = new Up4NorthService();
+    private final Logger log = LoggerFactory.getLogger(getClass());
     private final Up4EventListener up4EventListener = new InternalUp4EventListener();
     // Stores open P4Runtime StreamChannel(s)
     private final ConcurrentMap<P4RuntimeOuterClass.Uint128,
             StreamObserver<P4RuntimeOuterClass.StreamMessageResponse>> streams =
             Maps.newConcurrentMap();
+    private final AtomicInteger ddnDigestListId = new AtomicInteger(0);
+
+    protected P4InfoOuterClass.P4Info p4Info;
+    protected PiPipeconf pipeconf;
+    private Server server;
+    // Maps UE address to F-SEID. Required for DDNs. Eventually consistent as DDNs are best effort,
+    // if an entry cannot be found we will not be able to wake up the UE at this time.
+    private EventuallyConsistentMap<Ip4Address, ImmutableByteSequence> fseids;
+    private long pipeconfCookie = 0xbeefbeef;
 
     protected static PiPipeconf buildPipeconf() throws P4InfoParserException {
         final URL p4InfoUrl = Up4NorthComponent.class.getResource(AppConstants.P4INFO_PATH);
@@ -101,7 +121,7 @@ public class Up4NorthComponent {
     @Activate
     protected void activate() {
         log.info("Starting...");
-        // Load the UP4 p4info.txt
+        // Load p4info.
         try {
             pipeconf = buildPipeconf();
         } catch (P4InfoParserException e) {
@@ -109,7 +129,14 @@ public class Up4NorthComponent {
             throw new IllegalStateException("Unable to parse UP4 p4info file.", e);
         }
         p4Info = PipeconfHelper.getP4Info(pipeconf);
-        // Start Server
+        // Init distributed maps.
+        fseids = storageService
+                .<Ip4Address, ImmutableByteSequence>eventuallyConsistentMapBuilder()
+                .withName("up4-ue-to-fseid")
+                .withSerializer(KryoNamespaces.API)
+                .withTimestampProvider((k, v) -> new WallClockTimestamp())
+                .build();
+        // Start server.
         try {
             server = NettyServerBuilder.forPort(AppConstants.GRPC_SERVER_PORT)
                     .addService(up4NorthService)
@@ -120,6 +147,7 @@ public class Up4NorthComponent {
             log.error("Unable to start gRPC server", e);
             throw new IllegalStateException("Unable to start gRPC server", e);
         }
+        // Listen for events.
         up4Service.addListener(up4EventListener);
         log.info("Started.");
     }
@@ -131,6 +159,8 @@ public class Up4NorthComponent {
         if (server != null) {
             server.shutdown();
         }
+        fseids.destroy();
+        fseids = null;
         log.info("Stopped.");
     }
 
@@ -196,6 +226,7 @@ public class Up4NorthComponent {
                 up4Service.getUpfProgrammable().addInterface(iface);
             } else if (up4Translator.isUp4Pdr(entry)) {
                 PacketDetectionRule pdr = up4Translator.up4EntryToPdr(entry);
+                updateFseidMap(pdr);
                 up4Service.getUpfProgrammable().addPdr(pdr);
             } else if (up4Translator.isUp4Far(entry)) {
                 ForwardingActionRule far = up4Translator.up4EntryToFar(entry);
@@ -228,6 +259,19 @@ public class Up4NorthComponent {
                             .withDescription(e.getMessage())
                             .asException();
             }
+        }
+    }
+
+    private void updateFseidMap(PacketDetectionRule pdr) {
+        // We kow from the PFCP spec that when installing PDRs for the same UE, the F-SEID will be
+        // the same for all PDRs, both downlink and uplink. The F-SEID for a given UE will only
+        // change after a detach. For simplicity, we never remove values. The map provides the
+        // last-seen F-SEID for a given UE. When scaling the number of UEs, if memory is an issues,
+        // we should consider querying for F-SEID in UpfProgrammable, which can be more efficient
+        // (e.g., by searching in the PDR flow rules).
+        if (pdr.ueAddress() != null) {
+            log.debug("Updating map with last seen F-SEID: {} -> {}", pdr.ueAddress(), pdr.sessionId());
+            fseids.put(pdr.ueAddress(), pdr.sessionId());
         }
     }
 
@@ -781,10 +825,29 @@ public class Up4NorthComponent {
         @Override
         public void event(Up4Event event) {
             if (event.type() == Up4Event.Type.DOWNLINK_DATA_NOTIFICATION) {
-                // Send digest to all open streams.
-                // FIXME: send to master only?
-                streams.values().forEach(responseObserver -> {
-                    log.warn("TODO: build and send digest");
+                if (event.subject().ueAddress() == null) {
+                    log.error("Received {} but UE address is null, bug?", event.type());
+                    return;
+                }
+                var fseid = fseids.get(event.subject().ueAddress());
+                if (fseid == null) {
+                    log.error("Unable to derive F-SEID for UE {}, dropping {}... was a PDR ever installed for the UE?",
+                            event.subject().ueAddress(), event.type());
+                    return;
+                }
+                var diestList= P4RuntimeOuterClass.DigestList.newBuilder()
+                    .setDigestId(DDN_DIGEST_ID)
+                        .setListId(ddnDigestListId.incrementAndGet())
+                        .addData(P4DataOuterClass.P4Data.newBuilder()
+                                .setBitstring(ByteString.copyFrom(fseid.asArray()))
+                                .build())
+                        .build();
+                var msg = P4RuntimeOuterClass.StreamMessageResponse.newBuilder()
+                        .setDigest(diestList).build();
+                streams.forEach((election_id, responseObserver) -> {
+                    log.debug("Sending DDN digest to client with election_id {}: {}",
+                            election_id, TextFormat.shortDebugString(msg));
+                    responseObserver.onNext(msg);
                 });
             }
         }

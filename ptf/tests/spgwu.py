@@ -272,7 +272,7 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         # Verify that we have received the DDN digest
         exp_digest_data = self.helper.build_p4data_struct(
             [self.helper.build_p4data_bitstring(encode(fseid, FSEID_BITWIDTH))])
-        self.verify_digest_list(exp_digest_data)
+        self.verify_digest_list("ddn_digest_t", exp_digest_data)
 
         # Send 2nd packet immediately, verify counter increase but NO digest should be generated.
         self.read_pdr_counters(ctr_id)
@@ -286,7 +286,7 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         self.read_pdr_counters(ctr_id)
         testutils.send_packet(self, self.port1, pkt)
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
-        self.verify_digest_list(exp_digest_data)
+        self.verify_digest_list("ddn_digest_t", exp_digest_data)
 
         # All packets should have been buffered, not forwarded.
         testutils.verify_no_other_packets(self)

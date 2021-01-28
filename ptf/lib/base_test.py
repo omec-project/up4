@@ -407,8 +407,11 @@ class P4RuntimeTest(BaseTest):
             self.fail("Received PacketIn.metadata is not the expected one\n" +
                       format_pb_msg_match(rx_packet_in_msg, exp_packet_in_msg))
 
-    def verify_digest_list(self, exp_data, timeout=2):
+    def verify_digest_list(self, digest_name, exp_data, timeout=2):
         rx_digest_list_msg = self.get_digest_list(timeout=timeout)
+        exp_digest_id = self.helper.get_digests_id(digest_name)
+        self.assertEquals(exp_digest_id, rx_digest_list_msg.digest_id,
+                          "Received digest_id doe snot match expected one")
         rx_data_list = rx_digest_list_msg.data
         if len(rx_data_list) != 1:
             self.fail("Received DigestList.data should have only 1 entry, %s found" %
