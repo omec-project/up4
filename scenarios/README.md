@@ -33,8 +33,9 @@ To learn more about the STC framework:
 
 # Requirements
 
-To run test scenarios you need to install the following software:
+To run test scenarios your system needs to meet the following requirements:
 
+- 8GB RAM and 6 CPU cores (if using Docker for Mac check settings to modify resources)
 - Java Runtime Environment 1.8 or higher (tested with
   [Zulu OpenJDK 11](https://www.azul.com/downloads/zulu-community/?architecture=x86-64-bit&package=jdk), but any JDK or JRE should do)
 - Docker v19 or higher
