@@ -20,7 +20,6 @@ import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.event.AbstractListenerManager;
-import org.onosproject.event.EventDeliveryService;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.config.ConfigFactory;
@@ -54,8 +53,7 @@ import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FAC
 /**
  * Draft UP4 ONOS application component.
  */
-@Component(immediate = true,
-        service = {Up4Service.class})
+@Component(immediate = true, service = {Up4Service.class})
 public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4EventListener>
         implements Up4Service  {
 
@@ -83,8 +81,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     protected DeviceService deviceService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected UpfProgrammable upfProgrammableService;
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected EventDeliveryService eventDispatcher;
     private ApplicationId appId;
     private InternalDeviceListener deviceListener;
     private InternalConfigListener netCfgListener;
@@ -260,6 +256,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
     }
 
+    public void postEvent(Up4Event event) {
+        post(event);
+    }
+
     /**
      * Unset the UPF dataplane device. If available it will be cleaned-up.
      */
@@ -326,7 +326,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     teardownDbufClient();
                 }
                 if (dbufClient == null) {
-                    dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr);
+                    dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr, this);
                 }
                 if (upfProgrammable != null) {
                     addDbufStateToUpfProgrammable();

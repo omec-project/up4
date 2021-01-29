@@ -31,7 +31,7 @@ public class Up4Event extends AbstractEvent<Up4Event.Type, Up4EventSubject> {
      * @param type type of event
      * @param subject subject
      */
-    protected Up4Event(Type type, Up4EventSubject subject) {
+    public Up4Event(Type type, Up4EventSubject subject) {
         super(type, subject);
     }
 }

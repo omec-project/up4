@@ -105,7 +105,7 @@ public class Up4NorthComponent {
     private Server server;
     // Maps UE address to F-SEID. Required for DDNs. Eventually consistent as DDNs are best effort,
     // if an entry cannot be found we will not be able to wake up the UE at this time.
-    private EventuallyConsistentMap<Ip4Address, ImmutableByteSequence> fseids;
+    protected EventuallyConsistentMap<Ip4Address, ImmutableByteSequence> fseids;
     private long pipeconfCookie = 0xbeefbeef;
 
     protected static PiPipeconf buildPipeconf() throws P4InfoParserException {
@@ -576,16 +576,18 @@ public class Up4NorthComponent {
                                 .withDescription("Missing election_id"));
                         return;
                     }
-                    streams.compute(electionId, (uint128, storedResponseObserver) -> {
+                    streams.compute(request.getElectionId(), (requestedElectionId, storedResponseObserver) -> {
                         if (storedResponseObserver == null) {
-                            electionId = request.getElectionId();
+                            // All good.
+                            this.electionId = requestedElectionId;
                             log.info("Received arbitration request with election_id {}, blindly telling requester " +
-                                    "they are the primary controller", TextFormat.shortDebugString(electionId));
+                                    "they are the primary controller", TextFormat.shortDebugString(this.electionId));
                             // FIXME: implement election_id handling
                             responseObserver.onNext(P4RuntimeOuterClass.StreamMessageResponse.newBuilder()
                                     .setArbitration(P4RuntimeOuterClass.MasterArbitrationUpdate.newBuilder()
-                                            .setDeviceId(DEFAULT_DEVICE_ID)
-                                            .setElectionId(electionId)
+                                            .setDeviceId(request.getDeviceId())
+                                            .setRole(request.getRole())
+                                            .setElectionId(this.electionId)
                                             .setStatus(Status.newBuilder().setCode(Code.OK.getNumber()).build())
                                             .build()
                                     ).build());
@@ -826,27 +828,28 @@ public class Up4NorthComponent {
         public void event(Up4Event event) {
             if (event.type() == Up4Event.Type.DOWNLINK_DATA_NOTIFICATION) {
                 if (event.subject().ueAddress() == null) {
-                    log.error("Received {} but UE address is null, bug?", event.type());
+                    log.error("Received {} but UE address is missing, bug?", event.type());
                     return;
                 }
                 var fseid = fseids.get(event.subject().ueAddress());
                 if (fseid == null) {
-                    log.error("Unable to derive F-SEID for UE {}, dropping {}... was a PDR ever installed for the UE?",
+                    log.error("Unable to derive F-SEID for UE {}, dropping {}. " +
+                                    "Was a PDR ever installed for the UE?",
                             event.subject().ueAddress(), event.type());
                     return;
                 }
-                var diestList= P4RuntimeOuterClass.DigestList.newBuilder()
-                    .setDigestId(DDN_DIGEST_ID)
+                var digestList = P4RuntimeOuterClass.DigestList.newBuilder()
+                        .setDigestId(DDN_DIGEST_ID)
                         .setListId(ddnDigestListId.incrementAndGet())
                         .addData(P4DataOuterClass.P4Data.newBuilder()
                                 .setBitstring(ByteString.copyFrom(fseid.asArray()))
                                 .build())
                         .build();
                 var msg = P4RuntimeOuterClass.StreamMessageResponse.newBuilder()
-                        .setDigest(diestList).build();
-                streams.forEach((election_id, responseObserver) -> {
+                        .setDigest(digestList).build();
+                streams.forEach((electionId, responseObserver) -> {
                     log.debug("Sending DDN digest to client with election_id {}: {}",
-                            election_id, TextFormat.shortDebugString(msg));
+                            electionId, TextFormat.shortDebugString(msg));
                     responseObserver.onNext(msg);
                 });
             }

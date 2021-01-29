@@ -93,7 +93,7 @@ public class DefaultDbufClientTest {
                 InProcessChannelBuilder.forName(serverName).directExecutor().build());
 
         // Create a client using the in-process channel;
-        client = new DefaultDbufClient("dummy", channel, DBUF_DATAPLANE_ADDR_STRING);
+        client = new DefaultDbufClient("dummy", channel, DBUF_DATAPLANE_ADDR_STRING, null);
 
         // Wait for channel to be ready.
         Thread.sleep(500);
