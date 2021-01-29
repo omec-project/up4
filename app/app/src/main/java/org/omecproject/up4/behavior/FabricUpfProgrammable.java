@@ -4,6 +4,7 @@
  */
 package org.omecproject.up4.behavior;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.omecproject.up4.ForwardingActionRule;
@@ -19,6 +20,7 @@ import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
+import org.onlab.util.KryoNamespace;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.flow.DefaultFlowRule;
@@ -37,6 +39,12 @@ import org.onosproject.net.pi.runtime.PiCounterCellId;
 import org.onosproject.net.pi.service.PiPipeconfService;
 import org.onosproject.p4runtime.api.P4RuntimeClient;
 import org.onosproject.p4runtime.api.P4RuntimeController;
+import org.onosproject.store.serializers.KryoNamespaces;
+import org.onosproject.store.service.ConsistentMap;
+import org.onosproject.store.service.DistributedSet;
+import org.onosproject.store.service.Serializer;
+import org.onosproject.store.service.StorageService;
+import org.onosproject.store.service.Versioned;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -67,9 +75,15 @@ import static org.onosproject.net.pi.model.PiCounterType.INDIRECT;
         service = {UpfProgrammable.class})
 public class FabricUpfProgrammable implements UpfProgrammable {
 
+    private final Logger log = LoggerFactory.getLogger(getClass());
     private static final int DEFAULT_PRIORITY = 128;
     private static final long DEFAULT_P4_DEVICE_ID = 1;
-    private final Logger log = LoggerFactory.getLogger(getClass());
+    protected static final String BUFFER_FAR_ID_SET_NAME = "up4-buffer-far-id";
+    protected static final String FAR_ID_UE_MAP_NAME = "up4-far-id-ue";
+    protected static final KryoNamespace.Builder SERIALIZER = KryoNamespace.newBuilder()
+            .register(KryoNamespaces.API)
+            .register(UpfRuleIdentifier.class);
+
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowRuleService flowRuleService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
@@ -78,6 +92,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Translator up4Translator;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected StorageService storageService;
+
     DeviceId deviceId;
     private long pdrCounterSize;
     private long farTableSize;
@@ -88,12 +105,26 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     private BufferDrainer bufferDrainer;
 
-    private Set<UpfRuleIdentifier> bufferFarIds;
-    private Map<UpfRuleIdentifier, Set<Ip4Address>> farIdToUeAddrs;
+    protected DistributedSet<UpfRuleIdentifier> bufferFarIds;
+    protected ConsistentMap<UpfRuleIdentifier, Set<Ip4Address>> farIdToUeAddrs;
     private GtpTunnel dbufTunnel;
 
     @Activate
     protected void activate() {
+        // Allow unit test to inject bufferFarIds and farIdToUeAddrs here.
+        if (storageService != null) {
+            this.bufferFarIds = storageService.<UpfRuleIdentifier>setBuilder()
+                    .withName(BUFFER_FAR_ID_SET_NAME)
+                    .withRelaxedReadConsistency()
+                    .withSerializer(Serializer.using(SERIALIZER.build()))
+                    .build().asDistributedSet();
+            this.farIdToUeAddrs = storageService.<UpfRuleIdentifier, Set<Ip4Address>>consistentMapBuilder()
+                    .withName(FAR_ID_UE_MAP_NAME)
+                    .withRelaxedReadConsistency()
+                    .withSerializer(Serializer.using(SERIALIZER.build()))
+                    .build();
+        }
+
         log.info("Started");
     }
 
@@ -104,8 +135,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     @Override
     public boolean init(ApplicationId appId, DeviceId deviceId) {
-        this.bufferFarIds = new HashSet<>();
-        this.farIdToUeAddrs = new HashMap<>();
         this.appId = appId;
         this.deviceId = deviceId;
         computeHardwareResourceSizes();
@@ -214,6 +243,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         log.info("Clearing all UPF-related table entries.");
         flowRuleService.removeFlowRulesById(appId);
         up4Translator.reset();
+        bufferFarIds.clear();
+        farIdToUeAddrs.clear();
     }
 
     @Override
@@ -443,7 +474,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         if (!far.buffers() && bufferFarIds.contains(ruleId)) {
             // If this FAR does not buffer but used to, then drain all relevant buffers
             bufferFarIds.remove(ruleId);
-            for (var ueAddr : farIdToUeAddrs.getOrDefault(ruleId, Set.of())) {
+            for (var ueAddr : farIdToUeAddrs.getOrDefault(ruleId, Set.of()).value()) {
                 // Drain the buffer for every UE address that hits this FAR
                 bufferDrainer.drain(ueAddr);
             }
@@ -487,6 +518,15 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         return false;
     }
 
+    public Set<UpfRuleIdentifier> getBufferFarIds() {
+        return Set.copyOf(bufferFarIds);
+    }
+
+    @Override
+    public Map<UpfRuleIdentifier, Set<Ip4Address>> getFarIdToUeAddrs() {
+        return Map.copyOf(farIdToUeAddrs.asJavaMap());
+    }
+
     @Override
     public Collection<UpfFlow> getFlows() throws UpfProgrammableException {
         Map<Integer, PdrStats> counterStats = new HashMap<>();
@@ -516,7 +556,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                                         .setPdr(pdr)
                                         .addStats(counterStats.get(pdr.counterId()));
                                 if (existingVal == null) {
-                                    return List.of(builder);
+                                    return Lists.newArrayList(builder);
                                 } else {
                                     existingVal.add(builder);
                                     return existingVal;
@@ -627,7 +667,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         // Remove the PDR from the farID->PDR mapping
         // This is an inefficient hotfix FIXME: remove UE addrs from the mapping in sublinear time
         if (pdr.matchesUnencapped()) {
-            farIdToUeAddrs.values().forEach(set -> set.remove(pdr.ueAddress()));
+            farIdToUeAddrs.values().stream().map(Versioned::value)
+                    .forEach(set -> set.remove(pdr.ueAddress()));
         }
     }
 

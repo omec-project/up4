@@ -4,7 +4,9 @@
  */
 package org.omecproject.up4.behavior;
 
+import com.google.common.collect.Maps;
 import org.apache.commons.lang3.tuple.Pair;
+import org.glassfish.jersey.internal.guava.Sets;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
@@ -12,6 +14,7 @@ import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.UpfProgrammableException;
+import org.omecproject.up4.UpfRuleIdentifier;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.core.ApplicationId;
@@ -22,6 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class MockUpfProgrammable implements UpfProgrammable {
     List<PacketDetectionRule> pdrs;
@@ -63,6 +67,16 @@ public class MockUpfProgrammable implements UpfProgrammable {
                 .setIngress(TestConstants.COUNTER_PKTS, TestConstants.COUNTER_BYTES)
                 .setEgress(TestConstants.COUNTER_PKTS, TestConstants.COUNTER_BYTES)
                 .build();
+    }
+
+    @Override
+    public Set<UpfRuleIdentifier> getBufferFarIds() {
+        return Sets.newHashSet();
+    }
+
+    @Override
+    public Map<UpfRuleIdentifier, Set<Ip4Address>> getFarIdToUeAddrs() {
+        return Maps.newHashMap();
     }
 
     @Override
