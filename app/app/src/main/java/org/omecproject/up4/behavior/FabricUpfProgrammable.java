@@ -137,9 +137,13 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     public boolean init(ApplicationId appId, DeviceId deviceId) {
         this.appId = appId;
         this.deviceId = deviceId;
-        computeHardwareResourceSizes();
-        log.info("UpfProgrammable initialized for appId {} and deviceId {}", appId, deviceId);
-        return true;
+        if (computeHardwareResourceSizes()) {
+            log.info("UpfProgrammable initialized for appId {} and deviceId {}", appId, deviceId);
+            return true;
+        } else {
+            // error message will be printed by computeHardwareResourceSizes()
+            return false;
+        }
     }
 
     @Override
@@ -151,8 +155,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     /**
      * Grab the capacities for the PDR and FAR tables from the pipeconf. Runs only once, on initialization.
+     *
+     * @return true if resource is fetched successfully, false otherwise.
+     * @throws IllegalStateException when FAR or PDR table can't be found in the pipeline model.
      */
-    private void computeHardwareResourceSizes() {
+    private boolean computeHardwareResourceSizes() {
         long farTableSize = 0;
         long encappedPdrTableSize = 0;
         long unencappedPdrTableSize = 0;
@@ -160,7 +167,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         if (optPipeconf.isEmpty()) {
             log.error("Unable to load piPipeconf for {}, cannot fetch table and counter properties. Sizes will be 0",
                     deviceId);
-            return;
+            return false;
         }
         PiPipeconf pipeconf = optPipeconf.get();
         // Get table sizes of interest
@@ -202,6 +209,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         this.encappedPdrTableSize = encappedPdrTableSize;
         this.unencappedPdrTableSize = unencappedPdrTableSize;
         this.pdrCounterSize = Math.min(ingressCounterSize, egressCounterSize);
+        return true;
     }
 
     @Override

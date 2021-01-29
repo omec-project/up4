@@ -28,6 +28,8 @@ import org.onosproject.net.device.DeviceListener;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.pi.model.PiPipeconf;
+import org.onosproject.net.pi.service.PiPipeconfEvent;
+import org.onosproject.net.pi.service.PiPipeconfListener;
 import org.onosproject.net.pi.service.PiPipeconfService;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
@@ -83,6 +85,7 @@ public class Up4DeviceManager implements Up4Service {
     private ApplicationId appId;
     private InternalDeviceListener deviceListener;
     private InternalConfigListener netCfgListener;
+    private PiPipeconfListener piPipeconfListener;
     private UpfProgrammable upfProgrammable;
     private DeviceId upfDeviceId;
     private Up4Config config;
@@ -92,14 +95,19 @@ public class Up4DeviceManager implements Up4Service {
     protected void activate() {
         log.info("Starting...");
         appId = coreService.registerApplication(AppConstants.APP_NAME, this::preDeactivate);
+
         deviceListener = new InternalDeviceListener();
         netCfgListener = new InternalConfigListener();
+        piPipeconfListener = new InternalPiPipeconfListener();
+
         netCfgService.addListener(netCfgListener);
         netCfgService.registerConfigFactory(appConfigFactory);
-
+        // AETHER-1173 still need this in case both netcfg and pipeconf event happen before UP4 activation
         updateConfig();
 
         deviceService.addListener(deviceListener);
+        piPipeconfService.addListener(piPipeconfListener);
+
         log.info("Started.");
     }
 
@@ -119,6 +127,7 @@ public class Up4DeviceManager implements Up4Service {
         deviceService.removeListener(deviceListener);
         netCfgService.removeListener(netCfgListener);
         netCfgService.unregisterConfigFactory(appConfigFactory);
+        piPipeconfService.removeListener(piPipeconfListener);
         log.info("Stopped.");
     }
 
@@ -191,7 +200,12 @@ public class Up4DeviceManager implements Up4Service {
             upfDeviceId = deviceId;
             upfProgrammable = upfProgrammableService; // TODO: change this once UpfProgrammable moves to the onos core
 
-            upfProgrammable.init(appId, deviceId);
+            boolean success = upfProgrammable.init(appId, deviceId);
+            if (!success) {
+                // error message will be printed by init()
+                return;
+            }
+
             upfProgrammable.setUeLimit(config.maxUes());
 
             installInterfaces();
@@ -415,6 +429,23 @@ public class Up4DeviceManager implements Up4Service {
             }
             log.debug("Ignore irrelevant event class {}", event.configClass().getName());
             return false;
+        }
+    }
+
+    private class InternalPiPipeconfListener implements PiPipeconfListener {
+        @Override
+        public void event(PiPipeconfEvent event) {
+            switch (event.type()) {
+                case REGISTERED:
+                    // AETHER-1173 recover the case where pipeconf was not ready while we initialized upfProgrammable
+                    // TODO: each pipeconf will trigger update but the subsequent ones are redundant. To be optimized
+                    updateConfig();
+                    break;
+                case UNREGISTERED:
+                default:
+                    // TODO: we do not handle UNREGISTERED event for now
+                    break;
+            }
         }
     }
 }
