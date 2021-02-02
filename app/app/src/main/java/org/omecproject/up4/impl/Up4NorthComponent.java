@@ -12,6 +12,7 @@ import com.google.rpc.Code;
 import com.google.rpc.Status;
 import io.grpc.Server;
 import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.omecproject.up4.ForwardingActionRule;
@@ -68,6 +69,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.grpc.Status.INVALID_ARGUMENT;
 import static io.grpc.Status.PERMISSION_DENIED;
 import static io.grpc.Status.UNIMPLEMENTED;
+import static java.lang.String.format;
 import static org.omecproject.up4.impl.AppConstants.PIPECONF_ID;
 import static org.omecproject.up4.impl.NorthConstants.DDN_DIGEST_ID;
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
@@ -545,7 +547,22 @@ public class Up4NorthComponent {
                 @Override
                 public void onError(Throwable t) {
                     // No idea what to do here yet.
-                    log.error("StreamChannel error", t);
+                    if (t instanceof StatusRuntimeException) {
+                        final StatusRuntimeException sre = (StatusRuntimeException) t;
+                        final String logMsg;
+                        if (sre.getCause() == null) {
+                            logMsg = sre.getMessage();
+                        } else {
+                            logMsg = format("%s (%s)", sre.getMessage(), sre.getCause().toString());
+                        }
+                        log.warn("StreamChannel error: {}", logMsg);
+                        log.debug("", t);
+                    } else {
+                        log.error("StreamChannel error", t);
+                    }
+                    if (electionId != null) {
+                        streams.remove(electionId);
+                    }
                 }
 
                 @Override
@@ -553,8 +570,6 @@ public class Up4NorthComponent {
                     log.info("StreamChannel closed");
                     if (electionId != null) {
                         streams.remove(electionId);
-                    } else {
-                        log.error("Client is closing StreamChannel but we don't have an election_id");
                     }
                     responseObserver.onCompleted();
                 }
@@ -580,8 +595,8 @@ public class Up4NorthComponent {
                         if (storedResponseObserver == null) {
                             // All good.
                             this.electionId = requestedElectionId;
-                            log.info("Received arbitration request with election_id {}, blindly telling requester " +
-                                    "they are the primary controller", TextFormat.shortDebugString(this.electionId));
+                            log.info("Blindly telling requester with election_id {} they are the primary controller",
+                                    TextFormat.shortDebugString(this.electionId));
                             // FIXME: implement election_id handling
                             responseObserver.onNext(P4RuntimeOuterClass.StreamMessageResponse.newBuilder()
                                     .setArbitration(P4RuntimeOuterClass.MasterArbitrationUpdate.newBuilder()
@@ -847,20 +862,22 @@ public class Up4NorthComponent {
                         .build();
                 var msg = P4RuntimeOuterClass.StreamMessageResponse.newBuilder()
                         .setDigest(digestList).build();
-                streams.forEach((electionId, responseObserver) -> {
-                    log.debug("Sending DDN digest to client with election_id {}: {}",
-                            electionId, TextFormat.shortDebugString(msg));
-                    responseObserver.onNext(msg);
-                });
+                if (streams.isEmpty()) {
+                    log.warn("There are no clients connected, dropping {} for UE address {}",
+                            event.type(), event.subject().ueAddress());
+                } else {
+                    streams.forEach((electionId, responseObserver) -> {
+                        log.debug("Sending DDN digest to client with election_id {}: {}",
+                                electionId, TextFormat.shortDebugString(msg));
+                        responseObserver.onNext(msg);
+                    });
+                }
             }
         }
 
         @Override
         public boolean isRelevant(Up4Event event) {
-            if (event.type() == Up4Event.Type.DOWNLINK_DATA_NOTIFICATION) {
-                return !streams.isEmpty();
-            }
-            return false;
+            return event.type() == Up4Event.Type.DOWNLINK_DATA_NOTIFICATION;
         }
     }
 }
