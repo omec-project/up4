@@ -13,7 +13,7 @@ mvn_cache_docker_volume := mvn-cache-up4
 MVN_CACHE ?= ${mvn_cache_docker_volume}
 MVN_FLAGS ?=
 
-onos_tools_dir := $(abspath ${CURRENT_DIR}/../scenarios/onos-stc/tools/package/runtime/bin)
+onos_tools_dir := $(abspath ${CURRENT_DIR}/../scenarios/onos/tools/package/runtime/bin)
 
 include ../.env.docker
 
