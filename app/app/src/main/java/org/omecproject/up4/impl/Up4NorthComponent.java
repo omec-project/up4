@@ -868,7 +868,7 @@ public class Up4NorthComponent {
                 } else {
                     streams.forEach((electionId, responseObserver) -> {
                         log.debug("Sending DDN digest to client with election_id {}: {}",
-                                electionId, TextFormat.shortDebugString(msg));
+                                TextFormat.shortDebugString(electionId), TextFormat.shortDebugString(msg));
                         responseObserver.onNext(msg);
                     });
                 }
