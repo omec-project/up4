@@ -6,7 +6,7 @@
     <group name="P4rt-Buffering">
         <group name="P4rt-Program-Buff">
             <step name="P4rt-Set-Buff"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rtsh /p4rt/do_program.sh --buffer program"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows --buffer program"/>
             <step name="Check-Up4-Flows-Buff" requires="^"
                   exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
             <step name="Check-Flow-Rules-Buff" requires="^" delay="5"
@@ -24,7 +24,7 @@
             <step name="Downlink-Enb-Recv-Gtp-Buff" requires="Verify-First-Buffer"
                   exec="mn-cmd enodeb traffic.py recv-gtp -t 30"/>
             <step name="P4rt-Set-Fwd-After-Buff" requires="Verify-First-Buffer" delay="5"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rtsh /p4rt/do_program.sh program"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program"/>
             <step name="Check-Drain-Started" requires="P4rt-Set-Fwd-After-Buff"
                   exec="docker-log-grep ${ODI} 'Started dbuf drain'"/>
             <step name="Check-Drain-Completed" requires="P4rt-Set-Fwd-After-Buff"
@@ -32,7 +32,7 @@
         </group>
         <group name="P4rt-Clear-Buff" requires="~Check-Traffic-Buff">
             <step name="P4rt-Unset-Fwd-After-Buff" requires="~Check-Traffic-Buff"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rtsh /p4rt/do_program.sh clear"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows clear"/>
             <step name="Check-Up4-Flows-Fwd-After-Buff-Cleared" requires="P4rt-Unset-Fwd-After-Buff"
                   exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
             <step name="Check-Flow-Rules-Fwd-After-Buff-Cleared" requires="P4rt-Unset-Fwd-After-Buff" delay="5"

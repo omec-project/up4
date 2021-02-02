@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+
+FROM python:3.9.0-slim-buster
+RUN pip3 install --no-cache-dir \
+    p4runtime-shell
+
+ENV PATH=/up4/bin:${PATH}

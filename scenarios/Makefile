@@ -84,10 +84,10 @@ mock-smf:
 		--pcap-file /tmp/mock-smf.pcap -vvv
 
 p4rt-sh:
-	docker-compose exec p4rtsh \
-		/p4runtime-sh/docker_entry_point.sh \
+	docker-compose exec p4rt \
+		python3 -m p4runtime_sh \
 		--grpc-addr onos1:51001 \
-		--device-id 0 --election-id 0,1
+		--device-id 1 --election-id 0,1
 
 # This is required for Jenkins to be able to archive build artifacts. Files created by most
 # containers will have root owner. Jenkins doesn't allow sudo, run chown inside a container as there

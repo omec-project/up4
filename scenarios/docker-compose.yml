@@ -36,16 +36,18 @@ services:
     depends_on:
       - pfcp-agent
       - mininet
-  p4rtsh:
-    image: ${P4RTSH_IMAGE}
-    hostname: p4rtsh
-    container_name: p4rtsh
+  p4rt:
+    build:
+      context: ./topo
+      dockerfile: Dockerfile.p4rt
+    hostname: p4rt
+    container_name: p4rt
     tty: true
     stdin_open: true
     volumes:
       - ./tmp:/tmp
       - ../p4src/build/:/p4c-out/
-      - ./p4rt:/p4rt
+      - ./bin:/up4/bin
     entrypoint: "/bin/bash"
   mininet:
     build:
