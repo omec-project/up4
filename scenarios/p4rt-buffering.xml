@@ -13,8 +13,10 @@
                   exec="onos-check-flows ${OCI}"/>
         </group>
         <group name="Check-Traffic-Buff" requires="P4rt-Program-Buff">
+            <step name="P4rt-Stream-Recv-Digest" requires="P4rt-Program-Buff"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-stream-recv -t 30 --count 1 --type digest"/>
             <!-- Check Downlink only -->
-            <step name="Downlink-Pdn-Send-Udp-Buff" requires="P4rt-Program-Buff"
+            <step name="Downlink-Pdn-Send-Udp-Buff" requires="P4rt-Program-Buff" delay="5"
                   exec="mn-cmd pdn traffic.py send-udp -c 10"/>
             <!-- FIXME: grep log tail to allow running scenarios in development where there can be
                     many FIRST_BUFFER in the log  -->

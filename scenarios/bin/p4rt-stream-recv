@@ -1,29 +1,25 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+import argparse
 import queue
-import sys
 import time
 
-from google.protobuf import text_format
-
-sys.path.append('/p4runtime-sh/')
-
 import p4runtime_sh.shell as sh
-import argparse
+from google.protobuf import text_format
 
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--server", type=str, default="onos1:51001",
                         help="Address and port of the p4runtime server")
-    parser.add_argument("--election_id", type=int, default=1,
+    parser.add_argument("--election-id", type=int, default=10,
                         help="Election ID")
-    parser.add_argument("--type", type=str, default=None,
-                        help="Type of stream message to listen for (all if not set)")
+    parser.add_argument("--type", type=str, default="any",
+                        help="Type of stream message to listen for")
     parser.add_argument("--count", type=int, default=-1,
-                        help="Exit when the number of messages has been received "
-                             "(-1 to listen until timeout expires)")
+                        help="Receive exactly the given number of messages"
+                             "(-1 means don't check)")
     parser.add_argument("-t", type=int, default=10,
                         help="Timeout in seconds")
     return parser.parse_args()
@@ -48,20 +44,22 @@ def main():
             if remaining < 0:
                 break
             msg = sh.client.stream_in_q.get(timeout=remaining)
-            if msg is not None:
+            if msg != "any":
                 if args.type and not msg.HasField(args.type):
                     continue
                 count = count + 1
                 print(text_format.MessageToString(msg, as_one_line=True))
-                if count == args.count:
-                    break
     except queue.Empty:  # timeout expired
         pass
 
     sh.teardown()
 
-    if count == 0:
-        print("No message received before timeout (%d seconds)" % args.t)
+    if args.count == -1 & count == 0:
+        print("ERROR: No message received before timeout (%d seconds)" % args.t)
+        exit(1)
+    if count != -1 and count != args.count:
+        print("ERROR: expected %d messages of type %s but received %d" %
+              (args.count, args.type, count))
         exit(1)
     else:
         exit(0)
