@@ -26,6 +26,7 @@ import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammableException;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
+import org.onlab.util.SharedExecutors;
 import org.onosproject.net.pi.model.DefaultPiPipeconf;
 import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiPipeconf;
@@ -265,7 +266,7 @@ public class Up4NorthComponent {
     }
 
     private void updateFseidMap(PacketDetectionRule pdr) {
-        // We kow from the PFCP spec that when installing PDRs for the same UE, the F-SEID will be
+        // We know from the PFCP spec that when installing PDRs for the same UE, the F-SEID will be
         // the same for all PDRs, both downlink and uplink. The F-SEID for a given UE will only
         // change after a detach. For simplicity, we never remove values. The map provides the
         // last-seen F-SEID for a given UE. When scaling the number of UEs, if memory is an issues,
@@ -629,7 +630,7 @@ public class Up4NorthComponent {
                     responseObserver.onError(status.asException());
                     // Remove stream from map.
                     if (electionId != null) {
-                        streams.computeIfPresent(electionId, (uint128, storedResponseObserver) -> {
+                        streams.computeIfPresent(electionId, (storedElectionId, storedResponseObserver) -> {
                             if (responseObserver == storedResponseObserver) {
                                 // Remove.
                                 return null;
@@ -837,47 +838,47 @@ public class Up4NorthComponent {
         }
     }
 
+    private void handleDdn(Up4Event event) {
+        if (event.subject().ueAddress() == null) {
+            log.error("Received {} but UE address is missing, bug?", event.type());
+            return;
+        }
+        var fseid = fseids.get(event.subject().ueAddress());
+        if (fseid == null) {
+            log.error("Unable to derive F-SEID for UE {}, dropping {}. " +
+                            "Was a PDR ever installed for the UE?",
+                    event.subject().ueAddress(), event.type());
+            return;
+        }
+        var digestList = P4RuntimeOuterClass.DigestList.newBuilder()
+                .setDigestId(DDN_DIGEST_ID)
+                .setListId(ddnDigestListId.incrementAndGet())
+                .addData(P4DataOuterClass.P4Data.newBuilder()
+                        .setBitstring(ByteString.copyFrom(fseid.asArray()))
+                        .build())
+                .build();
+        var msg = P4RuntimeOuterClass.StreamMessageResponse.newBuilder()
+                .setDigest(digestList).build();
+        if (streams.isEmpty()) {
+            log.warn("There are no clients connected, dropping {} for UE address {}",
+                    event.type(), event.subject().ueAddress());
+        } else {
+            streams.forEach((electionId, responseObserver) -> {
+                log.debug("Sending DDN digest to client with election_id {}: {}",
+                        TextFormat.shortDebugString(electionId), TextFormat.shortDebugString(msg));
+                responseObserver.onNext(msg);
+            });
+        }
+    }
+
     class InternalUp4EventListener implements Up4EventListener {
 
         @Override
         public void event(Up4Event event) {
             if (event.type() == Up4Event.Type.DOWNLINK_DATA_NOTIFICATION) {
-                if (event.subject().ueAddress() == null) {
-                    log.error("Received {} but UE address is missing, bug?", event.type());
-                    return;
-                }
-                var fseid = fseids.get(event.subject().ueAddress());
-                if (fseid == null) {
-                    log.error("Unable to derive F-SEID for UE {}, dropping {}. " +
-                                    "Was a PDR ever installed for the UE?",
-                            event.subject().ueAddress(), event.type());
-                    return;
-                }
-                var digestList = P4RuntimeOuterClass.DigestList.newBuilder()
-                        .setDigestId(DDN_DIGEST_ID)
-                        .setListId(ddnDigestListId.incrementAndGet())
-                        .addData(P4DataOuterClass.P4Data.newBuilder()
-                                .setBitstring(ByteString.copyFrom(fseid.asArray()))
-                                .build())
-                        .build();
-                var msg = P4RuntimeOuterClass.StreamMessageResponse.newBuilder()
-                        .setDigest(digestList).build();
-                if (streams.isEmpty()) {
-                    log.warn("There are no clients connected, dropping {} for UE address {}",
-                            event.type(), event.subject().ueAddress());
-                } else {
-                    streams.forEach((electionId, responseObserver) -> {
-                        log.debug("Sending DDN digest to client with election_id {}: {}",
-                                TextFormat.shortDebugString(electionId), TextFormat.shortDebugString(msg));
-                        responseObserver.onNext(msg);
-                    });
-                }
+                SharedExecutors.getPoolThreadExecutor()
+                        .execute(() -> handleDdn(event));
             }
-        }
-
-        @Override
-        public boolean isRelevant(Up4Event event) {
-            return event.type() == Up4Event.Type.DOWNLINK_DATA_NOTIFICATION;
         }
     }
 }
