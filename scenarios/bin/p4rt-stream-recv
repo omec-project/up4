@@ -13,15 +13,13 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--server", type=str, default="onos1:51001",
                         help="Address and port of the p4runtime server")
-    parser.add_argument("--election-id", type=int, default=10,
-                        help="Election ID")
+    parser.add_argument("--election-id", type=int, default=10, help="Election ID")
     parser.add_argument("--type", type=str, default="any",
                         help="Type of stream message to listen for")
-    parser.add_argument("--count", type=int, default=-1,
-                        help="Receive exactly the given number of messages"
-                             "(-1 means don't check)")
-    parser.add_argument("-t", type=int, default=10,
-                        help="Timeout in seconds")
+    parser.add_argument(
+        "--count", type=int, default=-1, help="Receive exactly the given number of messages"
+        "(-1 means don't check)")
+    parser.add_argument("-t", type=int, default=10, help="Timeout in seconds")
     return parser.parse_args()
 
 
@@ -30,10 +28,7 @@ args = get_args()
 
 def main():
     # Connect to gRPC server
-    sh.setup(
-        device_id=1,
-        grpc_addr=args.server,
-        election_id=(0, args.election_id))
+    sh.setup(device_id=1, grpc_addr=args.server, election_id=(0, args.election_id))
 
     timeout = args.t
     start = time.time()
