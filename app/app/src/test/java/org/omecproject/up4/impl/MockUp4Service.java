@@ -9,6 +9,7 @@ import org.glassfish.jersey.internal.guava.Sets;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
+import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
@@ -219,5 +220,15 @@ public class MockUp4Service implements Up4Service {
     @Override
     public boolean isUpfDevice(DeviceId deviceId) {
         return true;
+    }
+
+    @Override
+    public void addListener(Up4EventListener listener) {
+
+    }
+
+    @Override
+    public void removeListener(Up4EventListener listener) {
+
     }
 }

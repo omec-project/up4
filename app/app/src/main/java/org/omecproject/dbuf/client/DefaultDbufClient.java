@@ -16,6 +16,9 @@ import io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import org.omecproject.dbuf.grpc.Dbuf;
 import org.omecproject.dbuf.grpc.DbufServiceGrpc;
+import org.omecproject.up4.Up4Event;
+import org.omecproject.up4.Up4EventSubject;
+import org.omecproject.up4.impl.Up4DeviceManager;
 import org.onlab.packet.Ip4Address;
 import org.slf4j.Logger;
 
@@ -45,6 +48,7 @@ public final class DefaultDbufClient implements DbufClient {
     private final DbufSubscribeManager subscribeManager;
     private final Ip4Address dataplaneIp4Addr;
     private final int dataplaneUdpPort;
+    private final Up4DeviceManager up4Manager;
 
     /**
      * Creates a new client for the given gRPC service address and dataplane address (both in the
@@ -55,9 +59,10 @@ public final class DefaultDbufClient implements DbufClient {
      *
      * @param serviceAddr   service address
      * @param dataplaneAddr dataplane address
+     * @param up4Manager    Up4DeviceManager where to relay buffer notifications
      */
-    public DefaultDbufClient(String serviceAddr, String dataplaneAddr) {
-        this(serviceAddr, buildChannel(serviceAddr), dataplaneAddr);
+    public DefaultDbufClient(String serviceAddr, String dataplaneAddr, Up4DeviceManager up4Manager) {
+        this(serviceAddr, buildChannel(serviceAddr), dataplaneAddr, up4Manager);
     }
 
     @VisibleForTesting
@@ -73,10 +78,11 @@ public final class DefaultDbufClient implements DbufClient {
     }
 
     @VisibleForTesting
-    DefaultDbufClient(String serviceAddr, ManagedChannel channel, String dataplaneAddr) {
+    DefaultDbufClient(String serviceAddr, ManagedChannel channel, String dataplaneAddr, Up4DeviceManager up4Manager) {
         this.serviceAddr = serviceAddr;
         this.channel = channel;
         this.subscribeManager = new DbufSubscribeManager(this);
+        this.up4Manager = up4Manager;
         final var pieces = dataplaneAddr.split(":");
         this.dataplaneIp4Addr = Ip4Address.valueOf(pieces[0]);
         this.dataplaneUdpPort = Integer.parseInt(pieces[1]);
@@ -174,8 +180,11 @@ public final class DefaultDbufClient implements DbufClient {
                         isReady(), TextFormat.shortDebugString(notification.getReady()));
                 break;
             case FIRST_BUFFER:
-                // TODO: notify PFCP agent (DDN)
-                log.info("Received FIRST_BUFFER: {}", TextFormat.shortDebugString(notification.getFirstBuffer()));
+                var ueAddress = Ip4Address.valueOf(notification.getFirstBuffer().getNewBufferId());
+                log.info("Received FIRST_BUFFER: ueAddress={} [{}]",
+                        ueAddress, TextFormat.shortDebugString(notification.getFirstBuffer()));
+                up4Manager.postEvent(new Up4Event(
+                        Up4Event.Type.DOWNLINK_DATA_NOTIFICATION, new Up4EventSubject(ueAddress)));
                 break;
             case DROPPED_PACKET:
                 // Not sure what to do with this. Drop stats should already be reported to Aether

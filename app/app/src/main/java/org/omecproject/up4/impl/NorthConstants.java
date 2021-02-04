@@ -60,7 +60,9 @@ public final class NorthConstants {
     public static final PiActionParamId DROP_FLAG = PiActionParamId.of("needs_dropping");
     public static final PiActionParamId NOTIFY_FLAG = PiActionParamId.of("notify_cp");
     public static final PiActionParamId BUFFER_FLAG = PiActionParamId.of("needs_buffering");
-
+    // digests
+    // FIXME: replace with name after we add P4Info browser for digests in ONOS
+    public static final int DDN_DIGEST_ID = 396224266;
     // hide default constructor
     private NorthConstants() {
     }

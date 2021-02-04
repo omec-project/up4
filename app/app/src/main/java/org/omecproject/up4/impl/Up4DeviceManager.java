@@ -7,6 +7,8 @@ package org.omecproject.up4.impl;
 import io.grpc.Context;
 import org.omecproject.dbuf.client.DbufClient;
 import org.omecproject.dbuf.client.DefaultDbufClient;
+import org.omecproject.up4.Up4Event;
+import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
@@ -17,6 +19,7 @@ import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
+import org.onosproject.event.AbstractListenerManager;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.config.ConfigFactory;
@@ -50,11 +53,9 @@ import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FAC
 /**
  * Draft UP4 ONOS application component.
  */
-@Component(immediate = true,
-        service = {Up4Service.class})
-public class Up4DeviceManager implements Up4Service {
-
-    private static final long DEFAULT_P4_DEVICE_ID = 1;
+@Component(immediate = true, service = {Up4Service.class})
+public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4EventListener>
+        implements Up4Service  {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final AtomicBoolean upfInitialized = new AtomicBoolean(false);
@@ -92,6 +93,7 @@ public class Up4DeviceManager implements Up4Service {
     protected void activate() {
         log.info("Starting...");
         appId = coreService.registerApplication(AppConstants.APP_NAME, this::preDeactivate);
+        eventDispatcher.addSink(Up4Event.class, listenerRegistry);
         deviceListener = new InternalDeviceListener();
         netCfgListener = new InternalConfigListener();
         netCfgService.addListener(netCfgListener);
@@ -119,6 +121,7 @@ public class Up4DeviceManager implements Up4Service {
         deviceService.removeListener(deviceListener);
         netCfgService.removeListener(netCfgListener);
         netCfgService.unregisterConfigFactory(appConfigFactory);
+        eventDispatcher.removeSink(Up4Event.class);
         log.info("Stopped.");
     }
 
@@ -253,6 +256,10 @@ public class Up4DeviceManager implements Up4Service {
         }
     }
 
+    public void postEvent(Up4Event event) {
+        post(event);
+    }
+
     /**
      * Unset the UPF dataplane device. If available it will be cleaned-up.
      */
@@ -319,7 +326,7 @@ public class Up4DeviceManager implements Up4Service {
                     teardownDbufClient();
                 }
                 if (dbufClient == null) {
-                    dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr);
+                    dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr, this);
                 }
                 if (upfProgrammable != null) {
                     addDbufStateToUpfProgrammable();

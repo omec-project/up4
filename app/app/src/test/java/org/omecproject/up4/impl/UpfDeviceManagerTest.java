@@ -7,11 +7,14 @@ package org.omecproject.up4.impl;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.onosproject.common.event.impl.TestEventDispatcher;
 import org.onosproject.core.CoreServiceAdapter;
 import org.onosproject.net.config.NetworkConfigRegistryAdapter;
 import org.onosproject.net.device.DeviceServiceAdapter;
 import org.onosproject.net.flow.FlowRuleServiceAdapter;
 import org.onosproject.net.pi.PiPipeconfServiceAdapter;
+
+import static org.onosproject.net.NetTestTools.injectEventDispatcher;
 
 /**
  * Set of tests of the ONOS application component.
@@ -28,6 +31,7 @@ public class UpfDeviceManagerTest {
         component.deviceService = new DeviceServiceAdapter();
         component.piPipeconfService = new PiPipeconfServiceAdapter();
         component.netCfgService = new NetworkConfigRegistryAdapter();
+        injectEventDispatcher(component, new TestEventDispatcher());
         component.activate();
     }
 

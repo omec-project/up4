@@ -12,6 +12,8 @@ import org.junit.Test;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.behavior.TestConstants;
 import org.omecproject.up4.behavior.Up4TranslatorImpl;
+import org.onlab.packet.Ip4Address;
+import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.runtime.PiCounterCell;
@@ -22,6 +24,8 @@ import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.p4runtime.ctl.codec.CodecException;
 import org.onosproject.p4runtime.ctl.codec.Codecs;
 import org.onosproject.p4runtime.ctl.utils.PipeconfHelper;
+import org.onosproject.store.serializers.KryoNamespaces;
+import org.onosproject.store.service.TestEventuallyConsistentMap;
 import p4.config.v1.P4InfoOuterClass;
 import p4.v1.P4RuntimeOuterClass;
 
@@ -49,6 +53,8 @@ public class Up4NorthComponentTest {
         up4NorthComponent.p4Info = p4Info;
         up4NorthComponent.up4Translator = new Up4TranslatorImpl();
         up4NorthComponent.up4Service = new MockUp4Service();
+        up4NorthComponent.fseids = TestEventuallyConsistentMap.<Ip4Address, ImmutableByteSequence>builder()
+                .withSerializer(KryoNamespaces.API).build();
         upfProgrammable = up4NorthComponent.up4Service.getUpfProgrammable();
     }
 
@@ -419,7 +425,7 @@ public class Up4NorthComponentTest {
                 = up4NorthService.streamChannel(responseObserver);
 
         var deviceId = NorthTestConstants.P4RUNTIME_DEVICE_ID;
-        var role = P4RuntimeOuterClass.Role.newBuilder().setId(0).build();
+        var role = P4RuntimeOuterClass.Role.getDefaultInstance();
         var electionId = P4RuntimeOuterClass.Uint128.newBuilder().setLow(1).build();
 
         P4RuntimeOuterClass.StreamMessageRequest request = P4RuntimeOuterClass.StreamMessageRequest.newBuilder()

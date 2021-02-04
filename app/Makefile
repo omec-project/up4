@@ -13,7 +13,7 @@ mvn_cache_docker_volume := mvn-cache-up4
 MVN_CACHE ?= ${mvn_cache_docker_volume}
 MVN_FLAGS ?=
 
-onos_tools_dir := $(abspath ${CURRENT_DIR}/../scenarios/onos-stc/tools/package/runtime/bin)
+onos_tools_dir := $(abspath ${CURRENT_DIR}/../scenarios/onos/tools/package/runtime/bin)
 
 include ../.env.docker
 
@@ -62,22 +62,22 @@ clean:
 	rm -rf app/src/main/java/org/omecproject/dbuf/grpc/
 
 p4rt-shell:
-	cd ../scenarios && docker-compose exec p4rtsh  \
+	cd ../scenarios && docker-compose exec p4rt  \
 		/p4runtime-sh/docker_entry_point.sh \
 		-v --grpc-addr onos1:51001 \
 		--device-id 0 --election-id 0,1
 
 p4rt-set-forwarding:
-	cd ../scenarios && docker-compose exec p4rtsh /p4rt/do_program.sh program
+	cd ../scenarios && docker-compose exec p4rt p4rt-up4-flows program
 
 p4rt-set-buffering:
-	cd ../scenarios && docker-compose exec p4rtsh /p4rt/do_program.sh --buffer program
+	cd ../scenarios && docker-compose exec p4rt p4rt-up4-flows --buffer program
 
 p4rt-clear:
-	cd ../scenarios && docker-compose exec p4rtsh /p4rt/do_program.sh clear
+	cd ../scenarios && docker-compose exec p4rt p4rt-up4-flows clear
 
 p4rt-bash:
-	cd ../scenarios && docker-compose exec p4rtsh /bin/bash
+	cd ../scenarios && docker-compose exec p4rt /bin/bash
 
 app-load:
 	${onos_tools_dir}/onos-app localhost install! app/target/up4-app-1.0.0-SNAPSHOT.oar
