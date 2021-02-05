@@ -7,7 +7,7 @@ CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 
 main_file := p4src/main.p4
 
-include .env.docker
+include .env.stable
 
 default: build check
 

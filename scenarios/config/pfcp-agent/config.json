@@ -1,0 +1,9 @@
+{
+  "enable_p4rt": true,
+  "p4rtciface": {
+    "p4rtc_server": "onos1",
+    "p4rtc_port": "51001",
+    "": "FIXME: remove access_ip once it will not longer be mandatory",
+    "access_ip": "0.0.0.0/0"
+  }
+}
