@@ -11,15 +11,12 @@ services:
     stdin_open: true
     volumes:
       - ./tmp:/tmp
-      - ./topo:/topo
-      - ./bin:/up4/bin
-      - onos1
-    entrypoint: "/topo/pfcp-entry.sh"
+      - ./config/pfcp-agent/config.json:/config.json
+    entrypoint: "/bin/pfcpiface"
+    command: [ "-config", "/config.json"]
     working_dir: /bin/
     expose:
       - 8805
-    depends_on:
-      - mininet
   mock-smf:
     build:
       context: ./topo
@@ -33,9 +30,6 @@ services:
       - ./topo:/topo
       - ./bin:/up4/bin
     entrypoint: "/bin/sh"
-    depends_on:
-      - pfcp-agent
-      - mininet
   p4rt:
     build:
       context: ./topo

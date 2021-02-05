@@ -15,7 +15,7 @@ MVN_FLAGS ?=
 
 onos_tools_dir := $(abspath ${CURRENT_DIR}/../scenarios/onos/tools/package/runtime/bin)
 
-include ../.env.docker
+include ../.env.stable
 
 _docker_pull_all:
 	docker pull ${MAVEN_IMAGE}

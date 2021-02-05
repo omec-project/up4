@@ -3,7 +3,7 @@
 
 // To validate: ./jflint.sh Jenkinsfile
 
-def blueOceanBuildUrl = "https://jenkins.opencord.org/blue/organizations/jenkins/${env.JOB_NAME}/detail/${env.JOB_NAME}/${env.BUILD_NUMBER}"
+def up4Env = params.up4Env ? "${params.up4Env}" : "stable"
 
 pipeline {
 
@@ -12,6 +12,7 @@ pipeline {
   }
 
   environment {
+    UP4_ENV = "${up4Env}"
     CODECOV_TOKEN = "26252f52-8c2d-4cfd-bd2f-ec00a71d2942"
   }
 
@@ -111,6 +112,8 @@ pipeline {
       post {
         always {
           dir("${env.WORKSPACE}/up4/scenarios") {
+            // Print Docker image version labels, etc.
+            sh "make versions > ./tmp/versions.txt"
             // Onos shared folders contain jars and other stuff that is too big and unnecessary,
             // keep just the grpc logs.
             sh "make fix-permissions"
@@ -129,14 +132,14 @@ pipeline {
           // Pull request, alert author
           emailext(
               subject: "[${env.JOB_NAME}] ${currentBuild.currentResult}: pull request #${params.ghprbPullId}",
-              body: "Check results at ${blueOceanBuildUrl}\n\nTriggered by GitHub pull request at ${params.ghprbPullLink}",
+              body: "Check results at ${env.BUILD_URL}\n\nTriggered by GitHub pull request at ${params.ghprbPullLink}",
               to: "${params.ghprbPullAuthorEmail}"
           )
         } else {
           // Post-merge, alert project maintainers
           emailext(
               subject: "[${env.JOB_NAME}] ${currentBuild.currentResult}: ${params.sha1}",
-              body: "Check results at ${blueOceanBuildUrl}",
+              body: "Check results at ${env.BUILD_URL}",
               to: "carmelo@opennetworking.org"
           )
         }
