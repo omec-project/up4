@@ -3,6 +3,8 @@
 
 // To validate: ./jflint.sh Jenkinsfile
 
+// sha1 used for PRs, while commitHash is populated for postmerge
+def commitHash = params.commitHash ? params.commitHash : params.sha1
 def up4Env = params.up4Env ? "${params.up4Env}" : "stable"
 
 pipeline {
@@ -29,7 +31,7 @@ pipeline {
             userRemoteConfigs: [[url          : "ssh://git@github.com/omec-project/up4.git",
                                  refspec      : "+refs/heads/*:refs/remotes/origin/* +refs/pull/*:refs/remotes/origin/pr/*",
                                  credentialsId: "github-onf-bot-ssh-key",]],
-            branches         : [[name: "${params.sha1}"]],
+            branches         : [[name: "${commitHash}"]],
             extensions       : [
                 [$class: "RelativeTargetDirectory", relativeTargetDir: "up4"],
                 [$class: "SubmoduleOption", recursiveSubmodules: true, parentCredentials: true]]
