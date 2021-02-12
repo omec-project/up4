@@ -10,10 +10,11 @@ import org.omecproject.dbuf.client.DefaultDbufClient;
 import org.omecproject.up4.Up4Event;
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
-import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.UpfProgrammableException;
+import org.omecproject.up4.behavior.FabricUpfProgrammable;
+import org.omecproject.up4.behavior.FabricUpfStore;
 import org.omecproject.up4.config.Up4Config;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
@@ -32,6 +33,7 @@ import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.service.PiPipeconfService;
+import org.onosproject.p4runtime.api.P4RuntimeController;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -79,8 +81,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
+
+    // FIXME: remove after we make FabricUpfProgrammable a proper behavior
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected UpfProgrammable upfProgrammableService;
+    protected P4RuntimeController p4RuntimeController;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected FabricUpfStore upfStore;
+
     private ApplicationId appId;
     private InternalDeviceListener deviceListener;
     private InternalConfigListener netCfgListener;
@@ -188,9 +195,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
             log.info("Setup UPF device: {}", deviceId);
             upfDeviceId = deviceId;
-            upfProgrammable = upfProgrammableService; // TODO: change this once UpfProgrammable moves to the onos core
+            // FIXME: change this once UpfProgrammable moves to the onos core
+            upfProgrammable = new FabricUpfProgrammable(flowRuleService, p4RuntimeController,
+                    piPipeconfService, upfStore, deviceId);
 
-            upfProgrammable.init(appId, deviceId);
+            upfProgrammable.init(appId);
             upfProgrammable.setUeLimit(config.maxUes());
 
             installInterfaces();

@@ -1,6 +1,6 @@
 /*
- SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
- SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+ * SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ * SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4.cli;
 
@@ -49,13 +49,13 @@ public class ReadInternalStoresCommand extends AbstractShellCommand {
             farIdMap.entrySet().forEach(entry -> print(entry.toString()));
         }
 
-        Set<UpfRuleIdentifier> bufferFarIds = up4Service.getUpfProgrammable().getBufferFarIds();
+        Set<UpfRuleIdentifier> bufferFarIds = upfStore.getBufferFarIds();
         print("bufferFarIds size: " + bufferFarIds.size());
         if (verbose) {
             bufferFarIds.forEach(upfRuleIdentifier -> print(upfRuleIdentifier.toString()));
         }
 
-        Map<UpfRuleIdentifier, Set<Ip4Address>> farIdToUeAddrs = up4Service.getUpfProgrammable().getFarIdToUeAddrs();
+        Map<UpfRuleIdentifier, Set<Ip4Address>> farIdToUeAddrs = upfStore.getFarIdToUeAddrs();
         print("farIdToUeAddrs size: " + farIdToUeAddrs.size());
         if (verbose) {
             farIdToUeAddrs.entrySet().forEach(entry -> print(entry.toString()));

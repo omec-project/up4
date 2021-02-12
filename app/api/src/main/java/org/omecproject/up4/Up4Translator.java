@@ -4,13 +4,7 @@
  */
 package org.omecproject.up4;
 
-import org.onlab.util.ImmutableByteSequence;
-import org.onosproject.core.ApplicationId;
-import org.onosproject.net.DeviceId;
-import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.pi.runtime.PiTableEntry;
-
-import java.util.Map;
 
 /**
  * This service provides stateful translation between UP4 p4 table entries, fabric.p4 table entries,

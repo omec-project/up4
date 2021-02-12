@@ -337,7 +337,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkFarInsertionTest() {
+    public void downlinkFarInsertionTest() throws Exception {
         PiTableEntry entry = TestConstants.UP4_DOWNLINK_FAR;
         insertionTest(entry);
         assertThat(upfProgrammable.getInstalledFars().size(), equalTo(1));
@@ -351,7 +351,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkFarInsertionTest() {
+    public void uplinkFarInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_UPLINK_FAR);
         assertThat(upfProgrammable.getInstalledFars().size(), equalTo(1));
     }
@@ -364,7 +364,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkPdrInsertionTest() {
+    public void downlinkPdrInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_DOWNLINK_PDR);
         assertThat(upfProgrammable.getInstalledPdrs().size(), equalTo(1));
     }
@@ -377,7 +377,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkPdrInsertionTest() {
+    public void uplinkPdrInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_UPLINK_PDR);
         assertThat(upfProgrammable.getInstalledPdrs().size(), equalTo(1));
     }
@@ -390,7 +390,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkInterfaceInsertionTest() {
+    public void downlinkInterfaceInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_DOWNLINK_INTERFACE);
         assertThat(upfProgrammable.getInstalledInterfaces().size(), equalTo(1));
     }
@@ -403,7 +403,7 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkInterfaceInsertionTest() {
+    public void uplinkInterfaceInsertionTest() throws Exception {
         PiTableEntry entry = TestConstants.UP4_UPLINK_INTERFACE;
         insertionTest(entry);
         assertThat(upfProgrammable.getInstalledInterfaces().size(), equalTo(1));

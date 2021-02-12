@@ -9,33 +9,28 @@ import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 
 import java.util.Collection;
-import java.util.Map;
-import java.util.Set;
 
 
 /**
- * UPF programmable behavior. Provides means to update device forwarding state
- * to implement a 3GPP User Plane Function (e.g., tunnel termination, accounting,
- * etc.). An implementation of this API should not write state directly to the
- * device, but instead, always rely on core ONOS subsystems (e.g.,
- * FlowRuleService, GroupService, etc).
+ * UPF programmable behavior. Provides means to update device forwarding state to implement a 3GPP
+ * User Plane Function (e.g., tunnel termination, accounting, etc.). An implementation of this API
+ * should not write state directly to the device, but instead, always rely on core ONOS subsystems
+ * (e.g., FlowRuleService, GroupService, etc).
  */
 public interface UpfProgrammable {
 
     /**
-     * Apps are expected to call this method as the first one when they are
-     * ready to install PDRs and FARs.
+     * Apps are expected to call this method as the first one when they are ready to install PDRs
+     * and FARs.
      *
-     * @param appId    Application ID of the caller of this API.
-     * @param deviceId Device ID of the device that is to be the UpfProgrammable
+     * @param appId Application ID of the caller of this API.
      * @return True if initialized, false otherwise.
      */
-    boolean init(ApplicationId appId, DeviceId deviceId);
+    boolean init(ApplicationId appId);
 
 
     /**
-     * Remove any state previously created by this API for the given application
-     * ID.
+     * Remove any state previously created by this API for the given application ID.
      *
      * @param appId Application ID of the application using the UpfProgrammable.
      */
@@ -49,20 +44,6 @@ public interface UpfProgrammable {
     // FIXME: remove after we make interface a driver behavior
     // DeviceId will be implicit from behavior instance
     DeviceId deviceId();
-
-    /**
-     * Return the bufferFarIds set.
-     *
-     * @return the bufferFarIds set.
-     */
-    Set<UpfRuleIdentifier> getBufferFarIds();
-
-    /**
-     * Return the farIdToUeAddrs map.
-     *
-     * @return the farIdToUeAddrs map.
-     */
-    Map<UpfRuleIdentifier, Set<Ip4Address>> getFarIdToUeAddrs();
 
     /**
      * Get all UE data flows currently installed on the UPF-programmable device.
@@ -86,6 +67,7 @@ public interface UpfProgrammable {
      * Get all ForwardingActionRules currently installed on the UPF-programmable device.
      *
      * @return a collection of installed FARs
+     * @throws UpfProgrammableException if FARs are unable to be read
      */
     Collection<ForwardingActionRule> getInstalledFars() throws UpfProgrammableException;
 
@@ -93,6 +75,7 @@ public interface UpfProgrammable {
      * Get all PacketDetectionRules currently installed on the UPF-programmable device.
      *
      * @return a collection of installed PDRs
+     * @throws UpfProgrammableException if PDRs are unable to be read
      */
     Collection<PacketDetectionRule> getInstalledPdrs() throws UpfProgrammableException;
 
@@ -100,6 +83,7 @@ public interface UpfProgrammable {
      * Get all UPF interface lookup entries currently installed on the UPF-programmable device.
      *
      * @return a collection of installed interfaces
+     * @throws UpfProgrammableException if interfaces are unable to be read
      */
     Collection<UpfInterface> getInstalledInterfaces() throws UpfProgrammableException;
 
@@ -117,8 +101,8 @@ public interface UpfProgrammable {
      * Add a Packet Detection Rule (PDR) to the given device.
      *
      * @param pdr The PDR to be added
-     * @throws UpfProgrammableException              if the PDR cannot be installed, or the counter index
-     *                                               is out of bounds
+     * @throws UpfProgrammableException if the PDR cannot be installed, or the counter index is out
+     *                                  of bounds
      */
     void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException;
 
@@ -134,7 +118,7 @@ public interface UpfProgrammable {
      * Add a Forwarding Action Rule (FAR) to the given device.
      *
      * @param far The FAR to be added
-     * @throws UpfProgrammableException              if the FAR cannot be installed
+     * @throws UpfProgrammableException if the FAR cannot be installed
      */
     void addFar(ForwardingActionRule far) throws UpfProgrammableException;
 
@@ -150,7 +134,7 @@ public interface UpfProgrammable {
      * Install a new interface on the UPF device's interface lookup tables.
      *
      * @param upfInterface the interface to install
-     * @throws UpfProgrammableException              if the interface cannot be installed
+     * @throws UpfProgrammableException if the interface cannot be installed
      */
     void addInterface(UpfInterface upfInterface) throws UpfProgrammableException;
 
@@ -166,14 +150,15 @@ public interface UpfProgrammable {
      * Read the the given cell (Counter index) of the PDR counters from the given device.
      *
      * @param cellId The counter cell index from which to read
-     * @return A structure containing ingress and egress packet and byte counts for the given cellId.
+     * @return A structure containing ingress and egress packet and byte counts for the given
+     * cellId.
      * @throws UpfProgrammableException if the cell ID is out of bounds
      */
     PdrStats readCounter(int cellId) throws UpfProgrammableException;
 
     /**
-     * Return the number of PDR counter cells available. The number of cells in the ingress and egress PDR counters
-     * are equivalent.
+     * Return the number of PDR counter cells available. The number of cells in the ingress and
+     * egress PDR counters are equivalent.
      *
      * @return PDR counter size
      */
@@ -187,8 +172,8 @@ public interface UpfProgrammable {
     long farTableSize();
 
     /**
-     * Return the total number of table entries the downlink and uplink PDR tables support. Both tables
-     * support an equal number of entries, so the total is twice the size of either.
+     * Return the total number of table entries the downlink and uplink PDR tables support. Both
+     * tables support an equal number of entries, so the total is twice the size of either.
      *
      * @return the total number of PDRs that can be installed
      */
@@ -203,7 +188,8 @@ public interface UpfProgrammable {
     Collection<PdrStats> readAllCounters() throws UpfProgrammableException;
 
     /**
-     * Set the source and destination of the GTPU tunnel used to send packets to a dbuf buffering device.
+     * Set the source and destination of the GTPU tunnel used to send packets to a dbuf buffering
+     * device.
      *
      * @param switchAddr the address on the switch that sends and receives packets to and from dbuf
      * @param dbufAddr   the dataplane address of dbuf
@@ -211,16 +197,16 @@ public interface UpfProgrammable {
     void setDbufTunnel(Ip4Address switchAddr, Ip4Address dbufAddr);
 
     /**
-     * Install a BufferDrainer reference that can be used to trigger the draining of a specific dbuf buffer
-     * back into the UPF device.
+     * Install a BufferDrainer reference that can be used to trigger the draining of a specific dbuf
+     * buffer back into the UPF device.
      *
      * @param drainer the BufferDrainer reference
      */
     void setBufferDrainer(BufferDrainer drainer);
 
     /**
-     * Used by the UpfProgrammable to trigger buffer draining as needed.
-     * Install an instance using {@link UpfProgrammable#setBufferDrainer(BufferDrainer)}
+     * Used by the UpfProgrammable to trigger buffer draining as needed. Install an instance using
+     * {@link UpfProgrammable#setBufferDrainer(BufferDrainer)}
      */
     interface BufferDrainer {
         /**

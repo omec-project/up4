@@ -4,54 +4,26 @@
  */
 package org.omecproject.up4.behavior;
 
-import com.google.common.collect.Maps;
-import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.up4.ForwardingActionRule;
-import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
-import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.impl.NorthConstants;
-import org.omecproject.up4.impl.SouthConstants;
-import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
-import org.onlab.util.KryoNamespace;
-import org.onosproject.core.ApplicationId;
-import org.onosproject.net.DeviceId;
-import org.onosproject.net.flow.DefaultFlowRule;
-import org.onosproject.net.flow.DefaultTrafficSelector;
-import org.onosproject.net.flow.DefaultTrafficTreatment;
-import org.onosproject.net.flow.FlowRule;
-import org.onosproject.net.flow.criteria.PiCriterion;
 import org.onosproject.net.pi.model.PiActionId;
-import org.onosproject.net.pi.model.PiTableId;
 import org.onosproject.net.pi.runtime.PiAction;
 import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiExactFieldMatch;
 import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
 import org.onosproject.net.pi.runtime.PiMatchKey;
-import org.onosproject.net.pi.runtime.PiTableAction;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
-import org.onosproject.store.serializers.KryoNamespaces;
-import org.onosproject.store.service.ConsistentMap;
-import org.onosproject.store.service.MapEvent;
-import org.onosproject.store.service.MapEventListener;
-import org.onosproject.store.service.Serializer;
-import org.onosproject.store.service.StorageService;
-import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Deactivate;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
-import java.util.Map;
-import java.util.Objects;
 
 /**
  * Utility class for transforming PiTableEntries to classes more specific to the UPF pipelines,

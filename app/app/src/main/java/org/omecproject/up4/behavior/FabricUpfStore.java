@@ -5,10 +5,13 @@
 
 package org.omecproject.up4.behavior;
 
+import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.UpfRuleIdentifier;
+import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Stores state required for translation of UPF entries to pipeline-specific entities.
@@ -27,7 +30,8 @@ public interface FabricUpfStore {
     Map<UpfRuleIdentifier, Integer> getFarIdMap();
 
     /**
-     * Get a globally unique integer identifier for the FAR identified by the given (Session ID, Far ID) pair.
+     * Get a globally unique integer identifier for the FAR identified by the given (Session ID, Far
+     * ID) pair.
      *
      * @param farIdPair a RuleIdentifier instance uniquely identifying the FAR
      * @return A globally unique integer identifier
@@ -35,7 +39,8 @@ public interface FabricUpfStore {
     int globalFarIdOf(UpfRuleIdentifier farIdPair);
 
     /**
-     * Get a globally unique integer identifier for the FAR identified by the given (Session ID, Far ID) pair.
+     * Get a globally unique integer identifier for the FAR identified by the given (Session ID, Far
+     * ID) pair.
      *
      * @param pfcpSessionId     The ID of the PFCP session that produced the FAR ID.
      * @param sessionLocalFarId The FAR ID.
@@ -51,4 +56,51 @@ public interface FabricUpfStore {
      * @return the corresponding PFCP session ID and session-local FAR ID, as a RuleIdentifier
      */
     UpfRuleIdentifier localFarIdOf(int globalFarId);
+
+    /**
+     * Stores the mapping between FAR ID and UE address as defined by the given PDR.
+     *
+     * @param pdr PDR
+     */
+    void learnFarIdToUeAddrs(PacketDetectionRule pdr);
+
+    /**
+     * Returns true if the given FAR IDs is known to be a buffering one.
+     *
+     * @param farId FAR ID
+     * @return boolean
+     */
+    boolean isFarIdBuffering(UpfRuleIdentifier farId);
+
+    /**
+     * Learns the given FAR ID as being a buffering one.
+     *
+     * @param farId FAR ID
+     */
+    void learBufferingFarId(UpfRuleIdentifier farId);
+
+    /**
+     * Forgets the given FAR ID as being a buffering one.
+     *
+     * @param farId FAR ID
+     */
+    void forgetBufferingFarId(UpfRuleIdentifier farId);
+
+    /**
+     * Returns the set of UE addresses associated with the given FAR ID.
+     *
+     * @param farId FAR ID
+     * @return Set of Ip4Address
+     */
+    Set<Ip4Address> ueAddrsOfFarId(UpfRuleIdentifier farId);
+
+    /**
+     * Removes the given UE address from the FAR ID to UE address map.
+     * @param ueAddr
+     */
+    void forgetUeAddr(Ip4Address ueAddr);
+
+    Set<UpfRuleIdentifier> getBufferFarIds();
+
+    Map<UpfRuleIdentifier, Set<Ip4Address>> getFarIdToUeAddrs();
 }

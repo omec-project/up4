@@ -4,8 +4,6 @@
  */
 package org.omecproject.up4.impl;
 
-import com.google.common.collect.Maps;
-import org.glassfish.jersey.internal.guava.Sets;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
@@ -15,7 +13,6 @@ import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.behavior.TestConstants;
-import org.omecproject.up4.UpfRuleIdentifier;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
@@ -23,8 +20,6 @@ import org.onosproject.net.DeviceId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 public class MockUp4Service implements Up4Service {
     boolean upfProgrammableAvailable = true;
@@ -35,7 +30,7 @@ public class MockUp4Service implements Up4Service {
         final List<UpfInterface> ifaces = new ArrayList<>();
 
         @Override
-        public boolean init(ApplicationId appId, DeviceId deviceId) {
+        public boolean init(ApplicationId appId) {
             return true;
         }
 
@@ -75,16 +70,6 @@ public class MockUp4Service implements Up4Service {
         @Override
         public DeviceId deviceId() {
             return null;
-        }
-
-        @Override
-        public Set<UpfRuleIdentifier> getBufferFarIds() {
-            return Sets.newHashSet();
-        }
-
-        @Override
-        public Map<UpfRuleIdentifier, Set<Ip4Address>> getFarIdToUeAddrs() {
-            return Maps.newHashMap();
         }
 
         @Override
