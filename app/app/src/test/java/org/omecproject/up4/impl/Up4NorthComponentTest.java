@@ -11,7 +11,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.behavior.TestConstants;
-import org.omecproject.up4.behavior.Up4TranslatorImpl;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.pi.model.PiCounterId;
@@ -51,7 +50,6 @@ public class Up4NorthComponentTest {
         p4Info = PipeconfHelper.getP4Info(pipeconf);
         up4NorthComponent.pipeconf = pipeconf;
         up4NorthComponent.p4Info = p4Info;
-        up4NorthComponent.up4Translator = new Up4TranslatorImpl();
         up4NorthComponent.up4Service = new MockUp4Service();
         up4NorthComponent.fseids = TestEventuallyConsistentMap.<Ip4Address, ImmutableByteSequence>builder()
                 .withSerializer(KryoNamespaces.API).build();

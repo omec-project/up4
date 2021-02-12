@@ -19,7 +19,6 @@ import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
 import org.onosproject.net.pi.runtime.PiMatchKey;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
-import org.osgi.service.component.annotations.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,12 +28,9 @@ import java.util.Arrays;
  * Utility class for transforming PiTableEntries to classes more specific to the UPF pipelines,
  * like PacketDetectionRule and ForwardingActionRule.
  */
-@Component(immediate = true,
-        service = {Up4Translator.class})
 public class Up4TranslatorImpl implements Up4Translator {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
-
 
     private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
 

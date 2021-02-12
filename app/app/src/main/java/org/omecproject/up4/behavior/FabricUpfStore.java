@@ -96,11 +96,20 @@ public interface FabricUpfStore {
 
     /**
      * Removes the given UE address from the FAR ID to UE address map.
-     * @param ueAddr
+     * @param ueAddr UE address
      */
     void forgetUeAddr(Ip4Address ueAddr);
 
+    /**
+     * Returns the set of known buffering FAR IDs.
+     * @return set
+     */
     Set<UpfRuleIdentifier> getBufferFarIds();
 
+    /**
+     * Returns the FAR ID to UE addresses map.
+     *
+     * @return map
+     */
     Map<UpfRuleIdentifier, Set<Ip4Address>> getFarIdToUeAddrs();
 }
