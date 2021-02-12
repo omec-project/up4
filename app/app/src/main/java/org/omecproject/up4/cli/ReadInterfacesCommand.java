@@ -8,6 +8,7 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfInterface;
+import org.omecproject.up4.UpfProgrammableException;
 import org.onosproject.cli.AbstractShellCommand;
 
 /**
@@ -22,8 +23,12 @@ public class ReadInterfacesCommand extends AbstractShellCommand {
     protected void doExecute() {
         Up4Service app = get(Up4Service.class);
 
-        for (UpfInterface iface : app.getUpfProgrammable().getInstalledInterfaces()) {
-            print(iface.toString());
+        try {
+            for (UpfInterface iface : app.getUpfProgrammable().getInstalledInterfaces()) {
+                print(iface.toString());
+            }
+        } catch (UpfProgrammableException e) {
+            print("Error while reading interfaces: " + e.getMessage());
         }
     }
 }

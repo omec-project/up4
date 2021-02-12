@@ -60,101 +60,15 @@ import java.util.Objects;
 @Component(immediate = true,
         service = {Up4Translator.class})
 public class Up4TranslatorImpl implements Up4Translator {
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected StorageService storageService;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
-    protected static final String FAR_ID_MAP_NAME = "up4-far-id";
-    protected static final KryoNamespace.Builder SERIALIZER = KryoNamespace.newBuilder()
-            .register(KryoNamespaces.API)
-            .register(UpfRuleIdentifier.class);
 
-    // Distributed local FAR ID to global FAR ID mapping
-    protected ConsistentMap<UpfRuleIdentifier, Integer> farIdMap;
-    private MapEventListener<UpfRuleIdentifier, Integer> farIdMapListener;
-    // Local, reversed copy of farIdMapper for better reverse lookup performance
-    protected Map<Integer, UpfRuleIdentifier> reverseFarIdMap;
 
     private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
-    private int nextGlobalFarId = 1;
-
-    @Activate
-    protected void activate() {
-        // Allow unit test to inject farIdMap here.
-        if (storageService != null) {
-            farIdMap = storageService.<UpfRuleIdentifier, Integer>consistentMapBuilder()
-                    .withName(FAR_ID_MAP_NAME)
-                    .withRelaxedReadConsistency()
-                    .withSerializer(Serializer.using(SERIALIZER.build()))
-                    .build();
-        }
-        farIdMapListener = new FarIdMapListener();
-        farIdMap.addListener(farIdMapListener);
-
-        reverseFarIdMap = Maps.newHashMap();
-        farIdMap.entrySet().forEach(entry -> reverseFarIdMap.put(entry.getValue().value(), entry.getKey()));
-
-        log.info("Started");
-    }
-
-    @Deactivate
-    protected void deactivate() {
-        farIdMap.removeListener(farIdMapListener);
-        farIdMap.destroy();
-        reverseFarIdMap.clear();
-
-        log.info("Stopped");
-    }
-
-    @Override
-    public void reset() {
-        farIdMap.clear();
-        reverseFarIdMap.clear();
-        nextGlobalFarId = 0;
-    }
-
-    @Override
-    public Map<UpfRuleIdentifier, Integer> getFarIdMap() {
-        return Map.copyOf(farIdMap.asJavaMap());
-    }
-
-    @Override
-    public int globalFarIdOf(UpfRuleIdentifier farIdPair) {
-        int globalFarId = farIdMap.compute(farIdPair,
-                (k, existingId) -> {
-                    return Objects.requireNonNullElseGet(existingId, () -> nextGlobalFarId++);
-                }).value();
-        log.info("{} translated to GlobalFarId={}", farIdPair, globalFarId);
-        return globalFarId;
-    }
-
-    @Override
-    public int globalFarIdOf(ImmutableByteSequence pfcpSessionId, int sessionLocalFarId) {
-        UpfRuleIdentifier farId = new UpfRuleIdentifier(pfcpSessionId, sessionLocalFarId);
-        return globalFarIdOf(farId);
-
-    }
-
-    /**
-     * Get the corresponding PFCP session ID and session-local FAR ID from a globally unique FAR ID, or return
-     * null if no such mapping is found.
-     *
-     * @param globalFarId globally unique FAR ID
-     * @return the corresponding PFCP session ID and session-local FAR ID, as a RuleIdentifier
-     */
-    private UpfRuleIdentifier localFarIdOf(int globalFarId) {
-        return reverseFarIdMap.get(globalFarId);
-    }
 
     @Override
     public boolean isUp4Pdr(PiTableEntry entry) {
         return entry.table().equals(NorthConstants.PDR_TBL);
-    }
-
-    @Override
-    public boolean isFabricPdr(FlowRule entry) {
-        return entry.table().equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)
-                || entry.table().equals(SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS);
     }
 
     @Override
@@ -163,49 +77,8 @@ public class Up4TranslatorImpl implements Up4Translator {
     }
 
     @Override
-    public boolean isFabricFar(FlowRule entry) {
-        return entry.table().equals(SouthConstants.FABRIC_INGRESS_SPGW_FARS);
-    }
-
-    @Override
-    public boolean isFabricInterface(FlowRule entry) {
-        return entry.table().equals(SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES);
-    }
-
-    @Override
     public boolean isUp4Interface(PiTableEntry entry) {
         return entry.table().equals(NorthConstants.IFACE_TBL);
-    }
-
-    @Override
-    public PacketDetectionRule fabricEntryToPdr(FlowRule entry)
-            throws Up4TranslationException {
-        var pdrBuilder = PacketDetectionRule.builder();
-        Pair<PiCriterion, PiTableAction> matchActionPair = TranslatorUtil.fabricEntryToPiPair(entry);
-        PiCriterion match = matchActionPair.getLeft();
-        PiAction action = (PiAction) matchActionPair.getRight();
-
-        // Grab keys and parameters that are present for all PDRs
-        int globalFarId = TranslatorUtil.getParamInt(action, SouthConstants.FAR_ID);
-        UpfRuleIdentifier farId = localFarIdOf(globalFarId);
-        pdrBuilder.withCounterId(TranslatorUtil.getParamInt(action, SouthConstants.CTR_ID))
-                .withLocalFarId(farId.getSessionLocalId())
-                .withSessionId(farId.getPfcpSessionId());
-
-        if (TranslatorUtil.fieldIsPresent(match, SouthConstants.HDR_TEID)) {
-            // F-TEID is only present for GTP-matching PDRs
-            ImmutableByteSequence teid = TranslatorUtil.getFieldValue(match, SouthConstants.HDR_TEID);
-            Ip4Address tunnelDst = TranslatorUtil.getFieldAddress(match, SouthConstants.HDR_TUNNEL_IPV4_DST);
-            pdrBuilder.withTeid(teid)
-                    .withTunnelDst(tunnelDst);
-        } else if (TranslatorUtil.fieldIsPresent(match, SouthConstants.HDR_UE_ADDR)) {
-            // And UE address is only present for non-GTP-matching PDRs
-            pdrBuilder.withUeAddr(TranslatorUtil.getFieldAddress(match, SouthConstants.HDR_UE_ADDR));
-        } else {
-            throw new Up4TranslationException("Read malformed PDR from dataplane!:" + entry);
-        }
-
-        return pdrBuilder.build();
     }
 
     @Override
@@ -236,52 +109,6 @@ public class Up4TranslatorImpl implements Up4Translator {
                     .withLocalFarId(localFarId);
         }
         return pdrBuilder.build();
-    }
-
-
-    @Override
-    public ForwardingActionRule fabricEntryToFar(FlowRule entry)
-            throws Up4TranslationException {
-        var farBuilder = ForwardingActionRule.builder();
-        Pair<PiCriterion, PiTableAction> matchActionPair = TranslatorUtil.fabricEntryToPiPair(entry);
-        PiCriterion match = matchActionPair.getLeft();
-        PiAction action = (PiAction) matchActionPair.getRight();
-
-        int globalFarId = TranslatorUtil.getFieldInt(match, SouthConstants.HDR_FAR_ID);
-        UpfRuleIdentifier farId = localFarIdOf(globalFarId);
-
-        boolean dropFlag = TranslatorUtil.getParamInt(action, SouthConstants.DROP) > 0;
-        boolean notifyFlag = TranslatorUtil.getParamInt(action, SouthConstants.NOTIFY_CP) > 0;
-
-        // Match keys
-        farBuilder.withSessionId(farId.getPfcpSessionId())
-                .setFarId(farId.getSessionLocalId());
-
-        // Parameters common to all types of FARs
-        farBuilder.setDropFlag(dropFlag)
-                .setNotifyFlag(notifyFlag);
-
-        PiActionId actionId = action.id();
-
-        if (actionId.equals(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_TUNNEL_FAR)
-                || actionId.equals(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_DBUF_FAR)) {
-            // Grab parameters specific to encapsulating FARs if they're present
-            Ip4Address tunnelSrc = TranslatorUtil.getParamAddress(action, SouthConstants.TUNNEL_SRC_ADDR);
-            Ip4Address tunnelDst = TranslatorUtil.getParamAddress(action, SouthConstants.TUNNEL_DST_ADDR);
-            ImmutableByteSequence teid = TranslatorUtil.getParamValue(action, SouthConstants.TEID);
-            short tunnelSrcPort = (short) TranslatorUtil.getParamInt(action, SouthConstants.TUNNEL_SRC_PORT);
-
-            farBuilder.setBufferFlag(actionId.equals(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_DBUF_FAR));
-
-            farBuilder.setTunnel(
-                    GtpTunnel.builder()
-                            .setSrc(tunnelSrc)
-                            .setDst(tunnelDst)
-                            .setTeid(teid)
-                            .setSrcPort(tunnelSrcPort)
-                            .build());
-        }
-        return farBuilder.build();
     }
 
     @Override
@@ -329,148 +156,6 @@ public class Up4TranslatorImpl implements Up4Translator {
         Ip4Prefix prefix = TranslatorUtil.getFieldPrefix(entry, NorthConstants.IFACE_DST_PREFIX_KEY);
         builder.setPrefix(prefix);
         return builder.build();
-    }
-
-    @Override
-    public UpfInterface fabricEntryToInterface(FlowRule entry)
-            throws Up4TranslationException {
-        Pair<PiCriterion, PiTableAction> matchActionPair = TranslatorUtil.fabricEntryToPiPair(entry);
-        PiCriterion match = matchActionPair.getLeft();
-        PiAction action = (PiAction) matchActionPair.getRight();
-
-        var ifaceBuilder = UpfInterface.builder()
-                .setPrefix(TranslatorUtil.getFieldPrefix(match, SouthConstants.HDR_IPV4_DST_ADDR));
-
-        int interfaceType = TranslatorUtil.getParamInt(action, SouthConstants.SRC_IFACE);
-        if (interfaceType == SouthConstants.INTERFACE_ACCESS) {
-            ifaceBuilder.setAccess();
-        } else if (interfaceType == SouthConstants.INTERFACE_CORE) {
-            ifaceBuilder.setCore();
-        } else if (interfaceType == SouthConstants.INTERFACE_DBUF) {
-            ifaceBuilder.setDbufReceiver();
-        }
-        return ifaceBuilder.build();
-    }
-
-
-    @Override
-    public FlowRule farToFabricEntry(ForwardingActionRule far, DeviceId deviceId, ApplicationId appId, int priority)
-            throws Up4TranslationException {
-        PiAction action;
-        if (!far.encaps()) {
-            action = PiAction.builder()
-                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_NORMAL_FAR)
-                    .withParameters(Arrays.asList(
-                            new PiActionParam(SouthConstants.DROP, far.drops() ? 1 : 0),
-                            new PiActionParam(SouthConstants.NOTIFY_CP, far.notifies() ? 1 : 0)
-                    ))
-                    .build();
-
-        } else {
-            if (far.tunnelSrc() == null || far.tunnelDst() == null
-                    || far.teid() == null || far.tunnel().srcPort() == null) {
-                throw new Up4TranslationException(
-                        "Not all action parameters present when translating " +
-                                "intermediate encapsulating/buffering FAR to physical FAR!");
-            }
-            // TODO: copy tunnel destination port from logical switch write requests, instead of hardcoding 2152
-            PiActionId actionId = far.buffers() ? SouthConstants.FABRIC_INGRESS_SPGW_LOAD_DBUF_FAR :
-                    SouthConstants.FABRIC_INGRESS_SPGW_LOAD_TUNNEL_FAR;
-            action = PiAction.builder()
-                    .withId(actionId)
-                    .withParameters(Arrays.asList(
-                            new PiActionParam(SouthConstants.DROP, far.drops() ? 1 : 0),
-                            new PiActionParam(SouthConstants.NOTIFY_CP, far.notifies() ? 1 : 0),
-                            new PiActionParam(SouthConstants.TEID, far.teid()),
-                            new PiActionParam(SouthConstants.TUNNEL_SRC_ADDR, far.tunnelSrc().toInt()),
-                            new PiActionParam(SouthConstants.TUNNEL_DST_ADDR, far.tunnelDst().toInt()),
-                            new PiActionParam(SouthConstants.TUNNEL_SRC_PORT, far.tunnel().srcPort())
-                    ))
-                    .build();
-        }
-        PiCriterion match = PiCriterion.builder()
-                .matchExact(SouthConstants.HDR_FAR_ID, globalFarIdOf(far.sessionId(), far.farId()))
-                .build();
-        return DefaultFlowRule.builder()
-                .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(SouthConstants.FABRIC_INGRESS_SPGW_FARS)
-                .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
-                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
-                .withPriority(priority)
-                .build();
-    }
-
-    @Override
-    public FlowRule pdrToFabricEntry(PacketDetectionRule pdr, DeviceId deviceId, ApplicationId appId, int priority)
-            throws Up4TranslationException {
-        PiCriterion match;
-        PiTableId tableId;
-        if (pdr.matchesEncapped()) {
-            match = PiCriterion.builder()
-                    .matchExact(SouthConstants.HDR_TEID, pdr.teid().asArray())
-                    .matchExact(SouthConstants.HDR_TUNNEL_IPV4_DST, pdr.tunnelDest().toInt())
-                    .build();
-            tableId = SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS;
-        } else if (pdr.matchesUnencapped()) {
-            match = PiCriterion.builder()
-                    .matchExact(SouthConstants.HDR_UE_ADDR, pdr.ueAddress().toInt())
-                    .build();
-            tableId = SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS;
-        } else {
-            throw new Up4TranslationException("Flexible PDRs not yet supported! Cannot translate " + pdr.toString());
-        }
-
-        PiAction action = PiAction.builder()
-                .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
-                .withParameters(Arrays.asList(
-                        new PiActionParam(SouthConstants.CTR_ID, pdr.counterId()),
-                        new PiActionParam(SouthConstants.FAR_ID, globalFarIdOf(pdr.sessionId(), pdr.farId())),
-                        new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, pdr.matchesEncapped() ? 1 : 0)
-                ))
-                .build();
-
-        return DefaultFlowRule.builder()
-                .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(tableId)
-                .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
-                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
-                .withPriority(priority)
-                .build();
-    }
-
-    @Override
-    public FlowRule interfaceToFabricEntry(UpfInterface upfInterface, DeviceId deviceId,
-                                           ApplicationId appId, int priority) throws Up4TranslationException {
-        int interfaceTypeInt;
-        int gtpuValidity;
-        if (upfInterface.isDbufReceiver()) {
-            interfaceTypeInt = SouthConstants.INTERFACE_DBUF;
-            gtpuValidity = 1;
-        } else if (upfInterface.isAccess()) {
-            interfaceTypeInt = SouthConstants.INTERFACE_ACCESS;
-            gtpuValidity = 1;
-        } else {
-            interfaceTypeInt = SouthConstants.INTERFACE_CORE;
-            gtpuValidity = 0;
-        }
-
-        PiCriterion match = PiCriterion.builder()
-                .matchLpm(SouthConstants.HDR_IPV4_DST_ADDR,
-                        upfInterface.prefix().address().toInt(),
-                        upfInterface.prefix().prefixLength())
-                .matchExact(SouthConstants.HDR_GTPU_IS_VALID, gtpuValidity)
-                .build();
-        PiAction action = PiAction.builder()
-                .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_IFACE)
-                .withParameter(new PiActionParam(SouthConstants.SRC_IFACE, interfaceTypeInt))
-                .build();
-        return DefaultFlowRule.builder()
-                .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES)
-                .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
-                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
-                .withPriority(priority)
-                .build();
     }
 
     @Override
@@ -591,27 +276,5 @@ public class Up4TranslatorImpl implements Up4Translator {
                                 new PiActionParam(NorthConstants.DIRECTION, toImmutableByte(direction))
                         ))
                         .build()).build();
-    }
-
-    // NOTE: FarIdMapListener is run on the same thread intentionally in order to ensure that
-    //       reverseFarIdMap update always finishes right after farIdMap is updated
-    private class FarIdMapListener implements MapEventListener<UpfRuleIdentifier, Integer> {
-        @Override
-        public void event(MapEvent<UpfRuleIdentifier, Integer> event) {
-            switch (event.type()) {
-                case INSERT:
-                    reverseFarIdMap.put(event.newValue().value(), event.key());
-                    break;
-                case UPDATE:
-                    reverseFarIdMap.remove(event.oldValue().value());
-                    reverseFarIdMap.put(event.newValue().value(), event.key());
-                    break;
-                case REMOVE:
-                    reverseFarIdMap.remove(event.oldValue().value());
-                    break;
-                default:
-                    break;
-            }
-        }
     }
 }

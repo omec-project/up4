@@ -324,7 +324,7 @@ public class Up4NorthComponent {
                         .withDescription("Read request was for an unknown table.")
                         .asException();
             }
-        } catch (Up4Translator.Up4TranslationException | CodecException e) {
+        } catch (Up4Translator.Up4TranslationException | UpfProgrammableException | CodecException e) {
             log.warn("Unable to encode/translate a read entry to a UP4 read response: {}",
                     e.getMessage());
             throw INVALID_ARGUMENT

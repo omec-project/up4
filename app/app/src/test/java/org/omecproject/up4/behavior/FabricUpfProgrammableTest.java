@@ -28,7 +28,7 @@ import static org.omecproject.up4.behavior.FabricUpfProgrammable.FAR_ID_UE_MAP_N
 import static org.omecproject.up4.behavior.Up4TranslatorImpl.FAR_ID_MAP_NAME;
 
 public class FabricUpfProgrammableTest {
-    private final FabricUpfProgrammable upfProgrammable = new FabricUpfProgrammable();
+    private final FabricUpfProgrammable upfProgrammable = new FabricUpfProgrammable(flowRuleService, controller, piPipeconfService, upfStore, deviceId);
     private final Up4TranslatorImpl up4Translator = new Up4TranslatorImpl();
 
     @Before

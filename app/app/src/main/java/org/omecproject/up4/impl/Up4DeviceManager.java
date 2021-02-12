@@ -55,7 +55,7 @@ import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FAC
  */
 @Component(immediate = true, service = {Up4Service.class})
 public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4EventListener>
-        implements Up4Service  {
+        implements Up4Service {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final AtomicBoolean upfInitialized = new AtomicBoolean(false);
@@ -151,10 +151,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         return upfProgrammable != null;
     }
 
-    public DeviceId getUpfDeviceId() {
-        return upfDeviceId;
-    }
-
     @Override
     public boolean isUpfDevice(DeviceId deviceId) {
         final Device device = deviceService.getDevice(deviceId);
@@ -231,13 +227,19 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
      */
     private void ensureInterfacesInstalled() {
         log.info("Ensuring all interfaces present in app config are present on device.");
-        Set<UpfInterface> installedInterfaces = new HashSet<>(upfProgrammable.getInstalledInterfaces());
+        Set<UpfInterface> installedInterfaces;
+        try {
+            installedInterfaces = new HashSet<>(upfProgrammable.getInstalledInterfaces());
+        } catch (UpfProgrammableException e) {
+            log.warn("Failed to read interface: {}", e.getMessage());
+            return;
+        }
         for (UpfInterface iface : configFileInterfaces()) {
             if (!installedInterfaces.contains(iface)) {
                 log.warn("{} is missing from device! Installing", iface);
                 try {
                     upfProgrammable.addInterface(iface);
-                } catch (UpfProgrammableException | Up4Translator.Up4TranslationException e) {
+                } catch (UpfProgrammableException e) {
                     log.warn("Failed to insert interface: {}", e.getMessage());
                 }
             }
@@ -250,7 +252,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         for (UpfInterface iface : configFileInterfaces()) {
             try {
                 upfProgrammable.addInterface(iface);
-            } catch (UpfProgrammableException | Up4Translator.Up4TranslationException e) {
+            } catch (UpfProgrammableException e) {
                 log.warn("Failed to insert interface: {}", e.getMessage());
             }
         }
@@ -281,8 +283,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         if (config == null) {
             unsetUpfDevice();
             this.config = null;
-        }
-        if (config.isValid()) {
+        } else if (config.isValid()) {
             upfDeviceId = config.up4DeviceId();
             this.config = config;
             setUpfDevice(upfDeviceId);
@@ -295,15 +296,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     private void addDbufStateToUpfProgrammable() {
         upfProgrammable.setDbufTunnel(config.dbufDrainAddr(), dbufClient.dataplaneIp4Addr());
-        upfProgrammable.setBufferDrainer(new UpfProgrammable.BufferDrainer() {
-            @Override
-            public void drain(Ip4Address ueAddr) {
-                log.info("Started dbuf drain for {}", ueAddr);
-                // Run the outbound rpc in a forked context so it doesn't cancel if it was called
-                // by an inbound rpc that completes faster than the drain call
-                Context ctx = Context.current().fork();
-                ctx.run(() -> {
-                    dbufClient.drain(ueAddr, config.dbufDrainAddr(), 2152).whenComplete((result, ex) -> {
+        upfProgrammable.setBufferDrainer(ueAddr -> {
+            log.info("Started dbuf drain for {}", ueAddr);
+            // Run the outbound rpc in a forked context so it doesn't cancel if it was called
+            // by an inbound rpc that completes faster than the drain call
+            Context ctx = Context.current().fork();
+            ctx.run(() -> dbufClient.drain(ueAddr, config.dbufDrainAddr(), 2152)
+                    .whenComplete((result, ex) -> {
                         if (ex != null) {
                             log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
                         } else if (result) {
@@ -311,9 +310,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                         } else {
                             log.warn("Unknown error while draining dbuf for {}", ueAddr);
                         }
-                    });
-                });
-            }
+                    }));
         });
     }
 

@@ -8,6 +8,7 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.UpfProgrammableException;
 import org.onosproject.cli.AbstractShellCommand;
 
 /**
@@ -22,8 +23,12 @@ public class ReadFarsCommand extends AbstractShellCommand {
     protected void doExecute() {
         Up4Service app = get(Up4Service.class);
 
-        for (ForwardingActionRule far : app.getUpfProgrammable().getInstalledFars()) {
-            print(far.toString());
+        try {
+            for (ForwardingActionRule far : app.getUpfProgrammable().getInstalledFars()) {
+                print(far.toString());
+            }
+        } catch (UpfProgrammableException e) {
+            print("Error while reading FARs: " + e.getMessage());
         }
     }
 }

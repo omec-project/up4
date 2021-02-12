@@ -46,6 +46,8 @@ public interface UpfProgrammable {
      *
      * @return the Device ID of the UPF-programmable device.
      */
+    // FIXME: remove after we make interface a driver behavior
+    // DeviceId will be implicit from behavior instance
     DeviceId deviceId();
 
     /**
@@ -85,21 +87,21 @@ public interface UpfProgrammable {
      *
      * @return a collection of installed FARs
      */
-    Collection<ForwardingActionRule> getInstalledFars();
+    Collection<ForwardingActionRule> getInstalledFars() throws UpfProgrammableException;
 
     /**
      * Get all PacketDetectionRules currently installed on the UPF-programmable device.
      *
      * @return a collection of installed PDRs
      */
-    Collection<PacketDetectionRule> getInstalledPdrs();
+    Collection<PacketDetectionRule> getInstalledPdrs() throws UpfProgrammableException;
 
     /**
      * Get all UPF interface lookup entries currently installed on the UPF-programmable device.
      *
      * @return a collection of installed interfaces
      */
-    Collection<UpfInterface> getInstalledInterfaces();
+    Collection<UpfInterface> getInstalledInterfaces() throws UpfProgrammableException;
 
 
     /**
@@ -115,11 +117,10 @@ public interface UpfProgrammable {
      * Add a Packet Detection Rule (PDR) to the given device.
      *
      * @param pdr The PDR to be added
-     * @throws Up4Translator.Up4TranslationException if the PDR cannot be translated
      * @throws UpfProgrammableException              if the PDR cannot be installed, or the counter index
      *                                               is out of bounds
      */
-    void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
+    void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException;
 
     /**
      * Remove a previously installed Packet Detection Rule (PDR) from the target device.
@@ -133,10 +134,9 @@ public interface UpfProgrammable {
      * Add a Forwarding Action Rule (FAR) to the given device.
      *
      * @param far The FAR to be added
-     * @throws Up4Translator.Up4TranslationException if the FAR cannot be translated
      * @throws UpfProgrammableException              if the FAR cannot be installed
      */
-    void addFar(ForwardingActionRule far) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
+    void addFar(ForwardingActionRule far) throws UpfProgrammableException;
 
     /**
      * Remove a previously installed Forwarding Action Rule (FAR) from the target device.
@@ -150,10 +150,9 @@ public interface UpfProgrammable {
      * Install a new interface on the UPF device's interface lookup tables.
      *
      * @param upfInterface the interface to install
-     * @throws Up4Translator.Up4TranslationException if the interface cannot be translated
      * @throws UpfProgrammableException              if the interface cannot be installed
      */
-    void addInterface(UpfInterface upfInterface) throws UpfProgrammableException, Up4Translator.Up4TranslationException;
+    void addInterface(UpfInterface upfInterface) throws UpfProgrammableException;
 
     /**
      * Remove a previously installed UPF interface from the target device.
@@ -229,7 +228,7 @@ public interface UpfProgrammable {
          *
          * @param ueAddr the address of the UE for which we should drain a buffer
          */
-        public void drain(Ip4Address ueAddr);
+        void drain(Ip4Address ueAddr);
     }
 
 }
