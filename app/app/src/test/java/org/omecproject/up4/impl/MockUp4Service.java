@@ -30,17 +30,12 @@ public class MockUp4Service implements Up4Service {
         final List<UpfInterface> ifaces = new ArrayList<>();
 
         @Override
-        public boolean init(ApplicationId appId) {
+        public boolean init(ApplicationId appId, long ueLimit) {
             return true;
         }
 
         @Override
-        public void setUeLimit(long ueLimit) {
-
-        }
-
-        @Override
-        public void cleanUp(ApplicationId appId) {
+        public void cleanUp() {
 
         }
 
@@ -90,17 +85,17 @@ public class MockUp4Service implements Up4Service {
         }
 
         @Override
-        public Collection<ForwardingActionRule> getInstalledFars() {
+        public Collection<ForwardingActionRule> getFars() {
             return List.copyOf(fars);
         }
 
         @Override
-        public Collection<PacketDetectionRule> getInstalledPdrs() {
+        public Collection<PacketDetectionRule> getPdrs() {
             return List.copyOf(pdrs);
         }
 
         @Override
-        public Collection<UpfInterface> getInstalledInterfaces() {
+        public Collection<UpfInterface> getInterfaces() {
             return List.copyOf(ifaces);
         }
 

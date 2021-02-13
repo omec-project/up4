@@ -296,7 +296,7 @@ public class Up4NorthComponent {
         // TODO: return more specific responses
         try {
             if (up4Translator.isUp4Interface(requestedEntry)) {
-                for (UpfInterface iface : up4Service.getUpfProgrammable().getInstalledInterfaces()) {
+                for (UpfInterface iface : up4Service.getUpfProgrammable().getInterfaces()) {
                     if (iface.isDbufReceiver()) {
                         // Don't expose the dbuf interface to the logical switch
                         continue;
@@ -307,14 +307,14 @@ public class Up4NorthComponent {
                     translatedEntries.add(responseEntity);
                 }
             } else if (up4Translator.isUp4Far(requestedEntry)) {
-                for (ForwardingActionRule far : up4Service.getUpfProgrammable().getInstalledFars()) {
+                for (ForwardingActionRule far : up4Service.getUpfProgrammable().getFars()) {
                     log.debug("Translating a FAR for a read request: {}", far);
                     P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
                             up4Translator.farToUp4Entry(far), null, pipeconf);
                     translatedEntries.add(responseEntity);
                 }
             } else if (up4Translator.isUp4Pdr(requestedEntry)) {
-                for (PacketDetectionRule pdr : up4Service.getUpfProgrammable().getInstalledPdrs()) {
+                for (PacketDetectionRule pdr : up4Service.getUpfProgrammable().getPdrs()) {
                     log.debug("Translating a PDR for a read request: {}", pdr);
                     P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
                             up4Translator.pdrToUp4Entry(pdr), null, pipeconf);

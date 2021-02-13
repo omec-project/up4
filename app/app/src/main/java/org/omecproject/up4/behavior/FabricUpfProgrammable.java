@@ -62,22 +62,29 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     private static final int DEFAULT_PRIORITY = 128;
     private static final long DEFAULT_P4_DEVICE_ID = 1;
 
+    // Initialized in constructor
     protected final FlowRuleService flowRuleService;
     protected final P4RuntimeController controller;
     protected final PiPipeconfService piPipeconfService;
     protected final FabricUpfStore upfStore;
     protected final FabricUpfTranslator upfTranslator;
+    private final DeviceId deviceId;
 
-    final DeviceId deviceId;
-    private long pdrCounterSize;
+    // Initialized in init()
     private long farTableSize;
     private long encappedPdrTableSize;
     private long unencappedPdrTableSize;
-    private long ueLimit = -1;
+    private long pdrCounterSize;
     private ApplicationId appId;
+    private long ueLimit = NO_UE_LIMIT;
 
+    // FIXME: remove, buffer drain should be triggered by Up4Service
     private BufferDrainer bufferDrainer;
 
+    // FIXME: dbuf tunnel should be managed by Up4Service
+    //  Up4Service should be responsible of setting up such tunnel, then transforming FARs for this
+    //  device accordingly. When the tunnel endpoint change, it should be up to Up4Service to update
+    //  the FAR on the device.
     private GtpTunnel dbufTunnel;
 
     // FIXME: remove constructor once we make this a driver behavior. Services and device ID can be
@@ -94,18 +101,14 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public boolean init(ApplicationId appId) {
+    public boolean init(ApplicationId appId, long ueLimit) {
         this.appId = appId;
         computeHardwareResourceSizes();
+        String limitStr = ueLimit < 0 ? "unlimited" : Long.toString(ueLimit);
+        log.info("Setting UE limit of UPF on {} to {}", deviceId, limitStr);
+        this.ueLimit = ueLimit;
         log.info("UpfProgrammable initialized for appId {} and deviceId {}", appId, deviceId);
         return true;
-    }
-
-    @Override
-    public void setUeLimit(long ueLimit) {
-        String limitStr = ueLimit < 0 ? "unlimited" : Long.toString(ueLimit);
-        log.info("Setting UE limit of UPF {} to {}", deviceId, limitStr);
-        this.ueLimit = ueLimit;
     }
 
     /**
@@ -199,7 +202,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public void cleanUp(ApplicationId appId) {
+    public void cleanUp() {
         log.info("Clearing all UPF-related table entries.");
         flowRuleService.removeFlowRulesById(appId);
         upfStore.reset();
@@ -522,7 +525,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public Collection<PacketDetectionRule> getInstalledPdrs() throws UpfProgrammableException {
+    public Collection<PacketDetectionRule> getPdrs() throws UpfProgrammableException {
         ArrayList<PacketDetectionRule> pdrs = new ArrayList<>();
         for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
             if (upfTranslator.isFabricPdr(flowRule)) {
@@ -533,7 +536,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public Collection<ForwardingActionRule> getInstalledFars() throws UpfProgrammableException {
+    public Collection<ForwardingActionRule> getFars() throws UpfProgrammableException {
         ArrayList<ForwardingActionRule> fars = new ArrayList<>();
         for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
             if (upfTranslator.isFabricFar(flowRule)) {
@@ -544,7 +547,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public Collection<UpfInterface> getInstalledInterfaces() throws UpfProgrammableException {
+    public Collection<UpfInterface> getInterfaces() throws UpfProgrammableException {
         ArrayList<UpfInterface> ifaces = new ArrayList<>();
         for (FlowRule flowRule : flowRuleService.getFlowEntriesById(appId)) {
             if (upfTranslator.isFabricInterface(flowRule)) {

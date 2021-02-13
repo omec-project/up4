@@ -24,7 +24,7 @@ public class ReadPdrsCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         try {
-            for (PacketDetectionRule pdr : app.getUpfProgrammable().getInstalledPdrs()) {
+            for (PacketDetectionRule pdr : app.getUpfProgrammable().getPdrs()) {
                 print(pdr.toString());
             }
         } catch (UpfProgrammableException e) {

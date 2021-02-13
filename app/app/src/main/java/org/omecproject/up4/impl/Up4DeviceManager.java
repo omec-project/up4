@@ -116,7 +116,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         // Only clean up the state when the deactivation is triggered by ApplicationService
         log.info("Running Up4DeviceManager preDeactivation hook.");
         if (upfProgrammableAvailable()) {
-            upfProgrammable.cleanUp(appId);
+            upfProgrammable.cleanUp();
         }
         teardownDbufClient();
         upfInitialized.set(false);
@@ -173,7 +173,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             log.warn("Attempting to clear UPF before it has been initialized!");
             return;
         }
-        upfProgrammable.cleanUp(appId);
+        upfProgrammable.cleanUp();
     }
 
     private void setUpfDevice(DeviceId deviceId) {
@@ -199,8 +199,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             upfProgrammable = new FabricUpfProgrammable(flowRuleService, p4RuntimeController,
                     piPipeconfService, upfStore, deviceId);
 
-            upfProgrammable.init(appId);
-            upfProgrammable.setUeLimit(config.maxUes());
+            upfProgrammable.init(appId,
+                    config.maxUes() > 0 ? config.maxUes() : UpfProgrammable.NO_UE_LIMIT);
 
             installInterfaces();
 
@@ -238,7 +238,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         log.info("Ensuring all interfaces present in app config are present on device.");
         Set<UpfInterface> installedInterfaces;
         try {
-            installedInterfaces = new HashSet<>(upfProgrammable.getInstalledInterfaces());
+            installedInterfaces = new HashSet<>(upfProgrammable.getInterfaces());
         } catch (UpfProgrammableException e) {
             log.warn("Failed to read interface: {}", e.getMessage());
             return;
@@ -279,7 +279,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if (upfProgrammable != null) {
                 log.info("UPF was removed. Cleaning up.");
                 if (deviceService.isAvailable(upfDeviceId)) {
-                    upfProgrammable.cleanUp(appId);
+                    upfProgrammable.cleanUp();
                 }
                 upfProgrammable = null;
                 upfInitialized.set(false);

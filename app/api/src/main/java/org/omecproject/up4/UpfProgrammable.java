@@ -12,29 +12,33 @@ import java.util.Collection;
 
 
 /**
- * UPF programmable behavior. Provides means to update device forwarding state to implement a 3GPP
- * User Plane Function (e.g., tunnel termination, accounting, etc.). An implementation of this API
- * should not write state directly to the device, but instead, always rely on core ONOS subsystems
- * (e.g., FlowRuleService, GroupService, etc).
+ * Provides means to update device forwarding state to implement a 3GPP User Plane Function. An
+ * implementation of this API should not write state directly to the device, but instead, always
+ * rely on core ONOS subsystems (e.g., FlowRuleService, GroupService, etc).
  */
 public interface UpfProgrammable {
+
+    int NO_UE_LIMIT = -1;
 
     /**
      * Apps are expected to call this method as the first one when they are ready to install PDRs
      * and FARs.
+     * <p>
+     * ueLimit is used to limit the number of UE flows that can be installed on the UPF. Intended
+     * for capacity testing. If the limit given is larger than physical resources permit, the
+     * physical limit will be used. A limit of 0 prevents any UE flow installations, and a limit of
+     * {@link #NO_UE_LIMIT} removes limitations.
      *
-     * @param appId Application ID of the caller of this API.
+     * @param appId   Application ID of the caller of this API.
+     * @param ueLimit the maximum number of UEs that can have flows installed on the UPF
      * @return True if initialized, false otherwise.
      */
-    boolean init(ApplicationId appId);
-
+    boolean init(ApplicationId appId, long ueLimit);
 
     /**
-     * Remove any state previously created by this API for the given application ID.
-     *
-     * @param appId Application ID of the application using the UpfProgrammable.
+     * Remove any state previously created by this API.
      */
-    void cleanUp(ApplicationId appId);
+    void cleanUp();
 
     /**
      * Return the Device ID of the UPF-programmable device.
@@ -46,11 +50,13 @@ public interface UpfProgrammable {
     DeviceId deviceId();
 
     /**
-     * Get all UE data flows currently installed on the UPF-programmable device.
+     * Get all UE flows (PDRs, FARs) currently installed on the UPF-programmable device.
      *
      * @return a collection of installed flows
      * @throws UpfProgrammableException if flows are unable to be read
      */
+    // FIXME: consider removing this method. Is someone wants an aggregated view of PDRs and FARs with counters,
+    // they could build it by getting individual PDRs, FARs, and counters.
     Collection<UpfFlow> getFlows() throws UpfProgrammableException;
 
     /**
@@ -59,7 +65,7 @@ public interface UpfProgrammable {
     void clearInterfaces();
 
     /**
-     * Remove all UE data flows currently installed on the UPF-programmable device.
+     * Remove all UE flows (PDRs, FARs) currently installed on the UPF-programmable device.
      */
     void clearFlows();
 
@@ -69,7 +75,7 @@ public interface UpfProgrammable {
      * @return a collection of installed FARs
      * @throws UpfProgrammableException if FARs are unable to be read
      */
-    Collection<ForwardingActionRule> getInstalledFars() throws UpfProgrammableException;
+    Collection<ForwardingActionRule> getFars() throws UpfProgrammableException;
 
     /**
      * Get all PacketDetectionRules currently installed on the UPF-programmable device.
@@ -77,7 +83,7 @@ public interface UpfProgrammable {
      * @return a collection of installed PDRs
      * @throws UpfProgrammableException if PDRs are unable to be read
      */
-    Collection<PacketDetectionRule> getInstalledPdrs() throws UpfProgrammableException;
+    Collection<PacketDetectionRule> getPdrs() throws UpfProgrammableException;
 
     /**
      * Get all UPF interface lookup entries currently installed on the UPF-programmable device.
@@ -85,17 +91,7 @@ public interface UpfProgrammable {
      * @return a collection of installed interfaces
      * @throws UpfProgrammableException if interfaces are unable to be read
      */
-    Collection<UpfInterface> getInstalledInterfaces() throws UpfProgrammableException;
-
-
-    /**
-     * Limit the number of UE flows that can be installed on the UPF. Intended for capacity testing.
-     * If the limit given is larger than physical resources permit, the physical limit will be used.
-     * A limit of 0 prevents any UE flow installations, and a limit of -1 removes limitations.
-     *
-     * @param ueLimit the maximum number of UEs that can have flows installed on the UPF
-     */
-    void setUeLimit(long ueLimit);
+    Collection<UpfInterface> getInterfaces() throws UpfProgrammableException;
 
     /**
      * Add a Packet Detection Rule (PDR) to the given device.
@@ -149,12 +145,12 @@ public interface UpfProgrammable {
     /**
      * Read the the given cell (Counter index) of the PDR counters from the given device.
      *
-     * @param cellId The counter cell index from which to read
+     * @param counterIdx The counter cell index from which to read
      * @return A structure containing ingress and egress packet and byte counts for the given
      * cellId.
      * @throws UpfProgrammableException if the cell ID is out of bounds
      */
-    PdrStats readCounter(int cellId) throws UpfProgrammableException;
+    PdrStats readCounter(int counterIdx) throws UpfProgrammableException;
 
     /**
      * Return the number of PDR counter cells available. The number of cells in the ingress and

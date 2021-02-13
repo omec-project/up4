@@ -37,7 +37,7 @@ public class MockUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public boolean init(ApplicationId appId) {
+    public boolean init(ApplicationId appId, long ueLimit) {
         pdrs.clear();
         fars.clear();
         ifaces.clear();
@@ -45,7 +45,7 @@ public class MockUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public void cleanUp(ApplicationId appId) {
+    public void cleanUp() {
         pdrs.clear();
         fars.clear();
         ifaces.clear();
@@ -105,23 +105,18 @@ public class MockUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public Collection<ForwardingActionRule> getInstalledFars() {
+    public Collection<ForwardingActionRule> getFars() {
         return List.copyOf(fars);
     }
 
     @Override
-    public Collection<PacketDetectionRule> getInstalledPdrs() {
+    public Collection<PacketDetectionRule> getPdrs() {
         return List.copyOf(pdrs);
     }
 
     @Override
-    public Collection<UpfInterface> getInstalledInterfaces() {
+    public Collection<UpfInterface> getInterfaces() {
         return List.copyOf(ifaces);
-    }
-
-    @Override
-    public void setUeLimit(long ueLimit) {
-        this.ueLimit = ueLimit;
     }
 
     @Override
