@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Stores state required for translation of UPF entries to pipeline-specific entities.
+ * Stores state required for translation of UPF entities to pipeline-specific ones.
  */
 public interface FabricUpfStore {
     /**
