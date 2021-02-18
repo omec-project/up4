@@ -361,6 +361,38 @@ actions {
 }
 actions {
   preamble {
+    id: 31939583
+    name: "PreQosPipe.set_pdr_attributes"
+    alias: "set_pdr_attributes"
+  }
+  params {
+    id: 1
+    name: "id"
+    bitwidth: 32
+  }
+  params {
+    id: 2
+    name: "fseid"
+    bitwidth: 96
+  }
+  params {
+    id: 3
+    name: "ctr_id"
+    bitwidth: 32
+  }
+  params {
+    id: 4
+    name: "far_id"
+    bitwidth: 32
+  }
+  params {
+    id: 5
+    name: "needs_gtpu_decap"
+    bitwidth: 1
+  }
+}
+actions {
+  preamble {
     id: 21822813
     name: "PreQosPipe.set_pdr_attributes_qos"
     alias: "set_pdr_attributes_qos"
@@ -394,38 +426,6 @@ actions {
     id: 6
     name: "priority"
     bitwidth: 8
-  }
-}
-actions {
-  preamble {
-    id: 31939583
-    name: "PreQosPipe.set_pdr_attributes"
-    alias: "set_pdr_attributes"
-  }
-  params {
-    id: 1
-    name: "id"
-    bitwidth: 32
-  }
-  params {
-    id: 2
-    name: "fseid"
-    bitwidth: 96
-  }
-  params {
-    id: 3
-    name: "ctr_id"
-    bitwidth: 32
-  }
-  params {
-    id: 4
-    name: "far_id"
-    bitwidth: 32
-  }
-  params {
-    id: 5
-    name: "needs_gtpu_decap"
-    bitwidth: 1
   }
 }
 actions {
