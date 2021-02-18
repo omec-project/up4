@@ -156,6 +156,7 @@ struct local_metadata_t {
 
     // fteid_t fteid;
     fseid_t fseid;
+    priority_t priority;
 
     ipv4_addr_t next_hop_ip;
 

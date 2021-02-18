@@ -279,6 +279,22 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         hdr.outer_udp.setInvalid();
     }
 
+    action set_pdr_attributes_qos(pdr_id_t          id,
+                                  fseid_t           fseid,
+                                  counter_index_t   ctr_id,
+                                  far_id_t          far_id,
+                                  bit<1>            needs_gtpu_decap,
+                                  priority_t        priority
+                                 )
+    {
+        local_meta.pdr.id       = id;
+        local_meta.fseid        = fseid;
+        local_meta.pdr.ctr_idx  = ctr_id;
+        local_meta.far.id       = far_id;
+        local_meta.priority     = priority;
+        local_meta.needs_gtpu_decap     = (bool)needs_gtpu_decap;
+    }
+
     action set_pdr_attributes(pdr_id_t          id,
                               fseid_t           fseid,
                               counter_index_t   ctr_id,
@@ -304,8 +320,8 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             local_meta.src_iface        : exact     @name("src_iface"); // To differentiate uplink and downlink
             hdr.outer_ipv4.dst_addr     : ternary   @name("tunnel_ipv4_dst"); // combines with TEID to make F-TEID
             local_meta.teid             : ternary   @name("teid");
-            local_meta.ue_addr          : ternary   @name("ue_addr");  // also part of the SDF?
             // One SDF filter from a PDR's filter set
+            local_meta.ue_addr          : ternary   @name("ue_addr");  // also part of the SDF?
             local_meta.inet_addr        : ternary   @name("inet_addr");
             local_meta.ue_l4_port       : range     @name("ue_l4_port");
             local_meta.inet_l4_port     : range     @name("inet_l4_port");
@@ -313,6 +329,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         }
         actions = {
             set_pdr_attributes;
+            set_pdr_attributes_qos;
         }
     }
 
