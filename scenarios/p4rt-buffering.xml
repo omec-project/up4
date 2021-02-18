@@ -4,8 +4,10 @@
   -->
 <scenario name="p4rt-buffering" description="Buffering test using p4runtime messages">
     <group name="P4rt-Buffering">
-        <group name="P4rt-Program-Buff">
-            <step name="P4rt-Set-Buff"
+        <step name="Push-Netcfg-Dbuf"
+              exec="onos-netcfg ${OCI} ${UP4_ROOT}/scenarios/topo/netcfg-dbuf.json"/>
+        <group name="P4rt-Program-Buff" requires="Push-Netcfg-Dbuf">
+            <step name="P4rt-Set-Buff" requires="Push-Netcfg-Dbuf" delay="5"
                   exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows --buffer program"/>
             <step name="Check-Up4-Flows-Buff" requires="^"
                   exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
