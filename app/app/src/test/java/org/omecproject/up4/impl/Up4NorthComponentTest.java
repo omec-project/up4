@@ -11,7 +11,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.behavior.TestConstants;
-import org.omecproject.up4.behavior.Up4TranslatorImpl;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.pi.model.PiCounterId;
@@ -51,7 +50,6 @@ public class Up4NorthComponentTest {
         p4Info = PipeconfHelper.getP4Info(pipeconf);
         up4NorthComponent.pipeconf = pipeconf;
         up4NorthComponent.p4Info = p4Info;
-        up4NorthComponent.up4Translator = new Up4TranslatorImpl();
         up4NorthComponent.up4Service = new MockUp4Service();
         up4NorthComponent.fseids = TestEventuallyConsistentMap.<Ip4Address, ImmutableByteSequence>builder()
                 .withSerializer(KryoNamespaces.API).build();
@@ -337,83 +335,83 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkFarInsertionTest() {
+    public void downlinkFarInsertionTest() throws Exception {
         PiTableEntry entry = TestConstants.UP4_DOWNLINK_FAR;
         insertionTest(entry);
-        assertThat(upfProgrammable.getInstalledFars().size(), equalTo(1));
+        assertThat(upfProgrammable.getFars().size(), equalTo(1));
     }
 
     @Test
     public void downlinkFarDeletionTest() throws Exception {
         upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
         deletionTest(TestConstants.UP4_DOWNLINK_FAR);
-        assertTrue(upfProgrammable.getInstalledFars().isEmpty());
+        assertTrue(upfProgrammable.getFars().isEmpty());
     }
 
     @Test
-    public void uplinkFarInsertionTest() {
+    public void uplinkFarInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_UPLINK_FAR);
-        assertThat(upfProgrammable.getInstalledFars().size(), equalTo(1));
+        assertThat(upfProgrammable.getFars().size(), equalTo(1));
     }
 
     @Test
     public void uplinkFarDeletionTest() throws Exception {
         upfProgrammable.addFar(TestConstants.UPLINK_FAR);
         deletionTest(TestConstants.UP4_UPLINK_FAR);
-        assertTrue(upfProgrammable.getInstalledFars().isEmpty());
+        assertTrue(upfProgrammable.getFars().isEmpty());
     }
 
     @Test
-    public void downlinkPdrInsertionTest() {
+    public void downlinkPdrInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_DOWNLINK_PDR);
-        assertThat(upfProgrammable.getInstalledPdrs().size(), equalTo(1));
+        assertThat(upfProgrammable.getPdrs().size(), equalTo(1));
     }
 
     @Test
     public void downlinkPdrDeletionTest() throws Exception {
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         deletionTest(TestConstants.UP4_DOWNLINK_PDR);
-        assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
+        assertTrue(upfProgrammable.getPdrs().isEmpty());
     }
 
     @Test
-    public void uplinkPdrInsertionTest() {
+    public void uplinkPdrInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_UPLINK_PDR);
-        assertThat(upfProgrammable.getInstalledPdrs().size(), equalTo(1));
+        assertThat(upfProgrammable.getPdrs().size(), equalTo(1));
     }
 
     @Test
     public void uplinkPdrDeletionTest() throws Exception {
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         deletionTest(TestConstants.UP4_UPLINK_PDR);
-        assertTrue(upfProgrammable.getInstalledPdrs().isEmpty());
+        assertTrue(upfProgrammable.getPdrs().isEmpty());
     }
 
     @Test
-    public void downlinkInterfaceInsertionTest() {
+    public void downlinkInterfaceInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_DOWNLINK_INTERFACE);
-        assertThat(upfProgrammable.getInstalledInterfaces().size(), equalTo(1));
+        assertThat(upfProgrammable.getInterfaces().size(), equalTo(1));
     }
 
     @Test
     public void downlinkInterfaceDeletionTest() throws Exception {
         upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
         deletionTest(TestConstants.UP4_DOWNLINK_INTERFACE);
-        assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
+        assertTrue(upfProgrammable.getInterfaces().isEmpty());
     }
 
     @Test
-    public void uplinkInterfaceInsertionTest() {
+    public void uplinkInterfaceInsertionTest() throws Exception {
         PiTableEntry entry = TestConstants.UP4_UPLINK_INTERFACE;
         insertionTest(entry);
-        assertThat(upfProgrammable.getInstalledInterfaces().size(), equalTo(1));
+        assertThat(upfProgrammable.getInterfaces().size(), equalTo(1));
     }
 
     @Test
     public void uplinkInterfaceDeletionTest() throws Exception {
         upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
         deletionTest(TestConstants.UP4_UPLINK_INTERFACE);
-        assertTrue(upfProgrammable.getInstalledInterfaces().isEmpty());
+        assertTrue(upfProgrammable.getInterfaces().isEmpty());
     }
 
     @Test
