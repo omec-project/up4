@@ -66,7 +66,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             APP_SUBJECT_FACTORY, Up4Config.class, Up4Config.KEY) {
         @Override
         public Up4Config createConfig() {
-            log.info("Creating UP4 config");
+            log.debug("Creating UP4 config");
             return new Up4Config();
         }
     };
@@ -74,7 +74,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             APP_SUBJECT_FACTORY, Up4DbufConfig.class, Up4DbufConfig.KEY) {
         @Override
         public Up4DbufConfig createConfig() {
-            log.info("Creating dbuf config");
+            log.debug("Creating dbuf config");
             return new Up4DbufConfig();
         }
     };
@@ -213,7 +213,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
             installInterfaces();
 
-            if (dbufClient != null && config.dbufDrainAddr() != null) {
+            if (dbufClient != null && config != null && config.dbufDrainAddr() != null) {
                 addDbufStateToUpfProgrammable();
             } else {
                 removeDbufStateFromUpfProgrammable();
@@ -328,7 +328,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             log.warn("Cannot add dbuf state to UpfProgrammable, dbufClient is null");
             return;
         }
-        if (config.dbufDrainAddr() == null) {
+        if (config == null || config.dbufDrainAddr() == null) {
             log.warn("Cannot add dbuf state to UpfProgrammable, dbufDrainAddr is null");
             return;
         }
@@ -343,7 +343,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     log.error("Cannot start dbuf drain for {}, dbufClient is null", ueAddr);
                     return;
                 }
-                if (config.dbufDrainAddr() == null) {
+                if (config == null || config.dbufDrainAddr() == null) {
                     log.error("Cannot start dbuf drain for {}, dbufDrainAddr is null", ueAddr);
                     return;
                 }
@@ -452,7 +452,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     } else if (event.configClass().equals(Up4DbufConfig.class)) {
                         dbufUpdateConfig((Up4DbufConfig) event.config().get());
                     }
-                    log.info("{} updated", event.config().getClass().getSimpleName());
+                    log.info("{} updated", event.configClass().getSimpleName());
                     break;
                 case CONFIG_REMOVED:
                     if (event.configClass().equals(Up4Config.class)) {
@@ -460,7 +460,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     } else if (event.configClass().equals(Up4DbufConfig.class)) {
                         dbufUpdateConfig(null);
                     }
-                    log.info("{} removed", event.config().getClass().getSimpleName());
+                    log.info("{} removed", event.configClass().getSimpleName());
                     break;
                 case CONFIG_REGISTERED:
                 case CONFIG_UNREGISTERED:
