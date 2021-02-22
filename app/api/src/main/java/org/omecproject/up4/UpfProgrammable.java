@@ -193,12 +193,23 @@ public interface UpfProgrammable {
     void setDbufTunnel(Ip4Address switchAddr, Ip4Address dbufAddr);
 
     /**
+     * Removes the dbuf tunnel info if they were previously set using {@link
+     * #setDbufTunnel(Ip4Address, Ip4Address)}.
+     */
+    void unsetDbufTunnel();
+
+    /**
      * Install a BufferDrainer reference that can be used to trigger the draining of a specific dbuf
      * buffer back into the UPF device.
      *
      * @param drainer the BufferDrainer reference
      */
     void setBufferDrainer(BufferDrainer drainer);
+
+    /**
+     * Removes the buffer drainer if one was set using {@link #setBufferDrainer(BufferDrainer)}.
+     */
+    void unsetBufferDrainer();
 
     /**
      * Used by the UpfProgrammable to trigger buffer draining as needed. Install an instance using

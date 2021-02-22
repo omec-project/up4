@@ -197,7 +197,17 @@ public class MockUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
+    public void unsetDbufTunnel() {
+
+    }
+
+    @Override
     public void setBufferDrainer(BufferDrainer drainer) {
+
+    }
+
+    @Override
+    public void unsetBufferDrainer() {
 
     }
 }

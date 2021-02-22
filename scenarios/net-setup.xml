@@ -14,8 +14,12 @@
         <!-- 4 devices, 8 links (unidirectional), 3 hosts -->
         <step name="Check-Summary" requires="Push-Netcfg"
               exec="onos-check-summary ${OCI} [0-9]* 4 8 3"/>
+        <!-- Like in a production deployment, we assume dbuf can change its dataplane address. We
+        push the wrong one here, then push the correct one in *-buffering.xml  -->
+        <step name="Push-Netcfg-Dbuf-Wrong" requires="Check-Summary"
+              exec="onos-netcfg ${OCI} ${UP4_ROOT}/scenarios/topo/netcfg-dbuf-wrong.json"/>
         <!-- Wait enough time for segmentrouting to generate all necessary flow objectives -->
-        <step name="Check-Flows" requires="Check-Summary" delay="5"
+        <step name="Check-Flows" requires="Push-Netcfg-Dbuf-Wrong" delay="5"
               exec="onos-check-flows ${OCI}"/>
         <parallel var="${OD#}">
             <step name="Check-Dbuf-Ready-${#}" requires="Check-Summary"

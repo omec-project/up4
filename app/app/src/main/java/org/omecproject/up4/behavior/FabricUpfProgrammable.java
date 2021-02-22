@@ -173,6 +173,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
+    public void unsetBufferDrainer() {
+        this.bufferDrainer = null;
+    }
+
+    @Override
     public void setDbufTunnel(Ip4Address switchAddr, Ip4Address dbufAddr) {
         this.dbufTunnel = GtpTunnel.builder()
                 .setSrc(switchAddr)
@@ -180,6 +185,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .setSrcPort((short) 2152)
                 .setTeid(0)
                 .build();
+    }
+
+    @Override
+    public void unsetDbufTunnel() {
+        this.dbufTunnel = null;
     }
 
     /**
