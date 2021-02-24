@@ -38,7 +38,7 @@ class GtpuBaseTest(P4RuntimeTest):
         octets = [random.randint(0, 255) for _ in range(4)]
         return '.'.join([str(octet) for octet in octets])
 
-    _last_used_rule_id = -1
+    _last_used_rule_id = 0
 
     def unique_rule_id(self):
         """ Stupid helper method for generating unique ruleIDs.
@@ -114,14 +114,17 @@ class GtpuBaseTest(P4RuntimeTest):
         new_vals = self.read_pdr_counters(index, wait_time=wait_time)
         increases = [new_vals[i] - old_vals[i] for i in range(4)]
         if increases[0] != prePktsInc:
-            self.fail("Pre-QoS pkt counter increased by %d, not %d!" % (increases[0], prePktsInc))
+            self.fail("Pre-QoS pkt counter at index %d increased by %d, not %d!" %
+                      (index, increases[0], prePktsInc))
         if increases[1] != preBytesInc:
-            self.fail("Pre-QoS byte counter increased by %d, not %d!" % (increases[1], preBytesInc))
+            self.fail("Pre-QoS byte counter at index %d increased by %d, not %d!" %
+                      (index, increases[1], preBytesInc))
         if increases[2] != postPktsInc:
-            self.fail("Post-QoS pkt counter increased by %d, not %d!" % (increases[2], postPktsInc))
+            self.fail("Post-QoS pkt counter at index %d increased by %d, not %d!" %
+                      (index, increases[2], postPktsInc))
         if increases[3] != postBytesInc:
-            self.fail("Post-QoS byte counter increased by %d, not %d!" %
-                      (increases[3], postBytesInc))
+            self.fail("Post-QoS byte counter at index %d increased by %d, not %d!" %
+                      (index, increases[3], postBytesInc))
 
     def read_pdr_counter(self, index, pre_qos=True, pkts=True):
         """ Reads the per-PDR counter.
@@ -181,6 +184,16 @@ class GtpuBaseTest(P4RuntimeTest):
                     "src_iface": _iface_type,
                     "direction": _direction
                 },
+            ))
+
+    def add_uplink_loopback_rule(self, ipv4_src, ipv4_dst, allow=True, priority=1):
+        self.insert(
+            self.helper.build_table_entry(
+                table_name="PreQosPipe.UplinkLoopback.rules",
+                match_fields={"ipv4_src": ipv4_src, "ipv4_dst": ipv4_dst},
+                action_name="PreQosPipe.UplinkLoopback." + ("allow" if allow else "deny"),
+                action_params={},
+                priority=priority
             ))
 
     def add_global_session(self, global_session_id=1025, n4_teid=1025, default_pdr_id=0,
@@ -379,7 +392,7 @@ class GtpuBaseTest(P4RuntimeTest):
                     "session_id": session_id,
                 }, action_name=action_name, action_params=action_params))
 
-    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
+    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, outport, ctr_id, drop=False,
                                    session_id=None, pdr_id=None, far_id=None):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
@@ -399,8 +412,6 @@ class GtpuBaseTest(P4RuntimeTest):
         if (UDP in inner_pkt) or (TCP in inner_pkt):
             ue_l4_port = inner_pkt.sport
             net_l4_port = inner_pkt.dport
-
-        self.add_device_mac(pkt[Ether].dst)
 
         self.add_interface(ip_prefix=pkt[IP].dst + '/32', iface_type="ACCESS", direction="UPLINK")
 
@@ -425,7 +436,7 @@ class GtpuBaseTest(P4RuntimeTest):
             self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', dst_mac=exp_pkt[Ether].dst,
                                    egress_port=outport)
 
-    def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
+    def add_entries_for_downlink_pkt(self, pkt, exp_pkt, outport, ctr_id, drop=False,
                                      buffer=False, session_id=None, pdr_id=None, far_id=None):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
@@ -450,8 +461,6 @@ class GtpuBaseTest(P4RuntimeTest):
         if (UDP in pkt) or (TCP in pkt):
             ue_l4_port = pkt.dport
             inet_l4_port = pkt.sport
-
-        self.add_device_mac(pkt[Ether].dst)
 
         self.add_interface(ip_prefix=pkt[IP].dst + '/32', iface_type="CORE", direction="DOWNLINK")
 

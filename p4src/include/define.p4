@@ -18,6 +18,7 @@
 // Table sizes to be tuned for hardware
 #define MAX_PDRS 1024
 #define MAX_ROUTES 1024
+#define MAX_UPLINK_LOOPBACK_RULES 256
 
 
 // Some sizes
@@ -115,6 +116,12 @@ enum bit<8> TunnelType {
     IP      = 0x1, // unused
     UDP     = 0x2, // unused
     GTPU    = 0x3
+}
+
+enum bit<2> Tristate {
+    FALSE     = 0,
+    TRUE      = 1,
+    UNCHANGED = 2
 }
 
 #endif

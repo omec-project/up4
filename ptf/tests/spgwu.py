@@ -30,7 +30,11 @@ from extra_headers import CpuHeader
 
 CPU_CLONE_SESSION_ID = 99
 FSEID_BITWIDTH = 96
-UE_IPV4 = "17.0.0.1"
+UE1_IPV4 = "17.0.0.1"
+UE2_IPV4 = "17.0.0.2"
+UE_SUBNET = "17.0.0.0"
+UE_SUBNET_MASK = "255.0.0.0"
+SLASH_32_MASK = "255.255.255.255"
 ENODEB_IPV4 = "140.0.100.1"
 S1U_IPV4 = "140.0.100.2"
 SGW_IPV4 = "140.0.200.2"
@@ -52,7 +56,7 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils,
                           "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
-                                                         ip_src=UE_IPV4, ip_dst=PDN_IPV4)
+                                                         ip_src=UE1_IPV4, ip_dst=PDN_IPV4)
             pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
 
             self.testPacket(pkt)
@@ -74,7 +78,8 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False)
+        self.add_device_mac(pkt[Ether].dst)
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port2, ctr_id, drop=False)
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)
@@ -98,7 +103,7 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils,
                           "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
-                                                         ip_src=PDN_IPV4, ip_dst=UE_IPV4)
+                                                         ip_src=PDN_IPV4, ip_dst=UE1_IPV4)
             self.testPacket(pkt)
 
     @autocleanup
@@ -120,7 +125,8 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False)
+        self.add_device_mac(pkt[Ether].dst)
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port2, ctr_id, drop=False)
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)
@@ -134,6 +140,69 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
 
 
 @group("gtpu")
+class GtpuUplinkLoopbackTest(GtpuBaseTest):
+    """ Tests uplink loopback for UE-to-UE communication.
+    """
+
+    def runTest(self):
+        for pkt_type in self.supported_l4:
+            for allow in (False, True):
+                print_inline("%s (%s) ... " % (pkt_type, "allow" if allow else "deny"))
+                pkt = getattr(testutils,
+                              "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
+                                                             ip_src=UE1_IPV4, ip_dst=UE2_IPV4)
+                pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
+
+                self.testPacket(pkt, allow)
+
+    @autocleanup
+    def testPacket(self, pkt, allow):
+        if gtp.GTP_U_Header not in pkt:
+            raise AssertionError("Packet given is not encapsulated!")
+
+        exp_post_uplink_pkt = self.gtpu_decap(pkt)
+        exp_pkt = self.gtpu_encap(exp_post_uplink_pkt, ip_src=S1U_IPV4, ip_dst=ENODEB_IPV4)
+        pkt_route(exp_pkt, ENODEB_MAC)
+        pkt_decrement_ttl(exp_pkt)
+
+        # PDR counter IDs. Pkt will be recirculated, hence we expect both uplink and downlink
+        # counters to be affected.
+        uplink_ctr_id = self.new_counter_id()
+        downlink_ctr_id = self.new_counter_id()
+
+        # By default deny loopback for the whole UE subnet.
+        self.add_uplink_loopback_rule(
+            ipv4_src=(UE_SUBNET, UE_SUBNET_MASK),
+            ipv4_dst=(UE_SUBNET, UE_SUBNET_MASK),
+            allow=False, priority=1)
+
+        if allow:
+            # Add higher-priority rule to allow for the specific UEs.
+            self.add_uplink_loopback_rule(
+                ipv4_src=(UE1_IPV4, SLASH_32_MASK),
+                ipv4_dst=(UE2_IPV4, SLASH_32_MASK),
+                allow=True, priority=10)
+
+        self.add_device_mac(pkt[Ether].dst)
+        self.add_entries_for_uplink_pkt(pkt, exp_post_uplink_pkt, self.port2, uplink_ctr_id)
+        self.add_entries_for_downlink_pkt(exp_post_uplink_pkt, exp_pkt, self.port1, downlink_ctr_id)
+
+        self.read_pdr_counters(uplink_ctr_id)
+        self.read_pdr_counters(downlink_ctr_id)
+
+        testutils.send_packet(self, self.port1, pkt)
+        if allow:
+            testutils.verify_packet(self, exp_pkt, self.port1)
+            self.verify_counters_increased(uplink_ctr_id, 1, len(pkt), 1, len(pkt))
+            self.verify_counters_increased(downlink_ctr_id, 1, len(exp_post_uplink_pkt), 1, len(exp_post_uplink_pkt))
+        else:
+            # Pkt should be dropped by ingress pipe, with no recirculation, hence only uplink
+            # pre-QoS counters should increase.
+            testutils.verify_no_other_packets(self)
+            self.verify_counters_increased(uplink_ctr_id, 1, len(pkt), 0, 0)
+            self.verify_counters_increased(downlink_ctr_id, 0, 0, 0, 0)
+
+@group("gtpu")
 class GtpuDropUplinkTest(GtpuBaseTest):
     """ Tests that a packet received from a UE gets decapsulated and dropped because of FAR rule.
     """
@@ -144,7 +213,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils,
                           "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
-                                                         ip_src=UE_IPV4, ip_dst=PDN_IPV4)
+                                                         ip_src=UE1_IPV4, ip_dst=PDN_IPV4)
             pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
 
             self.testPacket(pkt)
@@ -166,7 +235,8 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=True)
+        self.add_device_mac(pkt[Ether].dst)
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port2, ctr_id, drop=True)
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)
@@ -191,7 +261,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils,
                           "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
-                                                         ip_src=PDN_IPV4, ip_dst=UE_IPV4)
+                                                         ip_src=PDN_IPV4, ip_dst=UE1_IPV4)
             self.testPacket(pkt)
 
     @autocleanup
@@ -215,7 +285,8 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=True)
+        self.add_device_mac(pkt[Ether].dst)
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port2, ctr_id, drop=True)
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)
@@ -239,7 +310,7 @@ class GtpuDdnDigestTest(GtpuBaseTest):
             print_inline("%s ... " % pkt_type)
             pkt = getattr(testutils,
                           "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
-                                                         ip_src=PDN_IPV4, ip_dst=UE_IPV4)
+                                                         ip_src=PDN_IPV4, ip_dst=UE1_IPV4)
             self.testPacket(pkt)
 
     @autocleanup
@@ -258,8 +329,9 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # Program all the tables.
+        self.add_device_mac(pkt[Ether].dst)
         fseid = 0xBEEF
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, buffer=True,
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port2, ctr_id, buffer=True,
                                           session_id=fseid)
 
         # Read pre and post-QoS packet and byte counters.

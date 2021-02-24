@@ -3,6 +3,38 @@ pkg_info {
 }
 tables {
   preamble {
+    id: 47190746
+    name: "PreQosPipe.UplinkLoopback.rules"
+    alias: "rules"
+  }
+  match_fields {
+    id: 1
+    name: "ipv4_src"
+    bitwidth: 32
+    match_type: TERNARY
+  }
+  match_fields {
+    id: 2
+    name: "ipv4_dst"
+    bitwidth: 32
+    match_type: TERNARY
+  }
+  action_refs {
+    id: 31610695
+  }
+  action_refs {
+    id: 20257974
+  }
+  action_refs {
+    id: 31422781
+    annotations: "@defaultonly"
+    scope: DEFAULT_ONLY
+  }
+  const_default_action_id: 31422781
+  size: 256
+}
+tables {
+  preamble {
     id: 39015874
     name: "PreQosPipe.Routing.routes_v4"
     alias: "routes_v4"
@@ -280,6 +312,27 @@ actions {
     id: 21639584
     name: "PreQosPipe.ExecuteFar.do_notify_cp"
     alias: "do_notify_cp"
+  }
+}
+actions {
+  preamble {
+    id: 31610695
+    name: "PreQosPipe.UplinkLoopback.allow"
+    alias: "allow"
+  }
+}
+actions {
+  preamble {
+    id: 20257974
+    name: "PreQosPipe.UplinkLoopback.deny"
+    alias: "deny"
+  }
+}
+actions {
+  preamble {
+    id: 31422781
+    name: "PreQosPipe.UplinkLoopback.nop"
+    alias: "nop"
   }
 }
 actions {

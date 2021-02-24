@@ -124,6 +124,42 @@ control Routing(inout parsed_headers_t    hdr,
     }
 }
 
+// Returns a tri-state flag indicating whether UE-to-UE communication should be allowed for the given
+// uplink packet.
+control UplinkLoopback(inout parsed_headers_t    hdr,
+                       inout local_metadata_t    local_meta,
+                       inout standard_metadata_t std_meta,
+                       out   Tristate loopback_allowed) {
+    action allow() {
+        loopback_allowed = Tristate.TRUE;
+    }
+
+    action deny() {
+        loopback_allowed = Tristate.FALSE;
+    }
+
+    action nop() {
+        loopback_allowed = Tristate.UNCHANGED;
+    }
+
+    table rules {
+        key = {
+            local_meta.ue_addr   : ternary @name("ipv4_src");
+            local_meta.inet_addr : ternary @name("ipv4_dst");
+        }
+        actions = {
+            allow;
+            deny;
+            @defaultonly nop;
+        }
+        const default_action = nop;
+        size = MAX_UPLINK_LOOPBACK_RULES;
+    }
+
+    apply {
+        rules.apply();
+    }
+}
 
 //------------------------------------------------------------------------------
 // FAR EXECUTION CONTROL BLOCK
@@ -413,19 +449,35 @@ control PreQosPipe (inout parsed_headers_t    hdr,
 
 
         // Find a matching PDR and load the relevant attributes.
-        pdrs.apply();
-        // Count packets at a counter index unique to whichever PDR matched.
-        pre_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
+        if (pdrs.apply().hit) {
+            // Count packets at a counter index unique to whichever PDR matched.
+            pre_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
 
-        // Perform whatever header removal the matching PDR required.
-        if (local_meta.needs_gtpu_decap) {
-            gtpu_decap();
+            // Perform whatever header removal the matching PDR required.
+            if (local_meta.needs_gtpu_decap) {
+                gtpu_decap();
+            }
+
+            // Look up FAR info using the FAR-ID loaded by the PDR table.
+            load_far_attributes.apply();
+            // Execute the loaded FAR
+            ExecuteFar.apply(hdr, local_meta, std_meta);
+
+            // Recirculate UE-to-UE traffic.
+            if (local_meta.direction == Direction.UPLINK) {
+                Tristate loopback_allowed;
+                UplinkLoopback.apply(hdr, local_meta, std_meta, loopback_allowed);
+                if (loopback_allowed == Tristate.TRUE) {
+                    recirculate({});
+                    exit;
+                } else if (loopback_allowed == Tristate.FALSE) {
+                    mark_to_drop(std_meta);
+                    exit;
+                } else {
+                    // Do nothing. Pkt can still be routed.
+                }
+            }
         }
-
-        // Look up FAR info using the FAR-ID loaded by the PDR table.
-        load_far_attributes.apply();
-        // Execute the loaded FAR
-        ExecuteFar.apply(hdr, local_meta, std_meta);
 
         // FAR only set the destination IP.
         // Now we need to choose a destination MAC egress port.
