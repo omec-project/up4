@@ -320,6 +320,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         } else {
             log.error("Invalid UP4 config loaded! Cannot set up UPF.");
         }
+        log.info("Up4Config updated");
     }
 
     private void dbufUpdateConfig(Up4DbufConfig config) {
@@ -332,6 +333,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         } else {
             log.error("Invalid UP4 config loaded! Cannot set up UPF.");
         }
+        log.info("Up4DbufConfig updated");
     }
 
     private void addDbufStateToUpfProgrammable() {
@@ -405,9 +407,14 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     private void updateConfig() {
-        Up4Config config = netCfgService.getConfig(appId, Up4Config.class);
-        if (config != null) {
-            upfUpdateConfig(config);
+        Up4Config up4Config = netCfgService.getConfig(appId, Up4Config.class);
+        if (up4Config != null) {
+            upfUpdateConfig(up4Config);
+        }
+
+        Up4DbufConfig dbufConfig = netCfgService.getConfig(appId, Up4DbufConfig.class);
+        if (dbufConfig != null) {
+            dbufUpdateConfig(dbufConfig);
         }
     }
 
