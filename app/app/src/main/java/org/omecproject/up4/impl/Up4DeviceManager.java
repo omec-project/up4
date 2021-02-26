@@ -33,6 +33,8 @@ import org.onosproject.net.device.DeviceListener;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.pi.model.PiPipeconf;
+import org.onosproject.net.pi.service.PiPipeconfEvent;
+import org.onosproject.net.pi.service.PiPipeconfListener;
 import org.onosproject.net.pi.service.PiPipeconfService;
 import org.onosproject.p4runtime.api.P4RuntimeController;
 import org.osgi.service.component.annotations.Activate;
@@ -98,6 +100,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private ApplicationId appId;
     private InternalDeviceListener deviceListener;
     private InternalConfigListener netCfgListener;
+    private PiPipeconfListener piPipeconfListener;
     private UpfProgrammable upfProgrammable;
     private DeviceId upfDeviceId;
     private Up4Config config;
@@ -110,13 +113,17 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         eventDispatcher.addSink(Up4Event.class, listenerRegistry);
         deviceListener = new InternalDeviceListener();
         netCfgListener = new InternalConfigListener();
+        piPipeconfListener = new InternalPiPipeconfListener();
         netCfgService.addListener(netCfgListener);
         netCfgService.registerConfigFactory(up4ConfigFactory);
         netCfgService.registerConfigFactory(dbufConfigFactory);
 
+        // Still need this in case both netcfg and pipeconf event happen before UP4 activation
         updateConfig();
 
         deviceService.addListener(deviceListener);
+        piPipeconfService.addListener(piPipeconfListener);
+
         log.info("Started.");
     }
 
@@ -138,6 +145,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         netCfgService.unregisterConfigFactory(up4ConfigFactory);
         netCfgService.unregisterConfigFactory(dbufConfigFactory);
         eventDispatcher.removeSink(Up4Event.class);
+        piPipeconfService.removeListener(piPipeconfListener);
         log.info("Stopped.");
     }
 
@@ -208,8 +216,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             upfProgrammable = new FabricUpfProgrammable(flowRuleService, p4RuntimeController,
                     piPipeconfService, upfStore, deviceId);
 
-            upfProgrammable.init(appId,
-                    config.maxUes() > 0 ? config.maxUes() : UpfProgrammable.NO_UE_LIMIT);
+            if (!upfProgrammable.init(appId,
+                    config.maxUes() > 0 ? config.maxUes() : UpfProgrammable.NO_UE_LIMIT)) {
+                // error message will be printed by init()
+                return;
+            }
 
             installInterfaces();
 
@@ -309,6 +320,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         } else {
             log.error("Invalid UP4 config loaded! Cannot set up UPF.");
         }
+        log.info("Up4Config updated");
     }
 
     private void dbufUpdateConfig(Up4DbufConfig config) {
@@ -321,6 +333,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         } else {
             log.error("Invalid UP4 config loaded! Cannot set up UPF.");
         }
+        log.info("Up4DbufConfig updated");
     }
 
     private void addDbufStateToUpfProgrammable() {
@@ -394,9 +407,14 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     private void updateConfig() {
-        Up4Config config = netCfgService.getConfig(appId, Up4Config.class);
-        if (config != null) {
-            upfUpdateConfig(config);
+        Up4Config up4Config = netCfgService.getConfig(appId, Up4Config.class);
+        if (up4Config != null) {
+            upfUpdateConfig(up4Config);
+        }
+
+        Up4DbufConfig dbufConfig = netCfgService.getConfig(appId, Up4DbufConfig.class);
+        if (dbufConfig != null) {
+            dbufUpdateConfig(dbufConfig);
         }
     }
 
@@ -479,6 +497,23 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             }
             log.debug("Ignore irrelevant event class {}", event.configClass().getName());
             return false;
+        }
+    }
+
+    private class InternalPiPipeconfListener implements PiPipeconfListener {
+        @Override
+        public void event(PiPipeconfEvent event) {
+            switch (event.type()) {
+                case REGISTERED:
+                    // Recover the case where pipeconf was not ready while we initialized upfProgrammable
+                    // TODO: each pipeconf will trigger update but the subsequent ones are redundant. To be optimized
+                    updateConfig();
+                    break;
+                case UNREGISTERED:
+                default:
+                    // TODO: we do not handle UNREGISTERED event for now
+                    break;
+            }
         }
     }
 }

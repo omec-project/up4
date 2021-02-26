@@ -103,19 +103,26 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Override
     public boolean init(ApplicationId appId, long ueLimit) {
         this.appId = appId;
-        computeHardwareResourceSizes();
+        if (!computeHardwareResourceSizes()) {
+            // error message will be printed by computeHardwareResourceSizes()
+            return false;
+        }
+
         String limitStr = ueLimit < 0 ? "unlimited" : Long.toString(ueLimit);
         log.info("Setting UE limit of UPF on {} to {}", deviceId, limitStr);
         this.ueLimit = ueLimit;
+
         log.info("UpfProgrammable initialized for appId {} and deviceId {}", appId, deviceId);
         return true;
     }
 
     /**
-     * Grab the capacities for the PDR and FAR tables from the pipeconf. Runs only once, on
-     * initialization.
+     * Grab the capacities for the PDR and FAR tables from the pipeconf. Runs only once, on initialization.
+     *
+     * @return true if resource is fetched successfully, false otherwise.
+     * @throws IllegalStateException when FAR or PDR table can't be found in the pipeline model.
      */
-    private void computeHardwareResourceSizes() {
+    private boolean computeHardwareResourceSizes() {
         long farTableSize = 0;
         long encappedPdrTableSize = 0;
         long unencappedPdrTableSize = 0;
@@ -123,7 +130,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         if (optPipeconf.isEmpty()) {
             log.error("Unable to load piPipeconf for {}, cannot fetch table and counter properties. Sizes will be 0",
                     deviceId);
-            return;
+            return false;
         }
         PiPipeconf pipeconf = optPipeconf.get();
         // Get table sizes of interest
@@ -165,6 +172,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         this.encappedPdrTableSize = encappedPdrTableSize;
         this.unencappedPdrTableSize = unencappedPdrTableSize;
         this.pdrCounterSize = Math.min(ingressCounterSize, egressCounterSize);
+        return true;
     }
 
     @Override
