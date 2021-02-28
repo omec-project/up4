@@ -424,7 +424,7 @@ actions {
   }
   params {
     id: 6
-    name: "priority"
+    name: "scheduling_priority"
     bitwidth: 8
   }
 }

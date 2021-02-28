@@ -9,7 +9,7 @@
         ["userMetadata._direction0", 8, false],
         ["userMetadata._teid1", 32, false],
         ["userMetadata._fseid2", 96, false],
-        ["userMetadata._priority3", 8, false],
+        ["userMetadata._scheduling_priority3", 8, false],
         ["userMetadata._next_hop_ip4", 32, false],
         ["userMetadata._needs_gtpu_decap5", 1, false],
         ["userMetadata._needs_udp_decap6", 1, false],
@@ -2402,7 +2402,7 @@
           "bitwidth" : 1
         },
         {
-          "name" : "priority",
+          "name" : "scheduling_priority",
           "bitwidth" : 8
         }
       ],
@@ -2527,7 +2527,7 @@
           "parameters" : [
             {
               "type" : "field",
-              "value" : ["scalars", "userMetadata._priority3"]
+              "value" : ["scalars", "userMetadata._scheduling_priority3"]
             },
             {
               "type" : "runtime_data",
@@ -2538,7 +2538,7 @@
             "filename" : "p4src/main.p4",
             "line" : 305,
             "column" : 8,
-            "source_fragment" : "local_meta.priority = priority"
+            "source_fragment" : "local_meta.scheduling_priority = scheduling_priority"
           }
         }
       ]
