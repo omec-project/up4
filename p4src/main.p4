@@ -298,11 +298,11 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                                   counter_index_t   ctr_id,
                                   far_id_t          far_id,
                                   bit<1>            needs_gtpu_decap,
-                                  priority_t        priority
+                                  scheduling_priority_t    scheduling_priority
                                  )
     {
         set_pdr_attributes(id, fseid, ctr_id, far_id, needs_gtpu_decap);
-        local_meta.priority     = priority;
+        local_meta.scheduling_priority     = scheduling_priority;
     }
 
     // Contains PDRs for both the Uplink and Downlink Direction
