@@ -1,0 +1,10 @@
+{
+  "apps": {
+    "org.omecproject.up4": {
+      "dbuf": {
+        "serviceAddr": "mininet:10000",
+        "dataplaneAddr": "140.0.99.1:2152"
+      }
+    }
+  }
+}

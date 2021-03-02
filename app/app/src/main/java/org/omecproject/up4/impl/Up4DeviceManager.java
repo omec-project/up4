@@ -10,11 +10,13 @@ import org.omecproject.dbuf.client.DefaultDbufClient;
 import org.omecproject.up4.Up4Event;
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
-import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.UpfProgrammableException;
+import org.omecproject.up4.behavior.FabricUpfProgrammable;
+import org.omecproject.up4.behavior.FabricUpfStore;
 import org.omecproject.up4.config.Up4Config;
+import org.omecproject.up4.config.Up4DbufConfig;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
@@ -31,7 +33,10 @@ import org.onosproject.net.device.DeviceListener;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.pi.model.PiPipeconf;
+import org.onosproject.net.pi.service.PiPipeconfEvent;
+import org.onosproject.net.pi.service.PiPipeconfListener;
 import org.onosproject.net.pi.service.PiPipeconfService;
+import org.onosproject.p4runtime.api.P4RuntimeController;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -55,18 +60,24 @@ import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FAC
  */
 @Component(immediate = true, service = {Up4Service.class})
 public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4EventListener>
-        implements Up4Service  {
+        implements Up4Service {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final AtomicBoolean upfInitialized = new AtomicBoolean(false);
-    private final ConfigFactory<ApplicationId, Up4Config> appConfigFactory = new ConfigFactory<>(
-            APP_SUBJECT_FACTORY,
-            Up4Config.class,
-            Up4Config.KEY) {
+    private final ConfigFactory<ApplicationId, Up4Config> up4ConfigFactory = new ConfigFactory<>(
+            APP_SUBJECT_FACTORY, Up4Config.class, Up4Config.KEY) {
         @Override
         public Up4Config createConfig() {
-            log.info("Creating UPF Config");
+            log.debug("Creating UP4 config");
             return new Up4Config();
+        }
+    };
+    private final ConfigFactory<ApplicationId, Up4DbufConfig> dbufConfigFactory = new ConfigFactory<>(
+            APP_SUBJECT_FACTORY, Up4DbufConfig.class, Up4DbufConfig.KEY) {
+        @Override
+        public Up4DbufConfig createConfig() {
+            log.debug("Creating dbuf config");
+            return new Up4DbufConfig();
         }
     };
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
@@ -79,11 +90,17 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
+
+    // FIXME: remove after we make FabricUpfProgrammable a proper behavior
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected UpfProgrammable upfProgrammableService;
+    protected P4RuntimeController p4RuntimeController;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected FabricUpfStore upfStore;
+
     private ApplicationId appId;
     private InternalDeviceListener deviceListener;
     private InternalConfigListener netCfgListener;
+    private PiPipeconfListener piPipeconfListener;
     private UpfProgrammable upfProgrammable;
     private DeviceId upfDeviceId;
     private Up4Config config;
@@ -96,12 +113,17 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         eventDispatcher.addSink(Up4Event.class, listenerRegistry);
         deviceListener = new InternalDeviceListener();
         netCfgListener = new InternalConfigListener();
+        piPipeconfListener = new InternalPiPipeconfListener();
         netCfgService.addListener(netCfgListener);
-        netCfgService.registerConfigFactory(appConfigFactory);
+        netCfgService.registerConfigFactory(up4ConfigFactory);
+        netCfgService.registerConfigFactory(dbufConfigFactory);
 
+        // Still need this in case both netcfg and pipeconf event happen before UP4 activation
         updateConfig();
 
         deviceService.addListener(deviceListener);
+        piPipeconfService.addListener(piPipeconfListener);
+
         log.info("Started.");
     }
 
@@ -109,7 +131,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         // Only clean up the state when the deactivation is triggered by ApplicationService
         log.info("Running Up4DeviceManager preDeactivation hook.");
         if (upfProgrammableAvailable()) {
-            upfProgrammable.cleanUp(appId);
+            upfProgrammable.cleanUp();
         }
         teardownDbufClient();
         upfInitialized.set(false);
@@ -120,8 +142,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         log.info("Stopping...");
         deviceService.removeListener(deviceListener);
         netCfgService.removeListener(netCfgListener);
-        netCfgService.unregisterConfigFactory(appConfigFactory);
+        netCfgService.unregisterConfigFactory(up4ConfigFactory);
+        netCfgService.unregisterConfigFactory(dbufConfigFactory);
         eventDispatcher.removeSink(Up4Event.class);
+        piPipeconfService.removeListener(piPipeconfListener);
         log.info("Stopped.");
     }
 
@@ -151,10 +175,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         return upfProgrammable != null;
     }
 
-    public DeviceId getUpfDeviceId() {
-        return upfDeviceId;
-    }
-
     @Override
     public boolean isUpfDevice(DeviceId deviceId) {
         final Device device = deviceService.getDevice(deviceId);
@@ -170,7 +190,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             log.warn("Attempting to clear UPF before it has been initialized!");
             return;
         }
-        upfProgrammable.cleanUp(appId);
+        upfProgrammable.cleanUp();
     }
 
     private void setUpfDevice(DeviceId deviceId) {
@@ -192,15 +212,22 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
             log.info("Setup UPF device: {}", deviceId);
             upfDeviceId = deviceId;
-            upfProgrammable = upfProgrammableService; // TODO: change this once UpfProgrammable moves to the onos core
+            // FIXME: change this once UpfProgrammable moves to the onos core
+            upfProgrammable = new FabricUpfProgrammable(flowRuleService, p4RuntimeController,
+                    piPipeconfService, upfStore, deviceId);
 
-            upfProgrammable.init(appId, deviceId);
-            upfProgrammable.setUeLimit(config.maxUes());
+            if (!upfProgrammable.init(appId,
+                    config.maxUes() > 0 ? config.maxUes() : UpfProgrammable.NO_UE_LIMIT)) {
+                // error message will be printed by init()
+                return;
+            }
 
             installInterfaces();
 
-            if (dbufClient != null) {
+            if (dbufClient != null && config != null && config.dbufDrainAddr() != null) {
                 addDbufStateToUpfProgrammable();
+            } else {
+                removeDbufStateFromUpfProgrammable();
             }
 
             upfInitialized.set(true);
@@ -231,13 +258,19 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
      */
     private void ensureInterfacesInstalled() {
         log.info("Ensuring all interfaces present in app config are present on device.");
-        Set<UpfInterface> installedInterfaces = new HashSet<>(upfProgrammable.getInstalledInterfaces());
+        Set<UpfInterface> installedInterfaces;
+        try {
+            installedInterfaces = new HashSet<>(upfProgrammable.getInterfaces());
+        } catch (UpfProgrammableException e) {
+            log.warn("Failed to read interface: {}", e.getMessage());
+            return;
+        }
         for (UpfInterface iface : configFileInterfaces()) {
             if (!installedInterfaces.contains(iface)) {
                 log.warn("{} is missing from device! Installing", iface);
                 try {
                     upfProgrammable.addInterface(iface);
-                } catch (UpfProgrammableException | Up4Translator.Up4TranslationException e) {
+                } catch (UpfProgrammableException e) {
                     log.warn("Failed to insert interface: {}", e.getMessage());
                 }
             }
@@ -250,7 +283,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         for (UpfInterface iface : configFileInterfaces()) {
             try {
                 upfProgrammable.addInterface(iface);
-            } catch (UpfProgrammableException | Up4Translator.Up4TranslationException e) {
+            } catch (UpfProgrammableException e) {
                 log.warn("Failed to insert interface: {}", e.getMessage());
             }
         }
@@ -268,12 +301,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if (upfProgrammable != null) {
                 log.info("UPF was removed. Cleaning up.");
                 if (deviceService.isAvailable(upfDeviceId)) {
-                    upfProgrammable.cleanUp(appId);
+                    upfProgrammable.cleanUp();
                 }
                 upfProgrammable = null;
                 upfInitialized.set(false);
             }
-            teardownDbufClient();
         }
     }
 
@@ -281,56 +313,83 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         if (config == null) {
             unsetUpfDevice();
             this.config = null;
-        }
-        if (config.isValid()) {
+        } else if (config.isValid()) {
             upfDeviceId = config.up4DeviceId();
             this.config = config;
             setUpfDevice(upfDeviceId);
-            setUpDbufClient(config.dbufServiceAddr(), config.dbufDataplaneAddr());
         } else {
             log.error("Invalid UP4 config loaded! Cannot set up UPF.");
         }
+        log.info("Up4Config updated");
+    }
 
+    private void dbufUpdateConfig(Up4DbufConfig config) {
+        if (config == null) {
+            teardownDbufClient();
+            removeDbufStateFromUpfProgrammable();
+        } else if (config.isValid()) {
+            setUpDbufClient(config.serviceAddr(), config.dataplaneAddr());
+            addDbufStateToUpfProgrammable();
+        } else {
+            log.error("Invalid UP4 config loaded! Cannot set up UPF.");
+        }
+        log.info("Up4DbufConfig updated");
     }
 
     private void addDbufStateToUpfProgrammable() {
+        if (dbufClient == null) {
+            log.warn("Cannot add dbuf state to UpfProgrammable, dbufClient is null");
+            return;
+        }
+        if (config == null || config.dbufDrainAddr() == null) {
+            log.warn("Cannot add dbuf state to UpfProgrammable, dbufDrainAddr is null");
+            return;
+        }
+        // FIXME: update existing tunnels if dataplane addr changes
         upfProgrammable.setDbufTunnel(config.dbufDrainAddr(), dbufClient.dataplaneIp4Addr());
-        upfProgrammable.setBufferDrainer(new UpfProgrammable.BufferDrainer() {
-            @Override
-            public void drain(Ip4Address ueAddr) {
+        upfProgrammable.setBufferDrainer(ueAddr -> {
+            // Run the outbound rpc in a forked context so it doesn't cancel if it was called
+            // by an inbound rpc that completes faster than the drain call
+            Context ctx = Context.current().fork();
+            ctx.run(() -> {
+                if (dbufClient == null) {
+                    log.error("Cannot start dbuf drain for {}, dbufClient is null", ueAddr);
+                    return;
+                }
+                if (config == null || config.dbufDrainAddr() == null) {
+                    log.error("Cannot start dbuf drain for {}, dbufDrainAddr is null", ueAddr);
+                    return;
+                }
                 log.info("Started dbuf drain for {}", ueAddr);
-                // Run the outbound rpc in a forked context so it doesn't cancel if it was called
-                // by an inbound rpc that completes faster than the drain call
-                Context ctx = Context.current().fork();
-                ctx.run(() -> {
-                    dbufClient.drain(ueAddr, config.dbufDrainAddr(), 2152).whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
-                        } else if (result) {
-                            log.info("Dbuf drain completed for {}", ueAddr);
-                        } else {
-                            log.warn("Unknown error while draining dbuf for {}", ueAddr);
-                        }
-                    });
-                });
-            }
+                dbufClient.drain(ueAddr, config.dbufDrainAddr(), 2152)
+                        .whenComplete((result, ex) -> {
+                            if (ex != null) {
+                                log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
+                            } else if (result) {
+                                log.info("Dbuf drain completed for {}", ueAddr);
+                            } else {
+                                log.warn("Unknown error while draining dbuf for {}", ueAddr);
+                            }
+                        });
+            });
         });
+    }
+
+    private void removeDbufStateFromUpfProgrammable() {
+        upfProgrammable.unsetBufferDrainer();
+        upfProgrammable.unsetDbufTunnel();
     }
 
     private void setUpDbufClient(String serviceAddr, String dataplaneAddr) {
         synchronized (this) {
-            if (serviceAddr != null) {
-                if (dbufClient != null && !dbufClient.serviceAddr().equals(serviceAddr)) {
-                    log.info("Detected updated address for dbuf service ({}), replacing client",
-                            serviceAddr);
-                    teardownDbufClient();
-                }
-                if (dbufClient == null) {
-                    dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr, this);
-                }
-                if (upfProgrammable != null) {
-                    addDbufStateToUpfProgrammable();
-                }
+            if (dbufClient != null) {
+                teardownDbufClient();
+            }
+            if (dbufClient == null) {
+                dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr, this);
+            }
+            if (upfProgrammable != null) {
+                addDbufStateToUpfProgrammable();
             }
         }
     }
@@ -341,13 +400,21 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 dbufClient.shutdown();
                 dbufClient = null;
             }
+            if (upfProgrammable != null) {
+                removeDbufStateFromUpfProgrammable();
+            }
         }
     }
 
     private void updateConfig() {
-        Up4Config config = netCfgService.getConfig(appId, Up4Config.class);
-        if (config != null) {
-            upfUpdateConfig(config);
+        Up4Config up4Config = netCfgService.getConfig(appId, Up4Config.class);
+        if (up4Config != null) {
+            upfUpdateConfig(up4Config);
+        }
+
+        Up4DbufConfig dbufConfig = netCfgService.getConfig(appId, Up4DbufConfig.class);
+        if (dbufConfig != null) {
+            dbufUpdateConfig(dbufConfig);
         }
     }
 
@@ -395,16 +462,23 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             switch (event.type()) {
                 case CONFIG_UPDATED:
                 case CONFIG_ADDED:
-                    event.config().ifPresent(config -> {
-                        upfUpdateConfig((Up4Config) config);
-                        log.info("{} updated", config.getClass().getSimpleName());
-                    });
+                    if (event.config().isEmpty()) {
+                        return;
+                    }
+                    if (event.configClass().equals(Up4Config.class)) {
+                        upfUpdateConfig((Up4Config) event.config().get());
+                    } else if (event.configClass().equals(Up4DbufConfig.class)) {
+                        dbufUpdateConfig((Up4DbufConfig) event.config().get());
+                    }
+                    log.info("{} updated", event.configClass().getSimpleName());
                     break;
                 case CONFIG_REMOVED:
-                    event.prevConfig().ifPresent(config -> {
+                    if (event.configClass().equals(Up4Config.class)) {
                         upfUpdateConfig(null);
-                        log.info("{} removed", config.getClass().getSimpleName());
-                    });
+                    } else if (event.configClass().equals(Up4DbufConfig.class)) {
+                        dbufUpdateConfig(null);
+                    }
+                    log.info("{} removed", event.configClass().getSimpleName());
                     break;
                 case CONFIG_REGISTERED:
                 case CONFIG_UNREGISTERED:
@@ -417,11 +491,29 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
         @Override
         public boolean isRelevant(NetworkConfigEvent event) {
-            if (event.configClass().equals(Up4Config.class)) {
+            if (Up4Config.class.equals(event.configClass()) ||
+                    Up4DbufConfig.class.equals(event.configClass())) {
                 return true;
             }
             log.debug("Ignore irrelevant event class {}", event.configClass().getName());
             return false;
+        }
+    }
+
+    private class InternalPiPipeconfListener implements PiPipeconfListener {
+        @Override
+        public void event(PiPipeconfEvent event) {
+            switch (event.type()) {
+                case REGISTERED:
+                    // Recover the case where pipeconf was not ready while we initialized upfProgrammable
+                    // TODO: each pipeconf will trigger update but the subsequent ones are redundant. To be optimized
+                    updateConfig();
+                    break;
+                case UNREGISTERED:
+                default:
+                    // TODO: we do not handle UNREGISTERED event for now
+                    break;
+            }
         }
     }
 }

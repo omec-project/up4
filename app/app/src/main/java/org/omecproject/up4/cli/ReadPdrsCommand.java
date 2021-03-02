@@ -8,6 +8,7 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.UpfProgrammableException;
 import org.onosproject.cli.AbstractShellCommand;
 
 /**
@@ -22,8 +23,12 @@ public class ReadPdrsCommand extends AbstractShellCommand {
     protected void doExecute() {
         Up4Service app = get(Up4Service.class);
 
-        for (PacketDetectionRule pdr : app.getUpfProgrammable().getInstalledPdrs()) {
-            print(pdr.toString());
+        try {
+            for (PacketDetectionRule pdr : app.getUpfProgrammable().getPdrs()) {
+                print(pdr.toString());
+            }
+        } catch (UpfProgrammableException e) {
+            print("Error while reading PDRs: " + e.getMessage());
         }
     }
 }

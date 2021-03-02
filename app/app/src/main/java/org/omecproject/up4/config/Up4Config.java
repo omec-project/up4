@@ -12,7 +12,6 @@ import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.config.Config;
-import org.onosproject.net.config.InvalidFieldException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,42 +30,12 @@ public class Up4Config extends Config<ApplicationId> {
     public static final String UE_POOLS = "uePools";
     public static final String S1U_PREFIX = "s1uPrefix";  // TODO: remove this field after all configs updated
     public static final String S1U_ADDR = "s1uAddr";
-    // Eventually, we will have to support multiple dbuf instances, in which case it might make more
-    // sense to have a dedicated config class with an array of dbuf instances.
-    public static final String DBUF_SERVICE_ADDR = "dbufServiceAddr";
-    public static final String DBUF_DATAPLANE_ADDR = "dbufDataplaneAddr";
     public static final String DBUF_DRAIN_ADDR = "dbufDrainAddr";
-
-    static boolean isValidAddrString(String addr, boolean mustBeIp4Addr) {
-        if (addr.isBlank()) {
-            throw new InvalidFieldException(addr, "address string cannot be blank");
-        }
-        final var pieces = addr.split(":");
-        if (pieces.length != 2) {
-            throw new InvalidFieldException(addr, "invalid address, must be host:port");
-        }
-        if (mustBeIp4Addr) {
-            try {
-                Ip4Address.valueOf(pieces[0]);
-            } catch (IllegalArgumentException e) {
-                throw new InvalidFieldException(addr, "invalid IPv4 address");
-            }
-        }
-        try {
-            final int port = Integer.parseInt(pieces[1]);
-            if (port <= 0) {
-                throw new InvalidFieldException(addr, "invalid port number");
-            }
-        } catch (NumberFormatException e) {
-            throw new InvalidFieldException(addr, "invalid port number");
-        }
-        return true;
-    }
 
     @Override
     public boolean isValid() {
-        return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_ADDR, S1U_PREFIX, DBUF_SERVICE_ADDR,
-                DBUF_DATAPLANE_ADDR, DBUF_DRAIN_ADDR, MAX_UES) &&
+        return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_ADDR, S1U_PREFIX,
+                DBUF_DRAIN_ADDR, MAX_UES) &&
                 // Mandatory fields.
                 hasFields(DEVICE_ID, UE_POOLS) &&
                 (hasField(S1U_ADDR) || hasField(S1U_PREFIX)) &&
@@ -75,20 +44,15 @@ public class Up4Config extends Config<ApplicationId> {
     }
 
     private boolean isDbufConfigValid() {
-        // Both fields must null or present and valid.
-        if (dbufServiceAddr() == null && dbufDataplaneAddr() == null && dbufDrainAddr() == null) {
-            return true;
+        if (dbufDrainAddr() != null) {
+            try {
+                // Force the drain address string to be parsed
+                dbufDrainAddr();
+            } catch (IllegalArgumentException e) {
+                return false;
+            }
         }
-        try {
-            // Force the drain address string to be parsed
-            dbufDrainAddr();
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
-
-        return hasFields(DBUF_SERVICE_ADDR, DBUF_DATAPLANE_ADDR, DBUF_DRAIN_ADDR) &&
-                isValidAddrString(dbufServiceAddr(), false) &&
-                isValidAddrString(dbufDataplaneAddr(), true);
+        return true;
     }
 
     /**
@@ -98,16 +62,6 @@ public class Up4Config extends Config<ApplicationId> {
      */
     public DeviceId up4DeviceId() {
         return DeviceId.deviceId(object.path(DEVICE_ID).asText());
-    }
-
-    /**
-     * Set the UP4 ONOS device ID.
-     *
-     * @param deviceId device ID
-     * @return an updated instance of this config
-     */
-    public Up4Config setUp4DeviceId(String deviceId) {
-        return (Up4Config) setOrClear(DEVICE_ID, deviceId);
     }
 
     /**
@@ -170,26 +124,6 @@ public class Up4Config extends Config<ApplicationId> {
             uePools.add(Ip4Prefix.valueOf(uePoolString));
         }
         return ImmutableList.copyOf(uePools);
-    }
-
-    /**
-     * Returns the address of the dbuf service (in the form of host:port). Or null if not
-     * configured.
-     *
-     * @return the address of the dbuf service
-     */
-    public String dbufServiceAddr() {
-        return get(DBUF_SERVICE_ADDR, null);
-    }
-
-    /**
-     * Returns the address of the dbuf dataplane interface (in the form of host:port). Or null if
-     * not configured. The host part is guaranteed to be a valid IPv4 address.
-     *
-     * @return the address of the dbuf dataplane interface
-     */
-    public String dbufDataplaneAddr() {
-        return get(DBUF_DATAPLANE_ADDR, null);
     }
 
     /**

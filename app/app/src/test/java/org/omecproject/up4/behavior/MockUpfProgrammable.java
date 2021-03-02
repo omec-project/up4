@@ -4,9 +4,7 @@
  */
 package org.omecproject.up4.behavior;
 
-import com.google.common.collect.Maps;
 import org.apache.commons.lang3.tuple.Pair;
-import org.glassfish.jersey.internal.guava.Sets;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.PdrStats;
@@ -14,7 +12,6 @@ import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.UpfProgrammableException;
-import org.omecproject.up4.UpfRuleIdentifier;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.core.ApplicationId;
@@ -25,13 +22,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public class MockUpfProgrammable implements UpfProgrammable {
     List<PacketDetectionRule> pdrs;
     List<ForwardingActionRule> fars;
     List<UpfInterface> ifaces;
-    DeviceId deviceId;
+    DeviceId deviceId = TestConstants.DEVICE_ID;
     long ueLimit = -1;
 
     public MockUpfProgrammable() {
@@ -41,16 +37,15 @@ public class MockUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public boolean init(ApplicationId appId, DeviceId deviceId) {
+    public boolean init(ApplicationId appId, long ueLimit) {
         pdrs.clear();
         fars.clear();
         ifaces.clear();
-        this.deviceId = deviceId;
         return true;
     }
 
     @Override
-    public void cleanUp(ApplicationId appId) {
+    public void cleanUp() {
         pdrs.clear();
         fars.clear();
         ifaces.clear();
@@ -67,16 +62,6 @@ public class MockUpfProgrammable implements UpfProgrammable {
                 .setIngress(TestConstants.COUNTER_PKTS, TestConstants.COUNTER_BYTES)
                 .setEgress(TestConstants.COUNTER_PKTS, TestConstants.COUNTER_BYTES)
                 .build();
-    }
-
-    @Override
-    public Set<UpfRuleIdentifier> getBufferFarIds() {
-        return Sets.newHashSet();
-    }
-
-    @Override
-    public Map<UpfRuleIdentifier, Set<Ip4Address>> getFarIdToUeAddrs() {
-        return Maps.newHashMap();
     }
 
     @Override
@@ -120,23 +105,18 @@ public class MockUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public Collection<ForwardingActionRule> getInstalledFars() {
+    public Collection<ForwardingActionRule> getFars() {
         return List.copyOf(fars);
     }
 
     @Override
-    public Collection<PacketDetectionRule> getInstalledPdrs() {
+    public Collection<PacketDetectionRule> getPdrs() {
         return List.copyOf(pdrs);
     }
 
     @Override
-    public Collection<UpfInterface> getInstalledInterfaces() {
+    public Collection<UpfInterface> getInterfaces() {
         return List.copyOf(ifaces);
-    }
-
-    @Override
-    public void setUeLimit(long ueLimit) {
-        this.ueLimit = ueLimit;
     }
 
     @Override
@@ -217,7 +197,17 @@ public class MockUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
+    public void unsetDbufTunnel() {
+
+    }
+
+    @Override
     public void setBufferDrainer(BufferDrainer drainer) {
+
+    }
+
+    @Override
+    public void unsetBufferDrainer() {
 
     }
 }

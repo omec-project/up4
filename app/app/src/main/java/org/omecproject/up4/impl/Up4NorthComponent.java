@@ -24,6 +24,7 @@ import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.Up4Translator;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammableException;
+import org.omecproject.up4.behavior.Up4TranslatorImpl;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 import org.onlab.util.SharedExecutors;
@@ -89,11 +90,9 @@ public class Up4NorthComponent {
     protected Up4Service up4Service;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected Up4Translator up4Translator;
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected StorageService storageService;
 
+    protected final Up4Translator up4Translator = new Up4TranslatorImpl();
     protected final Up4NorthService up4NorthService = new Up4NorthService();
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final Up4EventListener up4EventListener = new InternalUp4EventListener();
@@ -110,6 +109,9 @@ public class Up4NorthComponent {
     // if an entry cannot be found we will not be able to wake up the UE at this time.
     protected EventuallyConsistentMap<Ip4Address, ImmutableByteSequence> fseids;
     private long pipeconfCookie = 0xbeefbeef;
+
+    public Up4NorthComponent() {
+    }
 
     protected static PiPipeconf buildPipeconf() throws P4InfoParserException {
         final URL p4InfoUrl = Up4NorthComponent.class.getResource(AppConstants.P4INFO_PATH);
@@ -294,7 +296,7 @@ public class Up4NorthComponent {
         // TODO: return more specific responses
         try {
             if (up4Translator.isUp4Interface(requestedEntry)) {
-                for (UpfInterface iface : up4Service.getUpfProgrammable().getInstalledInterfaces()) {
+                for (UpfInterface iface : up4Service.getUpfProgrammable().getInterfaces()) {
                     if (iface.isDbufReceiver()) {
                         // Don't expose the dbuf interface to the logical switch
                         continue;
@@ -305,14 +307,14 @@ public class Up4NorthComponent {
                     translatedEntries.add(responseEntity);
                 }
             } else if (up4Translator.isUp4Far(requestedEntry)) {
-                for (ForwardingActionRule far : up4Service.getUpfProgrammable().getInstalledFars()) {
+                for (ForwardingActionRule far : up4Service.getUpfProgrammable().getFars()) {
                     log.debug("Translating a FAR for a read request: {}", far);
                     P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
                             up4Translator.farToUp4Entry(far), null, pipeconf);
                     translatedEntries.add(responseEntity);
                 }
             } else if (up4Translator.isUp4Pdr(requestedEntry)) {
-                for (PacketDetectionRule pdr : up4Service.getUpfProgrammable().getInstalledPdrs()) {
+                for (PacketDetectionRule pdr : up4Service.getUpfProgrammable().getPdrs()) {
                     log.debug("Translating a PDR for a read request: {}", pdr);
                     P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
                             up4Translator.pdrToUp4Entry(pdr), null, pipeconf);
@@ -324,7 +326,7 @@ public class Up4NorthComponent {
                         .withDescription("Read request was for an unknown table.")
                         .asException();
             }
-        } catch (Up4Translator.Up4TranslationException | CodecException e) {
+        } catch (Up4Translator.Up4TranslationException | UpfProgrammableException | CodecException e) {
             log.warn("Unable to encode/translate a read entry to a UP4 read response: {}",
                     e.getMessage());
             throw INVALID_ARGUMENT

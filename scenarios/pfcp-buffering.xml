@@ -4,8 +4,10 @@
   -->
 <scenario name="pfcp-buffering" description="Test downlink data buffering works with PFCP messaging">
     <group name="Pfcp-Buffering">
-        <group name="Pfcp-Set-Buff">
-            <step name="Pfcp-Buffer-Session-Create"
+        <step name="Push-Netcfg-Dbuf"
+              exec="onos-netcfg ${OCI} ${UP4_ROOT}/scenarios/topo/netcfg-dbuf.json"/>
+        <group name="Pfcp-Set-Buff" requires="Push-Netcfg-Dbuf">
+            <step name="Pfcp-Buffer-Session-Create" requires="Push-Netcfg-Dbuf" delay="5"
                   exec="mock-smf-cmd create --session-count 5"/>
             <step name="Pfcp-Buffer-Session-Modify" requires="^" delay="5"
                   exec="mock-smf-cmd modify --buffer --session-count 5"/>
