@@ -14,6 +14,7 @@ import org.omecproject.up4.UpfProgrammableException;
 import org.omecproject.up4.UpfRuleIdentifier;
 import org.omecproject.up4.impl.SouthConstants;
 import org.onlab.packet.Ip4Address;
+import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
@@ -21,6 +22,7 @@ import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.DefaultTrafficSelector;
 import org.onosproject.net.flow.DefaultTrafficTreatment;
 import org.onosproject.net.flow.FlowRule;
+import org.onosproject.net.flow.TrafficSelector;
 import org.onosproject.net.flow.criteria.PiCriterion;
 import org.onosproject.net.pi.model.PiActionId;
 import org.onosproject.net.pi.model.PiTableId;
@@ -336,6 +338,43 @@ public class FabricUpfTranslator {
                 .forDevice(deviceId).fromApp(appId).makePermanent()
                 .forTable(SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
+                .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
+                .withPriority(priority)
+                .build();
+    }
+
+    /**
+     * Builds FlowRules for the uplink recirculation table.
+     *
+     * @param deviceId the ID of the device the FlowRule should be installed on
+     * @param appId    the ID of the application that will insert the FlowRule
+     * @param src      the Ipv4 source prefix
+     * @param dst      the Ipv4 destination prefix
+     * @param allow    whether to allow or not (drop) recirculation
+     * @param priority the FlowRule's priority
+     * @return FlowRule for the uplink recirculation table
+     */
+    // FIXME: this method is specific to fabric-tna and might be removed once we create proper
+    //   pipeconf behavior for fabric-v1model, unless we add the same uplink recirculation
+    //   capability to that P4 program as well.
+    public FlowRule buildFabricUplinkRecircEntry(DeviceId deviceId, ApplicationId appId,
+                                                 Ip4Prefix src, Ip4Prefix dst,
+                                                 boolean allow, int priority) {
+        TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
+        if (src != null) {
+            selectorBuilder.matchIPSrc(src);
+        }
+        if (dst != null) {
+            selectorBuilder.matchIPDst(dst);
+        }
+        PiAction action = PiAction.builder()
+                .withId(allow ? SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_RECIRC_ALLOW
+                        : SouthConstants.FABRIC_INGRESS_FILTERING_DENY)
+                .build();
+        return DefaultFlowRule.builder()
+                .forDevice(deviceId).fromApp(appId).makePermanent()
+                .forTable(SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES)
+                .withSelector(selectorBuilder.build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(priority)
                 .build();
