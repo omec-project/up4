@@ -247,7 +247,6 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 flowRuleService.removeFlowRules(entry);
             }
         }
-        // TODO: remove uplink
     }
 
     @Override
