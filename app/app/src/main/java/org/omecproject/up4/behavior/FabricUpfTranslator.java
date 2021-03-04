@@ -369,7 +369,7 @@ public class FabricUpfTranslator {
         }
         PiAction action = PiAction.builder()
                 .withId(allow ? SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_RECIRC_ALLOW
-                        : SouthConstants.FABRIC_INGRESS_FILTERING_DENY)
+                        : SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_RECIRC_DENY)
                 .build();
         return DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
