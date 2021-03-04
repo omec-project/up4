@@ -373,7 +373,7 @@ public class FabricUpfTranslator {
                 .build();
         return DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
-                .forTable(SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES)
+                .forTable(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_RECIRC_RULES)
                 .withSelector(selectorBuilder.build())
                 .withTreatment(DefaultTrafficTreatment.builder().piTableAction(action).build())
                 .withPriority(priority)
