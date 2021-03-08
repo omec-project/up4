@@ -105,6 +105,8 @@ public final class SouthConstants {
             PiTableId.of("FabricIngress.spgw.interfaces");
     public static final PiTableId FABRIC_INGRESS_SPGW_UPLINK_PDRS =
             PiTableId.of("FabricIngress.spgw.uplink_pdrs");
+    public static final PiTableId FABRIC_INGRESS_SPGW_UPLINK_RECIRC_RULES =
+            PiTableId.of("FabricIngress.spgw.uplink_recirc.rules");
     // Indirect Counter IDs
     public static final PiCounterId FABRIC_EGRESS_SPGW_PDR_COUNTER =
             PiCounterId.of("FabricEgress.spgw.pdr_counter");
@@ -194,6 +196,10 @@ public final class SouthConstants {
             PiActionId.of("FabricIngress.spgw.load_pdr_qos");
     public static final PiActionId FABRIC_INGRESS_SPGW_LOAD_TUNNEL_FAR =
             PiActionId.of("FabricIngress.spgw.load_tunnel_far");
+    public static final PiActionId FABRIC_INGRESS_SPGW_UPLINK_RECIRC_ALLOW =
+            PiActionId.of("FabricIngress.spgw.uplink_recirc.allow");
+    public static final PiActionId FABRIC_INGRESS_SPGW_UPLINK_RECIRC_DENY =
+            PiActionId.of("FabricIngress.spgw.uplink_recirc.deny");
     public static final PiActionId NO_ACTION = PiActionId.of("NoAction");
     public static final PiActionId NOP = PiActionId.of("nop");
     // Action Param IDs
