@@ -71,6 +71,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     private final DeviceId deviceId;
 
     // Initialized in init()
+    private PiPipeconf pipeconf;
     private long farTableSize;
     private long encappedPdrTableSize;
     private long unencappedPdrTableSize;
@@ -103,6 +104,14 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Override
     public boolean init(ApplicationId appId, long ueLimit) {
         this.appId = appId;
+
+        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
+        if (optPipeconf.isEmpty()) {
+            log.error("Unable to load piPipeconf for {}", deviceId);
+            return false;
+        }
+        pipeconf = optPipeconf.get();
+
         if (!computeHardwareResourceSizes()) {
             // error message will be printed by computeHardwareResourceSizes()
             return false;
@@ -113,6 +122,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         this.ueLimit = ueLimit;
 
         log.info("UpfProgrammable initialized for appId {} and deviceId {}", appId, deviceId);
+
         return true;
     }
 
@@ -126,13 +136,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         long farTableSize = 0;
         long encappedPdrTableSize = 0;
         long unencappedPdrTableSize = 0;
-        Optional<PiPipeconf> optPipeconf = piPipeconfService.getPipeconf(deviceId);
-        if (optPipeconf.isEmpty()) {
-            log.error("Unable to load piPipeconf for {}, cannot fetch table and counter properties. Sizes will be 0",
-                    deviceId);
-            return false;
-        }
-        PiPipeconf pipeconf = optPipeconf.get();
+
         // Get table sizes of interest
         for (PiTableModel piTable : pipeconf.pipelineModel().tables()) {
             if (piTable.id().equals(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_PDRS)) {
@@ -231,6 +235,15 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         log.info("Clearing all UPF interfaces.");
         for (FlowRule entry : flowRuleService.getFlowEntriesById(appId)) {
             if (upfTranslator.isFabricInterface(entry)) {
+                try {
+                    var iface = upfTranslator.fabricEntryToInterface(entry);
+                    if (iface.isCore()) {
+                        applyUplinkRecirculation(iface.prefix(), true);
+                    }
+                } catch (UpfProgrammableException e) {
+                    log.error("Error when translating interface entry, " +
+                            "will skip removing uplink recirculation rules: {} [{}]", e.getMessage(), entry);
+                }
                 flowRuleService.removeFlowRules(entry);
             }
         }
@@ -454,6 +467,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         log.info("Installing {}", upfInterface);
         flowRuleService.applyFlowRules(flowRule);
         log.debug("Interface added with flowID {}", flowRule.id().value());
+        // By default we enable UE-to-UE communication on the UE subnet identified by the CORE interface.
+        // TODO: allow enabling/disabling UE-to-UE via netcfg or other API.
+        if (upfInterface.isCore()) {
+            applyUplinkRecirculation(upfInterface.prefix(), false);
+        }
     }
 
     private boolean removeEntry(PiCriterion match, PiTableId tableId, boolean failSilent)
@@ -616,6 +634,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     @Override
     public void removeInterface(UpfInterface upfInterface) throws UpfProgrammableException {
         Ip4Prefix ifacePrefix = upfInterface.getPrefix();
+        if (upfInterface.isCore()) {
+            applyUplinkRecirculation(ifacePrefix, true);
+        }
         // If it isn't a core interface (so it is either access or unknown), try removing core
         if (!upfInterface.isCore()) {
             PiCriterion match1 = PiCriterion.builder()
@@ -634,5 +655,27 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 .matchExact(SouthConstants.HDR_GTPU_IS_VALID, 0)
                 .build();
         removeEntry(match2, SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES, false);
+    }
+
+    private void applyUplinkRecirculation(Ip4Prefix subnet, boolean remove) {
+        // FIXME: remove pipeconf check once we will have proper pipeconf behavior for fabric-tna
+        if (pipeconf.pipelineModel().table(SouthConstants.FABRIC_INGRESS_SPGW_UPLINK_RECIRC_RULES).isEmpty()) {
+            log.warn("Missing uplink recirculation table in {}, will not apply UE-to-Ue rules for {}",
+                    deviceId, subnet);
+            return;
+        }
+        log.warn("{} uplink recirculation rules on {} for subnet {}",
+                remove ? "Removing" : "Installing", deviceId, subnet);
+        // By default deny all uplink traffic with IP dst on the given UE subnet
+        FlowRule denyRule = upfTranslator.buildFabricUplinkRecircEntry(
+                deviceId, appId, null, subnet, false, DEFAULT_PRIORITY);
+        // Allow recirculation only for packets with source on the same UE subnet
+        FlowRule allowRule = upfTranslator.buildFabricUplinkRecircEntry(
+                deviceId, appId, subnet, subnet, true, DEFAULT_PRIORITY + 10);
+        if (!remove) {
+            flowRuleService.applyFlowRules(denyRule, allowRule);
+        } else {
+            flowRuleService.removeFlowRules(denyRule, allowRule);
+        }
     }
 }
