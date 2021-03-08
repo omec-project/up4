@@ -28,6 +28,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.Map;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 import java.util.Objects;
 import java.util.Set;
 
@@ -58,6 +60,23 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
     // Local, reversed copy of farIdMapper for better reverse lookup performance
     protected Map<Integer, UpfRuleIdentifier> reverseFarIdMap;
     private int nextGlobalFarId = 1;
+
+    // Mapping between scheduling priority ranges with HW queues
+    // i.e., default queues are 8 for Tofino
+    protected NavigableMap<Integer, Integer> schedulingPriorityMap = new TreeMap<Integer, Integer>();
+    {
+    schedulingPriorityMap.put(0,  0);
+    schedulingPriorityMap.put(8,  1);
+    schedulingPriorityMap.put(17, 2);
+    schedulingPriorityMap.put(25, 3);
+    schedulingPriorityMap.put(33, 4);
+    schedulingPriorityMap.put(41, 5);
+    schedulingPriorityMap.put(49, 6);
+    schedulingPriorityMap.put(57, 7);
+    }
+
+    // Mapping between pfcp session Id and scheduling priority
+    protected ConsistentMap<ImmutableByteSequence, Integer> pfcpSessionSPriorityMap;
 
     protected DistributedSet<UpfRuleIdentifier> bufferFarIds;
     protected ConsistentMap<UpfRuleIdentifier, Set<Ip4Address>> farIdToUeAddrs;
@@ -96,6 +115,7 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
     protected void deactivate() {
         farIdMap.removeListener(farIdMapListener);
         farIdMap.destroy();
+        pfcpSessionSPriorityMap.destroy();
         reverseFarIdMap.clear();
 
         log.info("Stopped");
@@ -106,6 +126,7 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
         farIdMap.clear();
         reverseFarIdMap.clear();
         bufferFarIds.clear();
+        pfcpSessionSPriorityMap.clear();
         farIdToUeAddrs.clear();
         nextGlobalFarId = 0;
     }
@@ -130,6 +151,22 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
         UpfRuleIdentifier farId = new UpfRuleIdentifier(pfcpSessionId, sessionLocalFarId);
         return globalFarIdOf(farId);
 
+    }
+
+    @Override
+    public int queueIdOf(int schedulingPriority) {
+        return schedulingPriorityMap.get(schedulingPriority);
+    }
+
+    @Override
+    public void mappingSessionIdToSPriority(ImmutableByteSequence pfcpSessionId, int schedulingPriority) {
+        pfcpSessionSPriorityMap.put(pfcpSessionId, schedulingPriority);
+    }
+
+    @Override
+    public int schedulingPriorityOf(ImmutableByteSequence pfcpSessionId) {
+        int schedulingPriority = pfcpSessionSPriorityMap.get(pfcpSessionId).value();
+        return schedulingPriority;
     }
 
     @Override
