@@ -190,6 +190,8 @@ public final class SouthConstants {
             PiActionId.of("FabricIngress.spgw.load_normal_far");
     public static final PiActionId FABRIC_INGRESS_SPGW_LOAD_PDR =
             PiActionId.of("FabricIngress.spgw.load_pdr");
+    public static final PiActionId FABRIC_INGRESS_SPGW_LOAD_PDR_QOS =
+            PiActionId.of("FabricIngress.spgw.load_pdr_qos");
     public static final PiActionId FABRIC_INGRESS_SPGW_LOAD_TUNNEL_FAR =
             PiActionId.of("FabricIngress.spgw.load_tunnel_far");
     public static final PiActionId NO_ACTION = PiActionId.of("NoAction");
@@ -198,6 +200,7 @@ public final class SouthConstants {
     public static final PiActionParamId CPU_PORT =
             PiActionParamId.of("cpu_port");
     public static final PiActionParamId CTR_ID = PiActionParamId.of("ctr_id");
+    public static final PiActionParamId QID = PiActionParamId.of("qid");
     public static final PiActionParamId DMAC = PiActionParamId.of("dmac");
     public static final PiActionParamId DROP = PiActionParamId.of("drop");
     public static final PiActionParamId FAR_ID = PiActionParamId.of("far_id");

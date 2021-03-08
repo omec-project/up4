@@ -94,10 +94,11 @@ public class FabricUpfTranslator {
         // Grab keys and parameters that are present for all PDRs
         int globalFarId = FabricUpfTranslatorUtil.getParamInt(action, SouthConstants.FAR_ID);
         UpfRuleIdentifier farId = upfStore.localFarIdOf(globalFarId);
+        int schedulingPriority = upfStore.schedulingPriorityOf(farId.getPfcpSessionId());
         pdrBuilder.withCounterId(FabricUpfTranslatorUtil.getParamInt(action, SouthConstants.CTR_ID))
                 .withLocalFarId(farId.getSessionLocalId())
-                .withSessionId(farId.getPfcpSessionId());
-
+                .withSessionId(farId.getPfcpSessionId())
+                .withSchedulingPriority(schedulingPriority);
         if (FabricUpfTranslatorUtil.fieldIsPresent(match, SouthConstants.HDR_TEID)) {
             // F-TEID is only present for GTP-matching PDRs
             ImmutableByteSequence teid = FabricUpfTranslatorUtil.getFieldValue(match, SouthConstants.HDR_TEID);
@@ -278,12 +279,15 @@ public class FabricUpfTranslator {
         } else {
             throw new UpfProgrammableException("Flexible PDRs not yet supported! Cannot translate " + pdr.toString());
         }
-
+        int globalFarId = upfStore.globalFarIdOf(pdr.sessionId(), pdr.farId());
+        int queueId     = upfStore.queueIdOf(pdr.schedulingPriority());
+        upfStore.mappingSessionIdToSPriority(pdr.sessionId(), pdr.schedulingPriority());
         PiAction action = PiAction.builder()
                 .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
                 .withParameters(Arrays.asList(
                         new PiActionParam(SouthConstants.CTR_ID, pdr.counterId()),
-                        new PiActionParam(SouthConstants.FAR_ID, upfStore.globalFarIdOf(pdr.sessionId(), pdr.farId())),
+                        new PiActionParam(SouthConstants.FAR_ID, globalFarId),
+                        new PiActionParam(SouthConstants.FAR_ID, queueId),
                         new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, pdr.matchesEncapped() ? 1 : 0)
                 ))
                 .build();
