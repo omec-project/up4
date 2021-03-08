@@ -58,6 +58,29 @@ public interface FabricUpfStore {
     UpfRuleIdentifier localFarIdOf(int globalFarId);
 
     /**
+     * Get the corresponding queue Id from scheduling priority
+     *
+     * @param scheduling Priority
+     * @return the corresponding queue ID
+     */
+
+    int queueIdOf(int schedulingPriority);
+
+    /**
+     * Stores the mapping between pfcp session Id and Scheduling Priority
+     * @param pfcpSessionId PFCP session ID and schedulingPriority Scheduling Priority
+     */
+
+    void mappingSessionIdToSPriority(ImmutableByteSequence pfcpSessionId, int schedulingPriority);
+
+    /**
+     * Get scheduling priroity form pfcp session Id
+     * @param pfcpSessionId PFCP session ID
+     */
+
+    int schedulingPriorityOf(ImmutableByteSequence pfcpSessionId);
+
+    /**
      * Stores the mapping between FAR ID and UE address as defined by the given PDR.
      *
      * @param pdr PDR
