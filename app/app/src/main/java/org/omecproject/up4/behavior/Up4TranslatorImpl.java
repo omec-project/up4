@@ -72,9 +72,11 @@ public class Up4TranslatorImpl implements Up4Translator {
         if (actionId.equals(NorthConstants.LOAD_PDR) && !action.parameters().isEmpty()) {
             ImmutableByteSequence sessionId = TranslatorUtil.getParamValue(entry, NorthConstants.SESSION_ID_PARAM);
             int localFarId = TranslatorUtil.getParamInt(entry, NorthConstants.FAR_ID_PARAM);
+            int schedulingPriority = TranslatorUtil.getParamInt(entry, NorthConstants.SCHEDULING_PRIORITY);
             pdrBuilder.withSessionId(sessionId)
                     .withCounterId(TranslatorUtil.getParamInt(entry, NorthConstants.CTR_ID))
-                    .withLocalFarId(localFarId);
+                    .withLocalFarId(localFarId)
+                    .withSchedulingPriority(schedulingPriority);
         }
         return pdrBuilder.build();
     }
@@ -205,6 +207,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                         new PiActionParam(NorthConstants.SESSION_ID_PARAM, pdr.sessionId()),
                         new PiActionParam(NorthConstants.CTR_ID, pdr.counterId()),
                         new PiActionParam(NorthConstants.FAR_ID_PARAM, pdr.farId()),
+                        new PiActionParam(NorthConstants.SCHEDULING_PRIORITY, pdr.schedulingPriority()),
                         new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, toImmutableByte(decapFlag))
                 ))
                 .build();
