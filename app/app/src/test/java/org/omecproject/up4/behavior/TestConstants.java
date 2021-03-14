@@ -44,6 +44,12 @@ public final class TestConstants {
     public static final int UPLINK_PHYSICAL_FAR_ID = 4;
     public static final int DOWNLINK_FAR_ID = 2;
     public static final int DOWNLINK_PHYSICAL_FAR_ID = 5;
+
+    public static final int UPLINK_PRIORITY = 7;
+    public static final int DOWNLINK_PRIORITY = 7;
+    public static final int UPLINK_QID = 1;
+    public static final int DOWNLINK_QID = 1;
+
     public static final ImmutableByteSequence TEID = ImmutableByteSequence.copyFrom(0xff);
     public static final Ip4Address UE_ADDR = Ip4Address.valueOf("17.0.0.1");
     public static final Ip4Address S1U_ADDR = Ip4Address.valueOf("192.168.0.1");
@@ -68,6 +74,7 @@ public final class TestConstants {
             .withLocalFarId(UPLINK_FAR_ID)
             .withSessionId(SESSION_ID)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
+            .withSchedulingPriority(UPLINK_PRIORITY)
             .build();
 
     public static final PacketDetectionRule DOWNLINK_PDR = PacketDetectionRule.builder()
@@ -75,6 +82,7 @@ public final class TestConstants {
             .withLocalFarId(DOWNLINK_FAR_ID)
             .withSessionId(SESSION_ID)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
+            .withSchedulingPriority(DOWNLINK_PRIORITY)
             .build();
 
     public static final ForwardingActionRule UPLINK_FAR = ForwardingActionRule.builder()
@@ -101,12 +109,13 @@ public final class TestConstants {
                             ImmutableByteSequence.copyFrom(S1U_ADDR.toOctets()), ALL_ONES_32))
                     .build())
             .withAction(PiAction.builder()
-                    .withId(NorthConstants.LOAD_PDR)
+                    .withId(NorthConstants.LOAD_PDR_QOS)
                     .withParameters(Arrays.asList(
                             new PiActionParam(NorthConstants.PDR_ID_PARAM, PDR_ID),
                             new PiActionParam(NorthConstants.SESSION_ID_PARAM, SESSION_ID),
                             new PiActionParam(NorthConstants.CTR_ID, UPLINK_COUNTER_CELL_ID),
                             new PiActionParam(NorthConstants.FAR_ID_PARAM, UPLINK_FAR_ID),
+                            new PiActionParam(NorthConstants.SCHEDULING_PRIORITY, UPLINK_PRIORITY),
                             new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, TRUE_BYTE)
                     ))
                     .build())
@@ -121,12 +130,13 @@ public final class TestConstants {
                             ImmutableByteSequence.copyFrom(UE_ADDR.toOctets()), ALL_ONES_32))
                     .build())
             .withAction(PiAction.builder()
-                    .withId(NorthConstants.LOAD_PDR)
+                    .withId(NorthConstants.LOAD_PDR_QOS)
                     .withParameters(Arrays.asList(
                             new PiActionParam(NorthConstants.PDR_ID_PARAM, PDR_ID),
                             new PiActionParam(NorthConstants.SESSION_ID_PARAM, SESSION_ID),
                             new PiActionParam(NorthConstants.CTR_ID, DOWNLINK_COUNTER_CELL_ID),
                             new PiActionParam(NorthConstants.FAR_ID_PARAM, DOWNLINK_FAR_ID),
+                            new PiActionParam(NorthConstants.SCHEDULING_PRIORITY, DOWNLINK_PRIORITY),
                             new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, FALSE_BYTE)
                     ))
                     .build())
@@ -214,6 +224,7 @@ public final class TestConstants {
                             new PiActionParam(SouthConstants.CTR_ID, UPLINK_COUNTER_CELL_ID),
                             new PiActionParam(SouthConstants.FAR_ID, UPLINK_PHYSICAL_FAR_ID),
                             new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, 1)
+                            //new PiActionParam(SouthConstants.QID, DOWNLINK_QID)
                     ))
                     .build()).build())
             .withPriority(DEFAULT_PRIORITY)
@@ -226,11 +237,12 @@ public final class TestConstants {
                     .matchExact(SouthConstants.HDR_UE_ADDR, UE_ADDR.toInt())
                     .build()).build())
             .withTreatment(DefaultTrafficTreatment.builder().piTableAction(PiAction.builder()
-                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
+                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR_QOS)
                     .withParameters(Arrays.asList(
                             new PiActionParam(SouthConstants.CTR_ID, DOWNLINK_COUNTER_CELL_ID),
                             new PiActionParam(SouthConstants.FAR_ID, DOWNLINK_PHYSICAL_FAR_ID),
-                            new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, 0)
+                            new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, 0),
+                            new PiActionParam(SouthConstants.QID, DOWNLINK_QID)
                     ))
                     .build()).build())
             .withPriority(DEFAULT_PRIORITY)

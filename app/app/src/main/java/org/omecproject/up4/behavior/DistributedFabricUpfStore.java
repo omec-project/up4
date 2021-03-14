@@ -50,6 +50,7 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
     protected static final String FAR_ID_MAP_NAME = "fabric-upf-far-id";
     protected static final String BUFFER_FAR_ID_SET_NAME = "fabric-upf-buffer-far-id";
     protected static final String FAR_ID_UE_MAP_NAME = "fabric-upf-far-id-ue";
+    protected static final String SESSION_PRIORITY_MAP_NAME = "fabric-session-priority";
     protected static final KryoNamespace.Builder SERIALIZER = KryoNamespace.newBuilder()
             .register(KryoNamespaces.API)
             .register(UpfRuleIdentifier.class);
@@ -87,6 +88,11 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
         if (storageService != null) {
             this.farIdMap = storageService.<UpfRuleIdentifier, Integer>consistentMapBuilder()
                     .withName(FAR_ID_MAP_NAME)
+                    .withRelaxedReadConsistency()
+                    .withSerializer(Serializer.using(SERIALIZER.build()))
+                    .build();
+            this.pfcpSessionSPriorityMap = storageService.<ImmutableByteSequence, Integer>consistentMapBuilder()
+                    .withName(SESSION_PRIORITY_MAP_NAME)
                     .withRelaxedReadConsistency()
                     .withSerializer(Serializer.using(SERIALIZER.build()))
                     .build();
@@ -155,7 +161,7 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
 
     @Override
     public int queueIdOf(int schedulingPriority) {
-        return schedulingPriorityMap.get(schedulingPriority);
+        return schedulingPriorityMap.floorEntry(schedulingPriority).getValue();
     }
 
     @Override
