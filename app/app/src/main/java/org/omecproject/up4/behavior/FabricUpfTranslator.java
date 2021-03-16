@@ -100,9 +100,11 @@ public class FabricUpfTranslator {
         PiActionId actionId = action.id();
 
         if (actionId.equals(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)) {
+                int schedulingPriority = 60;
                 pdrBuilder.withCounterId(FabricUpfTranslatorUtil.getParamInt(action, SouthConstants.CTR_ID))
                 .withLocalFarId(farId.getSessionLocalId())
-                .withSessionId(farId.getPfcpSessionId());
+                .withSessionId(farId.getPfcpSessionId())
+                .withSchedulingPriority(schedulingPriority);
         } else {
                 int schedulingPriority = upfStore.schedulingPriorityOf(farId.getPfcpSessionId());
                 pdrBuilder.withCounterId(FabricUpfTranslatorUtil.getParamInt(action, SouthConstants.CTR_ID))

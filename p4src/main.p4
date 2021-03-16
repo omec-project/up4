@@ -297,8 +297,8 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                                   fseid_t           fseid,
                                   counter_index_t   ctr_id,
                                   far_id_t          far_id,
-                                  bit<1>            needs_gtpu_decap,
-                                  scheduling_priority_t    scheduling_priority
+                                  scheduling_priority_t    scheduling_priority,
+                                  bit<1>            needs_gtpu_decap
                                  )
     {
         set_pdr_attributes(id, fseid, ctr_id, far_id, needs_gtpu_decap);

@@ -9,7 +9,7 @@
         ["userMetadata._direction0", 8, false],
         ["userMetadata._teid1", 32, false],
         ["userMetadata._fseid2", 96, false],
-        ["userMetadata._scheduling_priority3", 8, false],
+        ["userMetadata._scheduling_priority3", 32, false],
         ["userMetadata._next_hop_ip4", 32, false],
         ["userMetadata._needs_gtpu_decap5", 1, false],
         ["userMetadata._needs_udp_decap6", 1, false],
@@ -2398,12 +2398,12 @@
           "bitwidth" : 32
         },
         {
-          "name" : "needs_gtpu_decap",
-          "bitwidth" : 1
+          "name" : "scheduling_priority",
+          "bitwidth" : 32
         },
         {
-          "name" : "scheduling_priority",
-          "bitwidth" : 8
+          "name" : "needs_gtpu_decap",
+          "bitwidth" : 1
         }
       ],
       "primitives" : [
@@ -2503,7 +2503,7 @@
                       "op" : "!=",
                       "left" : {
                         "type" : "local",
-                        "value" : 4
+                        "value" : 5
                       },
                       "right" : {
                         "type" : "hexstr",
@@ -2531,7 +2531,7 @@
             },
             {
               "type" : "runtime_data",
-              "value" : 5
+              "value" : 4
             }
           ],
           "source_info" : {

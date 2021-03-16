@@ -361,8 +361,8 @@ public final class PacketDetectionRule {
                             (ueAddr == null && teid != null && tunnelDst != null),
                     "Either a UE address or a TEID and Tunnel destination must be provided, but not both.");
             // Action parameters are optional but must be all provided together if they are provided
-            checkArgument((sessionId != null && ctrId != null && localFarId != null) ||
-                            (sessionId == null && ctrId == null && localFarId == null),
+            checkArgument((sessionId != null && ctrId != null && localFarId != null && schedulingPriority != null) ||
+                            (sessionId == null && ctrId == null && localFarId == null && schedulingPriority == null),
                     "PDR action parameters must be provided together or not at all.");
             Type type;
             if (teid != null) {
@@ -378,8 +378,8 @@ public final class PacketDetectionRule {
                     type = Type.MATCH_UNENCAPPED_NO_ACTION;
                 }
             }
-            return new PacketDetectionRule(sessionId, ctrId, localFarId, schedulingPriority, ueAddr,
-                                           teid, tunnelDst, type);
+            return new PacketDetectionRule(sessionId, ctrId, localFarId, schedulingPriority,
+                                          ueAddr, teid, tunnelDst, type);
         }
     }
 }

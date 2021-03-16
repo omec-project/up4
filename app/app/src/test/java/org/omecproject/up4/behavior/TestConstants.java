@@ -45,7 +45,7 @@ public final class TestConstants {
     public static final int DOWNLINK_FAR_ID = 2;
     public static final int DOWNLINK_PHYSICAL_FAR_ID = 5;
 
-    public static final int UPLINK_PRIORITY = 7;
+    public static final int UPLINK_PRIORITY = 60;
     public static final int DOWNLINK_PRIORITY = 7;
     public static final int UPLINK_QID = 1;
     public static final int DOWNLINK_QID = 1;

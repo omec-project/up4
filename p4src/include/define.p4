@@ -48,7 +48,7 @@ typedef bit<32> bar_id_t;
 typedef bit<32> qfi_t;
 typedef bit<32> net_instance_t;
 typedef bit<32> counter_index_t;
-typedef bit<8>  scheduling_priority_t;
+typedef bit<32>  scheduling_priority_t;
 
 
 typedef bit<32> teid_t;

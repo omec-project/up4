@@ -419,13 +419,13 @@ actions {
   }
   params {
     id: 5
-    name: "needs_gtpu_decap"
-    bitwidth: 1
+    name: "scheduling_priority"
+    bitwidth: 32
   }
   params {
     id: 6
-    name: "scheduling_priority"
-    bitwidth: 8
+    name: "needs_gtpu_decap"
+    bitwidth: 1
   }
 }
 actions {
