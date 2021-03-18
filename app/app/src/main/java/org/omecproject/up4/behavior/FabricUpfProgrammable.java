@@ -452,11 +452,15 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         flowRuleService.applyFlowRules(fabricFar);
         log.debug("FAR added with flowID {}", fabricFar.id().value());
         if (!far.buffers() && upfStore.isFarIdBuffering(ruleId)) {
-            // If this FAR does not buffer but used to, then drain all relevant buffers
+            // If this FAR does not buffer but used to, then drain the buffer for every UE address
+            // that hits this FAR.
             upfStore.forgetBufferingFarId(ruleId);
             for (var ueAddr : upfStore.ueAddrsOfFarId(ruleId)) {
-                // Drain the buffer for every UE address that hits this FAR
-                bufferDrainer.drain(ueAddr);
+                if (bufferDrainer == null) {
+                    log.warn("Unable to drain downlink buffer for UE {}, bufferDrainer is null", ueAddr);
+                } else {
+                    bufferDrainer.drain(ueAddr);
+                }
             }
         }
     }
