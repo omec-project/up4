@@ -293,12 +293,12 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.needs_gtpu_decap     = (bool)needs_gtpu_decap;
     }
 
-    action set_pdr_attributes_qos(pdr_id_t          id,
-                                  fseid_t           fseid,
-                                  counter_index_t   ctr_id,
-                                  far_id_t          far_id,
+    action set_pdr_attributes_qos(pdr_id_t                 id,
+                                  fseid_t                  fseid,
+                                  counter_index_t          ctr_id,
+                                  far_id_t                 far_id,
                                   scheduling_priority_t    scheduling_priority,
-                                  bit<1>            needs_gtpu_decap
+                                  bit<1>                   needs_gtpu_decap
                                  )
     {
         set_pdr_attributes(id, fseid, ctr_id, far_id, needs_gtpu_decap);

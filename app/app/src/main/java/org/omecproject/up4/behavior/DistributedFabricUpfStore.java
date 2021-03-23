@@ -26,10 +26,10 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.stream.Collectors;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.NavigableMap;
-import java.util.TreeMap;
 import java.util.Objects;
 import java.util.Set;
 
@@ -50,7 +50,6 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
     protected static final String FAR_ID_MAP_NAME = "fabric-upf-far-id";
     protected static final String BUFFER_FAR_ID_SET_NAME = "fabric-upf-buffer-far-id";
     protected static final String FAR_ID_UE_MAP_NAME = "fabric-upf-far-id-ue";
-    protected static final String SESSION_PRIORITY_MAP_NAME = "fabric-session-priority";
     protected static final KryoNamespace.Builder SERIALIZER = KryoNamespace.newBuilder()
             .register(KryoNamespaces.API)
             .register(UpfRuleIdentifier.class);
@@ -62,22 +61,23 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
     protected Map<Integer, UpfRuleIdentifier> reverseFarIdMap;
     private int nextGlobalFarId = 1;
 
-    // Mapping between scheduling priority ranges with HW queues
-    // i.e., default queues are 8 for Tofino
-    protected NavigableMap<Integer, Integer> schedulingPriorityMap = new TreeMap<Integer, Integer>();
+    // Mapping between scheduling priority ranges with Tofino priority queues
+    // i.e., default queues are 8 in Tofino
+    protected Map<Integer, Integer> schedulingPriorityMap = new HashMap<Integer, Integer>();
     {
-    schedulingPriorityMap.put(0,  0);
-    schedulingPriorityMap.put(8,  1);
-    schedulingPriorityMap.put(17, 2);
-    schedulingPriorityMap.put(25, 3);
-    schedulingPriorityMap.put(33, 4);
-    schedulingPriorityMap.put(41, 5);
-    schedulingPriorityMap.put(49, 6);
-    schedulingPriorityMap.put(57, 7);
+    schedulingPriorityMap.put(1, 5);     // scheduling priority 1 map with Tofino priority 5
+    schedulingPriorityMap.put(6, 4);     // scheduling priority 6 map with Tofino priority 4
+    schedulingPriorityMap.put(7, 3);     // scheduling priority 7 map with Tofino priority 3
+    schedulingPriorityMap.put(8, 2);     // scheduling priority 8 map with Tofino priroity 2
+    schedulingPriorityMap.put(9, 1);     // scheduling priority 9 map with Tofino priority 1
     }
 
-    // Mapping between pfcp session Id and scheduling priority
-    protected ConsistentMap<ImmutableByteSequence, Integer> pfcpSessionSPriorityMap;
+    // Reverse Mapping of schedulingPriorityMap
+    protected Map<Integer, Integer> reverseSchedulingPriorityMap =
+              schedulingPriorityMap.entrySet()
+                                   .stream()
+                                   .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
+
 
     protected DistributedSet<UpfRuleIdentifier> bufferFarIds;
     protected ConsistentMap<UpfRuleIdentifier, Set<Ip4Address>> farIdToUeAddrs;
@@ -88,11 +88,6 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
         if (storageService != null) {
             this.farIdMap = storageService.<UpfRuleIdentifier, Integer>consistentMapBuilder()
                     .withName(FAR_ID_MAP_NAME)
-                    .withRelaxedReadConsistency()
-                    .withSerializer(Serializer.using(SERIALIZER.build()))
-                    .build();
-            this.pfcpSessionSPriorityMap = storageService.<ImmutableByteSequence, Integer>consistentMapBuilder()
-                    .withName(SESSION_PRIORITY_MAP_NAME)
                     .withRelaxedReadConsistency()
                     .withSerializer(Serializer.using(SERIALIZER.build()))
                     .build();
@@ -121,7 +116,6 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
     protected void deactivate() {
         farIdMap.removeListener(farIdMapListener);
         farIdMap.destroy();
-        pfcpSessionSPriorityMap.destroy();
         reverseFarIdMap.clear();
 
         log.info("Stopped");
@@ -133,7 +127,6 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
         reverseFarIdMap.clear();
         bufferFarIds.clear();
         farIdToUeAddrs.clear();
-        pfcpSessionSPriorityMap.clear();
         nextGlobalFarId = 0;
     }
 
@@ -161,18 +154,12 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
 
     @Override
     public int queueIdOf(int schedulingPriority) {
-        return schedulingPriorityMap.floorEntry(schedulingPriority).getValue();
+        return schedulingPriorityMap.get(schedulingPriority);
     }
 
     @Override
-    public void mappingSessionIdToSPriority(ImmutableByteSequence pfcpSessionId, int schedulingPriority) {
-        pfcpSessionSPriorityMap.put(pfcpSessionId, schedulingPriority);
-    }
-
-    @Override
-    public int schedulingPriorityOf(ImmutableByteSequence pfcpSessionId) {
-        int schedulingPriority = pfcpSessionSPriorityMap.get(pfcpSessionId).value();
-        return schedulingPriority;
+    public int schedulingPriroityOf(int queueId) {
+        return reverseSchedulingPriorityMap.get(queueId);
     }
 
     @Override
