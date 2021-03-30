@@ -72,9 +72,11 @@ public class Up4TranslatorImpl implements Up4Translator {
         if (actionId.equals(NorthConstants.LOAD_PDR) && !action.parameters().isEmpty()) {
             ImmutableByteSequence sessionId = TranslatorUtil.getParamValue(entry, NorthConstants.SESSION_ID_PARAM);
             int localFarId = TranslatorUtil.getParamInt(entry, NorthConstants.FAR_ID_PARAM);
+            int schedulingPriority = 0;
             pdrBuilder.withSessionId(sessionId)
                     .withCounterId(TranslatorUtil.getParamInt(entry, NorthConstants.CTR_ID))
-                    .withLocalFarId(localFarId);
+                    .withLocalFarId(localFarId)
+                    .withSchedulingPriority(schedulingPriority);
         } else if (actionId.equals(NorthConstants.LOAD_PDR_QOS) && !action.parameters().isEmpty()) {
             ImmutableByteSequence sessionId = TranslatorUtil.getParamValue(entry, NorthConstants.SESSION_ID_PARAM);
             int localFarId = TranslatorUtil.getParamInt(entry, NorthConstants.FAR_ID_PARAM);
