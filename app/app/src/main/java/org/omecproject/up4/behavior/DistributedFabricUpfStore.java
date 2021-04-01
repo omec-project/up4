@@ -5,6 +5,8 @@
 
 package org.omecproject.up4.behavior;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Maps;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.UpfRuleIdentifier;
@@ -26,8 +28,6 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.stream.Collectors;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
@@ -63,21 +63,15 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
 
     // Mapping between scheduling priority ranges with Tofino priority queues
     // i.e., default queues are 8 in Tofino
-    protected Map<Integer, Integer> schedulingPriorityMap = new HashMap<Integer, Integer>();
+    protected BiMap<Integer, Integer> schedulingPriorityMap = HashBiMap.create();
     {
-    schedulingPriorityMap.put(1, 5);     // scheduling priority 1 map with Tofino priority 5
-    schedulingPriorityMap.put(6, 4);     // scheduling priority 6 map with Tofino priority 4
-    schedulingPriorityMap.put(7, 3);     // scheduling priority 7 map with Tofino priority 3
-    schedulingPriorityMap.put(8, 2);     // scheduling priority 8 map with Tofino priroity 2
-    schedulingPriorityMap.put(9, 1);     // scheduling priority 9 map with Tofino priority 1
+    // Highest scheduling priority is 1 and highest Tofino queue priority is 7
+    schedulingPriorityMap.put(1, 5);
+    schedulingPriorityMap.put(6, 4);
+    schedulingPriorityMap.put(7, 3);
+    schedulingPriorityMap.put(8, 2);
+    schedulingPriorityMap.put(9, 1);
     }
-
-    // Reverse Mapping of schedulingPriorityMap
-    protected Map<Integer, Integer> reverseSchedulingPriorityMap =
-              schedulingPriorityMap.entrySet()
-                                   .stream()
-                                   .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
-
 
     protected DistributedSet<UpfRuleIdentifier> bufferFarIds;
     protected ConsistentMap<UpfRuleIdentifier, Set<Ip4Address>> farIdToUeAddrs;
@@ -159,7 +153,7 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
 
     @Override
     public int schedulingPriroityOf(int queueId) {
-        return reverseSchedulingPriorityMap.get(queueId);
+        return schedulingPriorityMap.inverse().get(queueId);
     }
 
     @Override
