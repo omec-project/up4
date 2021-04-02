@@ -63,7 +63,6 @@ public interface FabricUpfStore {
      * @param schedulingPriority QCI scheduling priority
      * @return the corresponding queue ID
      */
-
     int queueIdOf(int schedulingPriority);
 
     /**

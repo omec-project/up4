@@ -67,7 +67,7 @@ public final class PacketDetectionRule {
     public String toString() {
         String actionParams = "";
         if (hasActionParameters()) {
-            actionParams = String.format("SEID=%s, FAR=%d, CtrIdx=%d, SchedulingPriority=%d",
+            actionParams = String.format("SEID=%s, FAR=%d, CtrIdx=%d, SchedulingPrio=%d",
                     sessionId.toString(), farId, ctrId, schedulingPriority);
         }
 

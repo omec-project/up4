@@ -6,7 +6,7 @@
 package org.omecproject.up4.behavior;
 
 import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.Maps;
 import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.UpfRuleIdentifier;
@@ -54,24 +54,24 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
             .register(KryoNamespaces.API)
             .register(UpfRuleIdentifier.class);
 
+    // Mapping between scheduling priority ranges with Tofino priority queues
+    // i.e., default queues are 8 in Tofino
+    private static final BiMap<Integer, Integer> SCHEDULING_PRIORITY_MAP
+            = new ImmutableBiMap.Builder<Integer, Integer>()
+            // Highest scheduling priority for 3GPP is 1 and highest Tofino queue priority is 7
+            .put(1, 5)
+            .put(6, 4)
+            .put(7, 3)
+            .put(8, 2)
+            .put(9, 1)
+            .build();
+
     // Distributed local FAR ID to global FAR ID mapping
     protected ConsistentMap<UpfRuleIdentifier, Integer> farIdMap;
     private MapEventListener<UpfRuleIdentifier, Integer> farIdMapListener;
     // Local, reversed copy of farIdMapper for better reverse lookup performance
     protected Map<Integer, UpfRuleIdentifier> reverseFarIdMap;
     private int nextGlobalFarId = 1;
-
-    // Mapping between scheduling priority ranges with Tofino priority queues
-    // i.e., default queues are 8 in Tofino
-    protected BiMap<Integer, Integer> schedulingPriorityMap = HashBiMap.create();
-    {
-    // Highest scheduling priority is 1 and highest Tofino queue priority is 7
-    schedulingPriorityMap.put(1, 5);
-    schedulingPriorityMap.put(6, 4);
-    schedulingPriorityMap.put(7, 3);
-    schedulingPriorityMap.put(8, 2);
-    schedulingPriorityMap.put(9, 1);
-    }
 
     protected DistributedSet<UpfRuleIdentifier> bufferFarIds;
     protected ConsistentMap<UpfRuleIdentifier, Set<Ip4Address>> farIdToUeAddrs;
@@ -148,12 +148,12 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
 
     @Override
     public int queueIdOf(int schedulingPriority) {
-        return schedulingPriorityMap.get(schedulingPriority);
+        return SCHEDULING_PRIORITY_MAP.get(schedulingPriority);
     }
 
     @Override
     public int schedulingPriroityOf(int queueId) {
-        return schedulingPriorityMap.inverse().get(queueId);
+        return SCHEDULING_PRIORITY_MAP.inverse().get(queueId);
     }
 
     @Override
