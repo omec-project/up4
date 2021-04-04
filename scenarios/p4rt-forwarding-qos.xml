@@ -2,36 +2,36 @@
  ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
  ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
   -->
-<scenario name="p4rt-forwarding" description="Forwarding test using p4runtime messages">
-    <group name="P4rt-Forwarding">
+<scenario name="p4rt-forwarding-qos" description="QoS based Forwarding test using p4runtime messages">
+    <group name="P4rt-Forwarding-Qos">
         <group name="P4rt-Program">
-            <step name="P4rt-Set-Fwd"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program"/>
-            <step name="Check-Up4-Flows-Fwd" requires="^"
+            <step name="P4rt-Set-Fwd-Qos"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows --qos 1 program"/>
+            <step name="Check-Up4-Flows-Fwd-Qos" requires="^"
                   exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
-            <step name="Check-Flow-Rule-Qid" requires="^"
+            <step name="Check-Flow-Rules-Qid" requires="^"
                   exec="onos-cli-grep ${OCI} flows 'qid=0x5'"/>
-            <step name="Check-Flow-Rules-Fwd" requires="^" delay="5"
+            <step name="Check-Flow-Rules-Fwd-Qos" requires="^" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
-        <group name="Check-Traffic-Fwd" requires="P4rt-Program">
+        <group name="Check-Traffic-Fwd-Qos" requires="P4rt-Program">
             <!-- Downlink -->
-            <step name="Downlink-Enb-Recv-Gtp-Fwd" requires="P4rt-Program"
+            <step name="Downlink-Enb-Recv-Gtp-Fwd-Qos" requires="P4rt-Program"
                   exec="mn-cmd enodeb traffic.py recv-gtp -t 10"/>
-            <step name="Downlink-Pdn-Send-Udp-Fwd" requires="P4rt-Program" delay="5"
+            <step name="Downlink-Pdn-Send-Udp-Fwd-Qos" requires="P4rt-Program" delay="5"
                   exec="mn-cmd pdn traffic.py send-udp -c 10"/>
             <!-- Uplink -->
-            <step name="Uplink-Pdn-Recv-Udp-Fwd" requires="P4rt-Program"
+            <step name="Uplink-Pdn-Recv-Udp-Fwd-Qos" requires="P4rt-Program"
                   exec="mn-cmd pdn traffic.py recv-udp -t 10"/>
-            <step name="Uplink-Enb-Send-Gtp-Fwd" requires="P4rt-Program" delay="5"
+            <step name="Uplink-Enb-Send-Gtp-Fwd-Qos" requires="P4rt-Program" delay="5"
                   exec="mn-cmd enodeb traffic.py send-gtp -c 10"/>
         </group>
-        <group name="P4rt-Clear-Fwd" requires="~Check-Traffic-Fwd">
-            <step name="P4rt-Unset-Fwd" requires="~Check-Traffic-Fwd"
+        <group name="P4rt-Clear-Fwd-Qos" requires="~Check-Traffic-Fwd-Qos">
+            <step name="P4rt-Unset-Fwd-Qos" requires="~Check-Traffic-Fwd-Qos"
                   exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows clear"/>
-            <step name="Check-Up4-Flows-Fwd-Cleared" requires="^"
+            <step name="Check-Up4-Flows-Fwd-Qos-Cleared" requires="^"
                   exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
-            <step name="Check-Flow-Rules-Fwd-Cleared" requires="^" delay="5"
+            <step name="Check-Flow-Rules-Fwd-Qos-Cleared" requires="^" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
     </group>

@@ -150,7 +150,7 @@ These scenarios combine setup, single tests, and teardown all in one. Useful for
 scenarios in one test
 
 **smoke.xml**
-* Combines the `setup.xml`, `net-setup.xml`, `smf-setup`, `pfcp-forwarding`, `pfcp-buffering`,
+* Combines the `setup.xml`, `net-setup.xml`, `smf-setup`, `p4rt-forwarding-qos.xml`, `pfcp-forwarding`, `pfcp-buffering`,
  `smf-failure.xml`, `pfcp-agent-failure`,
  `smf-teardown.xml`, and`teardown.xml` scenarios in one test
 

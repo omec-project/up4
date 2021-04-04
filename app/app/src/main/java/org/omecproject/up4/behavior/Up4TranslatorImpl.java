@@ -69,20 +69,23 @@ public class Up4TranslatorImpl implements Up4Translator {
         // Now get the action parameters, if they are present (entries from delete writes don't have parameters)
         PiAction action = (PiAction) entry.action();
         PiActionId actionId = action.id();
-        ImmutableByteSequence sessionId = TranslatorUtil.getParamValue(entry, NorthConstants.SESSION_ID_PARAM);
-        int localFarId = TranslatorUtil.getParamInt(entry, NorthConstants.FAR_ID_PARAM);
         if (actionId.equals(NorthConstants.LOAD_PDR) && !action.parameters().isEmpty()) {
+            ImmutableByteSequence sessionId = TranslatorUtil.getParamValue(entry, NorthConstants.SESSION_ID_PARAM);
+            int localFarId = TranslatorUtil.getParamInt(entry, NorthConstants.FAR_ID_PARAM);
             int schedulingPriority = 0;
-            pdrBuilder.withSchedulingPriority(schedulingPriority);
+            pdrBuilder.withSessionId(sessionId)
+                      .withCounterId(TranslatorUtil.getParamInt(entry, NorthConstants.CTR_ID))
+                      .withLocalFarId(localFarId)
+                      .withSchedulingPriority(schedulingPriority);
         } else if (actionId.equals(NorthConstants.LOAD_PDR_QOS) && !action.parameters().isEmpty()) {
+            ImmutableByteSequence sessionId = TranslatorUtil.getParamValue(entry, NorthConstants.SESSION_ID_PARAM);
+            int localFarId = TranslatorUtil.getParamInt(entry, NorthConstants.FAR_ID_PARAM);
             int schedulingPriority = TranslatorUtil.getParamInt(entry, NorthConstants.SCHEDULING_PRIORITY);
-            pdrBuilder.withSchedulingPriority(schedulingPriority);
-        } else {
-            throw new Up4TranslationException("The action Id is not matching with the existing action Ids.");
+            pdrBuilder.withSessionId(sessionId)
+                      .withCounterId(TranslatorUtil.getParamInt(entry, NorthConstants.CTR_ID))
+                      .withLocalFarId(localFarId)
+                      .withSchedulingPriority(schedulingPriority);
         }
-        pdrBuilder.withSessionId(sessionId)
-                .withCounterId(TranslatorUtil.getParamInt(entry, NorthConstants.CTR_ID))
-                .withLocalFarId(localFarId);
         return pdrBuilder.build();
     }
 
