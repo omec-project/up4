@@ -208,26 +208,21 @@ public class Up4TranslatorImpl implements Up4Translator {
                     .build();
         }
         // FIXME: pdr_id is not yet stored on writes so it cannot be read
+        PiAction.Builder builder = PiAction.builder()
+                                .withParameters(Arrays.asList(
+                                        new PiActionParam(NorthConstants.SESSION_ID_PARAM, pdr.sessionId()),
+                                        new PiActionParam(NorthConstants.CTR_ID, pdr.counterId()),
+                                        new PiActionParam(NorthConstants.FAR_ID_PARAM, pdr.farId()),
+                                        new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, toImmutableByte(decapFlag))
+                                 ));
         if (pdr.schedulingPriority() > 0) {
-            action = PiAction.builder()
+            action = builder
                     .withId(NorthConstants.LOAD_PDR_QOS)
-                    .withParameters(Arrays.asList(
-                            new PiActionParam(NorthConstants.SESSION_ID_PARAM, pdr.sessionId()),
-                            new PiActionParam(NorthConstants.CTR_ID, pdr.counterId()),
-                            new PiActionParam(NorthConstants.FAR_ID_PARAM, pdr.farId()),
-                            new PiActionParam(NorthConstants.SCHEDULING_PRIORITY, pdr.schedulingPriority()),
-                            new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, toImmutableByte(decapFlag))
-                    ))
+                    .withParameter(new PiActionParam(NorthConstants.SCHEDULING_PRIORITY, pdr.schedulingPriority()))
                     .build();
         } else {
-            action = PiAction.builder()
+            action = builder
                     .withId(NorthConstants.LOAD_PDR)
-                    .withParameters(Arrays.asList(
-                            new PiActionParam(NorthConstants.SESSION_ID_PARAM, pdr.sessionId()),
-                            new PiActionParam(NorthConstants.CTR_ID, pdr.counterId()),
-                            new PiActionParam(NorthConstants.FAR_ID_PARAM, pdr.farId()),
-                            new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, toImmutableByte(decapFlag))
-                    ))
                     .build();
         }
         return PiTableEntry.builder()

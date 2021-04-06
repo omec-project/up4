@@ -114,8 +114,8 @@ public final class TestConstants {
                             new PiActionParam(NorthConstants.SESSION_ID_PARAM, SESSION_ID),
                             new PiActionParam(NorthConstants.CTR_ID, UPLINK_COUNTER_CELL_ID),
                             new PiActionParam(NorthConstants.FAR_ID_PARAM, UPLINK_FAR_ID),
-                            new PiActionParam(NorthConstants.SCHEDULING_PRIORITY, UPLINK_PRIORITY),
-                            new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, TRUE_BYTE)
+                            new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, TRUE_BYTE),
+                            new PiActionParam(NorthConstants.SCHEDULING_PRIORITY, UPLINK_PRIORITY)
                     ))
                     .build())
             .build();
@@ -134,8 +134,8 @@ public final class TestConstants {
                             new PiActionParam(NorthConstants.SESSION_ID_PARAM, SESSION_ID),
                             new PiActionParam(NorthConstants.CTR_ID, DOWNLINK_COUNTER_CELL_ID),
                             new PiActionParam(NorthConstants.FAR_ID_PARAM, DOWNLINK_FAR_ID),
-                            new PiActionParam(NorthConstants.SCHEDULING_PRIORITY, DOWNLINK_PRIORITY),
-                            new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, FALSE_BYTE)
+                            new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, FALSE_BYTE),
+                            new PiActionParam(NorthConstants.SCHEDULING_PRIORITY, DOWNLINK_PRIORITY)
                     ))
                     .build())
             .build();

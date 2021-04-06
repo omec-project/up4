@@ -124,7 +124,6 @@ public class FabricUpfTranslator {
         } else {
             throw new UpfProgrammableException("Read malformed PDR from dataplane!:" + entry);
         }
-
         return pdrBuilder.build();
     }
 
@@ -295,25 +294,21 @@ public class FabricUpfTranslator {
             throw new UpfProgrammableException("Flexible PDRs not yet supported! Cannot translate " + pdr.toString());
         }
 
-        if (pdr.schedulingPriority() > 0) {
-            int queueId = upfStore.queueIdOf(pdr.schedulingPriority());
-            action = PiAction.builder()
-                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR_QOS)
-                    .withParameters(Arrays.asList(
-                         new PiActionParam(SouthConstants.CTR_ID, pdr.counterId()),
-                         new PiActionParam(SouthConstants.FAR_ID, upfStore.globalFarIdOf(pdr.sessionId(), pdr.farId())),
-                         new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, pdr.matchesEncapped() ? 1 : 0),
-                         new PiActionParam(SouthConstants.QID, queueId)
-                    ))
-                    .build();
-        } else {
-            action = PiAction.builder()
-                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
+        PiAction.Builder builder = PiAction.builder()
                     .withParameters(Arrays.asList(
                          new PiActionParam(SouthConstants.CTR_ID, pdr.counterId()),
                          new PiActionParam(SouthConstants.FAR_ID, upfStore.globalFarIdOf(pdr.sessionId(), pdr.farId())),
                          new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, pdr.matchesEncapped() ? 1 : 0)
-                    ))
+                                ));
+        if (pdr.schedulingPriority() > 0) {
+            int queueId = upfStore.queueIdOf(pdr.schedulingPriority());
+            action = builder
+                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR_QOS)
+                    .withParameter(new PiActionParam(SouthConstants.QID, queueId))
+                    .build();
+        } else {
+            action = builder
+                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
                     .build();
         }
         return DefaultFlowRule.builder()
