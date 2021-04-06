@@ -191,5 +191,14 @@ public class Up4TranslatorImplTest {
         assertThat(translatedRule, equalTo(expectedRule));
     }
 
-
+    @Test
+    public void invalidUp4EntryToDownlinkFarTest() {
+        try {
+            up4Translator.up4EntryToFar(TestConstants.INVALID_UP4_DOWNLINK_FAR);
+        } catch (Up4Translator.Up4TranslationException e) {
+            assertThat(e.getMessage(), equalTo("Forward + NotifyCP action is not allowed."));
+            return;
+        }
+        assertThat("The translator should throw an exception", false);
+    }
 }

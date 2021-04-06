@@ -94,16 +94,24 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiActionId actionId = action.id();
         if (!action.parameters().isEmpty()) {
             // Parameters that all types of fars have
-            farBuilder.setDropFlag(TranslatorUtil.getParamInt(entry, NorthConstants.DROP_FLAG) > 0)
-                    .setNotifyFlag(TranslatorUtil.getParamInt(entry, NorthConstants.NOTIFY_FLAG) > 0);
-            if (actionId.equals(NorthConstants.LOAD_FAR_TUNNEL)) {
+            boolean dropFlag = TranslatorUtil.getParamInt(entry, NorthConstants.DROP_FLAG) > 0;
+            boolean notifyFlag = TranslatorUtil.getParamInt(entry, NorthConstants.NOTIFY_FLAG) > 0;
+            boolean tunnelFlag = actionId.equals(NorthConstants.LOAD_FAR_TUNNEL);
+            boolean bufferFlag = false;
+            farBuilder.setDropFlag(dropFlag).setNotifyFlag(notifyFlag);
+            if (tunnelFlag) {
                 // Parameters exclusive to encapsulating FARs
+                bufferFlag = TranslatorUtil.getParamInt(entry, NorthConstants.BUFFER_FLAG) > 0;
                 farBuilder.setTunnel(
                         TranslatorUtil.getParamAddress(entry, NorthConstants.TUNNEL_SRC_PARAM),
                         TranslatorUtil.getParamAddress(entry, NorthConstants.TUNNEL_DST_PARAM),
                         TranslatorUtil.getParamValue(entry, NorthConstants.TEID_PARAM),
                         (short) TranslatorUtil.getParamInt(entry, NorthConstants.TUNNEL_SPORT_PARAM))
-                        .setBufferFlag(TranslatorUtil.getParamInt(entry, NorthConstants.BUFFER_FLAG) > 0);
+                        .setBufferFlag(bufferFlag);
+            }
+            if (!dropFlag && !tunnelFlag && !bufferFlag && notifyFlag) {
+                // Forward + NotifyCP is not allowed.
+                throw new Up4TranslationException("Forward + NotifyCP action is not allowed.");
             }
         }
         return farBuilder.build();
