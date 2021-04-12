@@ -152,6 +152,7 @@ class Session:
 our_addr: str = ""
 peer_addr: str = ""
 sequence_number: int = 0
+qfi_num: int = 5
 thread_lock = Lock()
 association_established = False
 script_terminating = False
@@ -265,6 +266,11 @@ def craft_pdr(session: Session, flow: UeFlow, src_iface: int, from_tunnel=False,
     pdi = pfcp.IE_PDI()
 
     # Source interface
+    global qfi_num
+    _qfi = pfcp.IE_QFI()
+    _qfi.QFI = qfi_num
+    qfi_num += 1
+    pdi.IE_list.append(_qfi)
     source_interface = pfcp.IE_SourceInterface()
     source_interface.interface = src_iface
     pdi.IE_list.append(source_interface)

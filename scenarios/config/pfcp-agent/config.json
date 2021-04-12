@@ -3,6 +3,17 @@
   "p4rtciface": {
     "p4rtc_server": "onos1",
     "p4rtc_port": "51001",
+    "qci_to_priority_map": {
+        "qci_ngbr_5": 1,
+        "qci_ngbr_6": 6,
+        "qci_ngbr_7": 7,
+        "qci_ngbr_8": 8,
+        "qci_ngbr_9": 9,
+        "qci_ngbr_69": 1,
+        "qci_ngbr_70": 6,
+        "qci_ngbr_79": 7,
+        "qci_ngbr_80": 7
+    },
     "": "FIXME: remove access_ip once it will not longer be mandatory",
     "access_ip": "0.0.0.0/0"
   }
