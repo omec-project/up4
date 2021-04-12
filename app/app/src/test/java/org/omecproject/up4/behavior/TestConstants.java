@@ -169,6 +169,21 @@ public final class TestConstants {
                     .build())
             .build();
 
+    public static final PiTableEntry INVALID_UP4_DOWNLINK_FAR = PiTableEntry.builder()
+            .forTable(NorthConstants.FAR_TBL)
+            .withMatchKey(PiMatchKey.builder()
+                    .addFieldMatch(new PiExactFieldMatch(NorthConstants.FAR_ID_KEY,
+                            ImmutableByteSequence.copyFrom(DOWNLINK_FAR_ID)))
+                    .addFieldMatch(new PiExactFieldMatch(NorthConstants.SESSION_ID_KEY, SESSION_ID))
+                    .build())
+            .withAction(PiAction.builder()
+                    .withId(NorthConstants.LOAD_FAR_NORMAL)
+                    .withParameters(Arrays.asList(
+                            new PiActionParam(NorthConstants.DROP_FLAG, FALSE_BYTE),
+                            new PiActionParam(NorthConstants.NOTIFY_FLAG, TRUE_BYTE)))
+                    .build())
+            .build();
+
     public static final PiTableEntry UP4_UPLINK_INTERFACE = PiTableEntry.builder()
             .forTable(NorthConstants.IFACE_TBL)
             .withMatchKey(PiMatchKey.builder()
