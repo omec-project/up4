@@ -103,10 +103,10 @@ public class FabricUpfTranslator {
             pdrBuilder.withSchedulingPriority(schedulingPriority);
         } else if (actionId.equals(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR_QOS)) {
             int queueId = FabricUpfTranslatorUtil.getParamInt(action, SouthConstants.QID);
-            int schedulingPriority = upfStore.schedulingPriroityOf(queueId);
+            int schedulingPriority = upfStore.schedulingPriorityOf(queueId);
             pdrBuilder.withSchedulingPriority(schedulingPriority);
         } else {
-            throw new UpfProgrammableException("The action Id is not matching with the existing action Ids.");
+            throw new UpfProgrammableException("Unknown action ID");
         }
         pdrBuilder.withCounterId(FabricUpfTranslatorUtil.getParamInt(action, SouthConstants.CTR_ID))
                   .withLocalFarId(farId.getSessionLocalId())

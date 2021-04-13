@@ -71,7 +71,7 @@ public interface FabricUpfStore {
      * @param queueId Tofino queue Id
      * @return the corresponding scheduling priroity
     */
-    int schedulingPriroityOf(int queueId);
+    int schedulingPriorityOf(int queueId);
 
     /**
      * Stores the mapping between FAR ID and UE address as defined by the given PDR.
