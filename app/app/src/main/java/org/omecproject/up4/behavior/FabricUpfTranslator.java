@@ -103,8 +103,11 @@ public class FabricUpfTranslator {
             pdrBuilder.withSchedulingPriority(schedulingPriority);
         } else if (actionId.equals(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR_QOS)) {
             int queueId = FabricUpfTranslatorUtil.getParamInt(action, SouthConstants.QID);
-            int schedulingPriority = upfStore.schedulingPriorityOf(queueId);
-            pdrBuilder.withSchedulingPriority(schedulingPriority);
+            String schedulingPriority = upfStore.schedulingPriorityOf(queueId);
+            if (schedulingPriority == null) {
+                  throw new UpfProgrammableException("Udefined Scheduling Priority");
+            }
+            pdrBuilder.withSchedulingPriority(Integer.valueOf(schedulingPriority));
         } else {
             throw new UpfProgrammableException("Unknown action ID");
         }
@@ -301,10 +304,13 @@ public class FabricUpfTranslator {
                          new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, pdr.matchesEncapped() ? 1 : 0)
                                 ));
         if (pdr.schedulingPriority() > 0) {
-            int queueId = upfStore.queueIdOf(pdr.schedulingPriority());
+            String queueId = upfStore.queueIdOf(pdr.schedulingPriority());
+            if (queueId == null) {
+                throw new UpfProgrammableException("Udefined Scheduling Priority");
+            }
             action = builder
                     .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR_QOS)
-                    .withParameter(new PiActionParam(SouthConstants.QID, queueId))
+                    .withParameter(new PiActionParam(SouthConstants.QID, Integer.valueOf(queueId)))
                     .build();
         } else {
             action = builder

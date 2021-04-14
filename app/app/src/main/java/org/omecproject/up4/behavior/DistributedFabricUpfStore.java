@@ -147,13 +147,13 @@ public final class DistributedFabricUpfStore implements FabricUpfStore {
     }
 
     @Override
-    public int queueIdOf(int schedulingPriority) {
-        return SCHEDULING_PRIORITY_MAP.get(schedulingPriority);
+    public String queueIdOf(int schedulingPriority) {
+        return (SCHEDULING_PRIORITY_MAP.get(schedulingPriority)).toString();
     }
 
     @Override
-    public int schedulingPriorityOf(int queueId) {
-        return SCHEDULING_PRIORITY_MAP.inverse().get(queueId);
+    public String schedulingPriorityOf(int queueId) {
+        return (SCHEDULING_PRIORITY_MAP.inverse().get(queueId)).toString();
     }
 
     @Override
