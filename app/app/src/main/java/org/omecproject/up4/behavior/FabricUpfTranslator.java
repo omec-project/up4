@@ -303,7 +303,7 @@ public class FabricUpfTranslator {
                          new PiActionParam(SouthConstants.FAR_ID, upfStore.globalFarIdOf(pdr.sessionId(), pdr.farId())),
                          new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, pdr.matchesEncapped() ? 1 : 0)
                                 ));
-        if (pdr.schedulingPriority() > 0) {
+        if (pdr.hasSchedulingPriority()) {
             String queueId = upfStore.queueIdOf(pdr.schedulingPriority());
             if (queueId == null) {
                 throw new UpfProgrammableException("Udefined Scheduling Priority");

@@ -211,6 +211,15 @@ public final class PacketDetectionRule {
         return schedulingPriority;
     }
 
+    /**
+     * This method is used to differentiate between prioritzed and non-prioritzed flows.
+     *
+     * @return true if scheduling priority is assigned.
+     */
+    public boolean hasSchedulingPriority() {
+        return schedulingPriority > 0;
+    }
+
     public enum Type {
         /**
          * Match on packets that are encapsulated in a GTP tunnel.

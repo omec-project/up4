@@ -215,7 +215,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                                         new PiActionParam(NorthConstants.FAR_ID_PARAM, pdr.farId()),
                                         new PiActionParam(NorthConstants.DECAP_FLAG_PARAM, toImmutableByte(decapFlag))
                                  ));
-        if (pdr.schedulingPriority() > 0) {
+        if (pdr.hasSchedulingPriority()) {
             action = builder
                     .withId(NorthConstants.LOAD_PDR_QOS)
                     .withParameter(new PiActionParam(NorthConstants.SCHEDULING_PRIORITY, pdr.schedulingPriority()))
