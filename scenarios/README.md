@@ -49,7 +49,7 @@ Download dependencies (do only once):
     make deps
 
 Run the smoke scenario:
-    
+
     make smoke.xml
 
 This scenario verifies UP4 app builds. It included a non-exhaustive set of tests that aim at
@@ -72,9 +72,9 @@ in the descriptions below.
 To execute a given scenario:
 
     make scenario.xml
-    
+
 ### Setup and teardown scenarios
-These scenarios are used for launching containers and network functions, 
+These scenarios are used for launching containers and network functions,
 and for removing them after tests are completed.
 
 **setup.xml**
@@ -101,14 +101,20 @@ and for removing them after tests are completed.
 * Stop containers
 
 ### Single test cases
-These scenarios each test small subsets of features, such as forwarding, buffering, or failure recovery. 
-These scenarios do not perform setup or teardown, but they do clean up after themselves 
+These scenarios each test small subsets of features, such as forwarding, buffering, or failure recovery.
+These scenarios do not perform setup or teardown, but they do clean up after themselves
 and thus can be run repeatedly and consecutively.
 
 **p4rt-forwarding.xml**
 * Requires `setup.xml`, `net-setup.xml`
 * Use UP4 northbound APIs to set up GTP termination and forwarding
 * Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts
+
+**p4rt-forwarding-qos.xml**
+* Requires `setup.xml`, `net-setup.xml`
+* Use UP4 northbound APIs to set up GTP termination and forwarding
+* Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts
+* Check the changes for translating PDRs with QoS attributes
 
 **p4rt-buffering.xml**
 * Requires `setup.xml`, `net-setup.xml`
@@ -140,11 +146,11 @@ and thus can be run repeatedly and consecutively.
 These scenarios combine setup, single tests, and teardown all in one. Useful for quickly detecting issues.
 
 **p4rt-smoke.xml**
-* Combines the `setup.xml`, `net-setup.xml`, `p4rt-forwarding`, `p4rt-buffering`, and `teardown.xml` 
+* Combines the `setup.xml`, `net-setup.xml`, `p4rt-forwarding`, `p4rt-buffering`, and `teardown.xml`
 scenarios in one test
 
 **smoke.xml**
-* Combines the `setup.xml`, `net-setup.xml`, `smf-setup`, `pfcp-forwarding`, `pfcp-buffering`,
+* Combines the `setup.xml`, `net-setup.xml`, `smf-setup`, `p4rt-forwarding-qos.xml`, `pfcp-forwarding`, `pfcp-buffering`,
  `smf-failure.xml`, `pfcp-agent-failure`,
  `smf-teardown.xml`, and`teardown.xml` scenarios in one test
 
@@ -173,4 +179,4 @@ re-implementing the same commands in `scenarios/bin`, and giving it priority in 
 The main difference between the cell environment and the Docker-based one is that with cells, we
 assume that ONOS is running in a VM that can be operated via SSH. The modified commands perform
 equivalent actions without using SSH, but instead executing command directly inside the
-corresponding containers, i.e., via `docker exec`. 
+corresponding containers, i.e., via `docker exec`.

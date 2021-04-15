@@ -58,6 +58,22 @@ public interface FabricUpfStore {
     UpfRuleIdentifier localFarIdOf(int globalFarId);
 
     /**
+     * Get the corresponding queue Id from scheduling priority.
+     *
+     * @param schedulingPriority QCI scheduling priority
+     * @return the corresponding queue ID
+     */
+    String queueIdOf(int schedulingPriority);
+
+    /**
+     * Get the corresponding queue Id from scheduling priority.
+     *
+     * @param queueId Tofino queue Id
+     * @return the corresponding scheduling priroity
+    */
+    String schedulingPriorityOf(int queueId);
+
+    /**
      * Stores the mapping between FAR ID and UE address as defined by the given PDR.
      *
      * @param pdr PDR

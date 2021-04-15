@@ -5,6 +5,7 @@
 <scenario name="smoke" description="UP4 smoke test">
     <import file="./setup.xml"/>
     <import file="./net-setup.xml"/>
+    <import file="./p4rt-forwarding-qos.xml"/>
     <import file="./pfcp-forwarding.xml"/>
     <import file="./pfcp-buffering.xml"/>
     <import file="./teardown.xml"/>
@@ -16,7 +17,8 @@
     <dependency name="Net-Setup" requires="Setup"/>
     <dependency name="No-Forwarding" requires="Net-Setup"/>
     <dependency name="Smf-Setup" requires="Net-Setup"/>
-    <dependency name="Pfcp-Forwarding" requires="Smf-Setup,No-Forwarding"/>
+    <dependency name="P4rt-Forwarding-Qos" requires="No-Forwarding"/>
+    <dependency name="Pfcp-Forwarding" requires="Smf-Setup,P4rt-Forwarding-Qos"/>
     <dependency name="Pfcp-Buffering" requires="Pfcp-Forwarding"/>
     <dependency name="Pfcp-Agent-Failure" requires="Pfcp-Buffering"/>
     <dependency name="Smf-Failure" requires="Pfcp-Agent-Failure"/>

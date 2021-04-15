@@ -29,17 +29,20 @@ public final class PacketDetectionRule {
     private final Integer ctrId;  // Counter ID unique to this PDR
     private final Integer farId;  // The PFCP session-local ID of the FAR that should apply after this PDR hits
     private final Type type;
+    private final Integer schedulingPriority;
 
     private static final int SESSION_ID_BITWIDTH = 96;
 
-    private PacketDetectionRule(ImmutableByteSequence sessionId, Integer ctrId, Integer farId, Ip4Address ueAddr,
-                                ImmutableByteSequence teid, Ip4Address tunnelDst, Type type) {
+    private PacketDetectionRule(ImmutableByteSequence sessionId, Integer ctrId, Integer farId,
+                               Integer schedulingPriority, Ip4Address ueAddr, ImmutableByteSequence teid,
+                               Ip4Address tunnelDst, Type type) {
         this.ueAddr = ueAddr;
         this.teid = teid;
         this.tunnelDst = tunnelDst;
         this.sessionId = sessionId;
         this.ctrId = ctrId;
         this.farId = farId;
+        this.schedulingPriority = schedulingPriority;
         this.type = type;
     }
 
@@ -64,8 +67,8 @@ public final class PacketDetectionRule {
     public String toString() {
         String actionParams = "";
         if (hasActionParameters()) {
-            actionParams = String.format("SEID=%s, FAR=%d, CtrIdx=%d",
-                    sessionId.toString(), farId, ctrId);
+            actionParams = String.format("SEID=%s, FAR=%d, CtrIdx=%d, SchedulingPrio=%d",
+                    sessionId.toString(), farId, ctrId, schedulingPriority);
         }
 
         return String.format("PDR{%s -> LoadParams(%s)}", matchString(), actionParams);
@@ -91,12 +94,13 @@ public final class PacketDetectionRule {
                 Objects.equals(this.ueAddr, that.ueAddr) &&
                 Objects.equals(this.ctrId, that.ctrId) &&
                 Objects.equals(this.sessionId, that.sessionId) &&
-                Objects.equals(this.farId, that.farId));
+                Objects.equals(this.farId, that.farId) &&
+                Objects.equals(this.schedulingPriority, that.schedulingPriority));
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ueAddr, teid, tunnelDst, sessionId, ctrId, farId, type);
+        return Objects.hash(ueAddr, teid, tunnelDst, sessionId, ctrId, farId, schedulingPriority, type);
     }
 
     /**
@@ -198,6 +202,24 @@ public final class PacketDetectionRule {
         return farId;
     }
 
+    /**
+     * Get the scheduling priority that this PDR is assigned.
+     *
+     * @return scheduling priority
+     */
+    public int schedulingPriority() {
+        return schedulingPriority;
+    }
+
+    /**
+     * This method is used to differentiate between prioritzed and non-prioritzed flows.
+     *
+     * @return true if scheduling priority is assigned.
+     */
+    public boolean hasSchedulingPriority() {
+        return schedulingPriority > 0;
+    }
+
     public enum Type {
         /**
          * Match on packets that are encapsulated in a GTP tunnel.
@@ -223,6 +245,7 @@ public final class PacketDetectionRule {
         private ImmutableByteSequence sessionId = null;
         private Integer ctrId = null;
         private Integer localFarId = null;
+        private Integer schedulingPriority = null;
         private Ip4Address ueAddr = null;
         private ImmutableByteSequence teid = null;
         private Ip4Address tunnelDst = null;
@@ -290,6 +313,11 @@ public final class PacketDetectionRule {
             return this;
         }
 
+        public Builder withSchedulingPriority(int schedulingPriority) {
+            this.schedulingPriority = schedulingPriority;
+            return this;
+        }
+
         /**
          * Set the identifier of the GTP tunnel that this PDR matches on.
          *
@@ -342,8 +370,8 @@ public final class PacketDetectionRule {
                             (ueAddr == null && teid != null && tunnelDst != null),
                     "Either a UE address or a TEID and Tunnel destination must be provided, but not both.");
             // Action parameters are optional but must be all provided together if they are provided
-            checkArgument((sessionId != null && ctrId != null && localFarId != null) ||
-                            (sessionId == null && ctrId == null && localFarId == null),
+            checkArgument((sessionId != null && ctrId != null && localFarId != null && schedulingPriority != null) ||
+                            (sessionId == null && ctrId == null && localFarId == null && schedulingPriority == null),
                     "PDR action parameters must be provided together or not at all.");
             Type type;
             if (teid != null) {
@@ -359,7 +387,8 @@ public final class PacketDetectionRule {
                     type = Type.MATCH_UNENCAPPED_NO_ACTION;
                 }
             }
-            return new PacketDetectionRule(sessionId, ctrId, localFarId, ueAddr, teid, tunnelDst, type);
+            return new PacketDetectionRule(sessionId, ctrId, localFarId, schedulingPriority,
+                                          ueAddr, teid, tunnelDst, type);
         }
     }
 }

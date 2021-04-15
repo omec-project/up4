@@ -33,6 +33,20 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
+    public void up4EntryToUplinkPriorityPdrTest() {
+        PacketDetectionRule expectedPdr = TestConstants.UPLINK_PRIORITY_PDR;
+        PacketDetectionRule translatedPdr;
+        try {
+            translatedPdr = up4Translator.up4EntryToPdr(TestConstants.UP4_UPLINK_PRIORITY_PDR);
+        } catch (Up4Translator.Up4TranslationException e) {
+            assertThat("UP4 uplink PDR should translate to abstract PDR without error.", false);
+            return;
+        }
+        assertThat("Translated PDR should be uplink.", translatedPdr.matchesEncapped());
+        assertThat(translatedPdr, equalTo(expectedPdr));
+    }
+
+    @Test
     public void up4EntryToDownlinkPdrTest() {
         PacketDetectionRule expectedPdr = TestConstants.DOWNLINK_PDR;
         PacketDetectionRule translatedPdr;
@@ -150,11 +164,39 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
+    public void uplinkPriorityPdrToUp4EntryTest() {
+        PiTableEntry translatedRule;
+        PiTableEntry expectedRule = TestConstants.UP4_UPLINK_PRIORITY_PDR;
+        try {
+            translatedRule = up4Translator.pdrToUp4Entry(TestConstants.UPLINK_PRIORITY_PDR);
+        } catch (Up4Translator.Up4TranslationException e) {
+            assertThat("Abstract uplink PDR should correctly translate to UP4 PDR without error",
+                    false);
+            return;
+        }
+        assertThat(translatedRule, equalTo(expectedRule));
+    }
+
+    @Test
     public void downlinkPdrToUp4EntryTest() {
         PiTableEntry translatedRule;
         PiTableEntry expectedRule = TestConstants.UP4_DOWNLINK_PDR;
         try {
             translatedRule = up4Translator.pdrToUp4Entry(TestConstants.DOWNLINK_PDR);
+        } catch (Up4Translator.Up4TranslationException e) {
+            assertThat("Abstract downlink PDR should correctly translate to UP4 PDR without error",
+                    false);
+            return;
+        }
+        assertThat(translatedRule, equalTo(expectedRule));
+    }
+
+    @Test
+    public void downlinkPriorityPdrToUp4EntryTest() {
+        PiTableEntry translatedRule;
+        PiTableEntry expectedRule = TestConstants.UP4_DOWNLINK_PRIORITY_PDR;
+        try {
+            translatedRule = up4Translator.pdrToUp4Entry(TestConstants.DOWNLINK_PRIORITY_PDR);
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("Abstract downlink PDR should correctly translate to UP4 PDR without error",
                     false);

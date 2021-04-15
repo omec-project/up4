@@ -96,9 +96,24 @@ public class FabricUpfTranslator {
         // Grab keys and parameters that are present for all PDRs
         int globalFarId = FabricUpfTranslatorUtil.getParamInt(action, SouthConstants.FAR_ID);
         UpfRuleIdentifier farId = upfStore.localFarIdOf(globalFarId);
+
+        PiActionId actionId = action.id();
+        if (actionId.equals(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)) {
+            int schedulingPriority = 0;
+            pdrBuilder.withSchedulingPriority(schedulingPriority);
+        } else if (actionId.equals(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR_QOS)) {
+            int queueId = FabricUpfTranslatorUtil.getParamInt(action, SouthConstants.QID);
+            String schedulingPriority = upfStore.schedulingPriorityOf(queueId);
+            if (schedulingPriority == null) {
+                  throw new UpfProgrammableException("Udefined Scheduling Priority");
+            }
+            pdrBuilder.withSchedulingPriority(Integer.valueOf(schedulingPriority));
+        } else {
+            throw new UpfProgrammableException("Unknown action ID");
+        }
         pdrBuilder.withCounterId(FabricUpfTranslatorUtil.getParamInt(action, SouthConstants.CTR_ID))
-                .withLocalFarId(farId.getSessionLocalId())
-                .withSessionId(farId.getPfcpSessionId());
+                  .withLocalFarId(farId.getSessionLocalId())
+                  .withSessionId(farId.getPfcpSessionId());
 
         if (FabricUpfTranslatorUtil.fieldIsPresent(match, SouthConstants.HDR_TEID)) {
             // F-TEID is only present for GTP-matching PDRs
@@ -112,7 +127,6 @@ public class FabricUpfTranslator {
         } else {
             throw new UpfProgrammableException("Read malformed PDR from dataplane!:" + entry);
         }
-
         return pdrBuilder.build();
     }
 
@@ -266,6 +280,8 @@ public class FabricUpfTranslator {
             throws UpfProgrammableException {
         PiCriterion match;
         PiTableId tableId;
+        PiAction action;
+
         if (pdr.matchesEncapped()) {
             match = PiCriterion.builder()
                     .matchExact(SouthConstants.HDR_TEID, pdr.teid().asArray())
@@ -281,15 +297,26 @@ public class FabricUpfTranslator {
             throw new UpfProgrammableException("Flexible PDRs not yet supported! Cannot translate " + pdr.toString());
         }
 
-        PiAction action = PiAction.builder()
-                .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
-                .withParameters(Arrays.asList(
-                        new PiActionParam(SouthConstants.CTR_ID, pdr.counterId()),
-                        new PiActionParam(SouthConstants.FAR_ID, upfStore.globalFarIdOf(pdr.sessionId(), pdr.farId())),
-                        new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, pdr.matchesEncapped() ? 1 : 0)
-                ))
-                .build();
-
+        PiAction.Builder builder = PiAction.builder()
+                    .withParameters(Arrays.asList(
+                         new PiActionParam(SouthConstants.CTR_ID, pdr.counterId()),
+                         new PiActionParam(SouthConstants.FAR_ID, upfStore.globalFarIdOf(pdr.sessionId(), pdr.farId())),
+                         new PiActionParam(SouthConstants.NEEDS_GTPU_DECAP, pdr.matchesEncapped() ? 1 : 0)
+                                ));
+        if (pdr.hasSchedulingPriority()) {
+            String queueId = upfStore.queueIdOf(pdr.schedulingPriority());
+            if (queueId == null) {
+                throw new UpfProgrammableException("Udefined Scheduling Priority");
+            }
+            action = builder
+                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR_QOS)
+                    .withParameter(new PiActionParam(SouthConstants.QID, Integer.valueOf(queueId)))
+                    .build();
+        } else {
+            action = builder
+                    .withId(SouthConstants.FABRIC_INGRESS_SPGW_LOAD_PDR)
+                    .build();
+        }
         return DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
                 .forTable(tableId)

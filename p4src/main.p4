@@ -293,6 +293,18 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.needs_gtpu_decap     = (bool)needs_gtpu_decap;
     }
 
+    action set_pdr_attributes_qos(pdr_id_t                 id,
+                                  fseid_t                  fseid,
+                                  counter_index_t          ctr_id,
+                                  far_id_t                 far_id,
+                                  scheduling_priority_t    scheduling_priority,
+                                  bit<1>                   needs_gtpu_decap
+                                 )
+    {
+        set_pdr_attributes(id, fseid, ctr_id, far_id, needs_gtpu_decap);
+        local_meta.scheduling_priority     = scheduling_priority;
+    }
+
     // Contains PDRs for both the Uplink and Downlink Direction
     // One PDR's match conditions are made of PDI and a set of 5-tuple filters (SDFs).
     // The PDR matches if the PDI and any of the SDFs match, but 'filter1 or filter2' cannot be
@@ -304,8 +316,8 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             local_meta.src_iface        : exact     @name("src_iface"); // To differentiate uplink and downlink
             hdr.outer_ipv4.dst_addr     : ternary   @name("tunnel_ipv4_dst"); // combines with TEID to make F-TEID
             local_meta.teid             : ternary   @name("teid");
-            local_meta.ue_addr          : ternary   @name("ue_addr");  // also part of the SDF?
             // One SDF filter from a PDR's filter set
+            local_meta.ue_addr          : ternary   @name("ue_addr");
             local_meta.inet_addr        : ternary   @name("inet_addr");
             local_meta.ue_l4_port       : range     @name("ue_l4_port");
             local_meta.inet_l4_port     : range     @name("inet_l4_port");
@@ -313,6 +325,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         }
         actions = {
             set_pdr_attributes;
+            set_pdr_attributes_qos;
         }
     }
 

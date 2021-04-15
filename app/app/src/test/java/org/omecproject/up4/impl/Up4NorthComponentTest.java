@@ -317,9 +317,21 @@ public class Up4NorthComponentTest {
     }
 
     @Test
+    public void downlinkPriorityPdrReadTest() throws Exception {
+        upfProgrammable.addPdr(TestConstants.DOWNLINK_PRIORITY_PDR);
+        readTest(TestConstants.UP4_DOWNLINK_PRIORITY_PDR);
+    }
+
+    @Test
     public void uplinkPdrReadTest() throws Exception {
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         readTest(TestConstants.UP4_UPLINK_PDR);
+    }
+
+    @Test
+    public void uplinkPriorityPdrReadTest() throws Exception {
+        upfProgrammable.addPdr(TestConstants.UPLINK_PRIORITY_PDR);
+        readTest(TestConstants.UP4_UPLINK_PRIORITY_PDR);
     }
 
     @Test
@@ -368,6 +380,12 @@ public class Up4NorthComponentTest {
     }
 
     @Test
+    public void downlinkPriorityPdrInsertionTest() throws Exception {
+        insertionTest(TestConstants.UP4_DOWNLINK_PRIORITY_PDR);
+        assertThat(upfProgrammable.getPdrs().size(), equalTo(1));
+    }
+
+    @Test
     public void downlinkPdrDeletionTest() throws Exception {
         upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
         deletionTest(TestConstants.UP4_DOWNLINK_PDR);
@@ -381,9 +399,22 @@ public class Up4NorthComponentTest {
     }
 
     @Test
+    public void uplinkPriorityPdrInsertionTest() throws Exception {
+        insertionTest(TestConstants.UP4_UPLINK_PRIORITY_PDR);
+        assertThat(upfProgrammable.getPdrs().size(), equalTo(1));
+    }
+
+    @Test
     public void uplinkPdrDeletionTest() throws Exception {
         upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
         deletionTest(TestConstants.UP4_UPLINK_PDR);
+        assertTrue(upfProgrammable.getPdrs().isEmpty());
+    }
+
+    @Test
+    public void uplinkPriorityPdrDeletionTest() throws Exception {
+        upfProgrammable.addPdr(TestConstants.UPLINK_PRIORITY_PDR);
+        deletionTest(TestConstants.UP4_UPLINK_PRIORITY_PDR);
         assertTrue(upfProgrammable.getPdrs().isEmpty());
     }
 
