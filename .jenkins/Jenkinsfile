@@ -15,7 +15,6 @@ pipeline {
 
   environment {
     UP4_ENV = "${up4Env}"
-    CODECOV_TOKEN = "26252f52-8c2d-4cfd-bd2f-ec00a71d2942"
   }
 
   stages {
@@ -98,7 +97,7 @@ pipeline {
       post {
         success {
           dir("${env.WORKSPACE}/up4/app") {
-            sh "bash <(curl -s https://codecov.io/bash)"
+            bash ${env.WORKSPACE}/up4/.jenkins/codecov.sh
           }
         }
       }
