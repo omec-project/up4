@@ -97,7 +97,7 @@ pipeline {
       post {
         success {
           dir("${env.WORKSPACE}/up4/app") {
-            bash ${env.WORKSPACE}/up4/.jenkins/codecov.sh
+            sh "bash ../.jenkins/codecov.sh"
           }
         }
       }
