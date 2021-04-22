@@ -216,15 +216,15 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             upfProgrammable = new FabricUpfProgrammable(flowRuleService, p4RuntimeController,
                     piPipeconfService, upfStore, deviceId);
 
-            if (!upfProgrammable.init(appId,
-                    config.maxUes() > 0 ? config.maxUes() : UpfProgrammable.NO_UE_LIMIT)) {
+            if (!upfProgrammable.init(appId, configIsLoaded() && config.maxUes() > 0 ?
+                    config.maxUes() : UpfProgrammable.NO_UE_LIMIT)) {
                 // error message will be printed by init()
                 return;
             }
 
             installInterfaces();
 
-            if (dbufClient != null && config != null && config.dbufDrainAddr() != null) {
+            if (dbufClient != null && configIsLoaded() && config.dbufDrainAddr() != null) {
                 addDbufStateToUpfProgrammable();
             } else {
                 removeDbufStateFromUpfProgrammable();
@@ -376,8 +376,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     private void removeDbufStateFromUpfProgrammable() {
-        upfProgrammable.unsetBufferDrainer();
-        upfProgrammable.unsetDbufTunnel();
+        if (upfProgrammable != null) {
+            upfProgrammable.unsetBufferDrainer();
+            upfProgrammable.unsetDbufTunnel();
+        }
     }
 
     private void setUpDbufClient(String serviceAddr, String dataplaneAddr) {
