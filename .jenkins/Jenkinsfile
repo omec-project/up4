@@ -49,8 +49,7 @@ pipeline {
         }
         // Set JDK 11
         sh "sudo update-java-alternatives -s java-11-amazon-corretto"
-        sh "mvn -version"
-        sh "env"
+        sh "export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))"
       }
     }
     stage("Dependencies") {
