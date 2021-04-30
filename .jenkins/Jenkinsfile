@@ -49,6 +49,8 @@ pipeline {
         }
         // Set JDK 11
         sh "sudo update-java-alternatives -s java-11-amazon-corretto"
+        sh "mvn -version"
+        sh "env"
       }
     }
     stage("Dependencies") {
