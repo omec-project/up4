@@ -4,11 +4,9 @@
  */
 package org.omecproject.up4.behavior;
 
-import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.runtime.PiCounterCell;
 import org.onosproject.net.pi.runtime.PiCounterCellData;
 import org.onosproject.net.pi.runtime.PiCounterCellHandle;
-import org.onosproject.net.pi.runtime.PiCounterCellId;
 import org.onosproject.net.pi.runtime.PiEntity;
 import org.onosproject.net.pi.runtime.PiEntityType;
 import org.onosproject.net.pi.runtime.PiHandle;
@@ -17,7 +15,6 @@ import org.onosproject.p4runtime.api.P4RuntimeReadClient;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.LongStream;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -41,20 +38,11 @@ public class MockReadResponse implements P4RuntimeReadClient.ReadResponse {
 
     public MockReadResponse handle(PiHandle handle) {
         if (handle.entityType().equals(PiEntityType.COUNTER_CELL)) {
-            final PiCounterCellHandle counterHandle = (PiCounterCellHandle) handle;
-            final PiCounterId counterId = counterHandle.cellId().counterId();
-            final PiCounterCellData data =
+            PiCounterCellHandle counterHandle = (PiCounterCellHandle) handle;
+            PiCounterCellData data =
                     new PiCounterCellData(TestConstants.COUNTER_PKTS, TestConstants.COUNTER_BYTES);
-            if (counterHandle.cellId().index() == -1) {
-                // Wildcard read
-                LongStream.range(0, TestConstants.PHYSICAL_COUNTER_SIZE)
-                        .mapToObj(index -> PiCounterCellId.ofIndirect(counterId, index))
-                        .map(cellId -> new PiCounterCell(cellId, data))
-                        .forEach(this.entities::add);
-            } else {
-                PiEntity entity = new PiCounterCell(counterHandle.cellId(), data);
-                this.entities.add(entity);
-            }
+            PiEntity entity = new PiCounterCell(counterHandle.cellId(), data);
+            this.entities.add(entity);
         }
         // Only handles counter cell so far
 

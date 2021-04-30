@@ -8,12 +8,15 @@ import org.onosproject.net.pi.model.PiActionProfileId;
 import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiMeterId;
 import org.onosproject.net.pi.model.PiTableId;
+import org.onosproject.net.pi.runtime.PiCounterCellHandle;
+import org.onosproject.net.pi.runtime.PiCounterCellId;
 import org.onosproject.net.pi.runtime.PiHandle;
 import org.onosproject.p4runtime.api.P4RuntimeReadClient;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.LongStream;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -99,6 +102,16 @@ public class MockReadRequest implements P4RuntimeReadClient.ReadRequest {
 
     @Override
     public P4RuntimeReadClient.ReadRequest counterCells(Iterable<PiCounterId> counterIds) {
+        counterIds.forEach(counterId -> {
+            LongStream.range(0, TestConstants.PHYSICAL_COUNTER_SIZE)
+                    .forEach(index -> {
+                        PiCounterCellId cellId =
+                                PiCounterCellId.ofIndirect(counterId, index);
+                        PiCounterCellHandle handle =
+                                PiCounterCellHandle.of(TestConstants.DEVICE_ID, cellId);
+                        this.handle(handle);
+                    });
+        });
         return this;
     }
 
