@@ -295,10 +295,9 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
         // Generate the counter cell IDs.
         Set<PiCounterCellId> counterCellIds = Sets.newHashSet();
-        pdrStatBuilders.keySet().forEach(cellId -> {
-            counterCellIds.add(PiCounterCellId.ofIndirect(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER, cellId));
-            counterCellIds.add(PiCounterCellId.ofIndirect(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER, cellId));
-        });
+        counterCellIds.add(PiCounterCellId.ofIndirect(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER));
+        counterCellIds.add(PiCounterCellId.ofIndirect(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER));
+
         Set<PiCounterCellHandle> counterCellHandles = counterCellIds.stream()
                 .map(id -> PiCounterCellHandle.of(deviceId, id))
                 .collect(Collectors.toSet());
