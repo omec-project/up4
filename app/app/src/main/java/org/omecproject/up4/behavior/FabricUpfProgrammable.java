@@ -4,9 +4,9 @@
  */
 package org.omecproject.up4.behavior;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.PacketDetectionRule;
@@ -27,6 +27,7 @@ import org.onosproject.net.flow.FlowEntry;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.criteria.PiCriterion;
+import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiCounterModel;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.model.PiTableId;
@@ -294,19 +295,16 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         }
 
         // Generate the counter cell IDs.
-        Set<PiCounterCellId> counterCellIds = Sets.newHashSet();
-        pdrStatBuilders.keySet().forEach(cellId -> {
-            counterCellIds.add(PiCounterCellId.ofIndirect(SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER, cellId));
-            counterCellIds.add(PiCounterCellId.ofIndirect(SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER, cellId));
-        });
-        Set<PiCounterCellHandle> counterCellHandles = counterCellIds.stream()
-                .map(id -> PiCounterCellHandle.of(deviceId, id))
-                .collect(Collectors.toSet());
+        Set<PiCounterId> counterIds = ImmutableSet.of(
+                SouthConstants.FABRIC_INGRESS_SPGW_PDR_COUNTER,
+                SouthConstants.FABRIC_EGRESS_SPGW_PDR_COUNTER
+        );
 
         // Query the device.
         Collection<PiCounterCell> counterEntryResponse = client.read(
                 DEFAULT_P4_DEVICE_ID, pipeconf)
-                .handles(counterCellHandles).submitSync()
+                .counterCells(counterIds)
+                .submitSync()
                 .all(PiCounterCell.class);
 
         // Process response.
