@@ -39,11 +39,10 @@ public class MockReadResponse implements P4RuntimeReadClient.ReadResponse {
     public MockReadResponse handle(PiHandle handle) {
         if (handle.entityType().equals(PiEntityType.COUNTER_CELL)) {
             PiCounterCellHandle counterHandle = (PiCounterCellHandle) handle;
-            long counterIndex = counterHandle.cellId().index();
-            PiCounterCellData data = new PiCounterCellData(TestConstants.COUNTER_PKTS, TestConstants.COUNTER_BYTES);
+            PiCounterCellData data =
+                    new PiCounterCellData(TestConstants.COUNTER_PKTS, TestConstants.COUNTER_BYTES);
             PiEntity entity = new PiCounterCell(counterHandle.cellId(), data);
             this.entities.add(entity);
-
         }
         // Only handles counter cell so far
 
