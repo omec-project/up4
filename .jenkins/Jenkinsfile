@@ -16,6 +16,7 @@ pipeline {
   environment {
     UP4_ENV = "${up4Env}"
     CODECOV_TOKEN = "26252f52-8c2d-4cfd-bd2f-ec00a71d2942"
+    JAVA_HOME = "/usr/lib/jvm/java-11-amazon-corretto"
   }
 
   stages {
