@@ -107,6 +107,8 @@ public final class SouthConstants {
             PiTableId.of("FabricIngress.spgw.uplink_pdrs");
     public static final PiTableId FABRIC_INGRESS_SPGW_UPLINK_RECIRC_RULES =
             PiTableId.of("FabricIngress.spgw.uplink_recirc.rules");
+    public static final PiTableId FABRIC_EGRESS_SPGW_GTPU_ENCAP =
+            PiTableId.of("FabricEgress.spgw.gtpu_encap");
     // Indirect Counter IDs
     public static final PiCounterId FABRIC_EGRESS_SPGW_PDR_COUNTER =
             PiCounterId.of("FabricEgress.spgw.pdr_counter");
@@ -200,6 +202,10 @@ public final class SouthConstants {
             PiActionId.of("FabricIngress.spgw.uplink_recirc.allow");
     public static final PiActionId FABRIC_INGRESS_SPGW_UPLINK_RECIRC_DENY =
             PiActionId.of("FabricIngress.spgw.uplink_recirc.deny");
+    public static final PiActionId FABRIC_EGRESS_SPGW_GTPU_ONLY =
+            PiActionId.of("FabricEgress.spgw.gtpu_only");
+    public static final PiActionId FABRIC_EGRESS_SPGW_GTPU_WITH_PSC =
+            PiActionId.of("FabricEgress.spgw.gtpu_with_psc");
     public static final PiActionId NO_ACTION = PiActionId.of("NoAction");
     public static final PiActionId NOP = PiActionId.of("nop");
     // Action Param IDs
@@ -244,6 +250,7 @@ public final class SouthConstants {
     public static final PiActionParamId TUNNEL_SRC_PORT =
             PiActionParamId.of("tunnel_src_port");
     public static final PiActionParamId VLAN_ID = PiActionParamId.of("vlan_id");
+    public static final PiActionParamId QFI = PiActionParamId.of("qfi");
     // Action Profile IDs
     public static final PiActionProfileId FABRIC_INGRESS_NEXT_HASHED_PROFILE =
             PiActionProfileId.of("FabricIngress.next.hashed_profile");

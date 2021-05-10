@@ -212,6 +212,23 @@ public interface UpfProgrammable {
     void unsetBufferDrainer();
 
     /**
+     * Instructs the UPF-programmable device to use GTP-U extension PDU Session Container (PSC) when
+     * doing encap of downlink packets, with the given QoS Flow Identifier (QFI).
+     *
+     * @param defaultQfi QFI to be used by default for all encapped packets.
+     */
+    // FIXME: remove once we expose QFI in logical pipeline
+    //  QFI should be set by the SMF using PFCP
+    void enablePscEncap(int defaultQfi);
+
+    /**
+     * Disable PSC encap previously enabled with {@link #enablePscEncap(int)}.
+     */
+    // FIXME: remove once we expose QFI in logical pipeline
+    //  QFI should be set by the SMF using PFCP
+    void disablePscEncap();
+
+    /**
      * Used by the UpfProgrammable to trigger buffer draining as needed. Install an instance using
      * {@link UpfProgrammable#setBufferDrainer(BufferDrainer)}
      */

@@ -64,6 +64,16 @@ public class MockUp4Service implements Up4Service {
         }
 
         @Override
+        public void enablePscEncap(int defaultQfi) {
+
+        }
+
+        @Override
+        public void disablePscEncap() {
+
+        }
+
+        @Override
         public void setDbufTunnel(Ip4Address switchAddr, Ip4Address dbufAddr) {
         }
 

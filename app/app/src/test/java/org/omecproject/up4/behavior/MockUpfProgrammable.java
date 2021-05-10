@@ -210,4 +210,14 @@ public class MockUpfProgrammable implements UpfProgrammable {
     public void unsetBufferDrainer() {
 
     }
+
+    @Override
+    public void enablePscEncap(int defaultQfi) {
+
+    }
+
+    @Override
+    public void disablePscEncap() {
+
+    }
 }

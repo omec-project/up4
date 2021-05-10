@@ -230,6 +230,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 removeDbufStateFromUpfProgrammable();
             }
 
+            if (configIsLoaded() && config.pscEncapEnabled()) {
+                upfProgrammable.enablePscEncap(config.defaultQfi());
+            } else {
+                upfProgrammable.disablePscEncap();
+            }
+
             upfInitialized.set(true);
             log.info("UPF device setup successful!");
         }
