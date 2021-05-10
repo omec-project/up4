@@ -161,7 +161,9 @@
         "uePools": [
           "17.0.0.0/24"
         ],
-        "dbufDrainAddr": "140.0.99.254"
+        "dbufDrainAddr": "140.0.99.254",
+        "pscEncapEnabled": 0,
+        "defaultQfi": 0
       }
     },
     "org.onosproject.route-service": {

@@ -191,6 +191,28 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
+    public void enablePscEncap(int defaultQfi) {
+        if (pipeconf.pipelineModel().table(SouthConstants.FABRIC_EGRESS_SPGW_GTPU_ENCAP).isEmpty()) {
+            log.error("Missing {} table in {}, cannot enable PSC encap",
+                    SouthConstants.FABRIC_EGRESS_SPGW_GTPU_ENCAP, deviceId);
+            return;
+        }
+        flowRuleService.applyFlowRules(upfTranslator.buildGtpuWithPscEncapRule(
+                deviceId, appId, defaultQfi));
+    }
+
+    @Override
+    public void disablePscEncap() {
+        if (pipeconf.pipelineModel().table(SouthConstants.FABRIC_EGRESS_SPGW_GTPU_ENCAP).isEmpty()) {
+            log.debug("Missing {} table in {}, assuming PSC encap is disabled by default",
+                    SouthConstants.FABRIC_EGRESS_SPGW_GTPU_ENCAP, deviceId);
+            return;
+        }
+        flowRuleService.applyFlowRules(upfTranslator.buildGtpuOnlyEncapRule(
+                deviceId, appId));
+    }
+
+    @Override
     public void setDbufTunnel(Ip4Address switchAddr, Ip4Address dbufAddr) {
         this.dbufTunnel = GtpTunnel.builder()
                 .setSrc(switchAddr)
