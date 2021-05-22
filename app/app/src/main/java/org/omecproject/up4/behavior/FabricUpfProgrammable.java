@@ -23,7 +23,6 @@ import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.DefaultTrafficSelector;
-import org.onosproject.net.flow.FlowEntry;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.criteria.PiCriterion;
@@ -498,32 +497,14 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         }
     }
 
-    private boolean removeEntry(PiCriterion match, PiTableId tableId, boolean failSilent)
-            throws UpfProgrammableException {
+    private void removeEntry(PiCriterion match, PiTableId tableId) {
         FlowRule entry = DefaultFlowRule.builder()
                 .forDevice(deviceId).fromApp(appId).makePermanent()
                 .forTable(tableId)
                 .withSelector(DefaultTrafficSelector.builder().matchPi(match).build())
                 .withPriority(DEFAULT_PRIORITY)
                 .build();
-
-        /*
-         *  FIXME: Stupid stupid slow hack, needed because removeFlowRules expects FlowRule objects
-         *   with correct and complete actions and parameters, but P4Runtime deletion requests
-         *   will not have those.
-         */
-        for (FlowEntry installedEntry : flowRuleService.getFlowEntriesById(appId)) {
-            if (installedEntry.selector().equals(entry.selector())) {
-                log.info("Found matching entry to remove, it has FlowID {}", installedEntry.id());
-                flowRuleService.removeFlowRules(installedEntry);
-                return true;
-            }
-        }
-        if (!failSilent) {
-            throw new UpfProgrammableException("Match criterion " + match.toString() +
-                    " not found in table " + tableId.toString());
-        }
-        return false;
+        flowRuleService.removeFlowRules(entry);
     }
 
     @Override
@@ -618,7 +599,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public void removePdr(PacketDetectionRule pdr) throws UpfProgrammableException {
+    public void removePdr(PacketDetectionRule pdr) {
         PiCriterion match;
         PiTableId tableId;
         if (pdr.matchesEncapped()) {
@@ -634,7 +615,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
             tableId = SouthConstants.FABRIC_INGRESS_SPGW_DOWNLINK_PDRS;
         }
         log.info("Removing {}", pdr.toString());
-        removeEntry(match, tableId, false);
+        removeEntry(match, tableId);
 
         // Remove the PDR from the farID->PDR mapping
         // This is an inefficient hotfix FIXME: remove UE addrs from the mapping in sublinear time
@@ -645,14 +626,14 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     }
 
     @Override
-    public void removeFar(ForwardingActionRule far) throws UpfProgrammableException {
+    public void removeFar(ForwardingActionRule far) {
         log.info("Removing {}", far.toString());
 
         PiCriterion match = PiCriterion.builder()
                 .matchExact(SouthConstants.HDR_FAR_ID, upfStore.globalFarIdOf(far.sessionId(), far.farId()))
                 .build();
 
-        removeEntry(match, SouthConstants.FABRIC_INGRESS_SPGW_FARS, false);
+        removeEntry(match, SouthConstants.FABRIC_INGRESS_SPGW_FARS);
     }
 
     @Override
@@ -668,9 +649,8 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                             ifacePrefix.prefixLength())
                     .matchExact(SouthConstants.HDR_GTPU_IS_VALID, 1)
                     .build();
-            if (removeEntry(match1, SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES, true)) {
-                return;
-            }
+            removeEntry(match1, SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES);
+            return;
         }
         // If that didn't work or didn't execute, try removing access
         PiCriterion match2 = PiCriterion.builder()
@@ -678,7 +658,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                         ifacePrefix.prefixLength())
                 .matchExact(SouthConstants.HDR_GTPU_IS_VALID, 0)
                 .build();
-        removeEntry(match2, SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES, false);
+        removeEntry(match2, SouthConstants.FABRIC_INGRESS_SPGW_INTERFACES);
     }
 
     private void applyUplinkRecirculation(Ip4Prefix subnet, boolean remove) {
