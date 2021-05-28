@@ -17,6 +17,7 @@ import org.onlab.packet.Ip4Address;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -70,6 +71,11 @@ public class MockUp4Service implements Up4Service {
 
         @Override
         public void disablePscEncap() {
+
+        }
+
+        @Override
+        public void sendPacketOut(ByteBuffer data) {
 
         }
 

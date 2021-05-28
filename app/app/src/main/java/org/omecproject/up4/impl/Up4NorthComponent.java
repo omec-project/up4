@@ -538,6 +538,8 @@ public class Up4NorthComponent {
                             handleArbitration(request.getArbitration());
                             return;
                         case PACKET:
+                            handlePacketOut(request.getPacket());
+                            return;
                         case DIGEST_ACK:
                         case OTHER:
                         case UPDATE_NOT_SET:
@@ -625,6 +627,21 @@ public class Up4NorthComponent {
                             return null;
                         }
                     });
+                }
+
+                private void handlePacketOut(P4RuntimeOuterClass.PacketOut request) {
+                    try {
+                        errorIfSwitchNotReady();
+                        if (request.getPayload().isEmpty()) {
+                            log.error("Received packet-out with empty payload");
+                            return;
+                        }
+                        up4Service.getUpfProgrammable().sendPacketOut(
+                                request.getPayload().asReadOnlyByteBuffer());
+                    } catch (StatusException e) {
+                        // Drop exception to avoid closing the stream.
+                        log.error("Unable to send packet-out: {}", e.getMessage());
+                    }
                 }
 
                 private void handleErrorResponse(io.grpc.Status status) {

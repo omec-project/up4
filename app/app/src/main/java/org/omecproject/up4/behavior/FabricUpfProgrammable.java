@@ -21,12 +21,17 @@ import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
+import org.onosproject.net.PortNumber;
 import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.DefaultTrafficSelector;
+import org.onosproject.net.flow.DefaultTrafficTreatment;
 import org.onosproject.net.flow.FlowEntry;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.criteria.PiCriterion;
+import org.onosproject.net.packet.DefaultOutboundPacket;
+import org.onosproject.net.packet.OutboundPacket;
+import org.onosproject.net.packet.PacketService;
 import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiCounterModel;
 import org.onosproject.net.pi.model.PiPipeconf;
@@ -41,6 +46,7 @@ import org.onosproject.p4runtime.api.P4RuntimeController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -65,6 +71,7 @@ public class FabricUpfProgrammable implements UpfProgrammable {
 
     // Initialized in constructor
     protected final FlowRuleService flowRuleService;
+    protected final PacketService packetService;
     protected final P4RuntimeController controller;
     protected final PiPipeconfService piPipeconfService;
     protected final FabricUpfStore upfStore;
@@ -92,9 +99,11 @@ public class FabricUpfProgrammable implements UpfProgrammable {
     // FIXME: remove constructor once we make this a driver behavior. Services and device ID can be
     // derived from driver context.
     public FabricUpfProgrammable(
-            FlowRuleService flowRuleService, P4RuntimeController controller,
-            PiPipeconfService piPipeconfService, FabricUpfStore upfStore, DeviceId deviceId) {
+            FlowRuleService flowRuleService, PacketService packetService, P4RuntimeController
+            controller, PiPipeconfService piPipeconfService, FabricUpfStore upfStore, DeviceId
+            deviceId) {
         this.flowRuleService = flowRuleService;
+        this.packetService = packetService;
         this.controller = controller;
         this.piPipeconfService = piPipeconfService;
         this.upfStore = upfStore;
@@ -210,6 +219,18 @@ public class FabricUpfProgrammable implements UpfProgrammable {
         }
         flowRuleService.applyFlowRules(upfTranslator.buildGtpuOnlyEncapRule(
                 deviceId, appId));
+    }
+
+    @Override
+    public void sendPacketOut(ByteBuffer data) {
+        final OutboundPacket pkt = new DefaultOutboundPacket(
+                deviceId,
+                // Use TABLE logical port to have pkt routed via pipeline tables.
+                DefaultTrafficTreatment.builder()
+                        .setOutput(PortNumber.TABLE)
+                        .build(),
+                data);
+        packetService.emit(pkt);
     }
 
     @Override

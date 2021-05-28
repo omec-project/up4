@@ -23,7 +23,7 @@ public class FabricUpfProgrammableTest {
 
     private final DistributedFabricUpfStore upfStore = TestDistributedFabricUpfStore.build();
     private final FabricUpfProgrammable upfProgrammable = new FabricUpfProgrammable(
-            new MockFlowRuleService(), new MockP4RuntimeController(),
+            new MockFlowRuleService(), null, new MockP4RuntimeController(),
             new MockPiPipeconfService(), upfStore, TestConstants.DEVICE_ID);
 
     @Before
