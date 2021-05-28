@@ -441,9 +441,9 @@ class P4RuntimeTest(BaseTest):
             pass
         return None
 
-    def send_packet_out(self, packet):
+    def send_packet_out(self, packet_out):
         packet_out_req = p4runtime_pb2.StreamMessageRequest()
-        packet_out_req.packet.CopyFrom(packet)
+        packet_out_req.packet.CopyFrom(packet_out)
         self.stream_out_q.put(packet_out_req)
 
     def swports(self, idx):

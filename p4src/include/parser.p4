@@ -58,9 +58,11 @@ parser ParserImpl (packet_in packet,
         // note: this eventually wont work
         local_meta.l4_sport = hdr.udp.sport;
         local_meta.l4_dport = hdr.udp.dport;
-        transition select(hdr.udp.dport) {
-            L4Port.IPV4_IN_UDP: parse_inner_ipv4;
-            L4Port.GTP_GPDU: parse_gtpu;
+        gtpu_t gtpu = packet.lookahead<gtpu_t>();
+        transition select(hdr.udp.dport, gtpu.version, gtpu.msgtype) {
+            (L4Port.IPV4_IN_UDP, _, _): parse_inner_ipv4;
+            // Treat GTP control traffic as payload.
+            (L4Port.GTP_GPDU, GTP_V1, GTPUMessageType.GPDU): parse_gtpu;
             default: accept;
         }
     }

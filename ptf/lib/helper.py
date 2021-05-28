@@ -347,7 +347,7 @@ class P4InfoHelper(object):
 
     def build_packet_out(self, payload, metadata=None):
         packet_out = p4runtime_pb2.PacketOut()
-        packet_out.payload = payload
+        packet_out.payload = bytes(payload)
         if not metadata:
             return packet_out
         for name, value in metadata.items():
