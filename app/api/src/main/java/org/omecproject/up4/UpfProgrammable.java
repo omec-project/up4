@@ -233,6 +233,10 @@ public interface UpfProgrammable {
      * Sends the given data as a data plane packet-out through this device. Data is expected to
      * contain an Ethernet frame.
      *
+     * The device should process the packet through the pipeline tables to select an output port
+     * and to apply eventual modifications (e.g., MAC rewrite for routing, pushing a VLAN tag,
+     * etc.).
+     *
      * @param data Ethernet frame bytes
      */
     void sendPacketOut(ByteBuffer data);
