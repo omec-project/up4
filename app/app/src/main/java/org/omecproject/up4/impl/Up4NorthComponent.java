@@ -26,6 +26,7 @@ import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammableException;
 import org.omecproject.up4.behavior.Up4TranslatorImpl;
 import org.onlab.packet.Ip4Address;
+import org.onlab.util.HexString;
 import org.onlab.util.ImmutableByteSequence;
 import org.onlab.util.SharedExecutors;
 import org.onosproject.net.pi.model.DefaultPiPipeconf;
@@ -61,6 +62,7 @@ import p4.v1.P4RuntimeOuterClass;
 
 import java.io.IOException;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -636,8 +638,10 @@ public class Up4NorthComponent {
                             log.error("Received packet-out with empty payload");
                             return;
                         }
-                        up4Service.getUpfProgrammable().sendPacketOut(
-                                request.getPayload().asReadOnlyByteBuffer());
+                        final byte[] frame = request.getPayload().toByteArray();
+                        // FIXME: use trace
+                        log.info("Sending packet-out: {}", HexString.toHexString(frame, " "));
+                        up4Service.getUpfProgrammable().sendPacketOut(ByteBuffer.wrap(frame));
                     } catch (StatusException e) {
                         // Drop exception to avoid closing the stream.
                         log.error("Unable to send packet-out: {}", e.getMessage());

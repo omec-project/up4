@@ -1,0 +1,11 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="p4rt-end-marker" description="Test forwarding of end-marker packet-out using p4runtime">
+    <group name="P4rt-End-Marker">
+        <step name="P4rt-Stream-Send-End-Marker"
+              exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-pkt-out --type end-marker"/>
+    <!-- TODO: Verify that end-marker packet gets delivered to base station-->
+    </group>
+</scenario>
