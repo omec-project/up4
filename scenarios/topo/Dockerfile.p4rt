@@ -3,6 +3,6 @@
 
 FROM python:3.9.0-slim-buster
 RUN pip3 install --no-cache-dir \
-    p4runtime-shell
+    p4runtime-shell scapy==2.4.5
 
 ENV PATH=/up4/bin:${PATH}
