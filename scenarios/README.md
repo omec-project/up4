@@ -41,6 +41,7 @@ To run test scenarios your system needs to meet the following requirements:
 - Docker v19 or higher
 - docker-compose
 - make
+- maven
 
 ## Quick steps
 
