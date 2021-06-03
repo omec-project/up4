@@ -36,7 +36,7 @@ typedef bit<32>  ipv4_addr_t;
 
 
 const bit<16> UDP_PORT_GTPU = 2152;
-const bit<3> GTPU_VERSION = 0x1;
+const bit<3> GTP_V1 = 0x1;
 const bit<1> GTP_PROTOCOL_TYPE_GTP = 0x1;
 const bit<8> GTP_MESSAGE_TYPE_UPDU = 0xff;
 

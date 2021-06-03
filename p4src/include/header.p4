@@ -75,8 +75,7 @@ header gtpu_t {
 
 @controller_header("packet_out")
 header packet_out_t {
-    port_num_t  egress_port;
-    bit<7>      _pad;
+    bit<8> reserved; // Not used
 }
 
 @controller_header("packet_in")

@@ -146,7 +146,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params={},
             ))
 
-    def add_routing_ecmp_group(self, ip_prefix, mac_port_pairs):
+    def add_routing_ecmp_group(self, ip_prefix, mac_ports):
 
         group_id = self.helper.get_next_grp_id()
 
@@ -154,17 +154,18 @@ class GtpuBaseTest(P4RuntimeTest):
             self.helper.build_act_prof_group(
                 act_prof_name="hashed_selector", group_id=group_id,
                 actions=[("PreQosPipe.Routing.route", {
-                    "dst_mac": pair[0],
-                    "egress_port": pair[1]
-                }) for pair in mac_port_pairs]))
+                    "src_mac": mac_port[0],
+                    "dst_mac": mac_port[1],
+                    "egress_port": mac_port[2]
+                }) for mac_port in mac_ports]))
 
         self.insert(
             self.helper.build_table_entry(table_name="PreQosPipe.Routing.routes_v4",
                                           match_fields={"dst_prefix": ip_prefix},
                                           group_id=group_id))
 
-    def add_routing_entry(self, ip_prefix, dst_mac, egress_port):
-        return self.add_routing_ecmp_group(ip_prefix, [(dst_mac, egress_port)])
+    def add_routing_entry(self, ip_prefix, src_mac, dst_mac, egress_port):
+        return self.add_routing_ecmp_group(ip_prefix, [(src_mac, dst_mac, egress_port)])
 
     def add_interface(self, ip_prefix, iface_type, direction):
         """ Binds a destination prefix 3GPP interface.
@@ -422,7 +423,9 @@ class GtpuBaseTest(P4RuntimeTest):
 
         self.add_far(far_id=far_id, session_id=session_id, drop=drop)
         if not drop:
-            self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', dst_mac=exp_pkt[Ether].dst,
+            self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32',
+                                   src_mac=exp_pkt[Ether].src,
+                                   dst_mac=exp_pkt[Ether].dst,
                                    egress_port=outport)
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
@@ -475,7 +478,9 @@ class GtpuBaseTest(P4RuntimeTest):
                      teid=exp_pkt[gtp.GTP_U_Header].teid, src_addr=exp_pkt[IP].src,
                      dst_addr=exp_pkt[IP].dst)
         if not drop:
-            self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', dst_mac=exp_pkt[Ether].dst,
+            self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32',
+                                   src_mac=exp_pkt[Ether].src,
+                                   dst_mac=exp_pkt[Ether].dst,
                                    egress_port=outport)
 
     def set_up_ddn_digest(self, ack_timeout_ns):

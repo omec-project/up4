@@ -79,13 +79,13 @@ control Routing(inout parsed_headers_t    hdr,
         mark_to_drop(std_meta);
     }
 
-    action route(mac_addr_t dst_mac,
+    action route(mac_addr_t src_mac,
+                 mac_addr_t dst_mac,
                  port_num_t egress_port) {
         std_meta.egress_spec = egress_port;
-        hdr.ethernet.src_addr = hdr.ethernet.dst_addr;
+        hdr.ethernet.src_addr = src_mac;
         hdr.ethernet.dst_addr = dst_mac;
     }
-
 
     table routes_v4 {
         key = {
@@ -171,7 +171,7 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         );
 
         hdr.gtpu.setValid();
-        hdr.gtpu.version = GTPU_VERSION;
+        hdr.gtpu.version = GTP_V1;
         hdr.gtpu.pt = GTP_PROTOCOL_TYPE_GTP;
         hdr.gtpu.spare = 0;
         hdr.gtpu.ex_flag = 0;
@@ -370,75 +370,82 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     //----------------------------------------
     apply {
 
-        // Only process if the packet is destined for our MAC addr. We don't handle switching
-        if (!my_station.apply().hit) {
-            return;
-        }
-
-        // Interfaces we care about:
-        // N3 (from base station) - GTPU - match on outer IP dst
-        // N6 (from internet) - no GTPU - match on IP header dst
-        // N9 (from another UPF) - GTPU - match on outer IP dst
-        // N4-u (from SMF) - GTPU - match on outer IP dst
-        source_iface_lookup.apply();
-        // Interface lookup happens before normalization of headers,
-        // because the lookup uses the outermost IP header in all cases
-
-
-        // Normalize the headers so that the UE's IPv4 header is always hdr.ipv4
-        // regardless of if there is encapsulation or not.
-        if (hdr.inner_ipv4.isValid()) {
-            hdr.outer_ipv4 = hdr.ipv4;
-            hdr.ipv4 = hdr.inner_ipv4;
-            hdr.inner_ipv4.setInvalid();
-            hdr.outer_udp = hdr.udp;
-            if (hdr.inner_udp.isValid()) {
-                hdr.udp = hdr.inner_udp;
-                hdr.inner_udp.setInvalid();
+        if (hdr.packet_out.isValid()) {
+            // All packet-outs should be routed like regular packets, without UPF processing. This
+            // is used for sending GTP End Marker to base stations, and for other packets
+            // originating from the control plane.
+            hdr.packet_out.setInvalid();
+        } else {
+            // Only process if the packet is destined for our MAC addr. We don't handle switching
+            if (!my_station.apply().hit) {
+                return;
             }
-            else {
-                hdr.udp.setInvalid();
-                if (hdr.inner_tcp.isValid()) {
-                    hdr.tcp = hdr.inner_tcp;
-                    hdr.inner_tcp.setInvalid();
+
+            // Interfaces we care about:
+            // N3 (from base station) - GTPU - match on outer IP dst
+            // N6 (from internet) - no GTPU - match on IP header dst
+            // N9 (from another UPF) - GTPU - match on outer IP dst
+            // N4-u (from SMF) - GTPU - match on outer IP dst
+            source_iface_lookup.apply();
+            // Interface lookup happens before normalization of headers,
+            // because the lookup uses the outermost IP header in all cases
+
+
+            // Normalize the headers so that the UE's IPv4 header is always hdr.ipv4
+            // regardless of if there is encapsulation or not.
+            if (hdr.inner_ipv4.isValid()) {
+                hdr.outer_ipv4 = hdr.ipv4;
+                hdr.ipv4 = hdr.inner_ipv4;
+                hdr.inner_ipv4.setInvalid();
+                hdr.outer_udp = hdr.udp;
+                if (hdr.inner_udp.isValid()) {
+                    hdr.udp = hdr.inner_udp;
+                    hdr.inner_udp.setInvalid();
                 }
-                else if (hdr.inner_icmp.isValid()) {
-                    hdr.icmp = hdr.inner_icmp;
-                    hdr.inner_icmp.setInvalid();
+                else {
+                    hdr.udp.setInvalid();
+                    if (hdr.inner_tcp.isValid()) {
+                        hdr.tcp = hdr.inner_tcp;
+                        hdr.inner_tcp.setInvalid();
+                    }
+                    else if (hdr.inner_icmp.isValid()) {
+                        hdr.icmp = hdr.inner_icmp;
+                        hdr.inner_icmp.setInvalid();
+                    }
                 }
             }
+
+
+            // Normalize so the UE address/port appear as the same field regardless of direction
+            if (local_meta.direction == Direction.UPLINK) {
+                local_meta.ue_addr = hdr.ipv4.src_addr;
+                local_meta.inet_addr = hdr.ipv4.dst_addr;
+                local_meta.ue_l4_port = local_meta.l4_sport;
+                local_meta.inet_l4_port = local_meta.l4_dport;
+            }
+            else if (local_meta.direction == Direction.DOWNLINK) {
+                local_meta.ue_addr = hdr.ipv4.dst_addr;
+                local_meta.inet_addr = hdr.ipv4.src_addr;
+                local_meta.ue_l4_port = local_meta.l4_dport;
+                local_meta.inet_l4_port = local_meta.l4_sport;
+            }
+
+
+            // Find a matching PDR and load the relevant attributes.
+            pdrs.apply();
+            // Count packets at a counter index unique to whichever PDR matched.
+            pre_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
+
+            // Perform whatever header removal the matching PDR required.
+            if (local_meta.needs_gtpu_decap) {
+                gtpu_decap();
+            }
+
+            // Look up FAR info using the FAR-ID loaded by the PDR table.
+            load_far_attributes.apply();
+            // Execute the loaded FAR
+            ExecuteFar.apply(hdr, local_meta, std_meta);
         }
-
-
-        // Normalize so the UE address/port appear as the same field regardless of direction
-        if (local_meta.direction == Direction.UPLINK) {
-            local_meta.ue_addr = hdr.ipv4.src_addr;
-            local_meta.inet_addr = hdr.ipv4.dst_addr;
-            local_meta.ue_l4_port = local_meta.l4_sport;
-            local_meta.inet_l4_port = local_meta.l4_dport;
-        }
-        else if (local_meta.direction == Direction.DOWNLINK) {
-            local_meta.ue_addr = hdr.ipv4.dst_addr;
-            local_meta.inet_addr = hdr.ipv4.src_addr;
-            local_meta.ue_l4_port = local_meta.l4_dport;
-            local_meta.inet_l4_port = local_meta.l4_sport;
-        }
-
-
-        // Find a matching PDR and load the relevant attributes.
-        pdrs.apply();
-        // Count packets at a counter index unique to whichever PDR matched.
-        pre_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
-
-        // Perform whatever header removal the matching PDR required.
-        if (local_meta.needs_gtpu_decap) {
-            gtpu_decap();
-        }
-
-        // Look up FAR info using the FAR-ID loaded by the PDR table.
-        load_far_attributes.apply();
-        // Execute the loaded FAR
-        ExecuteFar.apply(hdr, local_meta, std_meta);
 
         // FAR only set the destination IP.
         // Now we need to choose a destination MAC egress port.

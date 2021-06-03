@@ -23,7 +23,7 @@ from scapy.contrib import gtp
 from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
 
 from convert import encode
-from spgwu_base import GtpuBaseTest
+from spgwu_base import GtpuBaseTest, UDP_GTP_PORT
 from unittest import skip
 
 from extra_headers import CpuHeader
@@ -35,10 +35,9 @@ ENODEB_IPV4 = "140.0.100.1"
 S1U_IPV4 = "140.0.100.2"
 SGW_IPV4 = "140.0.200.2"
 PDN_IPV4 = "140.0.200.1"
-SWITCH_MAC = "00:AA:00:00:00:01"
-
-ENODEB_MAC = "00:00:00:00:00:10"
-PDN_MAC = "00:00:00:00:00:20"
+SWITCH_MAC = "AA:AA:AA:00:00:01"
+ENODEB_MAC = "BB:BB:BB:00:00:01"
+PDN_MAC = "CC:CC:CC:00:00:01"
 
 
 @group("gtpu")
@@ -292,6 +291,35 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         testutils.verify_no_other_packets(self)
 
 
+class GtpEndMarkerPacketOutTest(GtpuBaseTest):
+    """ Tests that the switch can route end-marker packet-outs like regular packets, i.e., by
+    rewriting MAC addresses and forwarding to an egress port.
+    """
+
+    @autocleanup
+    def runTest(self):
+        # gtp_type=254 -> end marker
+        pkt = Ether(src=0x0, dst=0x0) / \
+               IP(src=S1U_IPV4, dst=ENODEB_IPV4) / \
+               UDP(sport=UDP_GTP_PORT, dport=UDP_GTP_PORT, chksum=0) / \
+               gtp.GTPHeader(gtp_type=254, teid=1)
+
+        # Expect routed packet
+        exp_pkt = pkt.copy()
+        exp_pkt[Ether].src = SWITCH_MAC
+        exp_pkt[Ether].dst = ENODEB_MAC
+        pkt_decrement_ttl(exp_pkt)
+
+        outport = self.port2
+
+        self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32',
+                               src_mac=exp_pkt[Ether].src,
+                               dst_mac=exp_pkt[Ether].dst,
+                               egress_port=outport)
+
+        self.send_packet_out(self.helper.build_packet_out(pkt, {"reserved": 0}))
+        testutils.verify_packet(self, exp_pkt, outport)
+
 @group("gtpu")
 class AclPuntTest(GtpuBaseTest):
     """ Test that the ACL table punts a packet to the CPU
@@ -323,55 +351,3 @@ class AclPuntTest(GtpuBaseTest):
         testutils.send_packet(self, self.port1, pkt)
 
         self.verify_packet_in(exp_pkt_in_msg)
-
-
-@group("gtpu")
-@skip("I misunderstood DHCP")
-class GtpuUplinkDhcpTest(GtpuBaseTest):
-    """ Tests UE DHCP message is forwarded out the N4 interface
-    """
-
-    def runTest(self):
-        # Test with different type of packets.
-        pkt = testutils.dhcp_request_packet()
-        pkt = self.gtpu_encap(pkt)
-        self.testPacket(pkt)
-
-    @autocleanup
-    def testPacket(self, pkt):
-
-        if gtp.GTP_U_Header not in pkt:
-            raise AssertionError("Packet given to uplink DHCP test is not encapsulated!")
-        # build the expected N4 packet
-        exp_pkt = self.gtpu_decap(pkt)
-        dst_mac = self.random_mac_addr()
-        # Expected pkt should have routed MAC addresses and decremented hop
-        # limit (TTL).
-        pkt_route(exp_pkt, dst_mac)
-        pkt_decrement_ttl(exp_pkt)
-
-        exp_pkt = self.gtpu_encap(pkt)
-
-        ctr_id = self.new_counter_id()
-
-        self.add_device_mac(pkt[Ether].dst)
-        self.add_interface(ip_prefix=pkt[IP].dst + '/32', iface_type="ACCESS", direction="UPLINK")
-
-        self.add_global_session(
-            n4_ip=exp_pkt[IP].src,
-            smf_ip=exp_pkt[IP].dst,
-            smf_mac=exp_pkt[Ether].dst,
-            smf_port=self.port2,
-            n4_teid=exp_pkt[gtp.GTP_U_Header].teid,
-            dhcp_req_ctr_id=ctr_id,
-        )
-
-        # read pre and post-QoS packet and byte counters
-        self.read_pdr_counters(ctr_id)
-
-        # send packet and verify it is decapsulated and routed
-        testutils.send_packet(self, self.port1, pkt)
-        testutils.verify_packet(self, exp_pkt, self.port2)
-
-        # Check if pre and post-QoS packet and byte counters incremented
-        self.verify_counters_increased(ctr_id, 1, len(pkt), 1, len(pkt))
