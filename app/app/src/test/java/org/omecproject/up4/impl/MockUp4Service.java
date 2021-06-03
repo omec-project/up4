@@ -25,10 +25,12 @@ import java.util.List;
 public class MockUp4Service implements Up4Service {
     boolean upfProgrammableAvailable = true;
     boolean configAvailable = true;
+    final List<PacketDetectionRule> pdrs = new ArrayList<>();
+    final List<ForwardingActionRule> fars = new ArrayList<>();
+    final List<UpfInterface> ifaces = new ArrayList<>();
+    final List<ByteBuffer> sentPacketOuts = new ArrayList<>();
+
     UpfProgrammable upfProgrammable = new UpfProgrammable() {
-        final List<PacketDetectionRule> pdrs = new ArrayList<>();
-        final List<ForwardingActionRule> fars = new ArrayList<>();
-        final List<UpfInterface> ifaces = new ArrayList<>();
 
         @Override
         public boolean init(ApplicationId appId, long ueLimit) {
@@ -76,7 +78,7 @@ public class MockUp4Service implements Up4Service {
 
         @Override
         public void sendPacketOut(ByteBuffer data) {
-
+            sentPacketOuts.add(data);
         }
 
         @Override
