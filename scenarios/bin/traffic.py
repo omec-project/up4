@@ -163,6 +163,9 @@ def sniff_stuff(args: argparse.Namespace, kind: str):
         prn = lambda x: handle_pkt(x, kind, exit_on_success)
     elif kind == 'gtp-end-marker':
         prn = lambda x: handle_gtp_end_marker(x, exit_on_success)
+    else:
+        print("Bad sniff_stuff kind argument: %s" % kind)
+        exit(1)
     sniff(count=0, store=False, filter="udp", prn=prn)
 
 

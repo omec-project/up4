@@ -94,7 +94,7 @@ class TutorialTopo(Topo):
         # Leaves
         # gRPC port 50001
         leaf1 = self.addSwitch('leaf1', cls=StratumBmv2Switch,
-                               cpuport=CPU_PORT, loglevel="trace")
+                               cpuport=CPU_PORT)  # , loglevel="trace")
         # gRPC port 50002
         leaf2 = self.addSwitch('leaf2', cls=StratumBmv2Switch, cpuport=CPU_PORT)
 
