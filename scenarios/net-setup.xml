@@ -21,6 +21,11 @@
         <!-- Wait enough time for segmentrouting to generate all necessary flow objectives -->
         <step name="Check-Flows" requires="Push-Netcfg-Dbuf-Wrong" delay="5"
               exec="onos-check-flows ${OCI}"/>
+        <!-- Verify basic connectivity across the fabric -->
+        <step name="Pdn-Ping-Enb" requires="Check-Flows" exec="mn-cmd pdn ping -c5 140.0.100.1"/>
+        <!-- Verify route for downlink traffic -->
+        <step name="Check-Ue-Pool-Route" requires="Check-Flows"
+              exec="onos-cli-grep ${OCI} routes '17.0.0.0/24'"/>
         <parallel var="${OD#}">
             <step name="Check-Dbuf-Ready-${#}" requires="Check-Summary"
                   exec="docker-log-grep ${ODI} 'Dbuf service at mininet:10000 is READY=true'"/>
