@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+import argparse
+
+import p4runtime_sh.shell as sh
+from google.protobuf import text_format
+from p4.v1 import p4runtime_pb2
+from scapy.contrib import gtp
+from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
+
+GTP_UDP_PORT = 2152
+ENB_IPV4 = "140.0.100.1"
+S1U_IPV4 = "140.0.100.254"
+
+PKTS = {
+    'end-marker': Ether(src=0x0, dst=0x0) / \
+                  IP(src=S1U_IPV4, dst=ENB_IPV4) / \
+                  UDP(sport=GTP_UDP_PORT, dport=GTP_UDP_PORT, chksum=0) / \
+                  gtp.GTPHeader(gtp_type=254, teid=1)
+}
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--server", type=str, default="onos1:51001",
+                        help="Address and port of the p4runtime server")
+    parser.add_argument("--election-id", type=int, default=15, help="Election ID")
+    parser.add_argument("--type", type=str,
+                        help="Type of packet-out to send (%s)" % ", ".join(PKTS.keys()))
+    return parser.parse_args()
+
+
+args = get_args()
+
+
+def build_packet_out(payload):
+    packet_out = p4runtime_pb2.PacketOut()
+    packet_out.payload = bytes(payload)
+    # Just one dummy metadata (unused)
+    meta = packet_out.metadata.add()
+    meta.metadata_id = 1
+    meta.value = b'\000'
+    return packet_out
+
+
+def main():
+    if args.type not in PKTS:
+        print("ERROR: unknown packet type")
+        exit(1)
+
+    # Connect to gRPC server
+    sh.setup(device_id=1, grpc_addr=args.server, election_id=(0, args.election_id))
+
+    try:
+        stream_req = p4runtime_pb2.StreamMessageRequest()
+        stream_req.packet.CopyFrom(build_packet_out(PKTS[args.type]))
+        print(text_format.MessageToString(stream_req, as_one_line=True))
+        sh.client.stream_out_q.put(stream_req)
+    finally:
+        sh.teardown()
+
+    exit(0)
+
+
+if __name__ == "__main__":
+    main()

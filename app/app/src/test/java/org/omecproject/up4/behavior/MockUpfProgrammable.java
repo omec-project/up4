@@ -17,6 +17,7 @@ import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -218,6 +219,11 @@ public class MockUpfProgrammable implements UpfProgrammable {
 
     @Override
     public void disablePscEncap() {
+
+    }
+
+    @Override
+    public void sendPacketOut(ByteBuffer data) {
 
     }
 }

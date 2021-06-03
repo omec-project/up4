@@ -4,6 +4,7 @@
  */
 package org.omecproject.up4.impl;
 
+import com.google.protobuf.ByteString;
 import com.google.rpc.Code;
 import com.google.rpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -28,6 +29,7 @@ import org.onosproject.store.service.TestEventuallyConsistentMap;
 import p4.config.v1.P4InfoOuterClass;
 import p4.v1.P4RuntimeOuterClass;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,6 +37,11 @@ import static junit.framework.TestCase.assertTrue;
 import static junit.framework.TestCase.fail;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.omecproject.up4.impl.NorthTestConstants.P4RUNTIME_DEVICE_ID;
+import static org.omecproject.up4.impl.NorthTestConstants.P4RUNTIME_ELECTION_ID;
+import static org.omecproject.up4.impl.NorthTestConstants.P4RUNTIME_ROLE;
+import static org.omecproject.up4.impl.NorthTestConstants.PKT_OUT_PAYLOAD;
+import static org.omecproject.up4.impl.NorthTestConstants.PKT_OUT_METADATA_1;
 
 public class Up4NorthComponentTest {
 
@@ -42,6 +49,7 @@ public class Up4NorthComponentTest {
     private final Up4NorthComponent.Up4NorthService up4NorthService = up4NorthComponent.up4NorthService;
     PiPipeconf pipeconf;
     UpfProgrammable upfProgrammable;
+    MockUp4Service mockUp4Service;
     private P4InfoOuterClass.P4Info p4Info;
 
     @Before
@@ -50,7 +58,8 @@ public class Up4NorthComponentTest {
         p4Info = PipeconfHelper.getP4Info(pipeconf);
         up4NorthComponent.pipeconf = pipeconf;
         up4NorthComponent.p4Info = p4Info;
-        up4NorthComponent.up4Service = new MockUp4Service();
+        mockUp4Service = new MockUp4Service();
+        up4NorthComponent.up4Service = mockUp4Service;
         up4NorthComponent.fseids = TestEventuallyConsistentMap.<Ip4Address, ImmutableByteSequence>builder()
                 .withSerializer(KryoNamespaces.API).build();
         upfProgrammable = up4NorthComponent.up4Service.getUpfProgrammable();
@@ -62,7 +71,6 @@ public class Up4NorthComponentTest {
     @Test
     public void configNotSetTest() {
         // UpfProgrammable present but config not present
-        MockUp4Service mockUp4Service = (MockUp4Service) up4NorthComponent.up4Service;
         mockUp4Service.hideState(false, true);
 
         missingStateTest(io.grpc.Status.UNAVAILABLE.asException());
@@ -74,7 +82,6 @@ public class Up4NorthComponentTest {
     @Test
     public void switchUnavailableTest() {
         // Config present but UpfProgrammable not present
-        MockUp4Service mockUp4Service = (MockUp4Service) up4NorthComponent.up4Service;
         mockUp4Service.hideState(true, false);
 
         missingStateTest(io.grpc.Status.UNAVAILABLE.asException());
@@ -445,6 +452,18 @@ public class Up4NorthComponentTest {
         assertTrue(upfProgrammable.getInterfaces().isEmpty());
     }
 
+    public void doArbitration(StreamObserver<P4RuntimeOuterClass.StreamMessageRequest> requestObserver) {
+        P4RuntimeOuterClass.StreamMessageRequest request = P4RuntimeOuterClass.StreamMessageRequest.newBuilder()
+                .setArbitration(P4RuntimeOuterClass.MasterArbitrationUpdate.newBuilder()
+                        .setDeviceId(P4RUNTIME_DEVICE_ID)
+                        .setRole(P4RUNTIME_ROLE)
+                        .setElectionId(P4RUNTIME_ELECTION_ID)
+                        .build())
+                .build();
+
+        requestObserver.onNext(request);
+    }
+
     @Test
     public void arbitrationTest() {
         MockStreamObserver<P4RuntimeOuterClass.StreamMessageResponse> responseObserver
@@ -453,25 +472,67 @@ public class Up4NorthComponentTest {
         StreamObserver<P4RuntimeOuterClass.StreamMessageRequest> requestObserver
                 = up4NorthService.streamChannel(responseObserver);
 
-        var deviceId = NorthTestConstants.P4RUNTIME_DEVICE_ID;
-        var role = P4RuntimeOuterClass.Role.getDefaultInstance();
-        var electionId = P4RuntimeOuterClass.Uint128.newBuilder().setLow(1).build();
+        doArbitration(requestObserver);
+        var response = responseObserver.lastResponse();
+        assertThat(response.getArbitration().getDeviceId(), equalTo(P4RUNTIME_DEVICE_ID));
+        assertThat(response.getArbitration().getRole(), equalTo(P4RUNTIME_ROLE));
+        assertThat(response.getArbitration().getElectionId(), equalTo(P4RUNTIME_ELECTION_ID));
+        assertThat(response.getArbitration().getStatus(),
+                equalTo(Status.newBuilder().setCode(Code.OK.getNumber()).build()));
+    }
+
+    public MockStreamObserver<P4RuntimeOuterClass.StreamMessageResponse> doPacketOut(byte[] payload) {
+        MockStreamObserver<P4RuntimeOuterClass.StreamMessageResponse> responseObserver
+                = new MockStreamObserver<>();
+
+        StreamObserver<P4RuntimeOuterClass.StreamMessageRequest> requestObserver
+                = up4NorthService.streamChannel(responseObserver);
+
+        doArbitration(requestObserver);
 
         P4RuntimeOuterClass.StreamMessageRequest request = P4RuntimeOuterClass.StreamMessageRequest.newBuilder()
-                .setArbitration(P4RuntimeOuterClass.MasterArbitrationUpdate.newBuilder()
-                        .setDeviceId(deviceId)
-                        .setRole(role)
-                        .setElectionId(electionId)
+                .setPacket(P4RuntimeOuterClass.PacketOut.newBuilder()
+                        .setPayload(ByteString.copyFrom(payload))
+                        .addMetadata(P4RuntimeOuterClass.PacketMetadata.newBuilder()
+                                .setMetadataId(1)
+                                .setValue(ByteString.copyFrom(PKT_OUT_METADATA_1))
+                                .build())
                         .build())
                 .build();
 
         requestObserver.onNext(request);
-        var response = responseObserver.lastResponse();
-        assertThat(response.getArbitration().getDeviceId(), equalTo(deviceId));
-        assertThat(response.getArbitration().getRole(), equalTo(role));
-        assertThat(response.getArbitration().getElectionId(), equalTo(electionId));
-        assertThat(response.getArbitration().getStatus(),
-                equalTo(Status.newBuilder().setCode(Code.OK.getNumber()).build()));
+
+        return responseObserver;
+    }
+
+    @Test
+    public void packetOutTest() {
+        MockStreamObserver<P4RuntimeOuterClass.StreamMessageResponse> responseObserver
+                = doPacketOut(PKT_OUT_PAYLOAD);
+        // There should be just the arbitration response.
+        assertThat(responseObserver.responsesObserved.size(), equalTo(1));
+        assertThat(mockUp4Service.sentPacketOuts.size(), equalTo(1));
+        assertThat(mockUp4Service.sentPacketOuts.get(0), equalTo(ByteBuffer.wrap(PKT_OUT_PAYLOAD)));
+    }
+
+    @Test
+    public void packetOutWithoutPayloadTest() {
+        doPacketOut(new byte[]{});
+        assertThat(mockUp4Service.sentPacketOuts.size(), equalTo(0));
+    }
+
+    @Test
+    public void packetOutConfigNotSetTest() {
+        mockUp4Service.hideState(false, true);
+        doPacketOut(PKT_OUT_PAYLOAD);
+        assertThat(mockUp4Service.sentPacketOuts.size(), equalTo(0));
+    }
+
+    @Test
+    public void packetOutUpfProgNotSetTest() {
+        mockUp4Service.hideState(true, false);
+        doPacketOut(PKT_OUT_PAYLOAD);
+        assertThat(mockUp4Service.sentPacketOuts.size(), equalTo(0));
     }
 
     @Test

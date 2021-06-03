@@ -8,6 +8,7 @@ import org.onlab.packet.Ip4Address;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 
+import java.nio.ByteBuffer;
 import java.util.Collection;
 
 
@@ -227,6 +228,18 @@ public interface UpfProgrammable {
     // FIXME: remove once we expose QFI in logical pipeline
     //  QFI should be set by the SMF using PFCP
     void disablePscEncap();
+
+    /**
+     * Sends the given data as a data plane packet-out through this device. Data is expected to
+     * contain an Ethernet frame.
+     *
+     * The device should process the packet through the pipeline tables to select an output port
+     * and to apply eventual modifications (e.g., MAC rewrite for routing, pushing a VLAN tag,
+     * etc.).
+     *
+     * @param data Ethernet frame bytes
+     */
+    void sendPacketOut(ByteBuffer data);
 
     /**
      * Used by the UpfProgrammable to trigger buffer draining as needed. Install an instance using

@@ -102,12 +102,30 @@ def handle_pkt(pkt: Packet, kind: str, exit_on_success: bool):
             exit(0)
 
 
+def handle_gtp_end_marker(pkt: Packet, exit_on_success: bool):
+    global pkt_count
+    pkt_count = pkt_count + 1
+
+    print("[%d] %d bytes: %s -> %s\n\t%s" \
+          % (pkt_count, len(pkt), pkt[IP].src, pkt[IP].dst, pkt.summary()))
+
+    if exit_on_success:
+        # gtp_type=254 --> end_marker
+        if gtp.GTP_U_Header in pkt and pkt[gtp.GTP_U_Header].gtp_type == 254:
+            print("Received GTP End Marker packet! teid=%s" % pkt[gtp.GTP_U_Header].teid)
+            exit(0)
+
+
 def sniff_gtp(args: argparse.Namespace):
     sniff_stuff(args, kind="gtp")
 
 
 def sniff_udp(args: argparse.Namespace):
     sniff_stuff(args, kind="udp")
+
+
+def sniff_gtp_end_marker(args: argparse.Namespace):
+    sniff_stuff(args, kind="gtp-end-marker")
 
 
 def sniff_nothing(args: argparse.Namespace):
@@ -138,9 +156,17 @@ def sniff_stuff(args: argparse.Namespace, kind: str):
     for ue_addr in addrs_from_prefix(args.ue_pool, args.flow_count):
         ue_addresses_expected.add(IPv4Address(ue_addr))
 
-    print("Expecting packets for/from the following UEs:", list(ue_addresses_expected))
     print("Will print a line for each UDP packet received...")
-    sniff(count=0, store=False, filter="udp", prn=lambda x: handle_pkt(x, kind, exit_on_success))
+
+    if kind == 'udp' or kind == 'gtp':
+        print("Expecting packets for/from the following UEs:", list(ue_addresses_expected))
+        prn = lambda x: handle_pkt(x, kind, exit_on_success)
+    elif kind == 'gtp-end-marker':
+        prn = lambda x: handle_gtp_end_marker(x, exit_on_success)
+    else:
+        print("Bad sniff_stuff kind argument: %s" % kind)
+        exit(1)
+    sniff(count=0, store=False, filter="udp", prn=prn)
 
 
 def handle_timeout(signum, frame):
@@ -154,6 +180,7 @@ def main():
         "send-gtp": send_gtp,
         "send-udp": send_udp,
         "recv-gtp": sniff_gtp,
+        "recv-gtp-end-marker": sniff_gtp_end_marker,
         "recv-udp": sniff_udp,
         "recv-none": sniff_nothing
     }

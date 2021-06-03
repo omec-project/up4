@@ -26,6 +26,7 @@ import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammableException;
 import org.omecproject.up4.behavior.Up4TranslatorImpl;
 import org.onlab.packet.Ip4Address;
+import org.onlab.util.HexString;
 import org.onlab.util.ImmutableByteSequence;
 import org.onlab.util.SharedExecutors;
 import org.onosproject.net.pi.model.DefaultPiPipeconf;
@@ -61,6 +62,7 @@ import p4.v1.P4RuntimeOuterClass;
 
 import java.io.IOException;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -538,6 +540,8 @@ public class Up4NorthComponent {
                             handleArbitration(request.getArbitration());
                             return;
                         case PACKET:
+                            handlePacketOut(request.getPacket());
+                            return;
                         case DIGEST_ACK:
                         case OTHER:
                         case UPDATE_NOT_SET:
@@ -625,6 +629,24 @@ public class Up4NorthComponent {
                             return null;
                         }
                     });
+                }
+
+                private void handlePacketOut(P4RuntimeOuterClass.PacketOut request) {
+                    try {
+                        errorIfSwitchNotReady();
+                        if (request.getPayload().isEmpty()) {
+                            log.error("Received packet-out with empty payload");
+                            return;
+                        }
+                        final byte[] frame = request.getPayload().toByteArray();
+                        if (log.isDebugEnabled()) {
+                            log.debug("Sending packet-out: {}", HexString.toHexString(frame, " "));
+                        }
+                        up4Service.getUpfProgrammable().sendPacketOut(ByteBuffer.wrap(frame));
+                    } catch (StatusException e) {
+                        // Drop exception to avoid closing the stream.
+                        log.error("Unable to send packet-out: {}", e.getMessage());
+                    }
                 }
 
                 private void handleErrorResponse(io.grpc.Status status) {

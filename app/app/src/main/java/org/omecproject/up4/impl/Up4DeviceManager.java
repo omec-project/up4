@@ -32,6 +32,7 @@ import org.onosproject.net.device.DeviceEvent;
 import org.onosproject.net.device.DeviceListener;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.flow.FlowRuleService;
+import org.onosproject.net.packet.PacketService;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
@@ -86,6 +87,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     protected CoreService coreService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowRuleService flowRuleService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected PacketService packetService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
@@ -213,8 +216,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             log.info("Setup UPF device: {}", deviceId);
             upfDeviceId = deviceId;
             // FIXME: change this once UpfProgrammable moves to the onos core
-            upfProgrammable = new FabricUpfProgrammable(flowRuleService, p4RuntimeController,
-                    piPipeconfService, upfStore, deviceId);
+            upfProgrammable = new FabricUpfProgrammable(flowRuleService, packetService,
+                    p4RuntimeController, piPipeconfService, upfStore, deviceId);
 
             if (!upfProgrammable.init(appId, configIsLoaded() && config.maxUes() > 0 ?
                     config.maxUes() : UpfProgrammable.NO_UE_LIMIT)) {
