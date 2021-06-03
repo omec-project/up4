@@ -64,6 +64,6 @@ public class FarInsertCommand extends AbstractShellCommand {
         ForwardingActionRule far = farBuilder.build();
 
         print("Installing %s", far.toString());
-        app.getUpfProgrammable().addFar(far);
+        app.addFar(far);
     }
 }

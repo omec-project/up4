@@ -7,9 +7,13 @@ package org.omecproject.up4.impl;
 import io.grpc.Context;
 import org.omecproject.dbuf.client.DbufClient;
 import org.omecproject.dbuf.client.DefaultDbufClient;
+import org.omecproject.up4.ForwardingActionRule;
+import org.omecproject.up4.PacketDetectionRule;
+import org.omecproject.up4.PdrStats;
 import org.omecproject.up4.Up4Event;
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.UpfInterface;
 import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.UpfProgrammableException;
@@ -46,6 +50,7 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -157,7 +162,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         return config != null;
     }
 
-    public UpfProgrammable getUpfProgrammable() {
+    private UpfProgrammable getUpfProgrammable() {
         if (this.upfProgrammable == null) {
             if (this.config == null) {
                 throw new IllegalStateException(
@@ -165,6 +170,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             } else if (!isUpfDevice(upfDeviceId)) {
                 throw new IllegalStateException(
                         "No UpfProgrammable set because deviceId present in config is not a valid UPF!");
+            } else if (!upfInitialized.get()) {
+                throw new IllegalStateException("UPF not initialized!");
             } else {
                 throw new IllegalStateException(
                         String.format("No UpfProgrammable is set for an unknown reason. Is device %s available?",
@@ -185,15 +192,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         Optional<PiPipeconf> opt = piPipeconfService.getPipeconf(device.id());
         return opt.map(piPipeconf ->
                 piPipeconf.id().toString().contains(AppConstants.SUPPORTED_PIPECONF_STRING)).orElse(false);
-    }
-
-    @Override
-    public void clearUpfProgrammable() {
-        if (upfProgrammable == null || !upfInitialized.get()) {
-            log.warn("Attempting to clear UPF before it has been initialized!");
-            return;
-        }
-        upfProgrammable.cleanUp();
     }
 
     private void setUpfDevice(DeviceId deviceId) {
@@ -427,6 +425,142 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         if (dbufConfig != null) {
             dbufUpdateConfig(dbufConfig);
         }
+    }
+
+    @Override
+    public boolean init(ApplicationId appId, long ueLimit) {
+        // TODO: remove when UpfProgrammable becomes a behaviour.
+        throw new UnsupportedOperationException("init should never be called on the Up4DeviceManager!");
+    }
+
+    @Override
+    public void cleanUp() {
+        upfProgrammable.cleanUp();
+    }
+
+    @Override
+    public DeviceId deviceId() {
+        return getUpfProgrammable().deviceId();
+    }
+
+    @Override
+    public Collection<UpfFlow> getFlows() throws UpfProgrammableException {
+        return getUpfProgrammable().getFlows();
+    }
+
+    @Override
+    public void clearInterfaces() {
+        getUpfProgrammable().clearInterfaces();
+    }
+
+    @Override
+    public void clearFlows() {
+        getUpfProgrammable().clearFlows();
+    }
+
+    @Override
+    public Collection<ForwardingActionRule> getFars() throws UpfProgrammableException {
+        return getUpfProgrammable().getFars();
+    }
+
+    @Override
+    public Collection<PacketDetectionRule> getPdrs() throws UpfProgrammableException {
+        return getUpfProgrammable().getPdrs();
+    }
+
+    @Override
+    public Collection<UpfInterface> getInterfaces() throws UpfProgrammableException {
+        return getUpfProgrammable().getInterfaces();
+    }
+
+    @Override
+    public void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException {
+        getUpfProgrammable().addPdr(pdr);
+    }
+
+    @Override
+    public void removePdr(PacketDetectionRule pdr) throws UpfProgrammableException {
+        getUpfProgrammable().removePdr(pdr);
+    }
+
+    @Override
+    public void addFar(ForwardingActionRule far) throws UpfProgrammableException {
+        getUpfProgrammable().addFar(far);
+    }
+
+    @Override
+    public void removeFar(ForwardingActionRule far) throws UpfProgrammableException {
+        getUpfProgrammable().removeFar(far);
+    }
+
+    @Override
+    public void addInterface(UpfInterface upfInterface) throws UpfProgrammableException {
+        getUpfProgrammable().addInterface(upfInterface);
+    }
+
+    @Override
+    public void removeInterface(UpfInterface upfInterface) throws UpfProgrammableException {
+        getUpfProgrammable().removeInterface(upfInterface);
+    }
+
+    @Override
+    public PdrStats readCounter(int counterIdx) throws UpfProgrammableException {
+        return getUpfProgrammable().readCounter(counterIdx);
+    }
+
+    @Override
+    public long pdrCounterSize() {
+        return getUpfProgrammable().pdrCounterSize();
+    }
+
+    @Override
+    public long farTableSize() {
+        return getUpfProgrammable().farTableSize();
+    }
+
+    @Override
+    public long pdrTableSize() {
+        return getUpfProgrammable().pdrTableSize();
+    }
+
+    @Override
+    public Collection<PdrStats> readAllCounters() throws UpfProgrammableException {
+        return getUpfProgrammable().readAllCounters();
+    }
+
+    @Override
+    public void setDbufTunnel(Ip4Address switchAddr, Ip4Address dbufAddr) {
+        getUpfProgrammable().setDbufTunnel(switchAddr, dbufAddr);
+    }
+
+    @Override
+    public void unsetDbufTunnel() {
+        getUpfProgrammable().unsetDbufTunnel();
+    }
+
+    @Override
+    public void setBufferDrainer(BufferDrainer drainer) {
+        getUpfProgrammable().setBufferDrainer(drainer);
+    }
+
+    @Override
+    public void unsetBufferDrainer() {
+        getUpfProgrammable().unsetBufferDrainer();
+    }
+
+    @Override
+    public void enablePscEncap(int defaultQfi) {
+        getUpfProgrammable().enablePscEncap(defaultQfi);
+    }
+
+    @Override
+    public void disablePscEncap() {
+        getUpfProgrammable().disablePscEncap();
+    }
+
+    @Override
+    public void sendPacketOut(ByteBuffer data) {
+        getUpfProgrammable().sendPacketOut(data);
     }
 
     /**

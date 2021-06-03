@@ -182,17 +182,17 @@ public class Up4NorthComponent {
         try {
             if (up4Translator.isUp4Interface(entry)) {
                 UpfInterface upfInterface = up4Translator.up4EntryToInterface(entry);
-                up4Service.getUpfProgrammable().removeInterface(upfInterface);
+                up4Service.removeInterface(upfInterface);
 
             } else if (up4Translator.isUp4Pdr(entry)) {
                 PacketDetectionRule pdr = up4Translator.up4EntryToPdr(entry);
                 log.debug("Translated UP4 PDR successfully. Deleting.");
-                up4Service.getUpfProgrammable().removePdr(pdr);
+                up4Service.removePdr(pdr);
 
             } else if (up4Translator.isUp4Far(entry)) {
                 ForwardingActionRule far = up4Translator.up4EntryToFar(entry);
                 log.debug("Translated UP4 FAR successfully. Deleting.");
-                up4Service.getUpfProgrammable().removeFar(far);
+                up4Service.removeFar(far);
 
             } else {
                 log.warn("Received unknown table entry for table {} in UP4 delete request:", entry.table().id());
@@ -230,14 +230,14 @@ public class Up4NorthComponent {
         try {
             if (up4Translator.isUp4Interface(entry)) {
                 UpfInterface iface = up4Translator.up4EntryToInterface(entry);
-                up4Service.getUpfProgrammable().addInterface(iface);
+                up4Service.addInterface(iface);
             } else if (up4Translator.isUp4Pdr(entry)) {
                 PacketDetectionRule pdr = up4Translator.up4EntryToPdr(entry);
                 updateFseidMap(pdr);
-                up4Service.getUpfProgrammable().addPdr(pdr);
+                up4Service.addPdr(pdr);
             } else if (up4Translator.isUp4Far(entry)) {
                 ForwardingActionRule far = up4Translator.up4EntryToFar(entry);
-                up4Service.getUpfProgrammable().addFar(far);
+                up4Service.addFar(far);
             } else {
                 log.warn("Received entry for unsupported table in UP4 write request: {}", entry.table().id());
                 throw INVALID_ARGUMENT
@@ -298,7 +298,7 @@ public class Up4NorthComponent {
         // TODO: return more specific responses
         try {
             if (up4Translator.isUp4Interface(requestedEntry)) {
-                for (UpfInterface iface : up4Service.getUpfProgrammable().getInterfaces()) {
+                for (UpfInterface iface : up4Service.getInterfaces()) {
                     if (iface.isDbufReceiver()) {
                         // Don't expose the dbuf interface to the logical switch
                         continue;
@@ -309,14 +309,14 @@ public class Up4NorthComponent {
                     translatedEntries.add(responseEntity);
                 }
             } else if (up4Translator.isUp4Far(requestedEntry)) {
-                for (ForwardingActionRule far : up4Service.getUpfProgrammable().getFars()) {
+                for (ForwardingActionRule far : up4Service.getFars()) {
                     log.debug("Translating a FAR for a read request: {}", far);
                     P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
                             up4Translator.farToUp4Entry(far), null, pipeconf);
                     translatedEntries.add(responseEntity);
                 }
             } else if (up4Translator.isUp4Pdr(requestedEntry)) {
-                for (PacketDetectionRule pdr : up4Service.getUpfProgrammable().getPdrs()) {
+                for (PacketDetectionRule pdr : up4Service.getPdrs()) {
                     log.debug("Translating a PDR for a read request: {}", pdr);
                     P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
                             up4Translator.pdrToUp4Entry(pdr), null, pipeconf);
@@ -349,9 +349,9 @@ public class Up4NorthComponent {
         var newP4InfoBuilder = P4InfoOuterClass.P4Info.newBuilder(p4Info)
                 .clearCounters()
                 .clearTables();
-        long physicalCounterSize = up4Service.getUpfProgrammable().pdrCounterSize();
-        long physicalFarTableSize = up4Service.getUpfProgrammable().farTableSize();
-        long physicalPdrTableSize = up4Service.getUpfProgrammable().pdrTableSize();
+        long physicalCounterSize = up4Service.pdrCounterSize();
+        long physicalFarTableSize = up4Service.farTableSize();
+        long physicalPdrTableSize = up4Service.pdrTableSize();
         int ingressPdrCounterId;
         int egressPdrCounterId;
         int pdrTableId;
@@ -440,7 +440,7 @@ public class Up4NorthComponent {
             // A single counter cell was requested
             PdrStats ctrValues;
             try {
-                ctrValues = up4Service.getUpfProgrammable().readCounter(index);
+                ctrValues = up4Service.readCounter(index);
             } catch (UpfProgrammableException e) {
                 throw INVALID_ARGUMENT
                         .withDescription(e.getMessage())
@@ -466,7 +466,7 @@ public class Up4NorthComponent {
             // FIXME: only read the counter that was requested, instead of both ingress and egress unconditionally
             Collection<PdrStats> allStats;
             try {
-                allStats = up4Service.getUpfProgrammable().readAllCounters();
+                allStats = up4Service.readAllCounters();
             } catch (UpfProgrammableException e) {
                 throw io.grpc.Status.UNKNOWN.withDescription(e.getMessage()).asException();
             }
@@ -642,7 +642,7 @@ public class Up4NorthComponent {
                         if (log.isDebugEnabled()) {
                             log.debug("Sending packet-out: {}", HexString.toHexString(frame, " "));
                         }
-                        up4Service.getUpfProgrammable().sendPacketOut(ByteBuffer.wrap(frame));
+                        up4Service.sendPacketOut(ByteBuffer.wrap(frame));
                     } catch (StatusException e) {
                         // Drop exception to avoid closing the stream.
                         log.error("Unable to send packet-out: {}", e.getMessage());
