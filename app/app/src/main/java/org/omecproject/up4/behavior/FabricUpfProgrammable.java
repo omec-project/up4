@@ -357,9 +357,10 @@ public class FabricUpfProgrammable implements UpfProgrammable {
                 return;
             }
             if (!pdrStatBuilders.containsKey((int) counterCell.cellId().index())) {
-                // Most likely Up4config.maxUes() is set to smaller value than what the switch
+                // Most likely Up4config.maxUes() is set to a value smaller than what the switch
                 // pipeline can hold.
-                log.trace("Unrecognized counter index {}, skipping", counterCell);
+                log.debug("Unrecognized index {} when reading all counters, " +
+                        "that's expected if we are manually limiting maxUes", counterCell);
                 return;
             }
             PdrStats.Builder statsBuilder = pdrStatBuilders.get((int) counterCell.cellId().index());

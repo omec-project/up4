@@ -639,8 +639,9 @@ public class Up4NorthComponent {
                             return;
                         }
                         final byte[] frame = request.getPayload().toByteArray();
-                        // FIXME: use trace
-                        log.info("Sending packet-out: {}", HexString.toHexString(frame, " "));
+                        if (log.isDebugEnabled()) {
+                            log.debug("Sending packet-out: {}", HexString.toHexString(frame, " "));
+                        }
                         up4Service.getUpfProgrammable().sendPacketOut(ByteBuffer.wrap(frame));
                     } catch (StatusException e) {
                         // Drop exception to avoid closing the stream.
