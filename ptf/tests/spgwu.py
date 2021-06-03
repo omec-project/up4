@@ -312,13 +312,12 @@ class GtpEndMarkerPacketOutTest(GtpuBaseTest):
 
         outport = self.port2
 
-        self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32',
-                               src_mac=exp_pkt[Ether].src,
-                               dst_mac=exp_pkt[Ether].dst,
-                               egress_port=outport)
+        self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', src_mac=exp_pkt[Ether].src,
+                               dst_mac=exp_pkt[Ether].dst, egress_port=outport)
 
         self.send_packet_out(self.helper.build_packet_out(pkt, {"reserved": 0}))
         testutils.verify_packet(self, exp_pkt, outport)
+
 
 @group("gtpu")
 class AclPuntTest(GtpuBaseTest):

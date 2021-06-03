@@ -423,10 +423,8 @@ class GtpuBaseTest(P4RuntimeTest):
 
         self.add_far(far_id=far_id, session_id=session_id, drop=drop)
         if not drop:
-            self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32',
-                                   src_mac=exp_pkt[Ether].src,
-                                   dst_mac=exp_pkt[Ether].dst,
-                                   egress_port=outport)
+            self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', src_mac=exp_pkt[Ether].src,
+                                   dst_mac=exp_pkt[Ether].dst, egress_port=outport)
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
                                      buffer=False, session_id=None, pdr_id=None, far_id=None):
@@ -478,10 +476,8 @@ class GtpuBaseTest(P4RuntimeTest):
                      teid=exp_pkt[gtp.GTP_U_Header].teid, src_addr=exp_pkt[IP].src,
                      dst_addr=exp_pkt[IP].dst)
         if not drop:
-            self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32',
-                                   src_mac=exp_pkt[Ether].src,
-                                   dst_mac=exp_pkt[Ether].dst,
-                                   egress_port=outport)
+            self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', src_mac=exp_pkt[Ether].src,
+                                   dst_mac=exp_pkt[Ether].dst, egress_port=outport)
 
     def set_up_ddn_digest(self, ack_timeout_ns):
         # No timeout, not batching. Not recommended for production.
