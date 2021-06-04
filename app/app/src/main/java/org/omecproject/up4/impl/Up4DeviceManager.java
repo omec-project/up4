@@ -185,8 +185,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         return upfProgrammable != null;
     }
 
-    @Override
-    public boolean isUpfDevice(DeviceId deviceId) {
+    private boolean isUpfDevice(DeviceId deviceId) {
         final Device device = deviceService.getDevice(deviceId);
 
         Optional<PiPipeconf> opt = piPipeconfService.getPipeconf(device.id());
@@ -435,7 +434,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void cleanUp() {
-        upfProgrammable.cleanUp();
+        getUpfProgrammable().cleanUp();
     }
 
     @Override

@@ -49,11 +49,6 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public boolean isUpfDevice(DeviceId deviceId) {
-        return true;
-    }
-
-    @Override
     public void addListener(Up4EventListener listener) {
 
     }

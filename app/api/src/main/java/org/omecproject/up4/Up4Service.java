@@ -5,14 +5,15 @@
 package org.omecproject.up4;
 
 
+import com.google.common.annotations.Beta;
 import org.onosproject.event.ListenerService;
-import org.onosproject.net.DeviceId;
 
 
 /**
  * The service provided by the UP4 Device Manager. Exposes UPF network level APIs.
  * This API is a work in progress.
  */
+@Beta
 public interface Up4Service extends ListenerService<Up4Event, Up4EventListener>, UpfProgrammable {
 
     /**
@@ -33,13 +34,5 @@ public interface Up4Service extends ListenerService<Up4Event, Up4EventListener>,
      * Install all UPF dataplane interfaces present in the app configuration.
      */
     void installInterfaces();
-
-    /**
-     * Check if the device is registered and is a valid UPF dataplane.
-     *
-     * @param deviceId ID of the device to check
-     * @return True if the device is a valid UPF data plane, and False otherwise
-     */
-    boolean isUpfDevice(DeviceId deviceId);
 
 }
