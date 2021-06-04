@@ -139,7 +139,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         // Only clean up the state when the deactivation is triggered by ApplicationService
         log.info("Running Up4DeviceManager preDeactivation hook.");
         if (upfProgrammableAvailable()) {
-            upfProgrammable.cleanUp();
+            getUpfProgrammable().cleanUp();
         }
         teardownDbufClient();
         upfInitialized.set(false);
