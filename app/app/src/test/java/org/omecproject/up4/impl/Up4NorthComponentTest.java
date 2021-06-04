@@ -10,7 +10,6 @@ import com.google.rpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
-import org.omecproject.up4.UpfProgrammable;
 import org.omecproject.up4.behavior.TestConstants;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
@@ -48,7 +47,6 @@ public class Up4NorthComponentTest {
     private final Up4NorthComponent up4NorthComponent = new Up4NorthComponent();
     private final Up4NorthComponent.Up4NorthService up4NorthService = up4NorthComponent.up4NorthService;
     PiPipeconf pipeconf;
-    UpfProgrammable upfProgrammable;
     MockUp4Service mockUp4Service;
     private P4InfoOuterClass.P4Info p4Info;
 
@@ -62,7 +60,6 @@ public class Up4NorthComponentTest {
         up4NorthComponent.up4Service = mockUp4Service;
         up4NorthComponent.fseids = TestEventuallyConsistentMap.<Ip4Address, ImmutableByteSequence>builder()
                 .withSerializer(KryoNamespaces.API).build();
-        upfProgrammable = up4NorthComponent.up4Service.getUpfProgrammable();
     }
 
     /**
@@ -307,49 +304,49 @@ public class Up4NorthComponentTest {
 
     @Test
     public void downlinkFarReadTest() throws Exception {
-        upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
+        mockUp4Service.addFar(TestConstants.DOWNLINK_FAR);
         readTest(TestConstants.UP4_DOWNLINK_FAR);
     }
 
     @Test
     public void uplinkFarReadTest() throws Exception {
-        upfProgrammable.addFar(TestConstants.UPLINK_FAR);
+        mockUp4Service.addFar(TestConstants.UPLINK_FAR);
         readTest(TestConstants.UP4_UPLINK_FAR);
     }
 
     @Test
     public void downlinkPdrReadTest() throws Exception {
-        upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
+        mockUp4Service.addPdr(TestConstants.DOWNLINK_PDR);
         readTest(TestConstants.UP4_DOWNLINK_PDR);
     }
 
     @Test
     public void downlinkPriorityPdrReadTest() throws Exception {
-        upfProgrammable.addPdr(TestConstants.DOWNLINK_PRIORITY_PDR);
+        mockUp4Service.addPdr(TestConstants.DOWNLINK_PRIORITY_PDR);
         readTest(TestConstants.UP4_DOWNLINK_PRIORITY_PDR);
     }
 
     @Test
     public void uplinkPdrReadTest() throws Exception {
-        upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
+        mockUp4Service.addPdr(TestConstants.UPLINK_PDR);
         readTest(TestConstants.UP4_UPLINK_PDR);
     }
 
     @Test
     public void uplinkPriorityPdrReadTest() throws Exception {
-        upfProgrammable.addPdr(TestConstants.UPLINK_PRIORITY_PDR);
+        mockUp4Service.addPdr(TestConstants.UPLINK_PRIORITY_PDR);
         readTest(TestConstants.UP4_UPLINK_PRIORITY_PDR);
     }
 
     @Test
     public void downlinkInterfaceReadTest() throws Exception {
-        upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
+        mockUp4Service.addInterface(TestConstants.DOWNLINK_INTERFACE);
         readTest(TestConstants.UP4_DOWNLINK_INTERFACE);
     }
 
     @Test
     public void uplinkInterfaceReadTest() throws Exception {
-        upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
+        mockUp4Service.addInterface(TestConstants.UPLINK_INTERFACE);
         readTest(TestConstants.UP4_UPLINK_INTERFACE);
     }
 
@@ -357,99 +354,99 @@ public class Up4NorthComponentTest {
     public void downlinkFarInsertionTest() throws Exception {
         PiTableEntry entry = TestConstants.UP4_DOWNLINK_FAR;
         insertionTest(entry);
-        assertThat(upfProgrammable.getFars().size(), equalTo(1));
+        assertThat(mockUp4Service.getFars().size(), equalTo(1));
     }
 
     @Test
     public void downlinkFarDeletionTest() throws Exception {
-        upfProgrammable.addFar(TestConstants.DOWNLINK_FAR);
+        mockUp4Service.addFar(TestConstants.DOWNLINK_FAR);
         deletionTest(TestConstants.UP4_DOWNLINK_FAR);
-        assertTrue(upfProgrammable.getFars().isEmpty());
+        assertTrue(mockUp4Service.getFars().isEmpty());
     }
 
     @Test
     public void uplinkFarInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_UPLINK_FAR);
-        assertThat(upfProgrammable.getFars().size(), equalTo(1));
+        assertThat(mockUp4Service.getFars().size(), equalTo(1));
     }
 
     @Test
     public void uplinkFarDeletionTest() throws Exception {
-        upfProgrammable.addFar(TestConstants.UPLINK_FAR);
+        mockUp4Service.addFar(TestConstants.UPLINK_FAR);
         deletionTest(TestConstants.UP4_UPLINK_FAR);
-        assertTrue(upfProgrammable.getFars().isEmpty());
+        assertTrue(mockUp4Service.getFars().isEmpty());
     }
 
     @Test
     public void downlinkPdrInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_DOWNLINK_PDR);
-        assertThat(upfProgrammable.getPdrs().size(), equalTo(1));
+        assertThat(mockUp4Service.getPdrs().size(), equalTo(1));
     }
 
     @Test
     public void downlinkPriorityPdrInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_DOWNLINK_PRIORITY_PDR);
-        assertThat(upfProgrammable.getPdrs().size(), equalTo(1));
+        assertThat(mockUp4Service.getPdrs().size(), equalTo(1));
     }
 
     @Test
     public void downlinkPdrDeletionTest() throws Exception {
-        upfProgrammable.addPdr(TestConstants.DOWNLINK_PDR);
+        mockUp4Service.addPdr(TestConstants.DOWNLINK_PDR);
         deletionTest(TestConstants.UP4_DOWNLINK_PDR);
-        assertTrue(upfProgrammable.getPdrs().isEmpty());
+        assertTrue(mockUp4Service.getPdrs().isEmpty());
     }
 
     @Test
     public void uplinkPdrInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_UPLINK_PDR);
-        assertThat(upfProgrammable.getPdrs().size(), equalTo(1));
+        assertThat(mockUp4Service.getPdrs().size(), equalTo(1));
     }
 
     @Test
     public void uplinkPriorityPdrInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_UPLINK_PRIORITY_PDR);
-        assertThat(upfProgrammable.getPdrs().size(), equalTo(1));
+        assertThat(mockUp4Service.getPdrs().size(), equalTo(1));
     }
 
     @Test
     public void uplinkPdrDeletionTest() throws Exception {
-        upfProgrammable.addPdr(TestConstants.UPLINK_PDR);
+        mockUp4Service.addPdr(TestConstants.UPLINK_PDR);
         deletionTest(TestConstants.UP4_UPLINK_PDR);
-        assertTrue(upfProgrammable.getPdrs().isEmpty());
+        assertTrue(mockUp4Service.getPdrs().isEmpty());
     }
 
     @Test
     public void uplinkPriorityPdrDeletionTest() throws Exception {
-        upfProgrammable.addPdr(TestConstants.UPLINK_PRIORITY_PDR);
+        mockUp4Service.addPdr(TestConstants.UPLINK_PRIORITY_PDR);
         deletionTest(TestConstants.UP4_UPLINK_PRIORITY_PDR);
-        assertTrue(upfProgrammable.getPdrs().isEmpty());
+        assertTrue(mockUp4Service.getPdrs().isEmpty());
     }
 
     @Test
     public void downlinkInterfaceInsertionTest() throws Exception {
         insertionTest(TestConstants.UP4_DOWNLINK_INTERFACE);
-        assertThat(upfProgrammable.getInterfaces().size(), equalTo(1));
+        assertThat(mockUp4Service.getInterfaces().size(), equalTo(1));
     }
 
     @Test
     public void downlinkInterfaceDeletionTest() throws Exception {
-        upfProgrammable.addInterface(TestConstants.DOWNLINK_INTERFACE);
+        mockUp4Service.addInterface(TestConstants.DOWNLINK_INTERFACE);
         deletionTest(TestConstants.UP4_DOWNLINK_INTERFACE);
-        assertTrue(upfProgrammable.getInterfaces().isEmpty());
+        assertTrue(mockUp4Service.getInterfaces().isEmpty());
     }
 
     @Test
     public void uplinkInterfaceInsertionTest() throws Exception {
         PiTableEntry entry = TestConstants.UP4_UPLINK_INTERFACE;
         insertionTest(entry);
-        assertThat(upfProgrammable.getInterfaces().size(), equalTo(1));
+        assertThat(mockUp4Service.getInterfaces().size(), equalTo(1));
     }
 
     @Test
     public void uplinkInterfaceDeletionTest() throws Exception {
-        upfProgrammable.addInterface(TestConstants.UPLINK_INTERFACE);
+        mockUp4Service.addInterface(TestConstants.UPLINK_INTERFACE);
         deletionTest(TestConstants.UP4_UPLINK_INTERFACE);
-        assertTrue(upfProgrammable.getInterfaces().isEmpty());
+        assertTrue(mockUp4Service.getInterfaces().isEmpty());
     }
 
     public void doArbitration(StreamObserver<P4RuntimeOuterClass.StreamMessageRequest> requestObserver) {

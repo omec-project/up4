@@ -38,6 +38,6 @@ public class FarDeleteCommand extends AbstractShellCommand {
                 .setFarId(farId)
                 .build();
         print("Deleting %s", far.toString());
-        app.getUpfProgrammable().removeFar(far);
+        app.removeFar(far);
     }
 }

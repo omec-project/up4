@@ -5,22 +5,16 @@
 package org.omecproject.up4;
 
 
+import com.google.common.annotations.Beta;
 import org.onosproject.event.ListenerService;
-import org.onosproject.net.DeviceId;
 
 
 /**
- * The service provided by the UP4 Device Manager. This API is a work in progress. Currently the only important
- * service it provides is retrieving the available UpfProgrammable.
+ * The service provided by the UP4 Device Manager. Exposes UPF network level APIs.
+ * This API is a work in progress.
  */
-public interface Up4Service extends ListenerService<Up4Event, Up4EventListener> {
-
-    /**
-     * Grab a reference to the current UpfProgrammable, for installing PDRs, FARs and Interfaces.
-     *
-     * @return a reference to the current UpfProgrammable
-     */
-    UpfProgrammable getUpfProgrammable();
+@Beta
+public interface Up4Service extends ListenerService<Up4Event, Up4EventListener>, UpfProgrammable {
 
     /**
      * True if a UPF device is currently available in ONOS, and false otherwise.
@@ -37,22 +31,8 @@ public interface Up4Service extends ListenerService<Up4Event, Up4EventListener> 
     boolean configIsLoaded();
 
     /**
-     * Clear all table entries in the UpfProgrammable installed by the UP4 app.
-     */
-    void clearUpfProgrammable();
-
-
-    /**
      * Install all UPF dataplane interfaces present in the app configuration.
      */
     void installInterfaces();
-
-    /**
-     * Check if the device is registered and is a valid UPF dataplane.
-     *
-     * @param deviceId ID of the device to check
-     * @return True if the device is a valid UPF data plane, and False otherwise
-     */
-    boolean isUpfDevice(DeviceId deviceId);
 
 }

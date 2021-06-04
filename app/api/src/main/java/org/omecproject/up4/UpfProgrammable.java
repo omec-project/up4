@@ -17,6 +17,7 @@ import java.util.Collection;
  * implementation of this API should not write state directly to the device, but instead, always
  * rely on core ONOS subsystems (e.g., FlowRuleService, GroupService, etc).
  */
+//TODO: extracts behaviour from actual interface (e.g., init should only be exposed by behaviour).
 public interface UpfProgrammable {
 
     int NO_UE_LIMIT = -1;

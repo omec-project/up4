@@ -32,7 +32,7 @@ public class UePoolDeleteCommand extends AbstractShellCommand {
         Ip4Prefix poolPrefix = Ip4Prefix.valueOf(this.poolPrefix);
 
         print("Deleting UE IPv4 address pool prefix: %s", poolPrefix);
-        app.getUpfProgrammable().removeInterface(UpfInterface.createUePoolFrom(poolPrefix));
+        app.removeInterface(UpfInterface.createUePoolFrom(poolPrefix));
     }
 }
 

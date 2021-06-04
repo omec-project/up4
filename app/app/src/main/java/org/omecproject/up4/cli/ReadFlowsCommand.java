@@ -24,7 +24,7 @@ public class ReadFlowsCommand extends AbstractShellCommand {
     protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
-        Collection<UpfFlow> flows = app.getUpfProgrammable().getFlows();
+        Collection<UpfFlow> flows = app.getFlows();
         for (UpfFlow flow : flows) {
             print(flow.toString());
         }

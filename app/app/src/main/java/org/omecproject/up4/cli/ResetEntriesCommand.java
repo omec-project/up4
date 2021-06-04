@@ -22,7 +22,7 @@ public class ResetEntriesCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         print("Clearing all UP4 dataplane table entries.");
-        app.clearUpfProgrammable();
+        app.clearFlows();
         print("Reinstalling UP4 interfaces from app configuration.");
         app.installInterfaces();
     }
