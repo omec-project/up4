@@ -14,15 +14,16 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.8
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: 3.8
     - name: Run yapf
       run: make prettify
     - name: Create Pull Request
-      uses: peter-evans/create-pull-request@v2.7.0
+      uses: peter-evans/create-pull-request@v3
       with:
         commit-message: Auto-prettify ${{ github.sha }}
         title: Auto-prettify 💅
+        author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
         labels: prettybot
         branch: prettybot
