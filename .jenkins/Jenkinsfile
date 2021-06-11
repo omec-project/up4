@@ -17,6 +17,7 @@ pipeline {
     UP4_ENV = "${up4Env}"
     CODECOV_TOKEN = "26252f52-8c2d-4cfd-bd2f-ec00a71d2942"
     JAVA_HOME = "/usr/lib/jvm/java-11-amazon-corretto"
+    GITHUB_URL = "ssh://git@github.com/omec-project/up4.git"
   }
 
   stages {
@@ -29,7 +30,7 @@ pipeline {
       steps {
         checkout([
             $class           : "GitSCM",
-            userRemoteConfigs: [[url          : "ssh://git@github.com/omec-project/up4.git",
+            userRemoteConfigs: [[url          : "${env.GITHUB_URL}",
                                  refspec      : "+refs/heads/*:refs/remotes/origin/* +refs/pull/*:refs/remotes/origin/pr/*",
                                  credentialsId: "github-onf-bot-ssh-key",]],
             branches         : [[name: "${commitHash}"]],
@@ -129,6 +130,13 @@ pipeline {
     }
   }
   post {
+    success {
+      script {
+        if (!params.ghprbPullId?.trim()) {
+          setBuildStatus("Build succeeded", "SUCCESS", "${env.GITHUB_URL}")
+        }
+      }
+    }
     failure {
       script {
         if (params.ghprbPullId?.trim()) {
@@ -139,6 +147,7 @@ pipeline {
               to: "${params.ghprbPullAuthorEmail}"
           )
         } else {
+          setBuildStatus("Build failed", "FAILURE", "${env.GITHUB_URL}")
           // Post-merge, alert project maintainers
           emailext(
               subject: "[${env.JOB_NAME}] ${currentBuild.currentResult}: ${params.sha1}",
@@ -149,4 +158,13 @@ pipeline {
       }
     }
   }
+}
+
+void setBuildStatus(String message, String state, String url) {
+  step([
+      $class: "GitHubCommitStatusSetter",
+      reposSource: [$class: "ManuallyEnteredRepositorySource", url: url],
+      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: "up4-postmerge"],
+      statusResultSource: [ $class: "ConditionalStatusResultSource", results: [[$class: "AnyBuildResult", message: message, state: state]] ]
+  ]);
 }

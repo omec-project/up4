@@ -5,7 +5,6 @@ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
 # UP4
 
-[![CircleCI](https://circleci.com/gh/omec-project/up4.svg?style=svg&circle-token=dd7ccddc58269dfdd22af69a892b6a4ee33b3474)](https://circleci.com/gh/omec-project/up4)
 [![codecov](https://codecov.io/gh/omec-project/up4/branch/master/graph/badge.svg?token=ZJ1RZ6CFXK)](https://codecov.io/gh/omec-project/up4)
 
 This project provides a reference P4 implementation of the mobile core user plane forwarding model. The initial focus is the 4G SPGW-u, but eventually, the same P4 program will evolve to support the 5G UPF.
