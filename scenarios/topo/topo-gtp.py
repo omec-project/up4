@@ -90,6 +90,8 @@ class TutorialTopo(Topo):
 
     def __init__(self, *args, **kwargs):
         Topo.__init__(self, *args, **kwargs)
+        # Extract parallelLinks option
+        parallelLinks=args[0]
 
         # Leaves
         # gRPC port 50001
@@ -104,16 +106,10 @@ class TutorialTopo(Topo):
         # gRPC port 50004
         spine2 = self.addSwitch('spine2', cls=StratumBmv2Switch, cpuport=CPU_PORT)
 
-        # Switch Links
-        self.addLink(spine1, leaf1)
-        self.addLink(spine1, leaf2)
-        self.addLink(spine2, leaf1)
-        self.addLink(spine2, leaf2)
-
         # enodeb IPv4 host attached to leaf 1
         enodeb = self.addHost('enodeb', cls=IPv4Host, mac='00:00:00:00:00:10', ip='140.0.100.1/24',
                               gw='140.0.100.254')
-        self.addLink(enodeb, leaf1)  # port 3
+        self.addLink(enodeb, leaf1)  # port 1
 
         # dbuf IPv4 host attached to leaf 1
         # DbufHost exists on the root net namespace (inNamespace=False) such
@@ -125,16 +121,23 @@ class TutorialTopo(Topo):
         # packets.
         dbuf1 = self.addHost('dbuf1', cls=DbufHost, mac='00:00:00:00:db:0f', ip='140.0.99.1/24',
                              gw='140.0.99.254')
-        self.addLink(dbuf1, leaf1)  # port 4
+        self.addLink(dbuf1, leaf1)  # port 2
 
         # pdn IPv4 host attached to leaf 2
         pdn = self.addHost('pdn', cls=IPv4Host, mac='00:00:00:00:00:20', ip='140.0.200.1/24',
                            gw='140.0.200.254')
-        self.addLink(pdn, leaf2)  # port 3
+        self.addLink(pdn, leaf2)  # port 1
+
+        # Switch Links
+        for i in range(0, parallelLinks):
+            self.addLink(spine1, leaf1)
+            self.addLink(spine1, leaf2)
+            self.addLink(spine2, leaf1)
+            self.addLink(spine2, leaf2)
 
 
-def main():
-    net = Mininet(topo=TutorialTopo(), controller=None)
+def main(parallelLinks):
+    net = Mininet(topo=TutorialTopo(parallelLinks), controller=None)
     net.start()
     CLI(net)
     net.stop()
@@ -150,7 +153,9 @@ def main():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Mininet topology script for 2x2 fabric with stratum_bmv2 and IPv4 hosts')
+    parser.add_argument('-pl', '--parallel-links', type=int, default=1,
+        help='change the number of parallel links between leaf and spine')
     args = parser.parse_args()
     setLogLevel('info')
 
-    main()
+    main(args.parallel_links)
