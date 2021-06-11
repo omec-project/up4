@@ -19,7 +19,7 @@ import static org.onosproject.net.NetTestTools.injectEventDispatcher;
 /**
  * Set of tests of the ONOS application component.
  */
-public class UpfDeviceManagerTest {
+public class Up4DeviceManagerTest {
 
     private Up4DeviceManager component;
 

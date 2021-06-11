@@ -10,7 +10,6 @@ import com.google.rpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
-import org.omecproject.up4.behavior.TestConstants;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.pi.model.PiCounterId;
@@ -39,8 +38,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.omecproject.up4.impl.NorthTestConstants.P4RUNTIME_DEVICE_ID;
 import static org.omecproject.up4.impl.NorthTestConstants.P4RUNTIME_ELECTION_ID;
 import static org.omecproject.up4.impl.NorthTestConstants.P4RUNTIME_ROLE;
-import static org.omecproject.up4.impl.NorthTestConstants.PKT_OUT_PAYLOAD;
 import static org.omecproject.up4.impl.NorthTestConstants.PKT_OUT_METADATA_1;
+import static org.omecproject.up4.impl.NorthTestConstants.PKT_OUT_PAYLOAD;
 
 public class Up4NorthComponentTest {
 
@@ -133,9 +132,9 @@ public class Up4NorthComponentTest {
         P4RuntimeOuterClass.WriteRequest request = P4RuntimeOuterClass.WriteRequest.newBuilder()
                 .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
                 .addUpdates(P4RuntimeOuterClass.Update.newBuilder()
-                        .setEntity(entity)
-                        .setType(P4RuntimeOuterClass.Update.Type.INSERT)
-                        .build())
+                                    .setEntity(entity)
+                                    .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+                                    .build())
                 .build();
 
         up4NorthService.write(request, responseObserver);
@@ -157,9 +156,9 @@ public class Up4NorthComponentTest {
         P4RuntimeOuterClass.WriteRequest request = P4RuntimeOuterClass.WriteRequest.newBuilder()
                 .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
                 .addUpdates(P4RuntimeOuterClass.Update.newBuilder()
-                        .setEntity(entity)
-                        .setType(P4RuntimeOuterClass.Update.Type.DELETE)
-                        .build())
+                                    .setEntity(entity)
+                                    .setType(P4RuntimeOuterClass.Update.Type.DELETE)
+                                    .build())
                 .build();
 
         up4NorthService.write(request, responseObserver);
@@ -196,12 +195,12 @@ public class Up4NorthComponentTest {
         MockStreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver = new MockStreamObserver<>();
         P4RuntimeOuterClass.ReadRequest request = P4RuntimeOuterClass.ReadRequest.newBuilder()
                 .addEntities(P4RuntimeOuterClass.Entity.newBuilder()
-                        .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder().build())
-                        .build())
+                                     .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder().build())
+                                     .build())
                 .build();
         up4NorthService.read(request, responseObserver);
         var response = responseObserver.lastResponse();
-        assertThat(response.getEntitiesList().size(), equalTo(TestConstants.PHYSICAL_COUNTER_SIZE * 2));
+        assertThat(response.getEntitiesList().size(), equalTo(TestImplConstants.PHYSICAL_COUNTER_SIZE * 2));
     }
 
     private void readPartialWildcardCounterTest(PiCounterId counterId) {
@@ -221,13 +220,13 @@ public class Up4NorthComponentTest {
         MockStreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver = new MockStreamObserver<>();
         P4RuntimeOuterClass.ReadRequest request = P4RuntimeOuterClass.ReadRequest.newBuilder()
                 .addEntities(P4RuntimeOuterClass.Entity.newBuilder()
-                        .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder()
-                                .setCounterId(intCounterId).build())
-                        .build())
+                                     .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder()
+                                                              .setCounterId(intCounterId).build())
+                                     .build())
                 .build();
         up4NorthService.read(request, responseObserver);
         var response = responseObserver.lastResponse();
-        assertThat(response.getEntitiesList().size(), equalTo(TestConstants.PHYSICAL_COUNTER_SIZE));
+        assertThat(response.getEntitiesList().size(), equalTo(TestImplConstants.PHYSICAL_COUNTER_SIZE));
         for (P4RuntimeOuterClass.Entity entity : response.getEntitiesList()) {
             PiCounterCell responseCell = entityToCounterCell(entity);
             assertThat(responseCell.cellId().counterId(), equalTo(counterId));
@@ -248,12 +247,12 @@ public class Up4NorthComponentTest {
 
     @Test
     public void readAllIngressCountersTest() {
-        readPartialWildcardCounterTest(NorthConstants.INGRESS_COUNTER_ID);
+        readPartialWildcardCounterTest(Up4P4InfoConstants.INGRESS_COUNTER_ID);
     }
 
     @Test
     public void readAllEgressCountersTest() {
-        readPartialWildcardCounterTest(NorthConstants.EGRESS_COUNTER_ID);
+        readPartialWildcardCounterTest(Up4P4InfoConstants.EGRESS_COUNTER_ID);
     }
 
     private void readCounterTest(PiCounterId counterId, long expectedPackets, long expectedBytes) {
@@ -292,170 +291,170 @@ public class Up4NorthComponentTest {
 
     @Test
     public void readIngressCounterTest() {
-        readCounterTest(NorthConstants.INGRESS_COUNTER_ID,
-                NorthTestConstants.INGRESS_COUNTER_PKTS, NorthTestConstants.INGRESS_COUNTER_BYTES);
+        readCounterTest(Up4P4InfoConstants.INGRESS_COUNTER_ID,
+                        NorthTestConstants.INGRESS_COUNTER_PKTS, NorthTestConstants.INGRESS_COUNTER_BYTES);
     }
 
     @Test
     public void readEgressCounterTest() {
-        readCounterTest(NorthConstants.EGRESS_COUNTER_ID,
-                NorthTestConstants.EGRESS_COUNTER_PKTS, NorthTestConstants.EGRESS_COUNTER_BYTES);
+        readCounterTest(Up4P4InfoConstants.EGRESS_COUNTER_ID,
+                        NorthTestConstants.EGRESS_COUNTER_PKTS, NorthTestConstants.EGRESS_COUNTER_BYTES);
     }
 
     @Test
     public void downlinkFarReadTest() throws Exception {
-        mockUp4Service.addFar(TestConstants.DOWNLINK_FAR);
-        readTest(TestConstants.UP4_DOWNLINK_FAR);
+        mockUp4Service.addFar(TestImplConstants.DOWNLINK_FAR);
+        readTest(TestImplConstants.UP4_DOWNLINK_FAR);
     }
 
     @Test
     public void uplinkFarReadTest() throws Exception {
-        mockUp4Service.addFar(TestConstants.UPLINK_FAR);
-        readTest(TestConstants.UP4_UPLINK_FAR);
+        mockUp4Service.addFar(TestImplConstants.UPLINK_FAR);
+        readTest(TestImplConstants.UP4_UPLINK_FAR);
     }
 
     @Test
     public void downlinkPdrReadTest() throws Exception {
-        mockUp4Service.addPdr(TestConstants.DOWNLINK_PDR);
-        readTest(TestConstants.UP4_DOWNLINK_PDR);
+        mockUp4Service.addPdr(TestImplConstants.DOWNLINK_PDR);
+        readTest(TestImplConstants.UP4_DOWNLINK_PDR);
     }
 
     @Test
     public void downlinkPriorityPdrReadTest() throws Exception {
-        mockUp4Service.addPdr(TestConstants.DOWNLINK_PRIORITY_PDR);
-        readTest(TestConstants.UP4_DOWNLINK_PRIORITY_PDR);
+        mockUp4Service.addPdr(TestImplConstants.DOWNLINK_PRIORITY_PDR);
+        readTest(TestImplConstants.UP4_DOWNLINK_PRIORITY_PDR);
     }
 
     @Test
     public void uplinkPdrReadTest() throws Exception {
-        mockUp4Service.addPdr(TestConstants.UPLINK_PDR);
-        readTest(TestConstants.UP4_UPLINK_PDR);
+        mockUp4Service.addPdr(TestImplConstants.UPLINK_PDR);
+        readTest(TestImplConstants.UP4_UPLINK_PDR);
     }
 
     @Test
     public void uplinkPriorityPdrReadTest() throws Exception {
-        mockUp4Service.addPdr(TestConstants.UPLINK_PRIORITY_PDR);
-        readTest(TestConstants.UP4_UPLINK_PRIORITY_PDR);
+        mockUp4Service.addPdr(TestImplConstants.UPLINK_PRIORITY_PDR);
+        readTest(TestImplConstants.UP4_UPLINK_PRIORITY_PDR);
     }
 
     @Test
     public void downlinkInterfaceReadTest() throws Exception {
-        mockUp4Service.addInterface(TestConstants.DOWNLINK_INTERFACE);
-        readTest(TestConstants.UP4_DOWNLINK_INTERFACE);
+        mockUp4Service.addInterface(TestImplConstants.DOWNLINK_INTERFACE);
+        readTest(TestImplConstants.UP4_DOWNLINK_INTERFACE);
     }
 
     @Test
     public void uplinkInterfaceReadTest() throws Exception {
-        mockUp4Service.addInterface(TestConstants.UPLINK_INTERFACE);
-        readTest(TestConstants.UP4_UPLINK_INTERFACE);
+        mockUp4Service.addInterface(TestImplConstants.UPLINK_INTERFACE);
+        readTest(TestImplConstants.UP4_UPLINK_INTERFACE);
     }
 
     @Test
     public void downlinkFarInsertionTest() throws Exception {
-        PiTableEntry entry = TestConstants.UP4_DOWNLINK_FAR;
+        PiTableEntry entry = TestImplConstants.UP4_DOWNLINK_FAR;
         insertionTest(entry);
         assertThat(mockUp4Service.getFars().size(), equalTo(1));
     }
 
     @Test
     public void downlinkFarDeletionTest() throws Exception {
-        mockUp4Service.addFar(TestConstants.DOWNLINK_FAR);
-        deletionTest(TestConstants.UP4_DOWNLINK_FAR);
+        mockUp4Service.addFar(TestImplConstants.DOWNLINK_FAR);
+        deletionTest(TestImplConstants.UP4_DOWNLINK_FAR);
         assertTrue(mockUp4Service.getFars().isEmpty());
     }
 
     @Test
     public void uplinkFarInsertionTest() throws Exception {
-        insertionTest(TestConstants.UP4_UPLINK_FAR);
+        insertionTest(TestImplConstants.UP4_UPLINK_FAR);
         assertThat(mockUp4Service.getFars().size(), equalTo(1));
     }
 
     @Test
     public void uplinkFarDeletionTest() throws Exception {
-        mockUp4Service.addFar(TestConstants.UPLINK_FAR);
-        deletionTest(TestConstants.UP4_UPLINK_FAR);
+        mockUp4Service.addFar(TestImplConstants.UPLINK_FAR);
+        deletionTest(TestImplConstants.UP4_UPLINK_FAR);
         assertTrue(mockUp4Service.getFars().isEmpty());
     }
 
     @Test
     public void downlinkPdrInsertionTest() throws Exception {
-        insertionTest(TestConstants.UP4_DOWNLINK_PDR);
+        insertionTest(TestImplConstants.UP4_DOWNLINK_PDR);
         assertThat(mockUp4Service.getPdrs().size(), equalTo(1));
     }
 
     @Test
     public void downlinkPriorityPdrInsertionTest() throws Exception {
-        insertionTest(TestConstants.UP4_DOWNLINK_PRIORITY_PDR);
+        insertionTest(TestImplConstants.UP4_DOWNLINK_PRIORITY_PDR);
         assertThat(mockUp4Service.getPdrs().size(), equalTo(1));
     }
 
     @Test
     public void downlinkPdrDeletionTest() throws Exception {
-        mockUp4Service.addPdr(TestConstants.DOWNLINK_PDR);
-        deletionTest(TestConstants.UP4_DOWNLINK_PDR);
+        mockUp4Service.addPdr(TestImplConstants.DOWNLINK_PDR);
+        deletionTest(TestImplConstants.UP4_DOWNLINK_PDR);
         assertTrue(mockUp4Service.getPdrs().isEmpty());
     }
 
     @Test
     public void uplinkPdrInsertionTest() throws Exception {
-        insertionTest(TestConstants.UP4_UPLINK_PDR);
+        insertionTest(TestImplConstants.UP4_UPLINK_PDR);
         assertThat(mockUp4Service.getPdrs().size(), equalTo(1));
     }
 
     @Test
     public void uplinkPriorityPdrInsertionTest() throws Exception {
-        insertionTest(TestConstants.UP4_UPLINK_PRIORITY_PDR);
+        insertionTest(TestImplConstants.UP4_UPLINK_PRIORITY_PDR);
         assertThat(mockUp4Service.getPdrs().size(), equalTo(1));
     }
 
     @Test
     public void uplinkPdrDeletionTest() throws Exception {
-        mockUp4Service.addPdr(TestConstants.UPLINK_PDR);
-        deletionTest(TestConstants.UP4_UPLINK_PDR);
+        mockUp4Service.addPdr(TestImplConstants.UPLINK_PDR);
+        deletionTest(TestImplConstants.UP4_UPLINK_PDR);
         assertTrue(mockUp4Service.getPdrs().isEmpty());
     }
 
     @Test
     public void uplinkPriorityPdrDeletionTest() throws Exception {
-        mockUp4Service.addPdr(TestConstants.UPLINK_PRIORITY_PDR);
-        deletionTest(TestConstants.UP4_UPLINK_PRIORITY_PDR);
+        mockUp4Service.addPdr(TestImplConstants.UPLINK_PRIORITY_PDR);
+        deletionTest(TestImplConstants.UP4_UPLINK_PRIORITY_PDR);
         assertTrue(mockUp4Service.getPdrs().isEmpty());
     }
 
     @Test
     public void downlinkInterfaceInsertionTest() throws Exception {
-        insertionTest(TestConstants.UP4_DOWNLINK_INTERFACE);
+        insertionTest(TestImplConstants.UP4_DOWNLINK_INTERFACE);
         assertThat(mockUp4Service.getInterfaces().size(), equalTo(1));
     }
 
     @Test
     public void downlinkInterfaceDeletionTest() throws Exception {
-        mockUp4Service.addInterface(TestConstants.DOWNLINK_INTERFACE);
-        deletionTest(TestConstants.UP4_DOWNLINK_INTERFACE);
+        mockUp4Service.addInterface(TestImplConstants.DOWNLINK_INTERFACE);
+        deletionTest(TestImplConstants.UP4_DOWNLINK_INTERFACE);
         assertTrue(mockUp4Service.getInterfaces().isEmpty());
     }
 
     @Test
     public void uplinkInterfaceInsertionTest() throws Exception {
-        PiTableEntry entry = TestConstants.UP4_UPLINK_INTERFACE;
+        PiTableEntry entry = TestImplConstants.UP4_UPLINK_INTERFACE;
         insertionTest(entry);
         assertThat(mockUp4Service.getInterfaces().size(), equalTo(1));
     }
 
     @Test
     public void uplinkInterfaceDeletionTest() throws Exception {
-        mockUp4Service.addInterface(TestConstants.UPLINK_INTERFACE);
-        deletionTest(TestConstants.UP4_UPLINK_INTERFACE);
+        mockUp4Service.addInterface(TestImplConstants.UPLINK_INTERFACE);
+        deletionTest(TestImplConstants.UP4_UPLINK_INTERFACE);
         assertTrue(mockUp4Service.getInterfaces().isEmpty());
     }
 
     public void doArbitration(StreamObserver<P4RuntimeOuterClass.StreamMessageRequest> requestObserver) {
         P4RuntimeOuterClass.StreamMessageRequest request = P4RuntimeOuterClass.StreamMessageRequest.newBuilder()
                 .setArbitration(P4RuntimeOuterClass.MasterArbitrationUpdate.newBuilder()
-                        .setDeviceId(P4RUNTIME_DEVICE_ID)
-                        .setRole(P4RUNTIME_ROLE)
-                        .setElectionId(P4RUNTIME_ELECTION_ID)
-                        .build())
+                                        .setDeviceId(P4RUNTIME_DEVICE_ID)
+                                        .setRole(P4RUNTIME_ROLE)
+                                        .setElectionId(P4RUNTIME_ELECTION_ID)
+                                        .build())
                 .build();
 
         requestObserver.onNext(request);
@@ -475,7 +474,7 @@ public class Up4NorthComponentTest {
         assertThat(response.getArbitration().getRole(), equalTo(P4RUNTIME_ROLE));
         assertThat(response.getArbitration().getElectionId(), equalTo(P4RUNTIME_ELECTION_ID));
         assertThat(response.getArbitration().getStatus(),
-                equalTo(Status.newBuilder().setCode(Code.OK.getNumber()).build()));
+                   equalTo(Status.newBuilder().setCode(Code.OK.getNumber()).build()));
     }
 
     public MockStreamObserver<P4RuntimeOuterClass.StreamMessageResponse> doPacketOut(byte[] payload) {
@@ -489,12 +488,12 @@ public class Up4NorthComponentTest {
 
         P4RuntimeOuterClass.StreamMessageRequest request = P4RuntimeOuterClass.StreamMessageRequest.newBuilder()
                 .setPacket(P4RuntimeOuterClass.PacketOut.newBuilder()
-                        .setPayload(ByteString.copyFrom(payload))
-                        .addMetadata(P4RuntimeOuterClass.PacketMetadata.newBuilder()
-                                .setMetadataId(1)
-                                .setValue(ByteString.copyFrom(PKT_OUT_METADATA_1))
-                                .build())
-                        .build())
+                                   .setPayload(ByteString.copyFrom(payload))
+                                   .addMetadata(P4RuntimeOuterClass.PacketMetadata.newBuilder()
+                                                        .setMetadataId(1)
+                                                        .setValue(ByteString.copyFrom(PKT_OUT_METADATA_1))
+                                                        .build())
+                                   .build())
                 .build();
 
         requestObserver.onNext(request);
@@ -539,15 +538,15 @@ public class Up4NorthComponentTest {
         var setPipeRequest = P4RuntimeOuterClass.SetForwardingPipelineConfigRequest.newBuilder()
                 .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
                 .setConfig(P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
-                        .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
-                                .setCookie(NorthTestConstants.PIPECONF_COOKIE))
-                        .setP4Info(p4Info)
-                        .build())
+                                   .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
+                                                      .setCookie(NorthTestConstants.PIPECONF_COOKIE))
+                                   .setP4Info(p4Info)
+                                   .build())
                 .build();
         up4NorthService.setForwardingPipelineConfig(setPipeRequest, responseObserver);
         var response = responseObserver.lastResponse();
         assertThat(response,
-                equalTo(P4RuntimeOuterClass.SetForwardingPipelineConfigResponse.getDefaultInstance()));
+                   equalTo(P4RuntimeOuterClass.SetForwardingPipelineConfigResponse.getDefaultInstance()));
     }
 
     @Test

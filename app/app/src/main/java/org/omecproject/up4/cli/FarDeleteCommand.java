@@ -7,9 +7,9 @@ package org.omecproject.up4.cli;
 import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.omecproject.up4.ForwardingActionRule;
 import org.omecproject.up4.Up4Service;
 import org.onosproject.cli.AbstractShellCommand;
+import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 
 /**
  * UP4 FAR deletion command.

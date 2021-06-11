@@ -7,9 +7,9 @@ package org.omecproject.up4.cli;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
-import org.omecproject.up4.UpfInterface;
-import org.omecproject.up4.UpfProgrammableException;
 import org.onosproject.cli.AbstractShellCommand;
+import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 
 /**
  * UP4 PDR read command.

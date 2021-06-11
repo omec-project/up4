@@ -33,7 +33,8 @@
         </onos.app.readme>
         <onos.app.requires>
             org.onosproject.protocols.grpc,
-            org.onosproject.protocols.p4runtime
+            org.onosproject.protocols.p4runtime,
+            org.stratumproject.fabric-tna
         </onos.app.requires>
         <!-- Make sure grpc version is in sync with onos/tools/build/bazel/grpc_workspace.bzl-->
         <onos.grpc.version>1.22.1</onos.grpc.version>
@@ -44,6 +45,13 @@
             <groupId>org.onosproject</groupId>
             <artifactId>onos-api</artifactId>
             <version>${onos.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.stratumproject</groupId>
+            <artifactId>fabric-tna</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
 

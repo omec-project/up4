@@ -7,11 +7,11 @@ package org.omecproject.up4.cli;
 import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.omecproject.up4.ForwardingActionRule;
-import org.omecproject.up4.GtpTunnel;
 import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
+import org.onosproject.net.behaviour.upf.ForwardingActionRule;
+import org.onosproject.net.behaviour.upf.GtpTunnel;
 
 /**
  * UP4 Far insertion command.
@@ -56,10 +56,10 @@ public class FarInsertCommand extends AbstractShellCommand {
 
         if (teid != -1) {
             farBuilder.setTunnel(GtpTunnel.builder()
-                    .setSrc(Ip4Address.valueOf(tunnelSrc))
-                    .setDst(Ip4Address.valueOf(tunnelDst))
-                    .setTeid(teid)
-                    .build());
+                                         .setSrc(Ip4Address.valueOf(tunnelSrc))
+                                         .setDst(Ip4Address.valueOf(tunnelDst))
+                                         .setTeid(teid)
+                                         .build());
         }
         ForwardingActionRule far = farBuilder.build();
 

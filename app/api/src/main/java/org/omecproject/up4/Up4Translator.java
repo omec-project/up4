@@ -4,6 +4,9 @@
  */
 package org.omecproject.up4;
 
+import org.onosproject.net.behaviour.upf.ForwardingActionRule;
+import org.onosproject.net.behaviour.upf.PacketDetectionRule;
+import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 
 /**

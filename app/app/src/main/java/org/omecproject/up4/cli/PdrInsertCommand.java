@@ -7,10 +7,10 @@ package org.omecproject.up4.cli;
 import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.omecproject.up4.PacketDetectionRule;
 import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
+import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 
 /**
  * UP4 PDR insertion command.

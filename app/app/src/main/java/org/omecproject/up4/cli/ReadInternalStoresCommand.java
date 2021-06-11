@@ -8,10 +8,10 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Option;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
-import org.omecproject.up4.UpfRuleIdentifier;
-import org.omecproject.up4.behavior.FabricUpfStore;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
+import org.stratumproject.fabric.tna.behaviour.upf.FabricUpfStore;
+import org.stratumproject.fabric.tna.behaviour.upf.UpfRuleIdentifier;
 
 import java.util.Map;
 import java.util.Set;

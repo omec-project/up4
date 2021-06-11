@@ -15,20 +15,19 @@ import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
-import org.omecproject.up4.ForwardingActionRule;
-import org.omecproject.up4.PacketDetectionRule;
-import org.omecproject.up4.PdrStats;
 import org.omecproject.up4.Up4Event;
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.Up4Translator;
-import org.omecproject.up4.UpfInterface;
-import org.omecproject.up4.UpfProgrammableException;
-import org.omecproject.up4.behavior.Up4TranslatorImpl;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.HexString;
 import org.onlab.util.ImmutableByteSequence;
 import org.onlab.util.SharedExecutors;
+import org.onosproject.net.behaviour.upf.ForwardingActionRule;
+import org.onosproject.net.behaviour.upf.PacketDetectionRule;
+import org.onosproject.net.behaviour.upf.PdrStats;
+import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 import org.onosproject.net.pi.model.DefaultPiPipeconf;
 import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiPipeconf;
@@ -75,7 +74,7 @@ import static io.grpc.Status.PERMISSION_DENIED;
 import static io.grpc.Status.UNIMPLEMENTED;
 import static java.lang.String.format;
 import static org.omecproject.up4.impl.AppConstants.PIPECONF_ID;
-import static org.omecproject.up4.impl.NorthConstants.DDN_DIGEST_ID;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.DDN_DIGEST_ID;
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
 
 
@@ -359,13 +358,13 @@ public class Up4NorthComponent {
         try {
             P4InfoBrowser browser = PipeconfHelper.getP4InfoBrowser(pipeconf);
             ingressPdrCounterId = browser.counters()
-                    .getByName(NorthConstants.INGRESS_COUNTER_ID.id()).getPreamble().getId();
+                    .getByName(Up4P4InfoConstants.INGRESS_COUNTER_ID.id()).getPreamble().getId();
             egressPdrCounterId = browser.counters()
-                    .getByName(NorthConstants.EGRESS_COUNTER_ID.id()).getPreamble().getId();
+                    .getByName(Up4P4InfoConstants.EGRESS_COUNTER_ID.id()).getPreamble().getId();
             pdrTableId = browser.tables()
-                    .getByName(NorthConstants.PDR_TBL.id()).getPreamble().getId();
+                    .getByName(Up4P4InfoConstants.PDR_TBL.id()).getPreamble().getId();
             farTableId = browser.tables()
-                    .getByName(NorthConstants.FAR_TBL.id()).getPreamble().getId();
+                    .getByName(Up4P4InfoConstants.FAR_TBL.id()).getPreamble().getId();
         } catch (P4InfoBrowser.NotFoundException e) {
             throw new NoSuchElementException("A UP4 counter that should always exist does not exist.");
         }
@@ -448,10 +447,10 @@ public class Up4NorthComponent {
             }
             long pkts;
             long bytes;
-            if (piCounterId.equals(NorthConstants.INGRESS_COUNTER_ID)) {
+            if (piCounterId.equals(Up4P4InfoConstants.INGRESS_COUNTER_ID)) {
                 pkts = ctrValues.getIngressPkts();
                 bytes = ctrValues.getIngressBytes();
-            } else if (piCounterId.equals(NorthConstants.EGRESS_COUNTER_ID)) {
+            } else if (piCounterId.equals(Up4P4InfoConstants.EGRESS_COUNTER_ID)) {
                 pkts = ctrValues.getEgressPkts();
                 bytes = ctrValues.getEgressBytes();
             } else {
@@ -471,16 +470,16 @@ public class Up4NorthComponent {
                 throw io.grpc.Status.UNKNOWN.withDescription(e.getMessage()).asException();
             }
             for (PdrStats stat : allStats) {
-                if (piCounterId == null || piCounterId.equals(NorthConstants.INGRESS_COUNTER_ID)) {
+                if (piCounterId == null || piCounterId.equals(Up4P4InfoConstants.INGRESS_COUNTER_ID)) {
                     // If all counters were requested, or just the ingress one
                     responseCells.add(new PiCounterCell(
-                            PiCounterCellId.ofIndirect(NorthConstants.INGRESS_COUNTER_ID, stat.getCellId()),
+                            PiCounterCellId.ofIndirect(Up4P4InfoConstants.INGRESS_COUNTER_ID, stat.getCellId()),
                             stat.getIngressPkts(), stat.getIngressBytes()));
                 }
-                if (piCounterId == null || piCounterId.equals(NorthConstants.EGRESS_COUNTER_ID)) {
+                if (piCounterId == null || piCounterId.equals(Up4P4InfoConstants.EGRESS_COUNTER_ID)) {
                     // If all counters were requested, or just the egress one
                     responseCells.add(new PiCounterCell(
-                            PiCounterCellId.ofIndirect(NorthConstants.EGRESS_COUNTER_ID, stat.getCellId()),
+                            PiCounterCellId.ofIndirect(Up4P4InfoConstants.EGRESS_COUNTER_ID, stat.getCellId()),
                             stat.getEgressPkts(), stat.getEgressBytes()));
                 }
             }

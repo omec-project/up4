@@ -7,6 +7,10 @@ package org.omecproject.up4;
 
 import com.google.common.annotations.Beta;
 import org.onosproject.event.ListenerService;
+import org.onosproject.net.behaviour.upf.UpfDevice;
+import org.onosproject.net.behaviour.upf.UpfProgrammableException;
+
+import java.util.Collection;
 
 
 /**
@@ -14,7 +18,7 @@ import org.onosproject.event.ListenerService;
  * This API is a work in progress.
  */
 @Beta
-public interface Up4Service extends ListenerService<Up4Event, Up4EventListener>, UpfProgrammable {
+public interface Up4Service extends ListenerService<Up4Event, Up4EventListener>, UpfDevice {
 
     /**
      * True if a UPF device is currently available in ONOS, and false otherwise.
@@ -34,5 +38,13 @@ public interface Up4Service extends ListenerService<Up4Event, Up4EventListener>,
      * Install all UPF dataplane interfaces present in the app configuration.
      */
     void installInterfaces();
+
+    /**
+     * Get all UE flows (PDRs, FARs) currently installed in the network.
+     *
+     * @return a collection of installed flows
+     * @throws UpfProgrammableException if flows are unable to be read
+     */
+    Collection<UpfFlow> getFlows() throws UpfProgrammableException;
 
 }

@@ -10,7 +10,7 @@ import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiMatchFieldId;
 import org.onosproject.net.pi.model.PiTableId;
 
-public final class NorthConstants {
+public final class Up4P4InfoConstants {
     // Counters
     public static final PiCounterId INGRESS_COUNTER_ID = PiCounterId.of("PreQosPipe.pre_qos_pdr_counter");
     public static final PiCounterId EGRESS_COUNTER_ID = PiCounterId.of("PostQosPipe.post_qos_pdr_counter");
@@ -66,6 +66,6 @@ public final class NorthConstants {
     // FIXME: replace with name after we add P4Info browser for digests in ONOS
     public static final int DDN_DIGEST_ID = 396224266;
     // hide default constructor
-    private NorthConstants() {
+    private Up4P4InfoConstants() {
     }
 }
