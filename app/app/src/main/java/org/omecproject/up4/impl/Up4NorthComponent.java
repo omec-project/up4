@@ -465,7 +465,7 @@ public class Up4NorthComponent {
             // FIXME: only read the counter that was requested, instead of both ingress and egress unconditionally
             Collection<PdrStats> allStats;
             try {
-                allStats = up4Service.readAllCounters();
+                allStats = up4Service.readAllCounters(-1);
             } catch (UpfProgrammableException e) {
                 throw io.grpc.Status.UNKNOWN.withDescription(e.getMessage()).asException();
             }

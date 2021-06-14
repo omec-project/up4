@@ -69,6 +69,8 @@ import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FAC
 public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4EventListener>
         implements Up4Service {
 
+    private final long NO_UE_LIMIT = -1;
+
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final AtomicBoolean upfInitialized = new AtomicBoolean(false);
     private final ConfigFactory<ApplicationId, Up4Config> up4ConfigFactory = new ConfigFactory<>(
@@ -94,14 +96,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowRuleService flowRuleService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected PacketService packetService;
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected FabricUpfStore upfStore;
 
     private ApplicationId appId;
     private InternalDeviceListener deviceListener;
@@ -218,10 +215,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             upfDeviceId = deviceId;
             upfProgrammable = deviceService.getDevice(deviceId).as(UpfProgrammable.class);
 
-            // FIXME: we shouldn't be passing maxUe to upfProgrammable.
-            //  We should be enforcing it here in the Manager.
-            if (!upfProgrammable.init(configIsLoaded() && config.maxUes() > 0 ?
-                                              config.maxUes() : UpfProgrammable.NO_UE_LIMIT)) {
+            if (!upfProgrammable.init()) {
                 // error message will be printed by init()
                 return;
             }
@@ -462,6 +456,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException {
+        if (isMaxUeSet() && pdr.counterId() >= getMaxUe() * 2) {
+            throw new UpfProgrammableException(
+                    "Counter cell index referenced by PDR above max supported UE value.",
+                    UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
+        }
         getUpfProgrammable().addPdr(pdr);
     }
 
@@ -492,27 +491,51 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public PdrStats readCounter(int counterIdx) throws UpfProgrammableException {
+        if (isMaxUeSet() && counterIdx >= getMaxUe() * 2) {
+            throw new UpfProgrammableException(
+                    "Requested PDR counter cell index above max supported UE value.",
+                    UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
+        }
         return getUpfProgrammable().readCounter(counterIdx);
     }
 
     @Override
     public long pdrCounterSize() {
-        return getUpfProgrammable().pdrCounterSize();
+        long pdrCounterSize = getUpfProgrammable().pdrCounterSize();
+        if (isMaxUeSet()) {
+            return Math.min(config.maxUes() * 2, pdrCounterSize);
+        }
+        return pdrCounterSize;
     }
 
     @Override
     public long farTableSize() {
-        return getUpfProgrammable().farTableSize();
+        long farTableSize = getUpfProgrammable().farTableSize();
+        if (isMaxUeSet()) {
+            return Math.min(config.maxUes() * 2, farTableSize);
+        }
+        return farTableSize;
     }
 
     @Override
     public long pdrTableSize() {
-        return getUpfProgrammable().pdrTableSize();
+        long pdrTableSize = getUpfProgrammable().pdrTableSize();
+        if (isMaxUeSet()) {
+            return Math.min(config.maxUes() * 2, pdrTableSize);
+        }
+        return pdrTableSize;
     }
 
     @Override
-    public Collection<PdrStats> readAllCounters() throws UpfProgrammableException {
-        return getUpfProgrammable().readAllCounters();
+    public Collection<PdrStats> readAllCounters(long maxCounterId) throws UpfProgrammableException {
+        if (isMaxUeSet()) {
+            if (maxCounterId == -1) {
+                maxCounterId = getMaxUe() * 2;
+            } else {
+                maxCounterId = Math.min(maxCounterId, getMaxUe() * 2);
+            }
+        }
+        return getUpfProgrammable().readAllCounters(maxCounterId);
     }
 
     @Override
@@ -553,7 +576,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Override
     public Collection<UpfFlow> getFlows() throws UpfProgrammableException {
         Map<Integer, PdrStats> counterStats = new HashMap<>();
-        this.readAllCounters().forEach(
+        this.readAllCounters(-1).forEach(
                 stats -> counterStats.put(stats.getCellId(), stats));
 
         // A flow is made of a PDR and the FAR that should apply to packets that
@@ -602,6 +625,14 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             }
         }
         return results;
+    }
+
+    private boolean isMaxUeSet() {
+        return configIsLoaded() && config.maxUes() > 0;
+    }
+
+    private long getMaxUe() {
+        return isMaxUeSet() ? config.maxUes() : NO_UE_LIMIT;
     }
 
     /**
