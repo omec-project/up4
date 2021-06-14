@@ -35,7 +35,6 @@ import org.onosproject.net.device.DeviceEvent;
 import org.onosproject.net.device.DeviceListener;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.flow.FlowRuleService;
-import org.onosproject.net.packet.PacketService;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
 import org.onosproject.net.pi.service.PiPipeconfService;
@@ -46,7 +45,6 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.stratumproject.fabric.tna.behaviour.upf.FabricUpfStore;
 import org.stratumproject.fabric.tna.behaviour.upf.UpfRuleIdentifier;
 
 import java.nio.ByteBuffer;
@@ -69,7 +67,7 @@ import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FAC
 public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4EventListener>
         implements Up4Service {
 
-    private final long NO_UE_LIMIT = -1;
+    private static final long NO_UE_LIMIT = -1;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final AtomicBoolean upfInitialized = new AtomicBoolean(false);

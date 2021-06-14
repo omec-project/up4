@@ -189,7 +189,7 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public Collection<PdrStats> readAllCounters() {
+    public Collection<PdrStats> readAllCounters(long maxCounterId) {
         List<PdrStats> stats = new ArrayList<>();
         for (int i = 0; i < TestImplConstants.PHYSICAL_COUNTER_SIZE; i++) {
             stats.add(PdrStats.builder()
