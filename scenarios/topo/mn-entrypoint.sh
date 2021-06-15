@@ -6,4 +6,8 @@
 
 mv /usr/sbin/tcpdump /usr/bin/tcpdump
 
-/topo/topo-gtp.py
+if [ -z ${PARALLEL_LINKS} ]; then
+	/topo/topo-gtp.py
+else
+	/topo/topo-gtp.py --parallel-links ${PARALLEL_LINKS}
+fi

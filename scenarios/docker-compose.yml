@@ -66,6 +66,8 @@ services:
       - 50002 # leaf2
       - 50003 # spine1
       - 50004 # spine2
+    environment:
+      - PARALLEL_LINKS=${PARALLEL_LINKS}
   onos1:
     # Tost image comes with latest trellis apps
     image: ${ONOS_IMAGE}

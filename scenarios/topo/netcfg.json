@@ -74,10 +74,10 @@
     }
   },
   "ports": {
-    "device:leaf1/3": {
+    "device:leaf1/1": {
       "interfaces": [
         {
-          "name": "leaf1-3",
+          "name": "leaf1-1",
           "ips": [
             "140.0.100.254/24"
           ],
@@ -85,10 +85,10 @@
         }
       ]
     },
-    "device:leaf1/4": {
+    "device:leaf1/2": {
       "interfaces": [
         {
-          "name": "leaf1-4",
+          "name": "leaf1-2",
           "ips": [
             "140.0.99.254/24"
           ],
@@ -96,10 +96,10 @@
         }
       ]
     },
-    "device:leaf2/3": {
+    "device:leaf2/1": {
       "interfaces": [
         {
-          "name": "leaf2-3",
+          "name": "leaf2-1",
           "ips": [
             "140.0.200.254/24"
           ],
@@ -119,7 +119,7 @@
           "140.0.100.1"
         ],
         "locations": [
-          "device:leaf1/3"
+          "device:leaf1/1"
         ]
       }
     },
@@ -133,7 +133,7 @@
           "140.0.99.1"
         ],
         "locations": [
-          "device:leaf1/4"
+          "device:leaf1/2"
         ]
       }
     },
@@ -147,7 +147,7 @@
           "140.0.200.1"
         ],
         "locations": [
-          "device:leaf2/3"
+          "device:leaf2/1"
         ]
       }
     }
