@@ -129,7 +129,7 @@ class TutorialTopo(Topo):
         self.addLink(pdn, leaf2)  # port 1
 
         # Switch Links
-        for i in range(0, parallelLinks):
+        for _ in range(parallelLinks):
             self.addLink(spine1, leaf1)
             self.addLink(spine1, leaf2)
             self.addLink(spine2, leaf1)
