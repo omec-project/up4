@@ -10,8 +10,8 @@ import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
-import org.stratumproject.fabric.tna.behaviour.upf.FabricUpfStore;
-import org.stratumproject.fabric.tna.behaviour.upf.UpfRuleIdentifier;
+import org.onosproject.pipelines.fabric.behaviour.upf.UpfRuleIdentifier;
+import org.onosproject.pipelines.fabric.behaviour.upf.UpfStore;
 
 import java.util.Map;
 import java.util.Set;
@@ -31,7 +31,7 @@ public class ReadInternalStoresCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() {
         Up4Service up4Service = get(Up4Service.class);
-        FabricUpfStore upfStore = get(FabricUpfStore.class);
+        UpfStore upfStore = get(UpfStore.class);
 
         if (up4Service == null) {
             print("Error: Up4Service is null");

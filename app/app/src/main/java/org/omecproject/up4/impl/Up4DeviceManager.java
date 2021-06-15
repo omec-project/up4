@@ -38,6 +38,7 @@ import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
 import org.onosproject.net.pi.service.PiPipeconfService;
+import org.onosproject.pipelines.fabric.behaviour.upf.UpfRuleIdentifier;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -45,7 +46,6 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.stratumproject.fabric.tna.behaviour.upf.UpfRuleIdentifier;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -226,10 +226,14 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 removeDbufStateFromUpfProgrammable();
             }
 
-            if (configIsLoaded() && config.pscEncapEnabled()) {
-                upfProgrammable.enablePscEncap(config.defaultQfi());
-            } else {
-                upfProgrammable.disablePscEncap();
+            try {
+                if (configIsLoaded() && config.pscEncapEnabled()) {
+                    upfProgrammable.enablePscEncap(config.defaultQfi());
+                } else {
+                    upfProgrammable.disablePscEncap();
+                }
+            } catch (UpfProgrammableException e) {
+                log.info(e.getMessage());
             }
 
             upfInitialized.set(true);
@@ -284,7 +288,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         log.info("Installing interfaces from config.");
         for (UpfInterface iface : configFileInterfaces()) {
             try {
-                upfProgrammable.addInterface(iface);
+                getUpfProgrammable().addInterface(iface);
             } catch (UpfProgrammableException e) {
                 log.warn("Failed to insert interface: {}", e.getMessage());
             }
@@ -557,12 +561,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
-    public void enablePscEncap(int defaultQfi) {
+    public void enablePscEncap(int defaultQfi) throws UpfProgrammableException {
         getUpfProgrammable().enablePscEncap(defaultQfi);
     }
 
     @Override
-    public void disablePscEncap() {
+    public void disablePscEncap() throws UpfProgrammableException {
         getUpfProgrammable().disablePscEncap();
     }
 
