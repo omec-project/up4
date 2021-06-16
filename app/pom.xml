@@ -27,10 +27,6 @@
         <module>api</module>
     </modules>
 
-    <properties>
-        <fabric-tna.api.version>1.0.0-SNAPSHOT</fabric-tna.api.version>
-    </properties>
-
     <repositories>
         <repository>
             <id>central</id>
