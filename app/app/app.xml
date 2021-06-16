@@ -7,7 +7,7 @@
      version="${project.version}"
      category="default" url="http://onosproject.org" title="UP4"
      featuresRepo="mvn:${project.groupId}/${project.artifactId}/${project.version}/xml/features"
-     features="${project.artifactId}" apps="org.onosproject.protocols.grpc,org.onosproject.protocols.p4runtime,org.stratumproject.fabric-tna,org.onosproject.pipelines.fabric">
+     features="${project.artifactId}" apps="org.onosproject.protocols.grpc,org.onosproject.protocols.p4runtime">
     <description>${project.description}</description>
     <artifact>mvn:${project.groupId}/${project.artifactId}/${project.version}</artifact>
     <artifact>mvn:${project.groupId}/up4-api/${project.version}</artifact>
