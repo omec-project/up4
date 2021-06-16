@@ -12,6 +12,7 @@ import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.pipelines.fabric.behaviour.upf.UpfRuleIdentifier;
 import org.onosproject.pipelines.fabric.behaviour.upf.UpfStore;
+import org.stratumproject.fabric.tna.behaviour.upf.DistributedFabricUpfStore;
 
 import java.util.Map;
 import java.util.Set;
@@ -30,8 +31,10 @@ public class ReadInternalStoresCommand extends AbstractShellCommand {
 
     @Override
     protected void doExecute() {
+        log.info("This command works only when using the fabric-tna UpfProgrammable implementation");
         Up4Service up4Service = get(Up4Service.class);
-        UpfStore upfStore = get(UpfStore.class);
+        // FIXME: this will work only with Tofino
+        UpfStore upfStore = get(DistributedFabricUpfStore.class);
 
         if (up4Service == null) {
             print("Error: Up4Service is null");
