@@ -10,9 +10,9 @@ import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
-import org.onosproject.pipelines.fabric.behaviour.upf.UpfRuleIdentifier;
-import org.onosproject.pipelines.fabric.behaviour.upf.UpfStore;
 import org.stratumproject.fabric.tna.behaviour.upf.DistributedFabricUpfStore;
+import org.stratumproject.fabric.tna.behaviour.upf.UpfRuleIdentifier;
+import org.stratumproject.fabric.tna.behaviour.upf.UpfStore;
 
 import java.util.Map;
 import java.util.Set;
@@ -21,9 +21,9 @@ import java.util.Set;
  * UP4 FarIdMap read command.
  */
 @Service
-@Command(scope = "up4", name = "read-internal-stores",
-        description = "Print internal stores")
-public class ReadInternalStoresCommand extends AbstractShellCommand {
+@Command(scope = "up4", name = "read-internal-stores-tna",
+        description = "Print internal stores in UpfProgrammable for fabric-tna")
+public class ReadInternalStoresCommandTna extends AbstractShellCommand {
     @Option(name = "-v", aliases = "--verbose",
             description = "Print more detail of each entry",
             required = false, multiValued = false)

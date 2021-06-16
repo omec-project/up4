@@ -6,6 +6,7 @@ package org.omecproject.up4.impl;
 
 import com.google.common.collect.Lists;
 import io.grpc.Context;
+import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.dbuf.client.DbufClient;
 import org.omecproject.dbuf.client.DefaultDbufClient;
 import org.omecproject.up4.Up4Event;
@@ -16,6 +17,7 @@ import org.omecproject.up4.config.Up4Config;
 import org.omecproject.up4.config.Up4DbufConfig;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
+import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.event.AbstractListenerManager;
@@ -38,7 +40,6 @@ import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
 import org.onosproject.net.pi.service.PiPipeconfService;
-import org.onosproject.pipelines.fabric.behaviour.upf.UpfRuleIdentifier;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -584,11 +585,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         // A flow is made of a PDR and the FAR that should apply to packets that
         // hit the PDR. Multiple PDRs can map to the same FAR, so create a
         // one->many mapping of FAR Identifier to flow builder.
-        Map<UpfRuleIdentifier, List<UpfFlow.Builder>> globalFarToSessionBuilder = new HashMap<>();
+        Map<Pair<ImmutableByteSequence, Integer>, List<UpfFlow.Builder>> globalFarToSessionBuilder = new HashMap<>();
         Collection<ForwardingActionRule> fars = this.getFars();
         Collection<PacketDetectionRule> pdrs = this.getPdrs();
         pdrs.forEach(pdr -> globalFarToSessionBuilder.compute(
-                new UpfRuleIdentifier(pdr.sessionId(), pdr.farId()),
+                Pair.of(pdr.sessionId(), pdr.farId()),
                 (k, existingVal) -> {
                     final var builder = UpfFlow.builder()
                             .setPdr(pdr)
@@ -601,7 +602,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     }
                 }));
         fars.forEach(far -> globalFarToSessionBuilder.compute(
-                new UpfRuleIdentifier(far.sessionId(), far.farId()),
+                Pair.of(far.sessionId(), far.farId()),
                 (k, builderList) -> {
                     // If no PDRs use this FAR, then create a new flow with no PDR
                     if (builderList == null) {
