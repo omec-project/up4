@@ -91,7 +91,7 @@ class TutorialTopo(Topo):
     def __init__(self, *args, **kwargs):
         Topo.__init__(self, *args, **kwargs)
         # Extract parallelLinks option
-        parallelLinks=args[0]
+        parallelLinks = args[0]
 
         # Leaves
         # gRPC port 50001
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Mininet topology script for 2x2 fabric with stratum_bmv2 and IPv4 hosts')
     parser.add_argument('-pl', '--parallel-links', type=int, default=1,
-        help='change the number of parallel links between leaf and spine')
+                        help='change the number of parallel links between leaf and spine')
     args = parser.parse_args()
     setLogLevel('info')
 
