@@ -32,7 +32,6 @@ public class ReadInternalStoresCommandV1model extends AbstractShellCommand {
     protected void doExecute() {
         log.info("This command works only when using the fabric-v1model UpfProgrammable implementation");
         Up4Service up4Service = get(Up4Service.class);
-        // FIXME: this will work only with Tofino
         UpfStore upfStore = get(UpfStore.class);
 
         if (up4Service == null) {

@@ -33,7 +33,6 @@ public class ReadInternalStoresCommandTna extends AbstractShellCommand {
     protected void doExecute() {
         log.info("This command works only when using the fabric-tna UpfProgrammable implementation");
         Up4Service up4Service = get(Up4Service.class);
-        // FIXME: this will work only with Tofino
         UpfStore upfStore = get(DistributedFabricUpfStore.class);
 
         if (up4Service == null) {
