@@ -4,17 +4,14 @@
  */
 package org.omecproject.up4.impl;
 
-import org.omecproject.up4.ForwardingActionRule;
-import org.omecproject.up4.PacketDetectionRule;
-import org.omecproject.up4.PdrStats;
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfFlow;
-import org.omecproject.up4.UpfInterface;
-import org.omecproject.up4.behavior.TestConstants;
 import org.onlab.packet.Ip4Address;
-import org.onosproject.core.ApplicationId;
-import org.onosproject.net.DeviceId;
+import org.onosproject.net.behaviour.upf.ForwardingActionRule;
+import org.onosproject.net.behaviour.upf.PacketDetectionRule;
+import org.onosproject.net.behaviour.upf.PdrStats;
+import org.onosproject.net.behaviour.upf.UpfInterface;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -59,28 +56,23 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public boolean init(ApplicationId appId, long ueLimit) {
-        return false;
-    }
-
-    @Override
     public void cleanUp() {
 
     }
 
     @Override
     public long farTableSize() {
-        return TestConstants.PHYSICAL_MAX_FARS;
+        return TestImplConstants.PHYSICAL_MAX_FARS;
     }
 
     @Override
     public long pdrTableSize() {
-        return TestConstants.PHYSICAL_MAX_PDRS;
+        return TestImplConstants.PHYSICAL_MAX_PDRS;
     }
 
     @Override
     public long pdrCounterSize() {
-        return TestConstants.PHYSICAL_COUNTER_SIZE;
+        return TestImplConstants.PHYSICAL_COUNTER_SIZE;
     }
 
     @Override
@@ -115,11 +107,6 @@ public class MockUp4Service implements Up4Service {
     @Override
     public void unsetDbufTunnel() {
 
-    }
-
-    @Override
-    public DeviceId deviceId() {
-        return null;
     }
 
     @Override
@@ -202,9 +189,9 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public Collection<PdrStats> readAllCounters() {
+    public Collection<PdrStats> readAllCounters(long maxCounterId) {
         List<PdrStats> stats = new ArrayList<>();
-        for (int i = 0; i < TestConstants.PHYSICAL_COUNTER_SIZE; i++) {
+        for (int i = 0; i < TestImplConstants.PHYSICAL_COUNTER_SIZE; i++) {
             stats.add(PdrStats.builder()
                               .withCellId(i)
                               .setEgress(NorthTestConstants.EGRESS_COUNTER_PKTS,

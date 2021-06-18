@@ -4,30 +4,31 @@
  */
 package org.omecproject.up4.impl;
 
+import com.google.common.collect.Lists;
 import io.grpc.Context;
+import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.dbuf.client.DbufClient;
 import org.omecproject.dbuf.client.DefaultDbufClient;
-import org.omecproject.up4.ForwardingActionRule;
-import org.omecproject.up4.PacketDetectionRule;
-import org.omecproject.up4.PdrStats;
 import org.omecproject.up4.Up4Event;
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfFlow;
-import org.omecproject.up4.UpfInterface;
-import org.omecproject.up4.UpfProgrammable;
-import org.omecproject.up4.UpfProgrammableException;
-import org.omecproject.up4.behavior.FabricUpfProgrammable;
-import org.omecproject.up4.behavior.FabricUpfStore;
 import org.omecproject.up4.config.Up4Config;
 import org.omecproject.up4.config.Up4DbufConfig;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
+import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.event.AbstractListenerManager;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
+import org.onosproject.net.behaviour.upf.ForwardingActionRule;
+import org.onosproject.net.behaviour.upf.PacketDetectionRule;
+import org.onosproject.net.behaviour.upf.PdrStats;
+import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfProgrammable;
+import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 import org.onosproject.net.config.ConfigFactory;
 import org.onosproject.net.config.NetworkConfigEvent;
 import org.onosproject.net.config.NetworkConfigListener;
@@ -36,12 +37,9 @@ import org.onosproject.net.device.DeviceEvent;
 import org.onosproject.net.device.DeviceListener;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.flow.FlowRuleService;
-import org.onosproject.net.packet.PacketService;
-import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
 import org.onosproject.net.pi.service.PiPipeconfService;
-import org.onosproject.p4runtime.api.P4RuntimeController;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -53,8 +51,10 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Optional;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -67,6 +67,8 @@ import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FAC
 @Component(immediate = true, service = {Up4Service.class})
 public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4EventListener>
         implements Up4Service {
+
+    private static final long NO_UE_LIMIT = -1;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final AtomicBoolean upfInitialized = new AtomicBoolean(false);
@@ -93,17 +95,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowRuleService flowRuleService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected PacketService packetService;
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
-
-    // FIXME: remove after we make FabricUpfProgrammable a proper behavior
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected P4RuntimeController p4RuntimeController;
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected FabricUpfStore upfStore;
 
     private ApplicationId appId;
     private InternalDeviceListener deviceListener;
@@ -167,7 +161,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if (this.config == null) {
                 throw new IllegalStateException(
                         "No UpfProgrammable set because no app config is available!");
-            } else if (!isUpfDevice(upfDeviceId)) {
+            } else if (!isUpfProgrammable(upfDeviceId)) {
                 throw new IllegalStateException(
                         "No UpfProgrammable set because deviceId present in config is not a valid UPF!");
             } else if (!upfInitialized.get()) {
@@ -175,7 +169,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             } else {
                 throw new IllegalStateException(
                         String.format("No UpfProgrammable is set for an unknown reason. Is device %s available?",
-                                upfDeviceId.toString()));
+                                      upfDeviceId.toString()));
             }
         }
         return this.upfProgrammable;
@@ -185,12 +179,14 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         return upfProgrammable != null;
     }
 
-    private boolean isUpfDevice(DeviceId deviceId) {
+    private boolean isUpfProgrammable(DeviceId deviceId) {
         final Device device = deviceService.getDevice(deviceId);
-
-        Optional<PiPipeconf> opt = piPipeconfService.getPipeconf(device.id());
-        return opt.map(piPipeconf ->
-                piPipeconf.id().toString().contains(AppConstants.SUPPORTED_PIPECONF_STRING)).orElse(false);
+        return device != null &&
+                piPipeconfService.getPipeconf(device.id())
+                        .map(piPipeconf -> piPipeconf.id().toString()
+                                .contains(AppConstants.SUPPORTED_PIPECONF_STRING))
+                        .orElse(false) &&
+                device.is(UpfProgrammable.class);
     }
 
     private void setUpfDevice(DeviceId deviceId) {
@@ -205,19 +201,20 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 log.info("UPF is currently unavailable, skip setup.");
                 return;
             }
-            if (upfProgrammable != null && !upfProgrammable.deviceId().equals(deviceId)) {
+            if (!isUpfProgrammable(deviceId)) {
+                log.warn("{} is not UPF device!", deviceId);
+                return;
+            }
+            if (upfProgrammable != null && !upfProgrammable.data().deviceId().equals(deviceId)) {
                 log.warn("Change of the UPF while UPF device is available is not supported!");
                 return;
             }
 
             log.info("Setup UPF device: {}", deviceId);
             upfDeviceId = deviceId;
-            // FIXME: change this once UpfProgrammable moves to the onos core
-            upfProgrammable = new FabricUpfProgrammable(flowRuleService, packetService,
-                    p4RuntimeController, piPipeconfService, upfStore, deviceId);
+            upfProgrammable = deviceService.getDevice(deviceId).as(UpfProgrammable.class);
 
-            if (!upfProgrammable.init(appId, configIsLoaded() && config.maxUes() > 0 ?
-                    config.maxUes() : UpfProgrammable.NO_UE_LIMIT)) {
+            if (!upfProgrammable.init()) {
                 // error message will be printed by init()
                 return;
             }
@@ -230,10 +227,14 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 removeDbufStateFromUpfProgrammable();
             }
 
-            if (configIsLoaded() && config.pscEncapEnabled()) {
-                upfProgrammable.enablePscEncap(config.defaultQfi());
-            } else {
-                upfProgrammable.disablePscEncap();
+            try {
+                if (configIsLoaded() && config.pscEncapEnabled()) {
+                    upfProgrammable.enablePscEncap(config.defaultQfi());
+                } else {
+                    upfProgrammable.disablePscEncap();
+                }
+            } catch (UpfProgrammableException e) {
+                log.info(e.getMessage());
             }
 
             upfInitialized.set(true);
@@ -288,7 +289,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         log.info("Installing interfaces from config.");
         for (UpfInterface iface : configFileInterfaces()) {
             try {
-                upfProgrammable.addInterface(iface);
+                getUpfProgrammable().addInterface(iface);
             } catch (UpfProgrammableException e) {
                 log.warn("Failed to insert interface: {}", e.getMessage());
             }
@@ -427,24 +428,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
-    public boolean init(ApplicationId appId, long ueLimit) {
-        // TODO: remove when UpfProgrammable becomes a behaviour.
-        throw new UnsupportedOperationException("init should never be called on the Up4DeviceManager!");
-    }
-
-    @Override
     public void cleanUp() {
         getUpfProgrammable().cleanUp();
-    }
-
-    @Override
-    public DeviceId deviceId() {
-        return getUpfProgrammable().deviceId();
-    }
-
-    @Override
-    public Collection<UpfFlow> getFlows() throws UpfProgrammableException {
-        return getUpfProgrammable().getFlows();
     }
 
     @Override
@@ -474,6 +459,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException {
+        if (isMaxUeSet() && pdr.counterId() >= getMaxUe() * 2) {
+            throw new UpfProgrammableException(
+                    "Counter cell index referenced by PDR above max supported UE value.",
+                    UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
+        }
         getUpfProgrammable().addPdr(pdr);
     }
 
@@ -504,27 +494,51 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public PdrStats readCounter(int counterIdx) throws UpfProgrammableException {
+        if (isMaxUeSet() && counterIdx >= getMaxUe() * 2) {
+            throw new UpfProgrammableException(
+                    "Requested PDR counter cell index above max supported UE value.",
+                    UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
+        }
         return getUpfProgrammable().readCounter(counterIdx);
     }
 
     @Override
     public long pdrCounterSize() {
-        return getUpfProgrammable().pdrCounterSize();
+        long pdrCounterSize = getUpfProgrammable().pdrCounterSize();
+        if (isMaxUeSet()) {
+            return Math.min(config.maxUes() * 2, pdrCounterSize);
+        }
+        return pdrCounterSize;
     }
 
     @Override
     public long farTableSize() {
-        return getUpfProgrammable().farTableSize();
+        long farTableSize = getUpfProgrammable().farTableSize();
+        if (isMaxUeSet()) {
+            return Math.min(config.maxUes() * 2, farTableSize);
+        }
+        return farTableSize;
     }
 
     @Override
     public long pdrTableSize() {
-        return getUpfProgrammable().pdrTableSize();
+        long pdrTableSize = getUpfProgrammable().pdrTableSize();
+        if (isMaxUeSet()) {
+            return Math.min(config.maxUes() * 2, pdrTableSize);
+        }
+        return pdrTableSize;
     }
 
     @Override
-    public Collection<PdrStats> readAllCounters() throws UpfProgrammableException {
-        return getUpfProgrammable().readAllCounters();
+    public Collection<PdrStats> readAllCounters(long maxCounterId) throws UpfProgrammableException {
+        if (isMaxUeSet()) {
+            if (maxCounterId == -1) {
+                maxCounterId = getMaxUe() * 2;
+            } else {
+                maxCounterId = Math.min(maxCounterId, getMaxUe() * 2);
+            }
+        }
+        return getUpfProgrammable().readAllCounters(maxCounterId);
     }
 
     @Override
@@ -548,18 +562,80 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
-    public void enablePscEncap(int defaultQfi) {
+    public void enablePscEncap(int defaultQfi) throws UpfProgrammableException {
         getUpfProgrammable().enablePscEncap(defaultQfi);
     }
 
     @Override
-    public void disablePscEncap() {
+    public void disablePscEncap() throws UpfProgrammableException {
         getUpfProgrammable().disablePscEncap();
     }
 
     @Override
     public void sendPacketOut(ByteBuffer data) {
         getUpfProgrammable().sendPacketOut(data);
+    }
+
+    @Override
+    public Collection<UpfFlow> getFlows() throws UpfProgrammableException {
+        Map<Integer, PdrStats> counterStats = new HashMap<>();
+        this.readAllCounters(-1).forEach(
+                stats -> counterStats.put(stats.getCellId(), stats));
+
+        // A flow is made of a PDR and the FAR that should apply to packets that
+        // hit the PDR. Multiple PDRs can map to the same FAR, so create a
+        // one->many mapping of FAR Identifier to flow builder.
+        Map<Pair<ImmutableByteSequence, Integer>, List<UpfFlow.Builder>> globalFarToSessionBuilder = new HashMap<>();
+        Collection<ForwardingActionRule> fars = this.getFars();
+        Collection<PacketDetectionRule> pdrs = this.getPdrs();
+        pdrs.forEach(pdr -> globalFarToSessionBuilder.compute(
+                Pair.of(pdr.sessionId(), pdr.farId()),
+                (k, existingVal) -> {
+                    final var builder = UpfFlow.builder()
+                            .setPdr(pdr)
+                            .addStats(counterStats.get(pdr.counterId()));
+                    if (existingVal == null) {
+                        return Lists.newArrayList(builder);
+                    } else {
+                        existingVal.add(builder);
+                        return existingVal;
+                    }
+                }));
+        fars.forEach(far -> globalFarToSessionBuilder.compute(
+                Pair.of(far.sessionId(), far.farId()),
+                (k, builderList) -> {
+                    // If no PDRs use this FAR, then create a new flow with no PDR
+                    if (builderList == null) {
+                        return List.of(UpfFlow.builder().setFar(far));
+                    } else {
+                        // Add the FAR to every flow with a PDR that references it
+                        for (var builder : builderList) {
+                            builder.setFar(far);
+                        }
+                        return builderList;
+                    }
+                }));
+
+        List<UpfFlow> results = new ArrayList<>();
+        for (var builderList : globalFarToSessionBuilder.values()) {
+            for (var builder : builderList) {
+                try {
+                    results.add(builder.build());
+                } catch (java.lang.IllegalArgumentException e) {
+                    log.warn("Corrupt UPF flow found in dataplane: {}",
+                             e.getMessage());
+                }
+            }
+        }
+        return results;
+    }
+
+    private boolean isMaxUeSet() {
+        return configIsLoaded() && config.maxUes() > 0;
+    }
+
+    private long getMaxUe() {
+        return isMaxUeSet() ? config.maxUes() : NO_UE_LIMIT;
     }
 
     /**

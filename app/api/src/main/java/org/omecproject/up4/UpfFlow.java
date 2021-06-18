@@ -5,6 +5,9 @@
 package org.omecproject.up4;
 
 import org.onlab.util.ImmutableByteSequence;
+import org.onosproject.net.behaviour.upf.ForwardingActionRule;
+import org.onosproject.net.behaviour.upf.PacketDetectionRule;
+import org.onosproject.net.behaviour.upf.PdrStats;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
