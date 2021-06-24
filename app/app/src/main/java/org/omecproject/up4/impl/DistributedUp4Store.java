@@ -1,8 +1,9 @@
 package org.omecproject.up4.impl;
 
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
+import org.onlab.util.KryoNamespace;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import org.onosproject.store.serializers.KryoNamespaces;
 import org.onosproject.store.service.ConsistentMap;
@@ -38,24 +39,29 @@ public class DistributedUp4Store implements Up4Store {
     protected static final String BUFFER_FAR_ID_SET_NAME = "fabric-upf-buffer-far-id";
     protected static final String FAR_ID_UE_MAP_NAME = "fabric-upf-far-id-ue";
 
-    protected DistributedSet<Pair<ImmutableByteSequence, Integer>> bufferFarIds;
-    protected ConsistentMap<Pair<ImmutableByteSequence, Integer>, Set<Ip4Address>> farIdToUeAddrs;
+    protected static final KryoNamespace.Builder SERIALIZER = KryoNamespace.newBuilder()
+            .register(KryoNamespaces.API)
+            .register(ImmutablePair.class);
+
+    protected DistributedSet<ImmutablePair<ImmutableByteSequence, Integer>> bufferFarIds;
+    protected ConsistentMap<ImmutablePair<ImmutableByteSequence, Integer>, Set<Ip4Address>> farIdToUeAddrs;
 
     @Activate
     protected void activate() {
         // Allow unit test to inject farIdMap here.
         if (storageService != null) {
             this.bufferFarIds =
-                    storageService.<Pair<ImmutableByteSequence, Integer>>setBuilder()
+                    storageService.<ImmutablePair<ImmutableByteSequence, Integer>>setBuilder()
                             .withName(BUFFER_FAR_ID_SET_NAME)
                             .withRelaxedReadConsistency()
-                            .withSerializer(Serializer.using(KryoNamespaces.API))
+                            .withSerializer(Serializer.using(SERIALIZER.build()))
                             .build().asDistributedSet();
             this.farIdToUeAddrs =
-                    storageService.<Pair<ImmutableByteSequence, Integer>, Set<Ip4Address>>consistentMapBuilder()
+                    storageService.
+                            <ImmutablePair<ImmutableByteSequence, Integer>, Set<Ip4Address>>consistentMapBuilder()
                             .withName(FAR_ID_UE_MAP_NAME)
                             .withRelaxedReadConsistency()
-                            .withSerializer(Serializer.using(KryoNamespaces.API))
+                            .withSerializer(Serializer.using(SERIALIZER.build()))
                             .build();
         }
         log.info("Started");
@@ -73,31 +79,31 @@ public class DistributedUp4Store implements Up4Store {
     }
 
     @Override
-    public boolean isFarIdBuffering(Pair<ImmutableByteSequence, Integer> farId) {
+    public boolean isFarIdBuffering(ImmutablePair<ImmutableByteSequence, Integer> farId) {
         checkNotNull(farId);
         return bufferFarIds.contains(farId);
     }
 
     @Override
-    public void learBufferingFarId(Pair<ImmutableByteSequence, Integer> farId) {
+    public void learBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId) {
         checkNotNull(farId);
         bufferFarIds.add(farId);
     }
 
     @Override
-    public void forgetBufferingFarId(Pair<ImmutableByteSequence, Integer> farId) {
+    public void forgetBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId) {
         checkNotNull(farId);
         bufferFarIds.remove(farId);
     }
 
     @Override
-    public Set<Pair<ImmutableByteSequence, Integer>> getBufferFarIds() {
+    public Set<ImmutablePair<ImmutableByteSequence, Integer>> getBufferFarIds() {
         return Set.copyOf(bufferFarIds);
     }
 
     @Override
     public void learnFarIdToUeAddrs(PacketDetectionRule pdr) {
-        var ruleId = Pair.of(pdr.sessionId(), pdr.farId());
+        var ruleId = ImmutablePair.of(pdr.sessionId(), pdr.farId());
         farIdToUeAddrs.compute(ruleId, (k, set) -> {
             if (set == null) {
                 set = new HashSet<>();
@@ -108,7 +114,7 @@ public class DistributedUp4Store implements Up4Store {
     }
 
     @Override
-    public Set<Ip4Address> ueAddrsOfFarId(Pair<ImmutableByteSequence, Integer> farId) {
+    public Set<Ip4Address> ueAddrsOfFarId(ImmutablePair<ImmutableByteSequence, Integer> farId) {
         return farIdToUeAddrs.getOrDefault(farId, Set.of()).value();
     }
 
@@ -122,7 +128,7 @@ public class DistributedUp4Store implements Up4Store {
     }
 
     @Override
-    public Map<Pair<ImmutableByteSequence, Integer>, Set<Ip4Address>> getFarIdToUeAddrs() {
+    public Map<ImmutablePair<ImmutableByteSequence, Integer>, Set<Ip4Address>> getFarIdToUeAddrs() {
         return Map.copyOf(farIdToUeAddrs.asJavaMap());
     }
 }

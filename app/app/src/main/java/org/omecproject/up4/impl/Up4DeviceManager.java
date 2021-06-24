@@ -5,6 +5,8 @@
 package org.omecproject.up4.impl;
 
 import com.google.common.collect.Lists;
+import io.grpc.Context;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.dbuf.client.DbufClient;
 import org.omecproject.dbuf.client.DefaultDbufClient;
@@ -440,7 +442,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void addFar(ForwardingActionRule far) throws UpfProgrammableException {
-        var ruleId = Pair.of(far.sessionId(), far.farId());
+        var ruleId = ImmutablePair.of(far.sessionId(), far.farId());
         if (far.buffers()) {
             // If the far has the buffer flag, modify its tunnel so it directs to dbuf
             far = convertToDbufFar(far);
@@ -448,28 +450,34 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
         getUpfProgrammable().addFar(far);
         if (!far.buffers() && up4Store.isFarIdBuffering(ruleId)) {
-            if (dbufClient == null) {
-                log.error("Cannot start dbuf drain for {}, dbufClient is null", up4Store.ueAddrsOfFarId(ruleId));
-                return;
-            }
-            if (config == null || config.dbufDrainAddr() == null) {
-                log.error("Cannot start dbuf drain for {}, dbufDrainAddr is null", up4Store.ueAddrsOfFarId(ruleId));
-                return;
-            }
             // If this FAR does not buffer but used to, then drain the buffer for every UE address
             // that hits this FAR.
             up4Store.forgetBufferingFarId(ruleId);
             for (var ueAddr : up4Store.ueAddrsOfFarId(ruleId)) {
-                dbufClient.drain(ueAddr, config.dbufDrainAddr(), GTP_PORT)
-                        .whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
-                            } else if (result) {
-                                log.info("Dbuf drain completed for {}", ueAddr);
-                            } else {
-                                log.warn("Unknown error while draining dbuf for {}", ueAddr);
-                            }
-                        });
+                // Run the outbound rpc in a forked context so it doesn't cancel if it was called
+                // by an inbound rpc that completes faster than the drain call
+                Context ctx = Context.current().fork();
+                ctx.run(() -> {
+                    if (dbufClient == null) {
+                        log.error("Cannot start dbuf drain for {}, dbufClient is null", ueAddr);
+                        return;
+                    }
+                    if (config == null || config.dbufDrainAddr() == null) {
+                        log.error("Cannot start dbuf drain for {}, dbufDrainAddr is null", ueAddr);
+                        return;
+                    }
+                    log.info("Started dbuf drain for {}", ueAddr);
+                    dbufClient.drain(ueAddr, config.dbufDrainAddr(), GTP_PORT)
+                            .whenComplete((result, ex) -> {
+                                if (ex != null) {
+                                    log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
+                                } else if (result) {
+                                    log.info("Dbuf drain completed for {}", ueAddr);
+                                } else {
+                                    log.warn("Unknown error while draining dbuf for {}", ueAddr);
+                                }
+                            });
+                });
             }
         }
     }

@@ -1,6 +1,6 @@
 package org.omecproject.up4.impl;
 
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
@@ -21,27 +21,27 @@ public interface Up4Store {
      * @param farId FAR ID
      * @return boolean
      */
-    boolean isFarIdBuffering(Pair<ImmutableByteSequence, Integer> farId);
+    boolean isFarIdBuffering(ImmutablePair<ImmutableByteSequence, Integer> farId);
 
     /**
      * Learns the given FAR ID as being a buffering one.
      *
      * @param farId FAR ID
      */
-    void learBufferingFarId(Pair<ImmutableByteSequence, Integer> farId);
+    void learBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
 
     /**
      * Forgets the given FAR ID as being a buffering one.
      *
      * @param farId FAR ID
      */
-    void forgetBufferingFarId(Pair<ImmutableByteSequence, Integer> farId);
+    void forgetBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
 
     /**
      * Returns the set of known buffering FAR IDs.
      * @return set
      */
-    Set<Pair<ImmutableByteSequence, Integer>> getBufferFarIds();
+    Set<ImmutablePair<ImmutableByteSequence, Integer>> getBufferFarIds();
 
     /**
      * Stores the mapping between FAR ID and UE address as defined by the given PDR.
@@ -56,7 +56,7 @@ public interface Up4Store {
      * @param farId FAR ID
      * @return Set of Ip4Address
      */
-    Set<Ip4Address> ueAddrsOfFarId(Pair<ImmutableByteSequence, Integer> farId);
+    Set<Ip4Address> ueAddrsOfFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
 
     /**
      * Removes the given UE address from the FAR ID to UE address map.
@@ -69,6 +69,6 @@ public interface Up4Store {
      *
      * @return map
      */
-    Map<Pair<ImmutableByteSequence, Integer>, Set<Ip4Address>> getFarIdToUeAddrs();
+    Map<ImmutablePair<ImmutableByteSequence, Integer>, Set<Ip4Address>> getFarIdToUeAddrs();
 
 }
