@@ -7,7 +7,6 @@ package org.omecproject.up4.impl;
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfFlow;
-import org.onlab.packet.Ip4Address;
 import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import org.onosproject.net.behaviour.upf.PdrStats;
@@ -76,15 +75,6 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public void setBufferDrainer(BufferDrainer drainer) {
-    }
-
-    @Override
-    public void unsetBufferDrainer() {
-
-    }
-
-    @Override
     public void enablePscEncap(int defaultQfi) {
 
     }
@@ -97,16 +87,6 @@ public class MockUp4Service implements Up4Service {
     @Override
     public void sendPacketOut(ByteBuffer data) {
         sentPacketOuts.add(data);
-    }
-
-    @Override
-    public void setDbufTunnel(Ip4Address switchAddr, Ip4Address dbufAddr) {
-
-    }
-
-    @Override
-    public void unsetDbufTunnel() {
-
     }
 
     @Override

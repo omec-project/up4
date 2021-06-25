@@ -6,6 +6,7 @@ package org.omecproject.up4.impl;
 
 import com.google.common.collect.Lists;
 import io.grpc.Context;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.dbuf.client.DbufClient;
 import org.omecproject.dbuf.client.DefaultDbufClient;
@@ -24,6 +25,7 @@ import org.onosproject.event.AbstractListenerManager;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.behaviour.upf.ForwardingActionRule;
+import org.onosproject.net.behaviour.upf.GtpTunnel;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import org.onosproject.net.behaviour.upf.PdrStats;
 import org.onosproject.net.behaviour.upf.UpfInterface;
@@ -69,6 +71,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         implements Up4Service {
 
     private static final long NO_UE_LIMIT = -1;
+    public static final int GTP_PORT = 2152;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final AtomicBoolean upfInitialized = new AtomicBoolean(false);
@@ -98,6 +101,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected Up4Store up4Store;
 
     private ApplicationId appId;
     private InternalDeviceListener deviceListener;
@@ -107,6 +112,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private DeviceId upfDeviceId;
     private Up4Config config;
     private DbufClient dbufClient;
+
+    private GtpTunnel dbufTunnel;
 
     @Activate
     protected void activate() {
@@ -221,12 +228,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
             installInterfaces();
 
-            if (dbufClient != null && configIsLoaded() && config.dbufDrainAddr() != null) {
-                addDbufStateToUpfProgrammable();
-            } else {
-                removeDbufStateFromUpfProgrammable();
-            }
-
             try {
                 if (configIsLoaded() && config.pscEncapEnabled()) {
                     upfProgrammable.enablePscEncap(config.defaultQfi());
@@ -333,60 +334,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private void dbufUpdateConfig(Up4DbufConfig config) {
         if (config == null) {
             teardownDbufClient();
-            removeDbufStateFromUpfProgrammable();
         } else if (config.isValid()) {
             setUpDbufClient(config.serviceAddr(), config.dataplaneAddr());
-            addDbufStateToUpfProgrammable();
         } else {
-            log.error("Invalid UP4 config loaded! Cannot set up UPF.");
+            log.error("Invalid DBUF config loaded! Cannot set up DBUF.");
         }
         log.info("Up4DbufConfig updated");
-    }
-
-    private void addDbufStateToUpfProgrammable() {
-        if (dbufClient == null) {
-            log.warn("Cannot add dbuf state to UpfProgrammable, dbufClient is null");
-            return;
-        }
-        if (config == null || config.dbufDrainAddr() == null) {
-            log.warn("Cannot add dbuf state to UpfProgrammable, dbufDrainAddr is null");
-            return;
-        }
-        // FIXME: update existing tunnels if dataplane addr changes
-        upfProgrammable.setDbufTunnel(config.dbufDrainAddr(), dbufClient.dataplaneIp4Addr());
-        upfProgrammable.setBufferDrainer(ueAddr -> {
-            // Run the outbound rpc in a forked context so it doesn't cancel if it was called
-            // by an inbound rpc that completes faster than the drain call
-            Context ctx = Context.current().fork();
-            ctx.run(() -> {
-                if (dbufClient == null) {
-                    log.error("Cannot start dbuf drain for {}, dbufClient is null", ueAddr);
-                    return;
-                }
-                if (config == null || config.dbufDrainAddr() == null) {
-                    log.error("Cannot start dbuf drain for {}, dbufDrainAddr is null", ueAddr);
-                    return;
-                }
-                log.info("Started dbuf drain for {}", ueAddr);
-                dbufClient.drain(ueAddr, config.dbufDrainAddr(), 2152)
-                        .whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
-                            } else if (result) {
-                                log.info("Dbuf drain completed for {}", ueAddr);
-                            } else {
-                                log.warn("Unknown error while draining dbuf for {}", ueAddr);
-                            }
-                        });
-            });
-        });
-    }
-
-    private void removeDbufStateFromUpfProgrammable() {
-        if (upfProgrammable != null) {
-            upfProgrammable.unsetBufferDrainer();
-            upfProgrammable.unsetDbufTunnel();
-        }
     }
 
     private void setUpDbufClient(String serviceAddr, String dataplaneAddr) {
@@ -397,9 +350,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if (dbufClient == null) {
                 dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr, this);
             }
-            if (upfProgrammable != null) {
-                addDbufStateToUpfProgrammable();
-            }
+            this.dbufTunnel = GtpTunnel.builder()
+                    .setSrc(config.dbufDrainAddr())
+                    .setDst(dbufClient.dataplaneIp4Addr())
+                    .setSrcPort((short) GTP_PORT)
+                    .setTeid(0)
+                    .build();
         }
     }
 
@@ -409,27 +365,28 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 dbufClient.shutdown();
                 dbufClient = null;
             }
-            if (upfProgrammable != null) {
-                removeDbufStateFromUpfProgrammable();
-            }
+            dbufTunnel = null;
         }
     }
 
     private void updateConfig() {
-        Up4Config up4Config = netCfgService.getConfig(appId, Up4Config.class);
-        if (up4Config != null) {
-            upfUpdateConfig(up4Config);
-        }
-
+        // Configure DBUF first, otherwise we might end-up with requests for
+        // buffering but DBUF is not ready/configured yet.
         Up4DbufConfig dbufConfig = netCfgService.getConfig(appId, Up4DbufConfig.class);
         if (dbufConfig != null) {
             dbufUpdateConfig(dbufConfig);
+        }
+
+        Up4Config up4Config = netCfgService.getConfig(appId, Up4Config.class);
+        if (up4Config != null) {
+            upfUpdateConfig(up4Config);
         }
     }
 
     @Override
     public void cleanUp() {
         getUpfProgrammable().cleanUp();
+        up4Store.reset();
     }
 
     @Override
@@ -465,16 +422,60 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
         }
         getUpfProgrammable().addPdr(pdr);
+        if (pdr.matchesUnencapped()) {
+            up4Store.learnFarIdToUeAddrs(pdr);
+        }
     }
 
     @Override
     public void removePdr(PacketDetectionRule pdr) throws UpfProgrammableException {
         getUpfProgrammable().removePdr(pdr);
+        if (pdr.matchesUnencapped()) {
+            // Should we remove just from the map entry with key == far ID?
+            up4Store.forgetUeAddr(pdr.ueAddress());
+        }
     }
 
     @Override
     public void addFar(ForwardingActionRule far) throws UpfProgrammableException {
+        var ruleId = ImmutablePair.of(far.sessionId(), far.farId());
+        if (far.buffers()) {
+            // If the far has the buffer flag, modify its tunnel so it directs to dbuf
+            far = convertToDbufFar(far);
+            up4Store.learnBufferingFarId(ruleId);
+        }
         getUpfProgrammable().addFar(far);
+        if (!far.buffers() && up4Store.isFarIdBuffering(ruleId)) {
+            // If this FAR does not buffer but used to, then drain the buffer for every UE address
+            // that hits this FAR.
+            up4Store.forgetBufferingFarId(ruleId);
+            for (var ueAddr : up4Store.ueAddrsOfFarId(ruleId)) {
+                // Run the outbound rpc in a forked context so it doesn't cancel if it was called
+                // by an inbound rpc that completes faster than the drain call
+                Context ctx = Context.current().fork();
+                ctx.run(() -> {
+                    if (dbufClient == null) {
+                        log.error("Cannot start dbuf drain for {}, dbufClient is null", ueAddr);
+                        return;
+                    }
+                    if (config == null || config.dbufDrainAddr() == null) {
+                        log.error("Cannot start dbuf drain for {}, dbufDrainAddr is null", ueAddr);
+                        return;
+                    }
+                    log.info("Started dbuf drain for {}", ueAddr);
+                    dbufClient.drain(ueAddr, config.dbufDrainAddr(), GTP_PORT)
+                            .whenComplete((result, ex) -> {
+                                if (ex != null) {
+                                    log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
+                                } else if (result) {
+                                    log.info("Dbuf drain completed for {}", ueAddr);
+                                } else {
+                                    log.warn("Unknown error while draining dbuf for {}", ueAddr);
+                                }
+                            });
+                });
+            }
+        }
     }
 
     @Override
@@ -539,26 +540,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             }
         }
         return getUpfProgrammable().readAllCounters(maxCounterId);
-    }
-
-    @Override
-    public void setDbufTunnel(Ip4Address switchAddr, Ip4Address dbufAddr) {
-        getUpfProgrammable().setDbufTunnel(switchAddr, dbufAddr);
-    }
-
-    @Override
-    public void unsetDbufTunnel() {
-        getUpfProgrammable().unsetDbufTunnel();
-    }
-
-    @Override
-    public void setBufferDrainer(BufferDrainer drainer) {
-        getUpfProgrammable().setBufferDrainer(drainer);
-    }
-
-    @Override
-    public void unsetBufferDrainer() {
-        getUpfProgrammable().unsetBufferDrainer();
     }
 
     @Override
@@ -636,6 +617,29 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     private long getMaxUe() {
         return isMaxUeSet() ? config.maxUes() : NO_UE_LIMIT;
+    }
+
+    /**
+     * Convert the given buffering FAR to a FAR that tunnels the packet to dbuf.
+     *
+     * @param far the FAR to convert
+     * @return the converted FAR
+     */
+    private ForwardingActionRule convertToDbufFar(ForwardingActionRule far)
+            throws UpfProgrammableException {
+        if (!far.buffers()) {
+            throw new IllegalArgumentException("Converting a non-buffering FAR to a dbuf FAR! This shouldn't happen.");
+        }
+        if (dbufTunnel == null) {
+            throw new UpfProgrammableException("Dbuf tunnel has not been configured yet.");
+        }
+        return ForwardingActionRule.builder()
+                .setFarId(far.farId())
+                .withSessionId(far.sessionId())
+                .setNotifyFlag(far.notifies())
+                .setBufferFlag(true)
+                .setTunnel(dbufTunnel)
+                .build();
     }
 
     /**
