@@ -12,6 +12,9 @@ import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Stores state required for UP4.
+ */
 public interface Up4Store {
 
     /**
@@ -32,7 +35,7 @@ public interface Up4Store {
      *
      * @param farId FAR ID
      */
-    void learBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
+    void learnBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
 
     /**
      * Forgets the given FAR ID as being a buffering one.

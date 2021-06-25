@@ -40,8 +40,8 @@ public class DistributedUp4Store implements Up4Store {
     protected StorageService storageService;
 
 
-    protected static final String BUFFER_FAR_ID_SET_NAME = "fabric-upf-buffer-far-id";
-    protected static final String FAR_ID_UE_MAP_NAME = "fabric-upf-far-id-ue";
+    protected static final String BUFFER_FAR_ID_SET_NAME = "up4-buffer-far-id";
+    protected static final String FAR_ID_UE_MAP_NAME = "up4-far-id-ue";
 
     protected static final KryoNamespace.Builder SERIALIZER = KryoNamespace.newBuilder()
             .register(KryoNamespaces.API)
@@ -89,7 +89,7 @@ public class DistributedUp4Store implements Up4Store {
     }
 
     @Override
-    public void learBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId) {
+    public void learnBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId) {
         checkNotNull(farId);
         bufferFarIds.add(farId);
     }
@@ -124,6 +124,7 @@ public class DistributedUp4Store implements Up4Store {
 
     @Override
     public void forgetUeAddr(Ip4Address ueAddr) {
+        // This is an inefficient hotfix FIXME: remove UE addrs from the mapping in sublinear time
         farIdToUeAddrs.keySet().forEach(
                 farId -> farIdToUeAddrs.computeIfPresent(farId, (farIdz, ueAddrs) -> {
                     ueAddrs.remove(ueAddr);

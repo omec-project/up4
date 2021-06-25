@@ -113,7 +113,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private Up4Config config;
     private DbufClient dbufClient;
 
-    // GTP Tunnel for DBuf
     private GtpTunnel dbufTunnel;
 
     @Activate
@@ -351,7 +350,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if (dbufClient == null) {
                 dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr, this);
             }
-            // Set dbuf GTP Tunnel
             this.dbufTunnel = GtpTunnel.builder()
                     .setSrc(config.dbufDrainAddr())
                     .setDst(dbufClient.dataplaneIp4Addr())
@@ -372,7 +370,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     private void updateConfig() {
-        // First set up the DBUF
+        // Configure DBUF first, otherwise we might end-up with requests for
+        // buffering but DBUF is not ready/configured yet.
         Up4DbufConfig dbufConfig = netCfgService.getConfig(appId, Up4DbufConfig.class);
         if (dbufConfig != null) {
             dbufUpdateConfig(dbufConfig);
@@ -423,7 +422,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
         }
         getUpfProgrammable().addPdr(pdr);
-        // If the flow rule was applied and the PDR is downlink, add the PDR to the farID->PDR mapping
         if (pdr.matchesUnencapped()) {
             up4Store.learnFarIdToUeAddrs(pdr);
         }
@@ -432,8 +430,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Override
     public void removePdr(PacketDetectionRule pdr) throws UpfProgrammableException {
         getUpfProgrammable().removePdr(pdr);
-        // Remove the PDR from the farID->PDR mapping
-        // This is an inefficient hotfix FIXME: remove UE addrs from the mapping in sublinear time
         if (pdr.matchesUnencapped()) {
             // Should we remove just from the map entry with key == far ID?
             up4Store.forgetUeAddr(pdr.ueAddress());
@@ -446,7 +442,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         if (far.buffers()) {
             // If the far has the buffer flag, modify its tunnel so it directs to dbuf
             far = convertToDbufFar(far);
-            up4Store.learBufferingFarId(ruleId);
+            up4Store.learnBufferingFarId(ruleId);
         }
         getUpfProgrammable().addFar(far);
         if (!far.buffers() && up4Store.isFarIdBuffering(ruleId)) {
@@ -629,19 +625,19 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
      * @param far the FAR to convert
      * @return the converted FAR
      */
-    private ForwardingActionRule convertToDbufFar(ForwardingActionRule far) {
+    private ForwardingActionRule convertToDbufFar(ForwardingActionRule far)
+            throws UpfProgrammableException {
         if (!far.buffers()) {
             throw new IllegalArgumentException("Converting a non-buffering FAR to a dbuf FAR! This shouldn't happen.");
+        }
+        if (dbufTunnel == null) {
+            throw new UpfProgrammableException("Dbuf tunnel has not been configured yet.");
         }
         return ForwardingActionRule.builder()
                 .setFarId(far.farId())
                 .withSessionId(far.sessionId())
                 .setNotifyFlag(far.notifies())
                 .setBufferFlag(true)
-                // FIXME: I should check if dbufTunnel is null. I can reach this
-                //  point with dbufTunnel == null, if the dbuf config has not been
-                //  pushed, while the UPF one has been. If the two netcfg are pushed
-                //  together we should never reach this poing with dbufTunnel == null.
                 .setTunnel(dbufTunnel)
                 .build();
     }
