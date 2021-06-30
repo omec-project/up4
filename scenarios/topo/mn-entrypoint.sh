@@ -6,8 +6,10 @@
 
 mv /usr/sbin/tcpdump /usr/bin/tcpdump
 
-if [ -z ${PARALLEL_LINKS} ]; then
-	/topo/topo-gtp.py
+MN_SCRIPT=${MN_SCRIPT:-/topo/topo-gtp-leafspine.py}
+
+if [ -z "${PARALLEL_LINKS}" ]; then
+	${MN_SCRIPT}
 else
-	/topo/topo-gtp.py --parallel-links ${PARALLEL_LINKS}
+	${MN_SCRIPT} --parallel-links "${PARALLEL_LINKS}"
 fi

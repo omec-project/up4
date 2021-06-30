@@ -3,89 +3,21 @@
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
 import argparse
-import socket
-import struct
 
 from mininet.cli import CLI
 from mininet.log import setLogLevel
 from mininet.net import Mininet
-from mininet.node import Host
 from mininet.topo import Topo
 from stratum import StratumBmv2Switch
+from mn_lib import IPv4Host, DbufHost
 
 CPU_PORT = 255
 
 
-def ip2long(ip):
-    """
-    Convert an IP string to long
-    """
-    packedIP = socket.inet_aton(ip)
-    return struct.unpack("!L", packedIP)[0]
-
-
-# 17.0.0.1 comes from util/traffic.py
-# FIXME: https://github.com/omec-project/dbuf/issues/3
-DBUF_QUEUE_ID_LOW = ip2long('17.0.0.1')  # included
-DBUF_QUEUE_ID_HIGH = ip2long('17.0.0.4')  # excluded
-DBUF_DROP_TIMEOUT_SEC = "30s"
-DBUF_NUM_QUEUES = 10
-DBUF_MAX_PKTS_PER_QUEUE = 16
-
-
-class IPv4Host(Host):
-    """Host that can be configured with an IPv4 gateway (default route).
-    """
-
-    def config(self, mac=None, ip=None, defaultRoute=None, lo='up', gw=None, **_params):
-        super(IPv4Host, self).config(mac, ip, defaultRoute, lo, **_params)
-        self.cmd('ip -4 addr flush dev %s' % self.defaultIntf())
-        self.cmd('ip -6 addr flush dev %s' % self.defaultIntf())
-        self.cmd('sysctl -w net.ipv4.ip_forward=0')
-        self.cmd('ip -4 link set up %s' % self.defaultIntf())
-        self.cmd('ip -4 addr add %s dev %s' % (ip, self.defaultIntf()))
-        if gw:
-            self.cmd('ip -4 route add default via %s' % gw)
-        # Disable offload
-        for attr in ["rx", "tx", "sg"]:
-            cmd = "/sbin/ethtool --offload %s %s off" % (self.defaultIntf(), attr)
-            self.cmd(cmd)
-
-        def updateIP():
-            return ip.split('/')[0]
-
-        self.defaultIntf().updateIP = updateIP
-
-
-class DbufHost(IPv4Host):
-
-    def __init__(self, name, inNamespace=False, **params):
-        super(DbufHost, self).__init__(name, inNamespace, **params)
-
-    def config(self, mac=None, ip=None, defaultRoute=None, lo='up', gw=None, **_params):
-        super(DbufHost, self).config(mac, ip, defaultRoute, lo, gw, **_params)
-        args = map(
-            str,
-            [
-                #"-queue_id_high", DBUF_QUEUE_ID_HIGH,
-                #"-queue_id_low", DBUF_QUEUE_ID_LOW,
-                "-max_queues",
-                DBUF_NUM_QUEUES,
-                "-max_packet_slots_per_queue",
-                DBUF_MAX_PKTS_PER_QUEUE,
-                "-queue_drop_timeout",
-                DBUF_DROP_TIMEOUT_SEC,
-            ])
-        # Send to background
-        cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
-              % (" ".join(args), self.name)
-        print(cmd)
-        self.cmd(cmd)
-
-
-class TutorialTopo(Topo):
-    """2x2 fabric topology for GTP encap exercise with 2 IPv4 hosts emulating an
-       enodeb (base station) and a gateway to a Packet Data Metwork (PDN)
+class LeafSpine(Topo):
+    """2x2 fabric topology with 2 IPv4 hosts emulating an
+       enodeb (base station) and a gateway to a Packet Data Metwork (PDN), and a
+       DBUF host.
     """
 
     def __init__(self, *args, **kwargs):
@@ -137,7 +69,7 @@ class TutorialTopo(Topo):
 
 
 def main(parallelLinks):
-    net = Mininet(topo=TutorialTopo(parallelLinks), controller=None)
+    net = Mininet(topo=LeafSpine(parallelLinks), controller=None)
     net.start()
     CLI(net)
     net.stop()
