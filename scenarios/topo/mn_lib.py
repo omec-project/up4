@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+
 from mininet.node import Host
 import socket
 import struct
