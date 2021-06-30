@@ -47,6 +47,7 @@ ifneq "${UP4_ENV}" "stable"
 	@cat ${UP4_ROOT}/.env.${UP4_ENV} >> ./tmp/.env.docker
 endif
 	@echo "MN_SCRIPT=/topo/topo-gtp-${TOPO}.py" >> ./tmp/.env.docker
+	@echo "STC_ENV_FILE=${STC_ENV}" >> ./tmp/.env.docker
 
 $(SCENARIOS): ./tmp /tmp/stc ./tmp/.env.docker
 	$(info *** Running STC scenario: $@)
