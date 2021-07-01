@@ -162,7 +162,7 @@ pipeline {
 void runSTCSmokeTest(String topo) {
   dir("${env.WORKSPACE}/up4/scenarios") {
     sh "make reset"
-    sh "TOPO=${topo} make smoke.xml stcColor=false stcDumpLogs=true"
+    sh "TOPO=${topo.trim()} make smoke.xml stcColor=false stcDumpLogs=true"
   }
 }
 
@@ -174,8 +174,8 @@ void exportArtifactsScenarios(String topo) {
     // keep just the grpc logs.
     sh "make fix-permissions"
     sh "find ./tmp/onos*/ -type f -not -name \"grpc_*.log\" -print -delete"
-    sh "tar -czvf ${topo}-scenarios-tmp.tar.gz ./tmp"
-    archiveArtifacts artifacts: "${topo}-scenarios-tmp.tar.gz"
+    sh "tar -czvf ${topo.trim()}-scenarios-tmp.tar.gz ./tmp"
+    archiveArtifacts artifacts: "${topo.trim()}-scenarios-tmp.tar.gz"
   }
 }
 
