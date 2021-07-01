@@ -67,8 +67,8 @@ a graph of all the test steps and their dependencies.
 
 ## Specify a different topology
 
-By default, all scenarios use the 2x2 leaf-spine topology. The use of a different
- topology can be specified by using the `TOPO` environment variable.
+By default, all scenarios use the 2x2 leaf-spine topology. To use of a different
+ topology can be specified via the `TOPO` environment variable.
 
 Currently, we support two topologies:
 - 2x2 leaf-spine: `TOPO=leafspine`  
