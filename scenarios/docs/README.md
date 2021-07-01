@@ -71,10 +71,10 @@ By default, all scenarios use the 2x2 leaf-spine topology. The use of a differen
  topology can be specified by using the `TOPO` environment variable.
 
 Currently, we support two topologies:
-- 2x2 leaf-spine: `TOPO=leafspine`
+- 2x2 leaf-spine: `TOPO=leafspine`  
 ![leaf-spine](leaf-spine.png)
 
-- single pair-leaf (note that PDN and DBUF are dual-homed): `TOPO=singlepair`
+- single pair-leaf (note that PDN and DBUF are dual-homed): `TOPO=singlepair`  
 ![single-pair](single-pair.png)
 
 ## Scenarios
