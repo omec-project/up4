@@ -15,7 +15,7 @@
         "ipv4Loopback": "192.168.1.11",
         "routerMac": "00:AA:00:00:00:01",
         "pairDeviceId": "device:leaf2",
-        "pairLocalPort": 3,
+        "pairLocalPort": 4,
         "isEdgeRouter": true,
         "adjacencySids": []
       }
@@ -42,13 +42,13 @@
     }
   },
   "ports": {
-    "device:leaf1/3": {
+    "device:leaf1/4": {
       "interfaces": [
         {
-          "name": "leaf1-3-pair",
+          "name": "leaf1-4-pair",
           "ips": [
-            "140.0.100.254/24",
             "140.0.99.254/24",
+            "140.0.100.254/24",
             "140.0.200.254/24"
           ],
           "vlan-tagged": [
@@ -64,8 +64,8 @@
         {
           "name": "leaf2-3-pair",
           "ips": [
-            "140.0.100.254/24",
             "140.0.99.254/24",
+            "140.0.100.254/24",
             "140.0.200.254/24"
           ],
           "vlan-tagged": [
@@ -88,6 +88,17 @@
       ]
     },
     "device:leaf1/2": {
+      "interfaces": [
+        {
+          "name": "leaf1-2-pdn",
+          "ips": [
+            "140.0.200.254/24"
+          ],
+          "vlan-untagged": 200
+        }
+      ]
+    },
+    "device:leaf1/3": {
       "interfaces": [
         {
           "name": "leaf1-2-enb",
@@ -122,20 +133,6 @@
     }
   },
   "hosts": {
-    "00:00:00:00:00:10/None": {
-      "basic": {
-        "name": "enodeb",
-        "gridX": 100,
-        "gridY": 700,
-        "locType": "grid",
-        "ips": [
-          "140.0.100.1"
-        ],
-        "locations": [
-          "device:leaf1/2"
-        ]
-      }
-    },
     "00:00:00:00:db:0f/None": {
       "basic": {
         "name": "dbuf1",
@@ -161,7 +158,22 @@
           "140.0.200.1"
         ],
         "locations": [
-          "device:leaf2/2"
+          "device:leaf2/2",
+          "device:leaf1/2"
+        ]
+      }
+    },
+    "00:00:00:00:00:10/None": {
+      "basic": {
+        "name": "enodeb",
+        "gridX": 100,
+        "gridY": 700,
+        "locType": "grid",
+        "ips": [
+          "140.0.100.1"
+        ],
+        "locations": [
+          "device:leaf1/3"
         ]
       }
     }

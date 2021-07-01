@@ -15,9 +15,8 @@ CPU_PORT = 255
 
 
 class LeafSpine(Topo):
-    """2x2 fabric topology with 2 IPv4 hosts emulating an
-       enodeb (base station) and a gateway to a Packet Data Metwork (PDN), and a
-       DBUF host.
+    """2x2 fabric topology with three IPv4 hosts emulating an enodeb (base
+       station), a gateway to a Packet Data Metwork (PDN), and a DBUF host.
     """
 
     def __init__(self, *args, **kwargs):
@@ -73,13 +72,6 @@ def main(parallelLinks):
     net.start()
     CLI(net)
     net.stop()
-    print('#' * 80)
-    print('ATTENTION: Mininet was stopped! Perhaps accidentally?')
-    print('No worries, it will restart automatically in a few seconds...')
-    print('To access again the Mininet CLI, use `make mn-cli`')
-    print('To detach from the CLI (without stopping), press Ctrl-D')
-    print('To permanently quit Mininet, use `make stop`')
-    print('#' * 80)
 
 
 if __name__ == "__main__":

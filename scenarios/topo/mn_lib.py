@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 
-from mininet.node import Host
+from mininet.node import Host, Node
 import socket
 import struct
 
@@ -17,6 +17,24 @@ def ip2long(ip):
     """
     packedIP = socket.inet_aton(ip)
     return struct.unpack("!L", packedIP)[0]
+
+
+def dbufCommand(name):
+    args = map(
+        str,
+        [
+            "-max_queues",
+            DBUF_NUM_QUEUES,
+            "-max_packet_slots_per_queue",
+            DBUF_MAX_PKTS_PER_QUEUE,
+            "-queue_drop_timeout",
+            DBUF_DROP_TIMEOUT_SEC,
+        ])
+    # Send to background
+    cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
+          % (" ".join(args), name)
+    print(cmd)
+    return cmd
 
 
 class IPv4Host(Host):
@@ -50,23 +68,7 @@ class DbufHost(IPv4Host):
 
     def config(self, mac=None, ip=None, defaultRoute=None, lo='up', gw=None, **_params):
         super(DbufHost, self).config(mac, ip, defaultRoute, lo, gw, **_params)
-        args = map(
-            str,
-            [
-                #"-queue_id_high", DBUF_QUEUE_ID_HIGH,
-                #"-queue_id_low", DBUF_QUEUE_ID_LOW,
-                "-max_queues",
-                DBUF_NUM_QUEUES,
-                "-max_packet_slots_per_queue",
-                DBUF_MAX_PKTS_PER_QUEUE,
-                "-queue_drop_timeout",
-                DBUF_DROP_TIMEOUT_SEC,
-            ])
-        # Send to background
-        cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
-              % (" ".join(args), self.name)
-        print(cmd)
-        self.cmd(cmd)
+        self.cmd(dbufCommand(self.name))
 
 
 class DualHomedIpv4Host(Host):
@@ -114,18 +116,4 @@ class DualHomedDbufHost(DualHomedIpv4Host):
 
     def config(self, **_params):
         super(DualHomedDbufHost, self).config(**_params)
-        args = map(
-            str,
-            [
-                "-max_queues",
-                DBUF_NUM_QUEUES,
-                "-max_packet_slots_per_queue",
-                DBUF_MAX_PKTS_PER_QUEUE,
-                "-queue_drop_timeout",
-                DBUF_DROP_TIMEOUT_SEC,
-            ])
-        # Send to background
-        cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
-              % (" ".join(args), self.name)
-        print(cmd)
-        self.cmd(cmd)
+        self.cmd(dbufCommand(self.name))

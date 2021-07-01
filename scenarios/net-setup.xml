@@ -11,7 +11,7 @@
               exec="onos-check-summary ${OCI} [0-9]* 0 0 0"/>
         <step name="Push-Netcfg" requires="Initial-Summary-Check"
               exec="onos-netcfg ${OCI} ${TOPO_NETCFG}"/>
-        <!-- 4 devices, ${LINKS} (see .env.stc) links (unidirectional), 3 hosts -->
+        <!-- ${SWITCHES} devices, ${LINKS} (see .env.stc) links (unidirectional), 3 hosts -->
         <step name="Check-Summary" requires="Push-Netcfg"
               exec="onos-check-summary ${OCI} [0-9]* ${SWITCHES} ${LINKS} 3"/>
         <!-- Like in a production deployment, we assume dbuf can change its dataplane address. We

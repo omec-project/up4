@@ -51,7 +51,7 @@ endif
 
 $(SCENARIOS): ./tmp /tmp/stc ./tmp/.env.docker
 	$(info *** Running STC scenario: $@)
-	@export $(shell cat "${CURRENT_DIR}"/${STC_ENV} | grep -v '#' | xargs) && \
+	@export $(shell cat "${CURRENT_DIR}"/"${STC_ENV}" | grep -v '#' | xargs) && \
 		export PATH="${CURRENT_DIR}/bin:${ONOS_ROOT}/tools/test/bin:${ONOS_ROOT}/tools/test/scenarios/bin:${ONOS_ROOT}/tools/package/runtime/bin:${PATH}" && \
 		export WORKSPACE=${CURRENT_DIR} && \
 		export ONOS_ROOT=${ONOS_ROOT} && \
