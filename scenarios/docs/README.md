@@ -65,6 +65,18 @@ Logs for each step executed in the scenario can be found in `tmp/stc`.
 During the scenario execution you can access the STC web UI at <http://localhost:9999>. The UI shows
 a graph of all the test steps and their dependencies.
 
+## Specify a different topology
+
+By default, all scenarios use the 2x2 leaf-spine topology. The use of a different
+ topology can be specified by using the `TOPO` environment variable.
+
+Currently, we support two topologies:
+- 2x2 leaf-spine: `TOPO=leafspine`
+![leaf-spine](leaf-spine.png)
+
+- single pair-leaf (note that PDN and DBUF are dual-homed): `TOPO=singlepair`
+![single-pair](single-pair.png)
+
 ## Scenarios
 
 Some scenarios depend on others executing first. For example, all scenarios except for the smoke tests
