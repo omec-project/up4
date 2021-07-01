@@ -1,0 +1,21 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="pfcp-end-marker" description="Set up and test UE data forwarding with the PFCP client">
+    <group name="Pfcp-EndMarker">
+        <group name="Pfcp-Setup-Fwd">
+            <step name="Pfcp-Session-Create"
+                  exec="mock-smf-cmd create --session-count 5"/>
+            <step name="Pfcp-Session-modify" requires="^" delay="5"
+                  exec="mock-smf-cmd modify --session-count 5"/>
+            <step name="Enb-Recv-End-Marker" requires="Pfcp-Session-modify" delay="5"
+                  exec="mn-cmd enodeb traffic.py recv-gtp-end-marker -t 10 --flow-count 5"/>
+            <step name="Pfcp-Session-handover" requires="Pfcp-Session-modify" delay="5"
+                  exec="mock-smf-cmd modify --endmarker --session-count 5"/>
+        </group>
+
+        <step name="Pfcp-Clear-Fwd"
+              exec="mock-smf-cmd delete --session-count 5"/>
+    </group>
+</scenario>

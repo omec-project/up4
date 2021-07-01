@@ -130,7 +130,7 @@ class Session:
             far_down = craft_far(session=self, far_id=self.downlink.far_id, forward_flag=True,
                                  dst_iface=IFACE_ACCESS, tunnel=self.is_created(),
                                  tunnel_dst=args.enb_addr, teid=self.downlink.teid,
-                                 buffer_flag=args.buffer)
+                                 buffer_flag=args.buffer, endmarker=args.endmarker)
             self.add_to_req_if_rule_new(request, far_down, self.downlink.far_id, "far")
 
         if add_qers:
@@ -317,7 +317,8 @@ def craft_pdr(session: Session, flow: UeFlow, src_iface: int, from_tunnel=False,
     return pdr
 
 
-def craft_far(session: Session, far_id: int, forward_flag=False, drop_flag=False, buffer_flag=False,
+def craft_far(session: Session, far_id: int, forward_flag=False,
+              drop_flag=False, buffer_flag=False, endmarker=False,
               dst_iface: int = None, tunnel=False, tunnel_dst: str = None,
               teid: int = None) -> pfcp.IE_Compound:
     update = far_id in session.sent_fars
@@ -339,6 +340,10 @@ def craft_far(session: Session, far_id: int, forward_flag=False, drop_flag=False
     _dst_iface = pfcp.IE_DestinationInterface()
     _dst_iface.interface = dst_iface
     forward_param.IE_list.append(_dst_iface)
+    if endmarker:
+        _pfcpsmReq = pfcp.IE_PFCPSMReqFlags()
+        _pfcpsmReq.SNDEM = 1
+        forward_param.IE_list.append(_pfcpsmReq)
 
     if tunnel:
         if (not buffer_flag) and tunnel_dst is None or teid is None:
@@ -653,6 +658,9 @@ def handle_user_input(input_file: Optional[IO] = None, output_file: Optional[IO]
     parser.add_argument(
         "--buffer", action='store_true',
         help="If this argument is present, downlink FARs will have the buffering flag set to true")
+    parser.add_argument(
+        "--endmarker", action='store_true',
+        help="If this argument is present, downlink FARs will have the end marker flag set to true")
     parser.add_argument("--ue-pool", type=IPv4Network, default=IPv4Network("17.0.0.0/24"),
                         help="The IPv4 prefix from which UE addresses will be drawn.")
     parser.add_argument("--s1u-addr", type=IPv4Address, default=IPv4Address("140.0.100.254"),

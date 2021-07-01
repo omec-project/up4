@@ -1,5 +1,6 @@
 {
   "enable_p4rt": true,
+  "enable_end_marker": true,
   "p4rtciface": {
     "p4rtc_server": "onos1",
     "p4rtc_port": "51001",
