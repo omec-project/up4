@@ -93,7 +93,7 @@ parser ParserImpl (packet_in packet,
 
     state parse_inner_ipv4 {
         packet.extract(hdr.inner_ipv4);
-        transition select(hdr.ipv4.proto) {
+        transition select(hdr.inner_ipv4.proto) {
             IpProtocol.UDP:  parse_inner_udp;
             IpProtocol.TCP:  parse_inner_tcp;
             IpProtocol.ICMP: parse_inner_icmp;
