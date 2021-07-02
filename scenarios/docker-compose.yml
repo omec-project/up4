@@ -68,6 +68,7 @@ services:
       - 50004 # spine2
     environment:
       - PARALLEL_LINKS=${PARALLEL_LINKS}
+      - MN_SCRIPT=${MN_SCRIPT}
   onos1:
     # Tost image comes with latest trellis apps
     image: ${ONOS_IMAGE}
@@ -82,7 +83,7 @@ services:
       - ./config/onos/onos1.json:/root/onos/config/cluster.json
       - ./tmp/onos1:/root/onos/apache-karaf-4.2.9/data/tmp
     env_file:
-      - .env.stc # Includes ONOS_APPS
+      - ${STC_ENV_FILE} # Includes ONOS_APPS
     entrypoint: "./bin/onos-service"
     command: [ "debug" ]
   onos2:
@@ -102,7 +103,7 @@ services:
       - ./config/onos/onos2.json:/root/onos/config/cluster.json
       - ./tmp/onos2:/root/onos/apache-karaf-4.2.9/data/tmp
     env_file:
-      - .env.stc
+      - ${STC_ENV_FILE}
     entrypoint: "./bin/onos-service"
     command: [ "debug" ]
   onos3:
@@ -119,7 +120,7 @@ services:
       - ./config/onos/onos3.json:/root/onos/config/cluster.json
       - ./tmp/onos3:/root/onos/apache-karaf-4.2.9/data/tmp
     env_file:
-      - .env.stc
+      - ${STC_ENV_FILE}
     entrypoint: "./bin/onos-service"
     command: [ "debug" ]
   atomix1:

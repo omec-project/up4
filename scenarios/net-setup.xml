@@ -10,10 +10,10 @@
         <step name="Initial-Summary-Check"
               exec="onos-check-summary ${OCI} [0-9]* 0 0 0"/>
         <step name="Push-Netcfg" requires="Initial-Summary-Check"
-              exec="onos-netcfg ${OCI} ${UP4_ROOT}/scenarios/topo/netcfg.json"/>
-        <!-- 4 devices, ${LINKS} (see .env.stc) links (unidirectional), 3 hosts -->
+              exec="onos-netcfg ${OCI} ${TOPO_NETCFG}"/>
+        <!-- ${SWITCHES} devices, ${LINKS} (see .env.stc) links (unidirectional), 3 hosts -->
         <step name="Check-Summary" requires="Push-Netcfg"
-              exec="onos-check-summary ${OCI} [0-9]* 4 ${LINKS} 3"/>
+              exec="onos-check-summary ${OCI} [0-9]* ${SWITCHES} ${LINKS} 3"/>
         <!-- Like in a production deployment, we assume dbuf can change its dataplane address. We
         push the wrong one here, then push the correct one in *-buffering.xml  -->
         <step name="Push-Netcfg-Dbuf-Wrong" requires="Check-Summary"

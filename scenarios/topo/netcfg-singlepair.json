@@ -1,0 +1,204 @@
+{
+  "devices": {
+    "device:leaf1": {
+      "basic": {
+        "managementAddress": "grpc://mininet:50001?device_id=1",
+        "driver": "stratum-bmv2",
+        "pipeconf": "org.onosproject.pipelines.fabric-spgw",
+        "locType": "grid",
+        "gridX": 200,
+        "gridY": 600
+      },
+      "segmentrouting": {
+        "name": "leaf1",
+        "ipv4NodeSid": 111,
+        "ipv4Loopback": "192.168.1.11",
+        "routerMac": "00:AA:00:00:00:01",
+        "pairDeviceId": "device:leaf2",
+        "pairLocalPort": 4,
+        "isEdgeRouter": true,
+        "adjacencySids": []
+      }
+    },
+    "device:leaf2": {
+      "basic": {
+        "managementAddress": "grpc://mininet:50002?device_id=1",
+        "driver": "stratum-bmv2",
+        "pipeconf": "org.onosproject.pipelines.fabric",
+        "locType": "grid",
+        "gridX": 800,
+        "gridY": 600
+      },
+      "segmentrouting": {
+        "name": "leaf2",
+        "ipv4NodeSid": 102,
+        "ipv4Loopback": "192.168.1.3",
+        "routerMac": "00:AA:00:00:00:02",
+        "pairDeviceId": "device:leaf1",
+        "pairLocalPort": 3,
+        "isEdgeRouter": true,
+        "adjacencySids": []
+      }
+    }
+  },
+  "ports": {
+    "device:leaf1/4": {
+      "interfaces": [
+        {
+          "name": "leaf1-4-pair",
+          "ips": [
+            "140.0.99.254/24",
+            "140.0.100.254/24",
+            "140.0.200.254/24"
+          ],
+          "vlan-tagged": [
+            99,
+            100,
+            200
+          ]
+        }
+      ]
+    },
+    "device:leaf2/3": {
+      "interfaces": [
+        {
+          "name": "leaf2-3-pair",
+          "ips": [
+            "140.0.99.254/24",
+            "140.0.100.254/24",
+            "140.0.200.254/24"
+          ],
+          "vlan-tagged": [
+            99,
+            100,
+            200
+          ]
+        }
+      ]
+    },
+    "device:leaf1/1": {
+      "interfaces": [
+        {
+          "name": "leaf1-1-dbuf",
+          "ips": [
+            "140.0.99.254/24"
+          ],
+          "vlan-untagged": 99
+        }
+      ]
+    },
+    "device:leaf1/2": {
+      "interfaces": [
+        {
+          "name": "leaf1-2-pdn",
+          "ips": [
+            "140.0.200.254/24"
+          ],
+          "vlan-untagged": 200
+        }
+      ]
+    },
+    "device:leaf1/3": {
+      "interfaces": [
+        {
+          "name": "leaf1-2-enb",
+          "ips": [
+            "140.0.100.254/24"
+          ],
+          "vlan-untagged": 100
+        }
+      ]
+    },
+    "device:leaf2/1": {
+      "interfaces": [
+        {
+          "name": "leaf2-1-dbuf",
+          "ips": [
+            "140.0.99.254/24"
+          ],
+          "vlan-untagged": 99
+        }
+      ]
+    },
+    "device:leaf2/2": {
+      "interfaces": [
+        {
+          "name": "leaf2-2-pdn",
+          "ips": [
+            "140.0.200.254/24"
+          ],
+          "vlan-untagged": 200
+        }
+      ]
+    }
+  },
+  "hosts": {
+    "00:00:00:00:db:0f/None": {
+      "basic": {
+        "name": "dbuf1",
+        "gridX": 400,
+        "gridY": 700,
+        "locType": "grid",
+        "ips": [
+          "140.0.99.1"
+        ],
+        "locations": [
+          "device:leaf1/1",
+          "device:leaf2/1"
+        ]
+      }
+    },
+    "00:00:00:00:00:20/None": {
+      "basic": {
+        "name": "pdn",
+        "gridX": 850,
+        "gridY": 700,
+        "locType": "grid",
+        "ips": [
+          "140.0.200.1"
+        ],
+        "locations": [
+          "device:leaf2/2",
+          "device:leaf1/2"
+        ]
+      }
+    },
+    "00:00:00:00:00:10/None": {
+      "basic": {
+        "name": "enodeb",
+        "gridX": 100,
+        "gridY": 700,
+        "locType": "grid",
+        "ips": [
+          "140.0.100.1"
+        ],
+        "locations": [
+          "device:leaf1/3"
+        ]
+      }
+    }
+  },
+  "apps": {
+    "org.omecproject.up4": {
+      "up4": {
+        "deviceId": "device:leaf1",
+        "s1uAddr": "140.0.100.254",
+        "maxUes": 32,
+        "uePools": [
+          "17.0.0.0/24"
+        ],
+        "dbufDrainAddr": "140.0.99.254",
+        "pscEncapEnabled": false,
+        "defaultQfi": 0
+      }
+    },
+    "org.onosproject.route-service": {
+      "routes": [
+        {
+          "prefix": "17.0.0.0/24",
+          "nextHop": "140.0.100.1"
+        }
+      ]
+    }
+  }
+}

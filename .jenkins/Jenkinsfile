@@ -105,26 +105,25 @@ pipeline {
         }
       }
     }
-    stage("Smoke test") {
+    stage("Smoke test leaf-spine") {
       options { retry(3) }
       steps {
-        dir("${env.WORKSPACE}/up4/scenarios") {
-          sh "make reset"
-          sh "make smoke.xml stcColor=false stcDumpLogs=true"
-        }
+        runSTCSmokeTest("leafspine")
       }
       post {
         always {
-          dir("${env.WORKSPACE}/up4/scenarios") {
-            // Print Docker image version labels, etc.
-            sh "make versions > ./tmp/versions.txt"
-            // Onos shared folders contain jars and other stuff that is too big and unnecessary,
-            // keep just the grpc logs.
-            sh "make fix-permissions"
-            sh "find ./tmp/onos*/ -type f -not -name \"grpc_*.log\" -print -delete"
-            sh "tar -czvf scenarios-tmp.tar.gz ./tmp"
-            archiveArtifacts artifacts: "scenarios-tmp.tar.gz"
-          }
+          exportArtifactsScenarios("leafspine")
+        }
+      }
+    }
+    stage("Smoke test single pair-leaf") {
+      options { retry(3) }
+      steps {
+        runSTCSmokeTest("singlepair")
+      }
+      post {
+        always {
+          exportArtifactsScenarios("singlepair")
         }
       }
     }
@@ -157,6 +156,26 @@ pipeline {
         }
       }
     }
+  }
+}
+
+void runSTCSmokeTest(String topo) {
+  dir("${env.WORKSPACE}/up4/scenarios") {
+    sh "make reset"
+    sh "TOPO=${topo} make smoke.xml stcColor=false stcDumpLogs=true"
+  }
+}
+
+void exportArtifactsScenarios(String topo) {
+  dir("${env.WORKSPACE}/up4/scenarios") {
+    // Print Docker image version labels, etc.
+    sh "make versions > ./tmp/versions.txt"
+    // Onos shared folders contain jars and other stuff that is too big and unnecessary,
+    // keep just the grpc logs.
+    sh "make fix-permissions"
+    sh "find ./tmp/onos*/ -type f -not -name \"grpc_*.log\" -print -delete"
+    sh "tar -czvf ${topo}-scenarios-tmp.tar.gz ./tmp"
+    archiveArtifacts artifacts: "${topo}-scenarios-tmp.tar.gz"
   }
 }
 

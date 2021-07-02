@@ -17,6 +17,12 @@ UP4_ENV ?= stable
 # TODO: release 2.6 with support for quotes in step commands
 STC_VERSION ?= 2.6-SNAPSHOT
 
+# Define the topology, it can be leafspine or singlepair
+TOPO ?= leafspine
+
+STC_ENV := .env.stc-${TOPO}
+TOPO_NETCFG := ${UP4_ROOT}/scenarios/topo/netcfg-${TOPO}.json
+
 .PHONY: $(SCENARIOS)
 .PRECIOUS: $(SCENARIOS)
 
@@ -40,16 +46,20 @@ STC_VERSION ?= 2.6-SNAPSHOT
 ifneq "${UP4_ENV}" "stable"
 	@cat ${UP4_ROOT}/.env.${UP4_ENV} >> ./tmp/.env.docker
 endif
+	@echo "MN_SCRIPT=/topo/topo-gtp-${TOPO}.py" >> ./tmp/.env.docker
+	@echo "STC_ENV_FILE=${STC_ENV}" >> ./tmp/.env.docker
 
 $(SCENARIOS): ./tmp /tmp/stc ./tmp/.env.docker
 	$(info *** Running STC scenario: $@)
-	@export $(shell cat "${CURRENT_DIR}"/.env.stc | grep -v '#' | xargs) && \
+	@export $(shell cat "${CURRENT_DIR}"/"${STC_ENV}" | grep -v '#' | xargs) && \
 		export PATH="${CURRENT_DIR}/bin:${ONOS_ROOT}/tools/test/bin:${ONOS_ROOT}/tools/test/scenarios/bin:${ONOS_ROOT}/tools/package/runtime/bin:${PATH}" && \
 		export WORKSPACE=${CURRENT_DIR} && \
 		export ONOS_ROOT=${ONOS_ROOT} && \
 		export UP4_ROOT=${UP4_ROOT} && \
 		export STC_VERSION=${STC_VERSION} && \
 		export DOCKER_COMPOSE_CMD="${DOCKER_COMPOSE_CMD}" && \
+		export STC_ENV_FILE=${STC_ENV} && \
+		export TOPO_NETCFG=${TOPO_NETCFG} && \
 		stc $@
 
 deps: pull build stc-dev-build

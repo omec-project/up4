@@ -111,7 +111,7 @@ def main():
         device_id=1,
         grpc_addr=args.server,
         election_id=(0, 100),  # (high, low)
-        config=sh.FwdPipeConfig('/p4c-out/p4info.txt', '/p4c-out/p4info.bin'))
+    )
 
     # ========================#
     # Interface Entries
