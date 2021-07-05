@@ -20,6 +20,9 @@ class LeafSpine(Topo):
     """
 
     def __init__(self, *args, **kwargs):
+        # N.B.: enodeb and dbuf MUST be connected to the leaf1 (the leaf with
+        #  UPF functionality), unless all leaves implements UPF functionality
+        #  (i.e., all use pipeconf=org.onosproject.pipelines.fabric-spgw).
         Topo.__init__(self, *args, **kwargs)
         # Extract parallelLinks option
         parallelLinks = args[0]

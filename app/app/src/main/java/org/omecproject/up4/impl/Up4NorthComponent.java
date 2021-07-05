@@ -725,7 +725,7 @@ public class Up4NorthComponent {
                         .withDescription("App config not loaded.")
                         .asException();
             }
-            if (!up4Service.upfProgrammableAvailable()) {
+            if (!up4Service.upfAvailable()) {
                 log.warn("UP4 client attempted to read or write to logical switch " +
                         "while the physical device was unavailable.");
                 throw io.grpc.Status.UNAVAILABLE

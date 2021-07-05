@@ -5,6 +5,7 @@
 package org.omecproject.up4.impl;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import io.grpc.Context;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -28,6 +29,7 @@ import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.GtpTunnel;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import org.onosproject.net.behaviour.upf.PdrStats;
+import org.onosproject.net.behaviour.upf.UpfDevice;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfProgrammable;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
@@ -54,12 +56,12 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static java.lang.String.format;
 import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FACTORY;
 
 
@@ -108,8 +110,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private InternalDeviceListener deviceListener;
     private InternalConfigListener netCfgListener;
     private PiPipeconfListener piPipeconfListener;
-    private UpfProgrammable upfProgrammable;
-    private DeviceId upfDeviceId;
+    private Map<DeviceId, UpfProgrammable> upfProgrammables;
     private Up4Config config;
     private DbufClient dbufClient;
 
@@ -126,7 +127,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         netCfgService.addListener(netCfgListener);
         netCfgService.registerConfigFactory(up4ConfigFactory);
         netCfgService.registerConfigFactory(dbufConfigFactory);
-
+        upfProgrammables = Maps.newHashMap();
         // Still need this in case both netcfg and pipeconf event happen before UP4 activation
         updateConfig();
 
@@ -139,9 +140,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     protected void preDeactivate() {
         // Only clean up the state when the deactivation is triggered by ApplicationService
         log.info("Running Up4DeviceManager preDeactivation hook.");
-        if (upfProgrammableAvailable()) {
-            getUpfProgrammable().cleanUp();
-        }
+        upfProgrammables.values().stream().filter(Objects::nonNull).forEach(UpfDevice::cleanUp);
         teardownDbufClient();
         upfInitialized.set(false);
     }
@@ -155,6 +154,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         netCfgService.unregisterConfigFactory(dbufConfigFactory);
         eventDispatcher.removeSink(Up4Event.class);
         piPipeconfService.removeListener(piPipeconfListener);
+        upfProgrammables = null;
         log.info("Stopped.");
     }
 
@@ -163,27 +163,39 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         return config != null;
     }
 
-    private UpfProgrammable getUpfProgrammable() {
-        if (this.upfProgrammable == null) {
+    /**
+     * Checks that all UPF programmable devices can be programmed.
+     * This doesn't mean that all UPF programmable devices are available, but only
+     * that we called the init() method on all UPF programmable.
+     *
+     * @return True if UPF programmables can be programmed, False otherwise
+     */
+    private boolean canProgramUpf() {
+        if (!upfAvailable()) {
             if (this.config == null) {
                 throw new IllegalStateException(
                         "No UpfProgrammable set because no app config is available!");
-            } else if (!isUpfProgrammable(upfDeviceId)) {
-                throw new IllegalStateException(
-                        "No UpfProgrammable set because deviceId present in config is not a valid UPF!");
-            } else if (!upfInitialized.get()) {
-                throw new IllegalStateException("UPF not initialized!");
             } else {
-                throw new IllegalStateException(
-                        String.format("No UpfProgrammable is set for an unknown reason. Is device %s available?",
-                                      upfDeviceId.toString()));
+                this.upfProgrammables.forEach((deviceId, upfProg) -> {
+                    if (upfProg == null && !isUpfProgrammable(deviceId)) {
+                        throw new IllegalStateException(
+                                "No UpfProgrammable set because deviceId present in config is not a valid UPF!");
+                    }
+                });
+                if (!upfInitialized.get()) {
+                    throw new IllegalStateException("UPF not initialized!");
+                } else {
+                    throw new IllegalStateException(
+                            format("No UpfProgrammable is set for an unknown reason. Are devices %s available?",
+                                   upfProgrammables.keySet().toString()));
+                }
             }
         }
-        return this.upfProgrammable;
+        return true;
     }
 
-    public boolean upfProgrammableAvailable() {
-        return upfProgrammable != null;
+    public boolean upfAvailable() {
+        return !(this.upfProgrammables.isEmpty() || this.upfProgrammables.containsValue(null));
     }
 
     private boolean isUpfProgrammable(DeviceId deviceId) {
@@ -200,10 +212,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         synchronized (upfInitialized) {
             if (upfInitialized.get()) {
                 log.info("UPF {} already initialized, skipping setup.", deviceId);
-                // FIXME: this is merely a hotfix for interface entries disappearing when a device becomes available.
-                ensureInterfacesInstalled();
                 return;
             }
+            UpfProgrammable upfProgrammable = upfProgrammables.get(deviceId);
             if (!deviceService.isAvailable(deviceId)) {
                 log.info("UPF is currently unavailable, skip setup.");
                 return;
@@ -218,7 +229,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             }
 
             log.info("Setup UPF device: {}", deviceId);
-            upfDeviceId = deviceId;
             upfProgrammable = deviceService.getDevice(deviceId).as(UpfProgrammable.class);
 
             if (!upfProgrammable.init()) {
@@ -226,7 +236,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 return;
             }
 
-            installInterfaces();
+            installInterfaces(upfProgrammable);
 
             if (dbufClient != null && configIsLoaded() && config.dbufDrainAddr() != null) {
                 this.dbufTunnel = GtpTunnel.builder()
@@ -248,9 +258,15 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             } catch (UpfProgrammableException e) {
                 log.info(e.getMessage());
             }
-
-            upfInitialized.set(true);
-            log.info("UPF device setup successful!");
+            upfProgrammables.put(deviceId, upfProgrammable);
+            log.info("UPF device {} setup successful!", deviceId);
+            if (upfProgrammables.values().stream().noneMatch(Objects::isNull)) {
+                // Currently we don't support dynamic UPF configuration.
+                // At the beginning, all UPF devices must be available before
+                // starting to program them.
+                upfInitialized.set(true);
+                log.info("UPF devices setup successful!");
+            }
         }
     }
 
@@ -272,40 +288,34 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         return interfaces;
     }
 
-    /**
-     * Ensure that all interfaces present in the UP4 config file are installed in the UPF device.
-     */
-    private void ensureInterfacesInstalled() {
-        log.info("Ensuring all interfaces present in app config are present on device.");
-        Set<UpfInterface> installedInterfaces;
-        try {
-            installedInterfaces = new HashSet<>(upfProgrammable.getInterfaces());
-        } catch (UpfProgrammableException e) {
-            log.warn("Failed to read interface: {}", e.getMessage());
-            return;
-        }
-        for (UpfInterface iface : configFileInterfaces()) {
-            if (!installedInterfaces.contains(iface)) {
-                log.warn("{} is missing from device! Installing", iface);
-                try {
-                    upfProgrammable.addInterface(iface);
-                } catch (UpfProgrammableException e) {
-                    log.warn("Failed to insert interface: {}", e.getMessage());
-                }
-            }
-        }
-    }
-
     @Override
     public void installInterfaces() {
         log.info("Installing interfaces from config.");
         for (UpfInterface iface : configFileInterfaces()) {
+            for (UpfProgrammable upfProg : upfProgrammables.values()) {
+                try {
+                    this.installInterface(upfProg, iface);
+                } catch (UpfProgrammableException e) {
+                    log.warn("Failed to insert interface: {}", e.getMessage());
+                }
+            }
+
+        }
+    }
+
+    private void installInterfaces(UpfProgrammable upfProgrammable) {
+        for (UpfInterface iface : configFileInterfaces()) {
             try {
-                getUpfProgrammable().addInterface(iface);
+                this.installInterface(upfProgrammable, iface);
             } catch (UpfProgrammableException e) {
                 log.warn("Failed to insert interface: {}", e.getMessage());
             }
         }
+    }
+
+    private void installInterface(UpfProgrammable upfProgrammable, UpfInterface intf)
+            throws UpfProgrammableException {
+        upfProgrammable.addInterface(intf);
     }
 
     public void postEvent(Up4Event event) {
@@ -313,29 +323,33 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     /**
-     * Unset the UPF dataplane device. If available it will be cleaned-up.
+     * Unset the UPF dataplane devices. If available they will be cleaned-up.
      */
-    private void unsetUpfDevice() {
+    private void unsetUpfDevices() {
         synchronized (upfInitialized) {
-            if (upfProgrammable != null) {
-                log.info("UPF was removed. Cleaning up.");
-                if (deviceService.isAvailable(upfDeviceId)) {
-                    upfProgrammable.cleanUp();
+            upfProgrammables.replaceAll((deviceId, upfProg) -> {
+                if (upfProg != null) {
+                    log.info("UPF was removed. Cleaning up.");
+                    if (deviceService.isAvailable(deviceId)) {
+                        upfProg.cleanUp();
+                    }
                 }
-                upfProgrammable = null;
-                upfInitialized.set(false);
-            }
+                return null;
+            });
+            upfProgrammables = null;
+            upfInitialized.set(false);
         }
     }
 
     private void upfUpdateConfig(Up4Config config) {
         if (config == null) {
-            unsetUpfDevice();
+            unsetUpfDevices();
             this.config = null;
         } else if (config.isValid()) {
-            upfDeviceId = config.up4DeviceId();
+            List<DeviceId> upfDeviceIds = config.upfDeviceIds();
             this.config = config;
-            setUpfDevice(upfDeviceId);
+            upfDeviceIds.forEach(deviceId -> upfProgrammables.putIfAbsent(deviceId, null));
+            upfDeviceIds.forEach(this::setUpfDevice);
         } else {
             log.error("Invalid UP4 config loaded! Cannot set up UPF.");
         }
@@ -398,33 +412,39 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void cleanUp() {
-        getUpfProgrammable().cleanUp();
+        canProgramUpf();
+        upfProgrammables.values().forEach(UpfProgrammable::cleanUp);
         up4Store.reset();
     }
 
     @Override
     public void clearInterfaces() {
-        getUpfProgrammable().clearInterfaces();
+        canProgramUpf();
+        upfProgrammables.values().forEach(UpfProgrammable::clearInterfaces);
     }
 
     @Override
     public void clearFlows() {
-        getUpfProgrammable().clearFlows();
+        canProgramUpf();
+        upfProgrammables.values().forEach(UpfProgrammable::clearFlows);
     }
 
     @Override
     public Collection<ForwardingActionRule> getFars() throws UpfProgrammableException {
-        return getUpfProgrammable().getFars();
+        canProgramUpf();
+        return upfProgrammables.values().stream().findFirst().get().getFars();
     }
 
     @Override
     public Collection<PacketDetectionRule> getPdrs() throws UpfProgrammableException {
-        return getUpfProgrammable().getPdrs();
+        canProgramUpf();
+        return upfProgrammables.values().stream().findFirst().get().getPdrs();
     }
 
     @Override
     public Collection<UpfInterface> getInterfaces() throws UpfProgrammableException {
-        return getUpfProgrammable().getInterfaces();
+        canProgramUpf();
+        return upfProgrammables.values().stream().findFirst().get().getInterfaces();
     }
 
     @Override
@@ -434,7 +454,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     "Counter cell index referenced by PDR above max supported UE value.",
                     UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
         }
-        getUpfProgrammable().addPdr(pdr);
+        canProgramUpf();
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            upfProg.addPdr(pdr);
+        }
         if (pdr.matchesUnencapped()) {
             up4Store.learnFarIdToUeAddrs(pdr);
         }
@@ -442,7 +465,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void removePdr(PacketDetectionRule pdr) throws UpfProgrammableException {
-        getUpfProgrammable().removePdr(pdr);
+        canProgramUpf();
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            upfProg.removePdr(pdr);
+        }
         if (pdr.matchesUnencapped()) {
             // Should we remove just from the map entry with key == far ID?
             up4Store.forgetUeAddr(pdr.ueAddress());
@@ -457,7 +483,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             far = convertToDbufFar(far);
             up4Store.learnBufferingFarId(ruleId);
         }
-        getUpfProgrammable().addFar(far);
+        canProgramUpf();
+        // TODO: what happens if we get an exception? Should we be able to do a rollback?
+        //  We should keep state consistent between devices, if fails, we should remove the fars
+        //  on the other devices already programmed. This is valid for all other methods (remove and add).
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            upfProg.addFar(far);
+        }
         if (!far.buffers() && up4Store.isFarIdBuffering(ruleId)) {
             // If this FAR does not buffer but used to, then drain the buffer for every UE address
             // that hits this FAR.
@@ -493,17 +525,26 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void removeFar(ForwardingActionRule far) throws UpfProgrammableException {
-        getUpfProgrammable().removeFar(far);
+        canProgramUpf();
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            upfProg.removeFar(far);
+        }
     }
 
     @Override
     public void addInterface(UpfInterface upfInterface) throws UpfProgrammableException {
-        getUpfProgrammable().addInterface(upfInterface);
+        canProgramUpf();
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            upfProg.addInterface(upfInterface);
+        }
     }
 
     @Override
     public void removeInterface(UpfInterface upfInterface) throws UpfProgrammableException {
-        getUpfProgrammable().removeInterface(upfInterface);
+        canProgramUpf();
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            upfProg.removeInterface(upfInterface);
+        }
     }
 
     @Override
@@ -513,12 +554,26 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     "Requested PDR counter cell index above max supported UE value.",
                     UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
         }
-        return getUpfProgrammable().readCounter(counterIdx);
+        canProgramUpf();
+        // TODO: add get on builder can simply this, by removing the need for building the PdrStat every time.
+        PdrStats.Builder builder = PdrStats.builder();
+        PdrStats prevStats = builder.build();
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            PdrStats pdrStat = upfProg.readCounter(counterIdx);
+            builder.setIngress(pdrStat.getIngressPkts() + prevStats.getIngressPkts(),
+                               pdrStat.getIngressBytes() + prevStats.getIngressBytes());
+            builder.setEgress(pdrStat.getEgressPkts() + prevStats.getEgressPkts(),
+                              pdrStat.getEgressBytes() + prevStats.getEgressBytes());
+            prevStats = builder.build();
+        }
+        builder.withCellId(counterIdx);
+        return builder.build();
     }
 
     @Override
     public long pdrCounterSize() {
-        long pdrCounterSize = getUpfProgrammable().pdrCounterSize();
+        canProgramUpf();
+        long pdrCounterSize = upfProgrammables.values().stream().findFirst().get().pdrCounterSize();
         if (isMaxUeSet()) {
             return Math.min(config.maxUes() * 2, pdrCounterSize);
         }
@@ -527,7 +582,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public long farTableSize() {
-        long farTableSize = getUpfProgrammable().farTableSize();
+        canProgramUpf();
+        long farTableSize = upfProgrammables.values().stream().findFirst().get().farTableSize();
         if (isMaxUeSet()) {
             return Math.min(config.maxUes() * 2, farTableSize);
         }
@@ -536,7 +592,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public long pdrTableSize() {
-        long pdrTableSize = getUpfProgrammable().pdrTableSize();
+        canProgramUpf();
+        long pdrTableSize = upfProgrammables.values().stream().findFirst().get().pdrTableSize();
         if (isMaxUeSet()) {
             return Math.min(config.maxUes() * 2, pdrTableSize);
         }
@@ -552,22 +609,51 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 maxCounterId = Math.min(maxCounterId, getMaxUe() * 2);
             }
         }
-        return getUpfProgrammable().readAllCounters(maxCounterId);
+        canProgramUpf();
+        // TODO: add get on builder can simply this, by removing the need for building the PdrStat every time.
+        PdrStats.Builder builder = PdrStats.builder();
+        Map<Integer, PdrStats> mapCounterIdStats = Maps.newHashMap();
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            Collection<PdrStats> pdrStats = upfProg.readAllCounters(maxCounterId);
+            pdrStats.forEach(currStat -> {
+                mapCounterIdStats.compute(currStat.getCellId(), (counterId, prevStats) -> {
+                    if (prevStats == null) {
+                        return currStat;
+                    }
+                    builder.setIngress(currStat.getIngressPkts() + prevStats.getIngressPkts(),
+                                       currStat.getIngressBytes() + prevStats.getIngressBytes());
+                    builder.setEgress(currStat.getEgressPkts() + prevStats.getEgressPkts(),
+                                      currStat.getEgressBytes() + prevStats.getEgressBytes());
+                    builder.withCellId(counterId);
+                    return builder.build();
+                });
+            });
+        }
+        return mapCounterIdStats.values();
     }
 
     @Override
     public void enablePscEncap(int defaultQfi) throws UpfProgrammableException {
-        getUpfProgrammable().enablePscEncap(defaultQfi);
+        canProgramUpf();
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            upfProg.enablePscEncap(defaultQfi);
+        }
     }
 
     @Override
     public void disablePscEncap() throws UpfProgrammableException {
-        getUpfProgrammable().disablePscEncap();
+        canProgramUpf();
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            upfProg.disablePscEncap();
+        }
     }
 
     @Override
     public void sendPacketOut(ByteBuffer data) {
-        getUpfProgrammable().sendPacketOut(data);
+        canProgramUpf();
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            upfProg.sendPacketOut(data);
+        }
     }
 
     @Override
@@ -661,7 +747,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         @Override
         public void event(DeviceEvent event) {
             DeviceId deviceId = event.subject().id();
-            if (deviceId.equals(upfDeviceId)) {
+            if (upfProgrammables.containsKey(deviceId)) {
                 switch (event.type()) {
                     case DEVICE_ADDED:
                     case DEVICE_UPDATED:
@@ -673,8 +759,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                         break;
                     case DEVICE_REMOVED:
                     case DEVICE_SUSPENDED:
-                        log.debug("Event: {}, unsetting UPF", event.type());
-                        unsetUpfDevice();
+                        // TODO: I should probably do NOTHING!
+                        //log.debug("Event: {}, unsetting UPF", event.type());
+                        //unsetUpfDevices();
                         break;
                     case PORT_ADDED:
                     case PORT_UPDATED:

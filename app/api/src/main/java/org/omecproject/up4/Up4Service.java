@@ -21,11 +21,11 @@ import java.util.Collection;
 public interface Up4Service extends ListenerService<Up4Event, Up4EventListener>, UpfDevice {
 
     /**
-     * True if a UPF device is currently available in ONOS, and false otherwise.
+     * True if the UPF network-level device is currently available, and false otherwise.
      *
      * @return true if the device is available and false otherwise
      */
-    boolean upfProgrammableAvailable();
+    boolean upfAvailable();
 
     /**
      * True if a valid UP4 app configuration has been loaded, and false otherwise.
@@ -35,12 +35,15 @@ public interface Up4Service extends ListenerService<Up4Event, Up4EventListener>,
     boolean configIsLoaded();
 
     /**
-     * Install all UPF dataplane interfaces present in the app configuration.
+     * Install all UPF data plane interfaces present in the app configuration.
+     * Public only for debug purposes. Users of the Up4Service shouldn't invoke
+     * this method.
      */
     void installInterfaces();
 
     /**
      * Get all UE flows (PDRs, FARs) currently installed in the network.
+     * Used for debug purposes only.
      *
      * @return a collection of installed flows
      * @throws UpfProgrammableException if flows are unable to be read

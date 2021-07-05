@@ -155,7 +155,9 @@
   "apps": {
     "org.omecproject.up4": {
       "up4": {
-        "deviceId": "device:leaf1",
+        "devices": [
+          "device:leaf1"
+        ],
         "s1uAddr": "140.0.100.254",
         "maxUes": 32,
         "uePools": [
