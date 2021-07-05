@@ -228,6 +228,17 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
             installInterfaces();
 
+            if (dbufClient != null && configIsLoaded() && config.dbufDrainAddr() != null) {
+                this.dbufTunnel = GtpTunnel.builder()
+                        .setSrc(config.dbufDrainAddr())
+                        .setDst(dbufClient.dataplaneIp4Addr())
+                        .setSrcPort((short) GTP_PORT)
+                        .setTeid(0)
+                        .build();
+            } else {
+                this.dbufTunnel = null;
+            }
+
             try {
                 if (configIsLoaded() && config.pscEncapEnabled()) {
                     upfProgrammable.enablePscEncap(config.defaultQfi());
@@ -350,12 +361,14 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if (dbufClient == null) {
                 dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr, this);
             }
-            this.dbufTunnel = GtpTunnel.builder()
-                    .setSrc(config.dbufDrainAddr())
-                    .setDst(dbufClient.dataplaneIp4Addr())
-                    .setSrcPort((short) GTP_PORT)
-                    .setTeid(0)
-                    .build();
+            if (configIsLoaded()) {
+                this.dbufTunnel = GtpTunnel.builder()
+                        .setSrc(config.dbufDrainAddr())
+                        .setDst(dbufClient.dataplaneIp4Addr())
+                        .setSrcPort((short) GTP_PORT)
+                        .setTeid(0)
+                        .build();
+            }
         }
     }
 
@@ -370,16 +383,16 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     private void updateConfig() {
-        // Configure DBUF first, otherwise we might end-up with requests for
-        // buffering but DBUF is not ready/configured yet.
-        Up4DbufConfig dbufConfig = netCfgService.getConfig(appId, Up4DbufConfig.class);
-        if (dbufConfig != null) {
-            dbufUpdateConfig(dbufConfig);
-        }
-
         Up4Config up4Config = netCfgService.getConfig(appId, Up4Config.class);
         if (up4Config != null) {
             upfUpdateConfig(up4Config);
+        }
+
+        // We might end-up with requests for buffering but DBUF is not ready/configured yet.
+        // Being DBUF best effort should not be a big deal if that happens at very beginning
+        Up4DbufConfig dbufConfig = netCfgService.getConfig(appId, Up4DbufConfig.class);
+        if (dbufConfig != null) {
+            dbufUpdateConfig(dbufConfig);
         }
     }
 
@@ -625,14 +638,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
      * @param far the FAR to convert
      * @return the converted FAR
      */
-    private ForwardingActionRule convertToDbufFar(ForwardingActionRule far)
-            throws UpfProgrammableException {
+    private ForwardingActionRule convertToDbufFar(ForwardingActionRule far) {
         if (!far.buffers()) {
             throw new IllegalArgumentException("Converting a non-buffering FAR to a dbuf FAR! This shouldn't happen.");
         }
-        if (dbufTunnel == null) {
-            throw new UpfProgrammableException("Dbuf tunnel has not been configured yet.");
-        }
+        // dbufTunnel can be null at this point. This will be translated into
+        // a load_far_normal action with notify and drop flags set
         return ForwardingActionRule.builder()
                 .setFarId(far.farId())
                 .withSessionId(far.sessionId())
