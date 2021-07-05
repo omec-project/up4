@@ -63,8 +63,13 @@ class DbufHost(IPv4Host):
     def __init__(self, name, inNamespace=False, **params):
         super(DbufHost, self).__init__(name, inNamespace, **params)
 
-    def config(self, mac=None, ip=None, defaultRoute=None, lo='up', gw=None, **_params):
+    def config(self, mac=None, ip=None, defaultRoute=None, lo='up', gw=None,
+               drainIp=None, drainMac=None, **_params):
         super(DbufHost, self).config(mac, ip, defaultRoute, lo, gw, **_params)
+        if drainIp:
+            self.setHostRoute(drainIp, self.defaultIntf())
+            if drainMac:
+                self.setARP(drainIp, drainMac)
         self.cmd(dbufCommand(self.name))
 
 

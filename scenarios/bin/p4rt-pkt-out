@@ -11,7 +11,7 @@ from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
 
 GTP_UDP_PORT = 2152
 ENB_IPV4 = "140.0.100.1"
-S1U_IPV4 = "140.0.100.254"
+S1U_IPV4 = "140.0.0.1"
 
 PKTS = {
     'end-marker': Ether(src=0x0, dst=0x0) / \

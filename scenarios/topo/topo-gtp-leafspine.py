@@ -20,9 +20,6 @@ class LeafSpine(Topo):
     """
 
     def __init__(self, *args, **kwargs):
-        # N.B.: enodeb and dbuf MUST be connected to the leaf1 (the leaf with
-        #  UPF functionality), unless all leaves implements UPF functionality
-        #  (i.e., all use pipeconf=org.onosproject.pipelines.fabric-spgw).
         Topo.__init__(self, *args, **kwargs)
         # Extract parallelLinks option
         parallelLinks = args[0]
@@ -53,8 +50,11 @@ class LeafSpine(Topo):
         # dbuf one (ip=...). However, dbuf can still ping the switch gateway
         # address (gw=...) which is all we need to receive and send buffered
         # packets.
+        # If we don't use the switch gateway as drain address, then
+        # we can specify the drainIp and drainMac, that will install a /32 route
+        # and an ARP entry for those values.
         dbuf1 = self.addHost('dbuf1', cls=DbufHost, mac='00:00:00:00:db:0f', ip='140.0.99.1/24',
-                             gw='140.0.99.254')
+                             drainIp="140.0.0.2", drainMac="00:aa:00:00:00:01")
         self.addLink(dbuf1, leaf1)  # port 2
 
         # pdn IPv4 host attached to leaf 2

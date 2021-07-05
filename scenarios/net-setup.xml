@@ -11,9 +11,9 @@
               exec="onos-check-summary ${OCI} [0-9]* 0 0 0"/>
         <step name="Push-Netcfg" requires="Initial-Summary-Check"
               exec="onos-netcfg ${OCI} ${TOPO_NETCFG}"/>
-        <!-- ${SWITCHES} devices, ${LINKS} (see .env.stc) links (unidirectional), 3 hosts -->
+        <!-- ${SWITCHES} devices, ${LINKS} links (unidirectional), ${HOSTS} hosts (see .env.stc-*) -->
         <step name="Check-Summary" requires="Push-Netcfg"
-              exec="onos-check-summary ${OCI} [0-9]* ${SWITCHES} ${LINKS} 3"/>
+              exec="onos-check-summary ${OCI} [0-9]* ${SWITCHES} ${LINKS} ${HOSTS}"/>
         <!-- Like in a production deployment, we assume dbuf can change its dataplane address. We
         push the wrong one here, then push the correct one in *-buffering.xml  -->
         <step name="Push-Netcfg-Dbuf-Wrong" requires="Check-Summary"
@@ -24,8 +24,6 @@
         <!-- Verify basic connectivity across the fabric -->
         <step name="Pdn-Ping-Enb" requires="Check-Flows" exec="mn-cmd pdn ping -c5 140.0.100.1"/>
         <!-- Verify route for downlink traffic -->
-        <step name="Check-Ue-Pool-Route" requires="Check-Flows"
-              exec="onos-cli-grep ${OCI} routes '17.0.0.0/24'"/>
         <parallel var="${OD#}">
             <step name="Check-Dbuf-Ready-${#}" requires="Check-Summary"
                   exec="docker-log-grep ${ODI} 'Dbuf service at mininet:10000 is READY=true'"/>
