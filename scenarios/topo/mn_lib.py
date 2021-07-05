@@ -5,7 +5,6 @@ from mininet.node import Host, Node
 import socket
 import struct
 
-
 DBUF_DROP_TIMEOUT_SEC = "30s"
 DBUF_NUM_QUEUES = 10
 DBUF_MAX_PKTS_PER_QUEUE = 16
@@ -20,16 +19,14 @@ def ip2long(ip):
 
 
 def dbufCommand(name):
-    args = map(
-        str,
-        [
-            "-max_queues",
-            DBUF_NUM_QUEUES,
-            "-max_packet_slots_per_queue",
-            DBUF_MAX_PKTS_PER_QUEUE,
-            "-queue_drop_timeout",
-            DBUF_DROP_TIMEOUT_SEC,
-        ])
+    args = map(str, [
+        "-max_queues",
+        DBUF_NUM_QUEUES,
+        "-max_packet_slots_per_queue",
+        DBUF_MAX_PKTS_PER_QUEUE,
+        "-queue_drop_timeout",
+        DBUF_DROP_TIMEOUT_SEC,
+    ])
     # Send to background
     cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
           % (" ".join(args), name)
@@ -85,7 +82,8 @@ class DualHomedIpv4Host(Host):
         intf1 = self.intfs[1].name
         self.bond0 = "%s-bond0" % self.name
         self.cmd('modprobe bonding')
-        self.cmd('ip link add %s type bond miimon 100 mode balance-xor xmit_hash_policy layer2+3' % self.bond0)
+        self.cmd('ip link add %s type bond miimon 100 mode balance-xor xmit_hash_policy layer2+3' %
+                 self.bond0)
         self.cmd('ip link set %s down' % intf0)
         self.cmd('ip link set %s down' % intf1)
         self.cmd('ip link set %s master %s' % (intf0, self.bond0))
