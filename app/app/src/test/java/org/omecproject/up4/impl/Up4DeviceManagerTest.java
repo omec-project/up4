@@ -7,6 +7,7 @@ package org.omecproject.up4.impl;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.onosproject.cfg.ComponentConfigAdapter;
 import org.onosproject.common.event.impl.TestEventDispatcher;
 import org.onosproject.core.CoreServiceAdapter;
 import org.onosproject.net.config.NetworkConfigRegistryAdapter;
@@ -31,6 +32,7 @@ public class Up4DeviceManagerTest {
         component.deviceService = new DeviceServiceAdapter();
         component.piPipeconfService = new PiPipeconfServiceAdapter();
         component.netCfgService = new NetworkConfigRegistryAdapter();
+        component.componentConfigService = new ComponentConfigAdapter();
         component.up4Store = TestDistributedUp4Store.build();
         injectEventDispatcher(component, new TestEventDispatcher());
         component.activate();

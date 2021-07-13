@@ -20,6 +20,7 @@ import org.omecproject.up4.config.Up4DbufConfig;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
+import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.event.AbstractListenerManager;
@@ -48,9 +49,11 @@ import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
 import org.onosproject.net.pi.service.PiPipeconfService;
+import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
+import org.osgi.service.component.annotations.Modified;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
@@ -59,15 +62,23 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Dictionary;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.lang.String.format;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_RATE;
+import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_RATE_DEFAULT;
+import static org.onlab.util.Tools.getLongProperty;
 import static org.onlab.util.Tools.groupedThreads;
 import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FACTORY;
 
@@ -75,7 +86,10 @@ import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FAC
 /**
  * Draft UP4 ONOS application component.
  */
-@Component(immediate = true, service = {Up4Service.class})
+@Component(immediate = true, service = {Up4Service.class},
+        property = {
+                UPF_RECONCILE_RATE + ":Long=" + UPF_RECONCILE_RATE_DEFAULT,
+        })
 public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4EventListener>
         implements Up4Service {
 
@@ -112,14 +126,21 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     protected DeviceService deviceService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Store up4Store;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected ComponentConfigService componentConfigService;
 
     private ExecutorService eventExecutor;
+    private ScheduledExecutorService reconciliationExecutor;
+
+    /** Rate (in seconds) for reconciling state between UPF devices. **/
+    private long upfReconcileRate = UPF_RECONCILE_RATE_DEFAULT;
 
     private ApplicationId appId;
     private InternalDeviceListener deviceListener;
     private InternalConfigListener netCfgListener;
     private PiPipeconfListener piPipeconfListener;
-    private InternalFlowRuleListener flowRuleListener;
+    private FlowRuleListener flowRuleListener;
+
     private Map<DeviceId, UpfProgrammable> upfProgrammables;
     private DeviceId leaderUpfDevice;
     private Up4Config config;
@@ -130,6 +151,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Activate
     protected void activate() {
         log.info("Starting...");
+        componentConfigService.registerProperties(getClass());
         appId = coreService.registerApplication(AppConstants.APP_NAME, this::preDeactivate);
         eventDispatcher.addSink(Up4Event.class, listenerRegistry);
         deviceListener = new InternalDeviceListener();
@@ -139,11 +161,16 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         upfProgrammables = Maps.newHashMap();
         eventExecutor = newSingleThreadScheduledExecutor(groupedThreads(
                 "omec/up4", "event-%d", log));
+        reconciliationExecutor = newSingleThreadScheduledExecutor(
+                groupedThreads("omec/up4/reconcile", "executor"));
 
         flowRuleService.addListener(flowRuleListener);
         netCfgService.addListener(netCfgListener);
         netCfgService.registerConfigFactory(up4ConfigFactory);
         netCfgService.registerConfigFactory(dbufConfigFactory);
+
+        // Start reconcile thread
+        reconciliationExecutor.schedule(new ReconcileUpfDevices(), upfReconcileRate, TimeUnit.SECONDS);
 
         // Still need this in case both netcfg and pipeconf event happen before UP4 activation
         updateConfig();
@@ -152,6 +179,15 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         piPipeconfService.addListener(piPipeconfListener);
 
         log.info("Started.");
+    }
+
+    @Modified
+    protected void modified(ComponentContext context) {
+        Dictionary<?, ?> properties = context != null ? context.getProperties() : new Properties();
+        Long reconcileRate = getLongProperty(properties, UPF_RECONCILE_RATE);
+        if (reconcileRate != null) {
+            upfReconcileRate = reconcileRate;
+        }
     }
 
     protected void preDeactivate() {
@@ -167,6 +203,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Deactivate
     protected void deactivate() {
         log.info("Stopping...");
+        componentConfigService.unregisterProperties(getClass(), false);
         deviceService.removeListener(deviceListener);
         netCfgService.removeListener(netCfgListener);
         netCfgService.unregisterConfigFactory(up4ConfigFactory);
@@ -176,6 +213,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         flowRuleService.removeListener(flowRuleListener);
 
         eventExecutor.shutdownNow();
+        reconciliationExecutor.shutdown();
+
+        reconciliationExecutor = null;
         eventExecutor = null;
         leaderUpfDevice = null;
         upfProgrammables = null;
@@ -886,5 +926,121 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             flowRuleBuilder.makePermanent();
         }
         return flowRuleBuilder.build();
+    }
+
+    private class ReconcileUpfDevices implements Runnable {
+
+        @Override
+        public void run() {
+            try {
+                checkStateAndReconcile();
+            } catch (Exception e) {
+                log.error("Error during reconciliation: {}", e.getMessage());
+            }
+            reconciliationExecutor.schedule(this, upfReconcileRate, TimeUnit.SECONDS);
+        }
+
+        private void checkStateAndReconcile() throws UpfProgrammableException {
+            canProgramUpf(); // Use canProgramUpf to generate exception and log it on the caller
+            Collection<PacketDetectionRule> leaderPdrs = getUpfProgrammable().getPdrs();
+            Collection<ForwardingActionRule> leaderFars = getUpfProgrammable().getFars();
+            Collection<UpfInterface> leaderInterfaces = getUpfProgrammable().getInterfaces();
+
+            for (var entry : upfProgrammables.entrySet()) {
+                var deviceId = entry.getKey();
+                var upfProg = entry.getValue();
+                if (entry.getKey().equals(leaderUpfDevice)) {
+                    continue;
+                }
+                Collection<PacketDetectionRule> pdrs = upfProg.getPdrs();
+                Collection<ForwardingActionRule> fars = upfProg.getFars();
+                Collection<UpfInterface> interfaces = upfProg.getInterfaces();
+
+                // Do not deal with errors on UPFProgrammable calls, we will
+                // eventually converge in the next reconciliation cycle.
+
+                // ----- PDRs ----
+                if (!pdrs.containsAll(leaderPdrs)) {
+                    log.debug("Adding missing PDRs on {}", deviceId);
+                    Collection<PacketDetectionRule> toAddPdrs = new HashSet<>(leaderPdrs);
+                    toAddPdrs.removeAll(pdrs);
+                    for (var pdr : toAddPdrs) {
+                        try {
+                            upfProg.addPdr(pdr);
+                        } catch (UpfProgrammableException e) {
+                            log.debug("Error while reconcile {} device with {}: {}",
+                                      deviceId, pdr, e.getMessage());
+                        }
+                    }
+                }
+                if (!leaderPdrs.containsAll(pdrs)) {
+                    log.debug("Removing stale PDRs on {}", deviceId);
+                    Collection<PacketDetectionRule> toRemovePdrs = new HashSet<>(pdrs);
+                    toRemovePdrs.removeAll(leaderPdrs);
+                    for (var pdr : toRemovePdrs) {
+                        try {
+                            upfProg.removePdr(pdr);
+                        } catch (UpfProgrammableException e) {
+                            log.debug("Error while reconcile {} device with {}: {}",
+                                      deviceId, pdr, e.getMessage());
+                        }
+                    }
+                }
+                // ----- FARs ----
+                if (!fars.containsAll(leaderFars)) {
+                    log.debug("Adding missing FARs on {}", deviceId);
+                    Collection<ForwardingActionRule> toAddFars = new HashSet<>(leaderFars);
+                    toAddFars.removeAll(fars);
+                    for (var far : toAddFars) {
+                        try {
+                            upfProg.addFar(far);
+                        } catch (UpfProgrammableException e) {
+                            log.debug("Error while reconcile {} device with {}: {}",
+                                      deviceId, far, e.getMessage());
+                        }
+                    }
+                }
+                if (!leaderFars.containsAll(fars)) {
+                    log.debug("Removing stale PDRs on {}", deviceId);
+                    Collection<ForwardingActionRule> toRemoveFars = new HashSet<>(fars);
+                    toRemoveFars.removeAll(leaderFars);
+                    for (var far : toRemoveFars) {
+                        try {
+                            upfProg.removeFar(far);
+                        } catch (UpfProgrammableException e) {
+                            log.debug("Error while reconcile {} device with {}: {}",
+                                      deviceId, far, e.getMessage());
+                        }
+                    }
+                }
+                // ----- Interfaces ----
+                if (!interfaces.containsAll(leaderInterfaces)) {
+                    log.debug("Adding missing UPF Interfaces on {}", deviceId);
+                    Collection<UpfInterface> toAddIntfs = new HashSet<>(leaderInterfaces);
+                    toAddIntfs.removeAll(interfaces);
+                    for (var intf : toAddIntfs) {
+                        try {
+                            upfProg.addInterface(intf);
+                        } catch (UpfProgrammableException e) {
+                            log.debug("Error while reconcile {} device with {}: {}",
+                                      deviceId, intf, e.getMessage());
+                        }
+                    }
+                }
+                if (!leaderInterfaces.containsAll(interfaces)) {
+                    log.debug("Removing stale UPF Interfaces on {}", deviceId);
+                    Collection<UpfInterface> toRemoveIntfs = new HashSet<>(interfaces);
+                    toRemoveIntfs.removeAll(leaderInterfaces);
+                    for (var intf : toRemoveIntfs) {
+                        try {
+                            upfProg.removeInterface(intf);
+                        } catch (UpfProgrammableException e) {
+                            log.debug("Error while reconcile {} device with {}: {}",
+                                      deviceId, intf, e.getMessage());
+                        }
+                    }
+                }
+            }
+        }
     }
 }
