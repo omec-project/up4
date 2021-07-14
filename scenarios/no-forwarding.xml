@@ -9,7 +9,7 @@
         <group name="Check-Traffic-Doesnt-Fwd" requires="^">
             <!-- Downlink -->
             <step name="Negative-Downlink-Enb-Recv-Gtp-Fwd"
-                  exec="mn-cmd enodeb traffic.py recv-none -t 10"/>
+                  exec="mn-cmd ${ENODEB1} traffic.py recv-none -t 10"/>
             <step name="Negative-Downlink-Pdn-Send-Udp-Fwd"
                   exec="mn-cmd pdn traffic.py send-udp -c 10"/>
             <!-- Uplink -->
@@ -18,7 +18,7 @@
                   exec="mn-cmd pdn traffic.py recv-none -t 10"/>
             <step name="Negative-Uplink-Enb-Send-Gtp-Fwd"
                   requires="Negative-Downlink-Enb-Recv-Gtp-Fwd,Negative-Downlink-Pdn-Send-Udp-Fwd"
-                  exec="mn-cmd enodeb traffic.py send-gtp -c 10"/>
+                  exec="mn-cmd ${ENODEB1} traffic.py send-gtp -c 10"/>
         </group>
     </group>
 </scenario>

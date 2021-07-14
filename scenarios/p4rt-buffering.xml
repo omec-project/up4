@@ -26,7 +26,7 @@
                   exec="docker-log-grep ${ODI} 'Received FIRST_BUFFER'"/>
             <!-- -t 30 to wait enough time for packets to be released after P4rt-Set-Fwd-After-Buff -->
             <step name="Downlink-Enb-Recv-Gtp-Buff" requires="Verify-First-Buffer"
-                  exec="mn-cmd enodeb traffic.py recv-gtp -t 30"/>
+                  exec="mn-cmd ${ENODEB1} traffic.py recv-gtp -t 30"/>
             <step name="P4rt-Set-Fwd-After-Buff" requires="Verify-First-Buffer" delay="5"
                   exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program"/>
             <step name="Check-Drain-Started" requires="P4rt-Set-Fwd-After-Buff"

@@ -26,7 +26,7 @@
                   exec="docker-log-grep ${ODI} 'Received FIRST_BUFFER' 5"/>
             <!-- -t 30 to wait enough time for packets to be released after Pfcp-Set-Fwd-After-Buff -->
             <step name="Downlink-Enb-Recv-Gtp-Buff" requires="Verify-First-Buffer"
-                  exec="mn-cmd enodeb traffic.py recv-gtp -t 60 --flow-count 5"/>
+                  exec="mn-cmd ${ENODEB1} traffic.py recv-gtp -t 60 --flow-count 5"/>
             <step name="Pfcp-Set-Fwd-After-Buff" requires="Verify-First-Buffer" delay="5"
                   exec="mock-smf-cmd modify --session-count 5 --sleep-time 1"/>
             <step name="Check-Drain-Started" requires="Pfcp-Set-Fwd-After-Buff" delay="5"

@@ -193,8 +193,11 @@ def get_sessions_from_args(args: argparse.Namespace, create_if_missing: bool = F
         elif create_if_missing:
             active_sessions[seid] = Session(
                 our_seid=seid, ue_addr=next(ue_addr_gen),
-                uplink=UeFlow(teid=next(teid_gen), pdr_id=1, far_id=1, qer_id=1, urr_id=1),
-                downlink=UeFlow(teid=next(teid_gen), pdr_id=2, far_id=2, qer_id=2, urr_id=2))
+                uplink=UeFlow(teid=next(teid_gen), pdr_id=args.pdr_base, far_id=args.far_base,
+                              qer_id=args.qer_base, urr_id=args.urr_base),
+                downlink=UeFlow(teid=next(teid_gen), pdr_id=args.pdr_base + 1,
+                                far_id=args.far_base + 1, qer_id=args.qer_base + 1,
+                                urr_id=args.urr_base + 1))
             yield active_sessions[seid]
         else:
             print("WARNING: skipping invalid session with ID %d" % seid)

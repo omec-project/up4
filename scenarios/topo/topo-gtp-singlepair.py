@@ -22,8 +22,7 @@ class SinglePairLeaf(Topo):
 
         # Pair-leaf
         # gRPC port 50001
-        leaf1 = self.addSwitch('leaf1', cls=StratumBmv2Switch,
-                               cpuport=CPU_PORT)  # , loglevel="trace")
+        leaf1 = self.addSwitch('leaf1', cls=StratumBmv2Switch, cpuport=CPU_PORT, loglevel="trace")
         # gRPC port 50002
         leaf2 = self.addSwitch('leaf2', cls=StratumBmv2Switch,
                                cpuport=CPU_PORT)  # , loglevel="trace")
@@ -51,8 +50,8 @@ class SinglePairLeaf(Topo):
         self.addLink(pdn, leaf2)  # port 2
 
         # enodeb IPv4 host attached to leaf 1
-        enodeb1 = self.addHost('enodeb', cls=IPv4Host, mac='00:00:00:00:00:10', ip='140.0.100.1/24',
-                               gw='140.0.100.254')
+        enodeb1 = self.addHost('enodeb1', cls=IPv4Host, mac='00:00:00:00:00:10',
+                               ip='140.0.100.1/24', gw='140.0.100.254')
         self.addLink(enodeb1, leaf1)  # port 3
 
         # enodeb IPv4 host attached to leaf 2
