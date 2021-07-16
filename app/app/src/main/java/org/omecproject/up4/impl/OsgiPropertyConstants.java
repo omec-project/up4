@@ -10,8 +10,8 @@ package org.omecproject.up4.impl;
  */
 public final class OsgiPropertyConstants {
 
-    public static final String UPF_RECONCILE_RATE = "upfReconcileRate";
-    public static final long UPF_RECONCILE_RATE_DEFAULT = 30;
+    public static final String UPF_RECONCILE_INTERVAL = "upfReconcileInterval";
+    public static final long UPF_RECONCILE_INTERVAL_DEFAULT = 30; // Seconds
 
     private OsgiPropertyConstants() {
     }
