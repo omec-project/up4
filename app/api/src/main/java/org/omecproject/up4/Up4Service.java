@@ -22,9 +22,9 @@ import java.util.Collection;
 public interface Up4Service extends ListenerService<Up4Event, Up4EventListener>, UpfDevice {
 
     /**
-     * True if the UPF data plane device is ready, and false otherwise.
+     * True if the UPF data plane is ready, and false otherwise.
      *
-     * @return true if the data plane device is ready and false otherwise
+     * @return true if the data plane is ready and false otherwise
      */
     boolean isReady();
 
@@ -53,7 +53,7 @@ public interface Up4Service extends ListenerService<Up4Event, Up4EventListener>,
 
 
     /**
-     * Send packet out via the UPF data plane device.
+     * Send packet out via the UPF data plane.
      * No guarantee on the selected physical device is given, the implementation
      * sends the packet through one of the available UPF physical devices. Data
      * is expected to contain an Ethernet frame.
@@ -63,7 +63,7 @@ public interface Up4Service extends ListenerService<Up4Event, Up4EventListener>,
      * MAC rewrite for routing, pushing a VLAN tag, etc.).
      *
      * @param data Ethernet frame bytes
-     * @throws UpfProgrammableException if the UPF data plane device cannot send the packet
+     * @throws UpfProgrammableException if the UPF data plane cannot send the packet
      */
     void sendPacketOutUp4(ByteBuffer data) throws UpfProgrammableException;
 

@@ -27,7 +27,7 @@ public class Up4Config extends Config<ApplicationId> {
     // JSON keys to look for in the network config
     public static final String KEY = "up4";  // base key that signals the presence of this config
     public static final String MAX_UES = "maxUes";
-    public static final String DEVICE_ID = "deviceId";
+    public static final String DEVICE_ID = "deviceId"; // TODO: remove this field after all configs updated
     public static final String DEVICES = "devices";
     public static final String UE_POOLS = "uePools";
     public static final String S1U_PREFIX = "s1uPrefix";  // TODO: remove this field after all configs updated

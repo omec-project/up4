@@ -6,6 +6,7 @@ package org.omecproject.up4.impl;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import io.grpc.Context;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -24,6 +25,7 @@ import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.event.AbstractListenerManager;
+import org.onosproject.mastership.MastershipService;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.behaviour.upf.ForwardingActionRule;
@@ -67,9 +69,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -125,14 +128,17 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected MastershipService mastershipService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Store up4Store;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected ComponentConfigService componentConfigService;
 
     private ExecutorService eventExecutor;
     private ScheduledExecutorService reconciliationExecutor;
+    private Future<?> reconciliationTask;
 
-    /** Interval (in seconds) for reconciling state between UPF devices. */
+    /** Interval (in seconds) for reconciling state between UPF devices. **/
     private long upfReconcileInterval = UPF_RECONCILE_INTERVAL_DEFAULT;
 
     private ApplicationId appId;
@@ -142,6 +148,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private FlowRuleListener flowRuleListener;
 
     private Map<DeviceId, UpfProgrammable> upfProgrammables;
+    private Set<DeviceId> upfDevices;
     private DeviceId leaderUpfDevice;
     private Up4Config config;
     private DbufClient dbufClient;
@@ -158,11 +165,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         netCfgListener = new InternalConfigListener();
         piPipeconfListener = new InternalPiPipeconfListener();
         flowRuleListener = new InternalFlowRuleListener();
-        upfProgrammables = Maps.newHashMap();
+        upfProgrammables = Maps.newConcurrentMap();
+        upfDevices = Sets.newConcurrentHashSet();
         eventExecutor = newSingleThreadScheduledExecutor(groupedThreads(
                 "omec/up4", "event-%d", log));
-        reconciliationExecutor = newSingleThreadScheduledExecutor(
-                groupedThreads("omec/up4/reconcile", "executor"));
+        reconciliationExecutor = newSingleThreadScheduledExecutor(groupedThreads(
+                "omec/up4/reconcile", "executor", log));
 
         flowRuleService.addListener(flowRuleListener);
         netCfgService.addListener(netCfgListener);
@@ -170,7 +178,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         netCfgService.registerConfigFactory(dbufConfigFactory);
 
         // Start reconcile thread
-        reconciliationExecutor.schedule(new ReconcileUpfDevices(), upfReconcileInterval, TimeUnit.SECONDS);
+        reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
+                new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
 
         // Still need this in case both netcfg and pipeconf event happen before UP4 activation
         updateConfig();
@@ -185,10 +194,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     protected void modified(ComponentContext context) {
         Dictionary<?, ?> properties = context != null ? context.getProperties() : new Properties();
         Long reconcileInterval = getLongProperty(properties, UPF_RECONCILE_INTERVAL);
-        if (reconcileInterval != null) {
-            // The new reconciliation interval will be picked by the reconciliation
-            // thread on the next execution.
+        if (reconcileInterval != null && reconcileInterval != upfReconcileInterval) {
             upfReconcileInterval = reconcileInterval;
+            if (reconciliationTask != null) {
+                reconciliationTask.cancel(false);
+            }
+            reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
+                    new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
         }
     }
 
@@ -196,7 +208,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         // Only clean up the state when the deactivation is triggered by ApplicationService
         log.info("Running Up4DeviceManager preDeactivation hook.");
         if (isReady()) {
-            upfProgrammables.values().stream().filter(Objects::nonNull).forEach(UpfDevice::cleanUp);
+            upfProgrammables.values().forEach(UpfDevice::cleanUp);
         }
         teardownDbufClient();
         upfInitialized.set(false);
@@ -215,12 +227,18 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         flowRuleService.removeListener(flowRuleListener);
 
         eventExecutor.shutdownNow();
+
+        if (reconciliationTask != null) {
+            reconciliationTask.cancel(true);
+            reconciliationTask = null;
+        }
         reconciliationExecutor.shutdown();
 
         reconciliationExecutor = null;
         eventExecutor = null;
         leaderUpfDevice = null;
         upfProgrammables = null;
+        upfDevices = null;
         log.info("Stopped.");
     }
 
@@ -252,13 +270,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                             "Leader UpfProgrammable not set!");
                 }
                 this.upfProgrammables.forEach((deviceId, upfProg) -> {
-                    if (upfProg == null && deviceService.getDevice(deviceId) == null) {
+                    if (deviceService.getDevice(deviceId) == null) {
                         throw new IllegalStateException(
                                 "No UpfProgrammable set because deviceId is not present in the device store!");
                     }
                 });
                 this.upfProgrammables.forEach((deviceId, upfProg) -> {
-                    if (upfProg == null && !isUpfProgrammable(deviceId)) {
+                    if (!isUpfProgrammable(deviceId)) {
                         throw new IllegalStateException(
                                 "No UpfProgrammable set because deviceId present in config is not a valid UPF!");
                     }
@@ -279,7 +297,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     public boolean isReady() {
         return !(leaderUpfDevice == null ||
                 this.upfProgrammables.isEmpty() ||
-                this.upfProgrammables.containsValue(null));
+                !this.upfProgrammables.keySet().containsAll(upfDevices));
     }
 
     private boolean isUpfProgrammable(DeviceId deviceId) {
@@ -298,15 +316,19 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 log.info("UPF {} already initialized, skipping setup.", deviceId);
                 return;
             }
-            UpfProgrammable upfProgrammable = upfProgrammables.get(deviceId);
+            if (!upfDevices.contains(deviceId)) {
+                log.warn("UPF {} is not in the configuration!", deviceId);
+                return;
+            }
             if (deviceService.getDevice(deviceId) == null) {
-                log.info("UPF device currently does not exist in the device store, skip setup.");
+                log.warn("UPF device currently does not exist in the device store, skip setup.");
                 return;
             }
             if (!isUpfProgrammable(deviceId)) {
                 log.warn("{} is not UPF device!", deviceId);
                 return;
             }
+            UpfProgrammable upfProgrammable = upfProgrammables.get(deviceId);
             if (upfProgrammable != null && !upfProgrammable.data().deviceId().equals(deviceId)) {
                 log.warn("Change of the UPF while UPF device is available is not supported!");
                 return;
@@ -319,10 +341,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 // error message will be printed by init()
                 return;
             }
-            upfProgrammables.put(deviceId, upfProgrammable);
+            upfProgrammables.putIfAbsent(deviceId, upfProgrammable);
             log.info("UPF device {} setup successful!", deviceId);
 
-            if (upfProgrammables.values().stream().noneMatch(Objects::isNull)) {
+            if (upfProgrammables.keySet().containsAll(upfDevices)) {
                 // Currently we don't support dynamic UPF configuration.
                 // At the beginning, all UPF devices must exist in the device store.
                 upfInitialized.set(true);
@@ -397,7 +419,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                                   "internal state anyway: {}", e.getMessage());
             }
             leaderUpfDevice = null;
-            upfProgrammables = null;
+            upfProgrammables = Maps.newConcurrentMap();
+            upfDevices = Sets.newConcurrentHashSet();
             up4Store.reset();
             upfInitialized.set(false);
         }
@@ -411,16 +434,16 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             List<DeviceId> upfDeviceIds = config.upfDeviceIds();
             this.config = config;
             leaderUpfDevice = upfDeviceIds.isEmpty() ? null : upfDeviceIds.get(0);
-            upfDeviceIds.forEach(deviceId -> upfProgrammables.putIfAbsent(deviceId, null));
+            upfDevices.addAll(upfDeviceIds);
             upfDeviceIds.forEach(this::setUpfDevice);
-            setUpDbufTunnel();
+            updateDbufTunnel();
         } else {
             log.error("Invalid UP4 config loaded! Cannot set up UPF.");
         }
         log.info("Up4Config updated");
     }
 
-    private void setUpDbufTunnel() {
+    private void updateDbufTunnel() {
         if (dbufClient != null && configIsLoaded() && config.dbufDrainAddr() != null) {
             this.dbufTunnel = GtpTunnel.builder()
                     .setSrc(config.dbufDrainAddr())
@@ -452,7 +475,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if (dbufClient == null) {
                 dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr, this);
             }
-            setUpDbufTunnel();
+            updateDbufTunnel();
         }
     }
 
@@ -791,7 +814,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         @Override
         public void event(DeviceEvent event) {
             DeviceId deviceId = event.subject().id();
-            if (upfProgrammables.containsKey(deviceId)) {
+            if (upfDevices.contains(deviceId)) {
                 switch (event.type()) {
                     case DEVICE_ADDED:
                     case DEVICE_UPDATED:
@@ -881,14 +904,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
         @Override
         public void event(FlowRuleEvent event) {
-            eventExecutor.execute(() -> internalEventHandler(event));
-        }
-
-        @Override
-        public boolean isRelevant(FlowRuleEvent event) {
-            return ((event.type() == FlowRuleEvent.Type.RULE_ADD_REQUESTED ||
+            if ((event.type() == FlowRuleEvent.Type.RULE_ADD_REQUESTED ||
                     event.type() == FlowRuleEvent.Type.RULE_REMOVE_REQUESTED) &&
-                    event.subject().deviceId().equals(leaderUpfDevice));
+                    event.subject().deviceId().equals(leaderUpfDevice)) {
+                eventExecutor.execute(() -> internalEventHandler(event));
+            }
         }
 
         private void internalEventHandler(FlowRuleEvent event) {
@@ -942,11 +962,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             } catch (Exception e) {
                 log.error("Error during reconciliation: {}", e.getMessage());
             }
-            reconciliationExecutor.schedule(this, upfReconcileInterval, TimeUnit.SECONDS);
         }
 
         private void checkStateAndReconcile() throws UpfProgrammableException {
-            assertUpfIsReady(); // Use canProgramUpf to generate exception and log it on the caller
+            log.trace("Running reconciliation task...");
+            assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
             Collection<PacketDetectionRule> leaderPdrs = getLeaderUpfProgrammable().getPdrs();
             Collection<ForwardingActionRule> leaderFars = getLeaderUpfProgrammable().getFars();
             Collection<UpfInterface> leaderInterfaces = getLeaderUpfProgrammable().getInterfaces();
@@ -954,7 +974,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             for (var entry : upfProgrammables.entrySet()) {
                 var deviceId = entry.getKey();
                 var upfProg = entry.getValue();
-                if (entry.getKey().equals(leaderUpfDevice)) {
+                if (deviceId.equals(leaderUpfDevice)) {
+                    continue;
+                }
+                if (!mastershipService.isLocalMaster(deviceId)) {
                     continue;
                 }
                 Collection<PacketDetectionRule> pdrs = upfProg.getPdrs();
@@ -965,19 +988,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 // eventually converge in the next reconciliation cycle.
 
                 // ----- PDRs ----
-                if (!pdrs.containsAll(leaderPdrs)) {
-                    log.debug("Adding missing PDRs on {}", deviceId);
-                    Collection<PacketDetectionRule> toAddPdrs = new HashSet<>(leaderPdrs);
-                    toAddPdrs.removeAll(pdrs);
-                    for (var pdr : toAddPdrs) {
-                        try {
-                            upfProg.addPdr(pdr);
-                        } catch (UpfProgrammableException e) {
-                            log.error("Error while reconciling {}: {} [{}]",
-                                      deviceId, e.getMessage(), pdr);
-                        }
-                    }
-                }
                 if (!leaderPdrs.containsAll(pdrs)) {
                     log.debug("Removing stale PDRs from {}", deviceId);
                     Collection<PacketDetectionRule> toRemovePdrs = new HashSet<>(pdrs);
@@ -991,20 +1001,20 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                         }
                     }
                 }
-                // ----- FARs ----
-                if (!fars.containsAll(leaderFars)) {
-                    log.debug("Adding missing FARs on {}", deviceId);
-                    Collection<ForwardingActionRule> toAddFars = new HashSet<>(leaderFars);
-                    toAddFars.removeAll(fars);
-                    for (var far : toAddFars) {
+                if (!pdrs.containsAll(leaderPdrs)) {
+                    log.debug("Adding missing PDRs on {}", deviceId);
+                    Collection<PacketDetectionRule> toAddPdrs = new HashSet<>(leaderPdrs);
+                    toAddPdrs.removeAll(pdrs);
+                    for (var pdr : toAddPdrs) {
                         try {
-                            upfProg.addFar(far);
+                            upfProg.addPdr(pdr);
                         } catch (UpfProgrammableException e) {
                             log.error("Error while reconciling {}: {} [{}]",
-                                      deviceId, e.getMessage(), far);
+                                      deviceId, e.getMessage(), pdr);
                         }
                     }
                 }
+                // ----- FARs ----
                 if (!leaderFars.containsAll(fars)) {
                     log.debug("Removing stale FARs from {}", deviceId);
                     Collection<ForwardingActionRule> toRemoveFars = new HashSet<>(fars);
@@ -1018,20 +1028,20 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                         }
                     }
                 }
-                // ----- Interfaces ----
-                if (!interfaces.containsAll(leaderInterfaces)) {
-                    log.debug("Adding missing UPF Interfaces on {}", deviceId);
-                    Collection<UpfInterface> toAddIntfs = new HashSet<>(leaderInterfaces);
-                    toAddIntfs.removeAll(interfaces);
-                    for (var intf : toAddIntfs) {
+                if (!fars.containsAll(leaderFars)) {
+                    log.debug("Adding missing FARs on {}", deviceId);
+                    Collection<ForwardingActionRule> toAddFars = new HashSet<>(leaderFars);
+                    toAddFars.removeAll(fars);
+                    for (var far : toAddFars) {
                         try {
-                            upfProg.addInterface(intf);
+                            upfProg.addFar(far);
                         } catch (UpfProgrammableException e) {
                             log.error("Error while reconciling {}: {} [{}]",
-                                      deviceId, e.getMessage(), intf);
+                                      deviceId, e.getMessage(), far);
                         }
                     }
                 }
+                // ----- Interfaces ----
                 if (!leaderInterfaces.containsAll(interfaces)) {
                     log.debug("Removing stale UPF Interfaces from {}", deviceId);
                     Collection<UpfInterface> toRemoveIntfs = new HashSet<>(interfaces);
@@ -1039,6 +1049,19 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     for (var intf : toRemoveIntfs) {
                         try {
                             upfProg.removeInterface(intf);
+                        } catch (UpfProgrammableException e) {
+                            log.error("Error while reconciling {}: {} [{}]",
+                                      deviceId, e.getMessage(), intf);
+                        }
+                    }
+                }
+                if (!interfaces.containsAll(leaderInterfaces)) {
+                    log.debug("Adding missing UPF Interfaces on {}", deviceId);
+                    Collection<UpfInterface> toAddIntfs = new HashSet<>(leaderInterfaces);
+                    toAddIntfs.removeAll(interfaces);
+                    for (var intf : toAddIntfs) {
+                        try {
+                            upfProg.addInterface(intf);
                         } catch (UpfProgrammableException e) {
                             log.error("Error while reconciling {}: {} [{}]",
                                       deviceId, e.getMessage(), intf);
