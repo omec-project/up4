@@ -11,6 +11,7 @@ import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import org.onosproject.net.behaviour.upf.PdrStats;
 import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -31,7 +32,7 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public boolean upfAvailable() {
+    public boolean isReady() {
         return upfProgrammableAvailable;
     }
 
@@ -85,13 +86,13 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public void sendPacketOut(ByteBuffer data) {
-        sentPacketOuts.add(data);
+    public Collection<UpfFlow> getFlows() {
+        return null;
     }
 
     @Override
-    public Collection<UpfFlow> getFlows() {
-        return null;
+    public void sendPacketOutUp4(ByteBuffer data) throws UpfProgrammableException {
+        sentPacketOuts.add(data);
     }
 
     @Override
