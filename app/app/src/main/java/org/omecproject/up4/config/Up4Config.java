@@ -75,7 +75,7 @@ public class Up4Config extends Config<ApplicationId> {
             ArrayNode devices = (ArrayNode) object.path(DEVICES);
             for (JsonNode deviceId : devices) {
                 String deviceIdString = deviceId.asText("");
-                if (!deviceIdString.equals("")) {
+                if (!deviceIdString.equals("") && !deviceIds.contains(DeviceId.deviceId(deviceIdString))) {
                     deviceIds.add(DeviceId.deviceId(deviceIdString));
                 }
             }

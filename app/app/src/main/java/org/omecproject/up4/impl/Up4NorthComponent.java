@@ -641,7 +641,7 @@ public class Up4NorthComponent {
                         if (log.isDebugEnabled()) {
                             log.debug("Sending packet-out: {}", HexString.toHexString(frame, " "));
                         }
-                        up4Service.sendPacketOutUp4(ByteBuffer.wrap(frame));
+                        up4Service.sendPacketOut(ByteBuffer.wrap(frame));
                     } catch (StatusException e) {
                         // Drop exception to avoid closing the stream.
                         log.error("Unable to send packet-out: {}", e.getMessage());
