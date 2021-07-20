@@ -312,59 +312,46 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     private void setUpfDevice(DeviceId deviceId) {
         synchronized (upfInitialized) {
+            UpfProgrammable upfProgrammable = upfProgrammables.get(deviceId);
             if (upfInitialized.get()) {
                 log.info("UPF {} already initialized, skipping setup.", deviceId);
-                return;
-            }
-            if (!upfDevices.contains(deviceId)) {
+            } else if (!upfDevices.contains(deviceId)) {
                 log.warn("UPF {} is not in the configuration!", deviceId);
-                return;
-            }
-            if (deviceService.getDevice(deviceId) == null) {
+            } else if (deviceService.getDevice(deviceId) == null) {
                 log.warn("UPF {} currently does not exist in the device store, skip setup.", deviceId);
-                return;
-            }
-            if (!isUpfProgrammable(deviceId)) {
+            } else if (!isUpfProgrammable(deviceId)) {
                 log.warn("{} is not UPF physical device!", deviceId);
-                return;
-            }
-            UpfProgrammable upfProgrammable = upfProgrammables.get(deviceId);
-            if (upfProgrammable != null && !upfProgrammable.data().deviceId().equals(deviceId)) {
-                log.warn("Change of the UPF while UPF data plane is available is not supported!");
-                return;
-            }
-            if (upfProgrammable != null) {
-                // UpfProgrammable already initialized
-                return;
-            }
-            log.info("Setup UPF physical device: {}", deviceId);
-            upfProgrammable = deviceService.getDevice(deviceId).as(UpfProgrammable.class);
-
-            if (!upfProgrammable.init()) {
-                // error message will be printed by init()
-                return;
-            }
-            upfProgrammables.putIfAbsent(deviceId, upfProgrammable);
-            log.info("UPF physical device {} setup successful!", deviceId);
-
-            if (upfProgrammables.keySet().containsAll(upfDevices)) {
-                // Currently we don't support dynamic UPF configuration.
-                // At the beginning, all UPF physical devices must exist in the
-                // device store.
-                upfInitialized.set(true);
-
-                // Do the initial device configuration required
-                installInterfaces();
-                try {
-                    if (configIsLoaded() && config.pscEncapEnabled()) {
-                        this.enablePscEncap(config.defaultQfi());
-                    } else {
-                        this.disablePscEncap();
-                    }
-                } catch (UpfProgrammableException e) {
-                    log.info(e.getMessage());
+            } else if (upfProgrammable != null && !upfProgrammable.data().deviceId().equals(deviceId)) {
+                    log.warn("Change of the UPF while UPF data plane is available is not supported!");
+            } else if (upfProgrammable == null) {
+                log.info("Setup UPF physical device: {}", deviceId);
+                upfProgrammable = deviceService.getDevice(deviceId).as(UpfProgrammable.class);
+                if (!upfProgrammable.init()) {
+                    // error message will be printed by init()
+                    return;
                 }
-                log.info("UPF data plane setup successful!");
+                upfProgrammables.putIfAbsent(deviceId, upfProgrammable);
+                log.info("UPF physical device {} setup successful!", deviceId);
+
+                if (upfProgrammables.keySet().containsAll(upfDevices)) {
+                    // Currently we don't support dynamic UPF configuration.
+                    // The UPF data plane is initialized when all UPF physical
+                    // devices have been initialized properly.
+                    upfInitialized.set(true);
+
+                    // Do the initial device configuration required
+                    installInterfaces();
+                    try {
+                        if (configIsLoaded() && config.pscEncapEnabled()) {
+                            this.enablePscEncap(config.defaultQfi());
+                        } else {
+                            this.disablePscEncap();
+                        }
+                    } catch (UpfProgrammableException e) {
+                        log.info(e.getMessage());
+                    }
+                    log.info("UPF data plane setup successful!");
+                }
             }
         }
     }
