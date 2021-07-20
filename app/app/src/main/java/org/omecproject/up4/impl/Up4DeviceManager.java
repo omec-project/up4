@@ -860,6 +860,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                         break;
                     case DEVICE_REMOVED:
                     case DEVICE_SUSPENDED:
+                        // TODO: DEVICE_SUSPENDED is never generated in ONOS. What is the actual behaviour?
                         log.debug("Event: {}, unsetting UPF physical device", event.type());
                         unsetUpfDevice(deviceId);
                     case PORT_ADDED:
@@ -1024,6 +1025,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
                 // Do not deal with errors on UPFProgrammable calls, we will
                 // eventually converge in the next reconciliation cycle.
+
+                // First remove stale entries and then add the missing ones
+                // otherwise when an entry needs update, it won't be updated.
+                // (e.g., if a FAR needs to be updated, doing add and then remove
+                // translates in only a remove, delete then remove first remove
+                // the entry and the push the new one).
 
                 // ----- PDRs ----
                 if (!leaderPdrs.containsAll(pdrs)) {
