@@ -333,17 +333,19 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 log.warn("Change of the UPF while UPF data plane is available is not supported!");
                 return;
             }
-            if (upfProgrammable == null) {
-                log.info("Setup UPF physical device: {}", deviceId);
-                upfProgrammable = deviceService.getDevice(deviceId).as(UpfProgrammable.class);
-
-                if (!upfProgrammable.init()) {
-                    // error message will be printed by init()
-                    return;
-                }
-                upfProgrammables.putIfAbsent(deviceId, upfProgrammable);
-                log.info("UPF physical device {} setup successful!", deviceId);
+            if (upfProgrammable != null) {
+                // UpfProgrammable already initialized
+                return;
             }
+            log.info("Setup UPF physical device: {}", deviceId);
+            upfProgrammable = deviceService.getDevice(deviceId).as(UpfProgrammable.class);
+
+            if (!upfProgrammable.init()) {
+                // error message will be printed by init()
+                return;
+            }
+            upfProgrammables.putIfAbsent(deviceId, upfProgrammable);
+            log.info("UPF physical device {} setup successful!", deviceId);
 
             if (upfProgrammables.keySet().containsAll(upfDevices)) {
                 // Currently we don't support dynamic UPF configuration.
