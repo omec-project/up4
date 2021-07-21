@@ -31,7 +31,7 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public boolean upfProgrammableAvailable() {
+    public boolean isReady() {
         return upfProgrammableAvailable;
     }
 

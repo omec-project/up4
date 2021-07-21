@@ -645,6 +645,8 @@ public class Up4NorthComponent {
                     } catch (StatusException e) {
                         // Drop exception to avoid closing the stream.
                         log.error("Unable to send packet-out: {}", e.getMessage());
+                    } catch (UpfProgrammableException e) {
+                        log.error(e.getMessage());
                     }
                 }
 
@@ -725,7 +727,7 @@ public class Up4NorthComponent {
                         .withDescription("App config not loaded.")
                         .asException();
             }
-            if (!up4Service.upfProgrammableAvailable()) {
+            if (!up4Service.isReady()) {
                 log.warn("UP4 client attempted to read or write to logical switch " +
                         "while the physical device was unavailable.");
                 throw io.grpc.Status.UNAVAILABLE

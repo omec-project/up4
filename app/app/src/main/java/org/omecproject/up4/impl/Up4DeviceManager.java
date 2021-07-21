@@ -5,6 +5,8 @@
 package org.omecproject.up4.impl;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import io.grpc.Context;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -19,15 +21,18 @@ import org.omecproject.up4.config.Up4DbufConfig;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
+import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.event.AbstractListenerManager;
+import org.onosproject.mastership.MastershipService;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.GtpTunnel;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import org.onosproject.net.behaviour.upf.PdrStats;
+import org.onosproject.net.behaviour.upf.UpfDevice;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfProgrammable;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
@@ -38,13 +43,19 @@ import org.onosproject.net.config.NetworkConfigRegistry;
 import org.onosproject.net.device.DeviceEvent;
 import org.onosproject.net.device.DeviceListener;
 import org.onosproject.net.device.DeviceService;
+import org.onosproject.net.flow.DefaultFlowRule;
+import org.onosproject.net.flow.FlowRule;
+import org.onosproject.net.flow.FlowRuleEvent;
+import org.onosproject.net.flow.FlowRuleListener;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
 import org.onosproject.net.pi.service.PiPipeconfService;
+import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
+import org.osgi.service.component.annotations.Modified;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
@@ -53,20 +64,35 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static java.lang.String.format;
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL;
+import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL_DEFAULT;
+import static org.onlab.util.Tools.getLongProperty;
+import static org.onlab.util.Tools.groupedThreads;
 import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FACTORY;
 
 
 /**
  * Draft UP4 ONOS application component.
  */
-@Component(immediate = true, service = {Up4Service.class})
+@Component(immediate = true, service = {Up4Service.class},
+        property = {
+                UPF_RECONCILE_INTERVAL + ":Long=" + UPF_RECONCILE_INTERVAL_DEFAULT,
+        })
 public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4EventListener>
         implements Up4Service {
 
@@ -102,14 +128,28 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected MastershipService mastershipService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Store up4Store;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected ComponentConfigService componentConfigService;
+
+    private ExecutorService eventExecutor;
+    private ScheduledExecutorService reconciliationExecutor;
+    private Future<?> reconciliationTask;
+
+    /** Interval (in seconds) for reconciling state between UPF devices. **/
+    private long upfReconcileInterval = UPF_RECONCILE_INTERVAL_DEFAULT;
 
     private ApplicationId appId;
     private InternalDeviceListener deviceListener;
     private InternalConfigListener netCfgListener;
     private PiPipeconfListener piPipeconfListener;
-    private UpfProgrammable upfProgrammable;
-    private DeviceId upfDeviceId;
+    private FlowRuleListener flowRuleListener;
+
+    private Map<DeviceId, UpfProgrammable> upfProgrammables;
+    private Set<DeviceId> upfDevices;
+    private DeviceId leaderUpfDevice;
     private Up4Config config;
     private DbufClient dbufClient;
 
@@ -118,14 +158,28 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Activate
     protected void activate() {
         log.info("Starting...");
+        componentConfigService.registerProperties(getClass());
         appId = coreService.registerApplication(AppConstants.APP_NAME, this::preDeactivate);
         eventDispatcher.addSink(Up4Event.class, listenerRegistry);
         deviceListener = new InternalDeviceListener();
         netCfgListener = new InternalConfigListener();
         piPipeconfListener = new InternalPiPipeconfListener();
+        flowRuleListener = new InternalFlowRuleListener();
+        upfProgrammables = Maps.newConcurrentMap();
+        upfDevices = Sets.newConcurrentHashSet();
+        eventExecutor = newSingleThreadScheduledExecutor(groupedThreads(
+                "omec/up4", "event-%d", log));
+        reconciliationExecutor = newSingleThreadScheduledExecutor(groupedThreads(
+                "omec/up4/reconcile", "executor", log));
+
+        flowRuleService.addListener(flowRuleListener);
         netCfgService.addListener(netCfgListener);
         netCfgService.registerConfigFactory(up4ConfigFactory);
         netCfgService.registerConfigFactory(dbufConfigFactory);
+
+        // Start reconcile thread
+        reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
+                new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
 
         // Still need this in case both netcfg and pipeconf event happen before UP4 activation
         updateConfig();
@@ -136,11 +190,25 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         log.info("Started.");
     }
 
+    @Modified
+    protected void modified(ComponentContext context) {
+        Dictionary<?, ?> properties = context != null ? context.getProperties() : new Properties();
+        Long reconcileInterval = getLongProperty(properties, UPF_RECONCILE_INTERVAL);
+        if (reconcileInterval != null && reconcileInterval != upfReconcileInterval) {
+            upfReconcileInterval = reconcileInterval;
+            if (reconciliationTask != null) {
+                reconciliationTask.cancel(false);
+            }
+            reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
+                    new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
+        }
+    }
+
     protected void preDeactivate() {
         // Only clean up the state when the deactivation is triggered by ApplicationService
         log.info("Running Up4DeviceManager preDeactivation hook.");
-        if (upfProgrammableAvailable()) {
-            getUpfProgrammable().cleanUp();
+        if (isReady()) {
+            upfProgrammables.values().forEach(UpfDevice::cleanUp);
         }
         teardownDbufClient();
         upfInitialized.set(false);
@@ -149,12 +217,28 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Deactivate
     protected void deactivate() {
         log.info("Stopping...");
+        componentConfigService.unregisterProperties(getClass(), false);
         deviceService.removeListener(deviceListener);
         netCfgService.removeListener(netCfgListener);
         netCfgService.unregisterConfigFactory(up4ConfigFactory);
         netCfgService.unregisterConfigFactory(dbufConfigFactory);
         eventDispatcher.removeSink(Up4Event.class);
         piPipeconfService.removeListener(piPipeconfListener);
+        flowRuleService.removeListener(flowRuleListener);
+
+        eventExecutor.shutdownNow();
+
+        if (reconciliationTask != null) {
+            reconciliationTask.cancel(true);
+            reconciliationTask = null;
+        }
+        reconciliationExecutor.shutdown();
+
+        reconciliationExecutor = null;
+        eventExecutor = null;
+        leaderUpfDevice = null;
+        upfProgrammables = null;
+        upfDevices = null;
         log.info("Stopped.");
     }
 
@@ -163,27 +247,57 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         return config != null;
     }
 
-    private UpfProgrammable getUpfProgrammable() {
-        if (this.upfProgrammable == null) {
+    private UpfProgrammable getLeaderUpfProgrammable() {
+        assertUpfIsReady();
+        return upfProgrammables.get(leaderUpfDevice);
+    }
+
+    /**
+     * Asserts that UPF data plane is ready
+     * This doesn't mean that all UPF physical devices are available, but only
+     * that we called the init() method on all UPF programmable.
+     *
+     * @return True if UPF data plane can be programmed, False otherwise
+     */
+    private boolean assertUpfIsReady() {
+        if (!isReady()) {
             if (this.config == null) {
                 throw new IllegalStateException(
                         "No UpfProgrammable set because no app config is available!");
-            } else if (!isUpfProgrammable(upfDeviceId)) {
-                throw new IllegalStateException(
-                        "No UpfProgrammable set because deviceId present in config is not a valid UPF!");
-            } else if (!upfInitialized.get()) {
-                throw new IllegalStateException("UPF not initialized!");
             } else {
-                throw new IllegalStateException(
-                        String.format("No UpfProgrammable is set for an unknown reason. Is device %s available?",
-                                      upfDeviceId.toString()));
+                if (leaderUpfDevice == null) {
+                    throw new IllegalStateException(
+                            "Leader UpfProgrammable not set!");
+                }
+                this.upfProgrammables.forEach((deviceId, upfProg) -> {
+                    if (deviceService.getDevice(deviceId) == null) {
+                        throw new IllegalStateException(
+                                "No UpfProgrammable set because deviceId is not present in the device store!");
+                    }
+                });
+                this.upfProgrammables.forEach((deviceId, upfProg) -> {
+                    if (!isUpfProgrammable(deviceId)) {
+                        throw new IllegalStateException(
+                                "No UpfProgrammable set because deviceId present in config is not a valid UPF!");
+                    }
+                });
+                if (!upfInitialized.get()) {
+                    throw new IllegalStateException("UPF data plane not initialized!");
+                } else {
+                    throw new IllegalStateException(
+                            format("No UpfProgrammable is set for an unknown reason. Are devices %s available?",
+                                   upfProgrammables.keySet().toString()));
+                }
             }
         }
-        return this.upfProgrammable;
+        return true;
     }
 
-    public boolean upfProgrammableAvailable() {
-        return upfProgrammable != null;
+    @Override
+    public boolean isReady() {
+        return !(leaderUpfDevice == null ||
+                this.upfProgrammables.isEmpty() ||
+                !this.upfProgrammables.keySet().containsAll(upfDevices));
     }
 
     private boolean isUpfProgrammable(DeviceId deviceId) {
@@ -198,59 +312,47 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     private void setUpfDevice(DeviceId deviceId) {
         synchronized (upfInitialized) {
+            UpfProgrammable upfProgrammable = upfProgrammables.get(deviceId);
             if (upfInitialized.get()) {
                 log.info("UPF {} already initialized, skipping setup.", deviceId);
-                // FIXME: this is merely a hotfix for interface entries disappearing when a device becomes available.
-                ensureInterfacesInstalled();
-                return;
-            }
-            if (!deviceService.isAvailable(deviceId)) {
-                log.info("UPF is currently unavailable, skip setup.");
-                return;
-            }
-            if (!isUpfProgrammable(deviceId)) {
-                log.warn("{} is not UPF device!", deviceId);
-                return;
-            }
-            if (upfProgrammable != null && !upfProgrammable.data().deviceId().equals(deviceId)) {
-                log.warn("Change of the UPF while UPF device is available is not supported!");
-                return;
-            }
-
-            log.info("Setup UPF device: {}", deviceId);
-            upfDeviceId = deviceId;
-            upfProgrammable = deviceService.getDevice(deviceId).as(UpfProgrammable.class);
-
-            if (!upfProgrammable.init()) {
-                // error message will be printed by init()
-                return;
-            }
-
-            installInterfaces();
-
-            if (dbufClient != null && configIsLoaded() && config.dbufDrainAddr() != null) {
-                this.dbufTunnel = GtpTunnel.builder()
-                        .setSrc(config.dbufDrainAddr())
-                        .setDst(dbufClient.dataplaneIp4Addr())
-                        .setSrcPort((short) GTP_PORT)
-                        .setTeid(0)
-                        .build();
-            } else {
-                this.dbufTunnel = null;
-            }
-
-            try {
-                if (configIsLoaded() && config.pscEncapEnabled()) {
-                    upfProgrammable.enablePscEncap(config.defaultQfi());
-                } else {
-                    upfProgrammable.disablePscEncap();
+            } else if (!upfDevices.contains(deviceId)) {
+                log.warn("UPF {} is not in the configuration!", deviceId);
+            } else if (deviceService.getDevice(deviceId) == null) {
+                log.warn("UPF {} currently does not exist in the device store, skip setup.", deviceId);
+            } else if (!isUpfProgrammable(deviceId)) {
+                log.warn("{} is not UPF physical device!", deviceId);
+            } else if (upfProgrammable != null && !upfProgrammable.data().deviceId().equals(deviceId)) {
+                    log.warn("Change of the UPF while UPF data plane is available is not supported!");
+            } else if (upfProgrammable == null) {
+                log.info("Setup UPF physical device: {}", deviceId);
+                upfProgrammable = deviceService.getDevice(deviceId).as(UpfProgrammable.class);
+                if (!upfProgrammable.init()) {
+                    // error message will be printed by init()
+                    return;
                 }
-            } catch (UpfProgrammableException e) {
-                log.info(e.getMessage());
-            }
+                upfProgrammables.putIfAbsent(deviceId, upfProgrammable);
+                log.info("UPF physical device {} setup successful!", deviceId);
 
-            upfInitialized.set(true);
-            log.info("UPF device setup successful!");
+                if (upfProgrammables.keySet().containsAll(upfDevices)) {
+                    // Currently we don't support dynamic UPF configuration.
+                    // The UPF data plane is initialized when all UPF physical
+                    // devices have been initialized properly.
+                    upfInitialized.set(true);
+
+                    // Do the initial device configuration required
+                    installInterfaces();
+                    try {
+                        if (configIsLoaded() && config.pscEncapEnabled()) {
+                            this.enablePscEncap(config.defaultQfi());
+                        } else {
+                            this.disablePscEncap();
+                        }
+                    } catch (UpfProgrammableException e) {
+                        log.info(e.getMessage());
+                    }
+                    log.info("UPF data plane setup successful!");
+                }
+            }
         }
     }
 
@@ -272,36 +374,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         return interfaces;
     }
 
-    /**
-     * Ensure that all interfaces present in the UP4 config file are installed in the UPF device.
-     */
-    private void ensureInterfacesInstalled() {
-        log.info("Ensuring all interfaces present in app config are present on device.");
-        Set<UpfInterface> installedInterfaces;
-        try {
-            installedInterfaces = new HashSet<>(upfProgrammable.getInterfaces());
-        } catch (UpfProgrammableException e) {
-            log.warn("Failed to read interface: {}", e.getMessage());
-            return;
-        }
-        for (UpfInterface iface : configFileInterfaces()) {
-            if (!installedInterfaces.contains(iface)) {
-                log.warn("{} is missing from device! Installing", iface);
-                try {
-                    upfProgrammable.addInterface(iface);
-                } catch (UpfProgrammableException e) {
-                    log.warn("Failed to insert interface: {}", e.getMessage());
-                }
-            }
-        }
-    }
-
     @Override
     public void installInterfaces() {
         log.info("Installing interfaces from config.");
+        UpfProgrammable leader = getLeaderUpfProgrammable();
         for (UpfInterface iface : configFileInterfaces()) {
             try {
-                getUpfProgrammable().addInterface(iface);
+                leader.addInterface(iface);
             } catch (UpfProgrammableException e) {
                 log.warn("Failed to insert interface: {}", e.getMessage());
             }
@@ -313,33 +392,77 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     /**
-     * Unset the UPF dataplane device. If available it will be cleaned-up.
+     * Unset and clean-up the UPF data plane.
      */
-    private void unsetUpfDevice() {
+    private void unsetUpfDataPlane() {
         synchronized (upfInitialized) {
-            if (upfProgrammable != null) {
-                log.info("UPF was removed. Cleaning up.");
-                if (deviceService.isAvailable(upfDeviceId)) {
-                    upfProgrammable.cleanUp();
-                }
-                upfProgrammable = null;
-                upfInitialized.set(false);
+            try {
+                assertUpfIsReady();
+                upfProgrammables.replaceAll((deviceId, upfProg) -> {
+                    if (upfProg != null) {
+                        log.info("UPF was unset. Cleaning up.");
+                        upfProg.cleanUp();
+                    }
+                    return null;
+                });
+            } catch (IllegalStateException e) {
+                log.error("Error while unsetting UPF physical devices, resetting UP4 " +
+                                  "internal state anyway: {}", e.getMessage());
             }
+            leaderUpfDevice = null;
+            upfProgrammables = Maps.newConcurrentMap();
+            upfDevices = Sets.newConcurrentHashSet();
+            up4Store.reset();
+            upfInitialized.set(false);
+        }
+    }
+
+    /**
+     * Unset a UPF physical device. This method does not clean-up the UpfProgrammable
+     * state and should be called only when the given device is not present in
+     * the device store.
+     *
+     * @param deviceId device identifier
+     */
+    private void unsetUpfDevice(DeviceId deviceId) {
+        synchronized (upfInitialized) {
+            if (deviceService.getDevice(deviceId) != null) {
+                log.error("unsetUpfDevice(DeviceId) should be called when device is not in the store!");
+                return;
+            }
+            upfProgrammables.remove(deviceId);
+            upfInitialized.set(false);
         }
     }
 
     private void upfUpdateConfig(Up4Config config) {
         if (config == null) {
-            unsetUpfDevice();
+            unsetUpfDataPlane();
             this.config = null;
         } else if (config.isValid()) {
-            upfDeviceId = config.up4DeviceId();
+            List<DeviceId> upfDeviceIds = config.upfDeviceIds();
             this.config = config;
-            setUpfDevice(upfDeviceId);
+            leaderUpfDevice = upfDeviceIds.isEmpty() ? null : upfDeviceIds.get(0);
+            upfDevices.addAll(upfDeviceIds);
+            upfDeviceIds.forEach(this::setUpfDevice);
+            updateDbufTunnel();
         } else {
             log.error("Invalid UP4 config loaded! Cannot set up UPF.");
         }
         log.info("Up4Config updated");
+    }
+
+    private void updateDbufTunnel() {
+        if (dbufClient != null && configIsLoaded() && config.dbufDrainAddr() != null) {
+            this.dbufTunnel = GtpTunnel.builder()
+                    .setSrc(config.dbufDrainAddr())
+                    .setDst(dbufClient.dataplaneIp4Addr())
+                    .setSrcPort((short) GTP_PORT)
+                    .setTeid(0)
+                    .build();
+        } else {
+            this.dbufTunnel = null;
+        }
     }
 
     private void dbufUpdateConfig(Up4DbufConfig config) {
@@ -361,14 +484,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if (dbufClient == null) {
                 dbufClient = new DefaultDbufClient(serviceAddr, dataplaneAddr, this);
             }
-            if (configIsLoaded()) {
-                this.dbufTunnel = GtpTunnel.builder()
-                        .setSrc(config.dbufDrainAddr())
-                        .setDst(dbufClient.dataplaneIp4Addr())
-                        .setSrcPort((short) GTP_PORT)
-                        .setTeid(0)
-                        .build();
-            }
+            updateDbufTunnel();
         }
     }
 
@@ -398,33 +514,33 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void cleanUp() {
-        getUpfProgrammable().cleanUp();
+        getLeaderUpfProgrammable().cleanUp();
         up4Store.reset();
     }
 
     @Override
     public void clearInterfaces() {
-        getUpfProgrammable().clearInterfaces();
+        getLeaderUpfProgrammable().clearInterfaces();
     }
 
     @Override
     public void clearFlows() {
-        getUpfProgrammable().clearFlows();
+        getLeaderUpfProgrammable().clearFlows();
     }
 
     @Override
     public Collection<ForwardingActionRule> getFars() throws UpfProgrammableException {
-        return getUpfProgrammable().getFars();
+        return getLeaderUpfProgrammable().getFars();
     }
 
     @Override
     public Collection<PacketDetectionRule> getPdrs() throws UpfProgrammableException {
-        return getUpfProgrammable().getPdrs();
+        return getLeaderUpfProgrammable().getPdrs();
     }
 
     @Override
     public Collection<UpfInterface> getInterfaces() throws UpfProgrammableException {
-        return getUpfProgrammable().getInterfaces();
+        return getLeaderUpfProgrammable().getInterfaces();
     }
 
     @Override
@@ -434,7 +550,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     "Counter cell index referenced by PDR above max supported UE value.",
                     UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
         }
-        getUpfProgrammable().addPdr(pdr);
+        getLeaderUpfProgrammable().addPdr(pdr);
         if (pdr.matchesUnencapped()) {
             up4Store.learnFarIdToUeAddrs(pdr);
         }
@@ -442,7 +558,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void removePdr(PacketDetectionRule pdr) throws UpfProgrammableException {
-        getUpfProgrammable().removePdr(pdr);
+        getLeaderUpfProgrammable().removePdr(pdr);
         if (pdr.matchesUnencapped()) {
             // Should we remove just from the map entry with key == far ID?
             up4Store.forgetUeAddr(pdr.ueAddress());
@@ -457,7 +573,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             far = convertToDbufFar(far);
             up4Store.learnBufferingFarId(ruleId);
         }
-        getUpfProgrammable().addFar(far);
+        getLeaderUpfProgrammable().addFar(far);
+        // TODO: Should we wait for rules to be installed on all devices before
+        //   triggering drain?
         if (!far.buffers() && up4Store.isFarIdBuffering(ruleId)) {
             // If this FAR does not buffer but used to, then drain the buffer for every UE address
             // that hits this FAR.
@@ -493,17 +611,17 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void removeFar(ForwardingActionRule far) throws UpfProgrammableException {
-        getUpfProgrammable().removeFar(far);
+        getLeaderUpfProgrammable().removeFar(far);
     }
 
     @Override
     public void addInterface(UpfInterface upfInterface) throws UpfProgrammableException {
-        getUpfProgrammable().addInterface(upfInterface);
+        getLeaderUpfProgrammable().addInterface(upfInterface);
     }
 
     @Override
     public void removeInterface(UpfInterface upfInterface) throws UpfProgrammableException {
-        getUpfProgrammable().removeInterface(upfInterface);
+        getLeaderUpfProgrammable().removeInterface(upfInterface);
     }
 
     @Override
@@ -513,12 +631,27 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     "Requested PDR counter cell index above max supported UE value.",
                     UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
         }
-        return getUpfProgrammable().readCounter(counterIdx);
+        // When reading counters we need to explicitly read on all UPF physical
+        // devices and aggregate counter values.
+        assertUpfIsReady();
+        // TODO: add get on builder can simply this, by removing the need for building the PdrStat every time.
+        PdrStats.Builder builder = PdrStats.builder();
+        PdrStats prevStats = builder.build();
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            PdrStats pdrStat = upfProg.readCounter(counterIdx);
+            builder.setIngress(pdrStat.getIngressPkts() + prevStats.getIngressPkts(),
+                               pdrStat.getIngressBytes() + prevStats.getIngressBytes());
+            builder.setEgress(pdrStat.getEgressPkts() + prevStats.getEgressPkts(),
+                              pdrStat.getEgressBytes() + prevStats.getEgressBytes());
+            prevStats = builder.build();
+        }
+        builder.withCellId(counterIdx);
+        return builder.build();
     }
 
     @Override
     public long pdrCounterSize() {
-        long pdrCounterSize = getUpfProgrammable().pdrCounterSize();
+        long pdrCounterSize = getLeaderUpfProgrammable().pdrCounterSize();
         if (isMaxUeSet()) {
             return Math.min(config.maxUes() * 2, pdrCounterSize);
         }
@@ -527,7 +660,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public long farTableSize() {
-        long farTableSize = getUpfProgrammable().farTableSize();
+        long farTableSize = getLeaderUpfProgrammable().farTableSize();
         if (isMaxUeSet()) {
             return Math.min(config.maxUes() * 2, farTableSize);
         }
@@ -536,7 +669,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public long pdrTableSize() {
-        long pdrTableSize = getUpfProgrammable().pdrTableSize();
+        long pdrTableSize = getLeaderUpfProgrammable().pdrTableSize();
         if (isMaxUeSet()) {
             return Math.min(config.maxUes() * 2, pdrTableSize);
         }
@@ -552,22 +685,39 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 maxCounterId = Math.min(maxCounterId, getMaxUe() * 2);
             }
         }
-        return getUpfProgrammable().readAllCounters(maxCounterId);
+        // When reading counters we need to explicitly read on all UPF physical
+        // devices and aggregate counter values.
+        assertUpfIsReady();
+        // TODO: add get on builder can simply this, by removing the need for building the PdrStat every time.
+        PdrStats.Builder builder = PdrStats.builder();
+        Map<Integer, PdrStats> mapCounterIdStats = Maps.newHashMap();
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            Collection<PdrStats> pdrStats = upfProg.readAllCounters(maxCounterId);
+            pdrStats.forEach(currStat -> {
+                mapCounterIdStats.compute(currStat.getCellId(), (counterId, prevStats) -> {
+                    if (prevStats == null) {
+                        return currStat;
+                    }
+                    builder.setIngress(currStat.getIngressPkts() + prevStats.getIngressPkts(),
+                                       currStat.getIngressBytes() + prevStats.getIngressBytes());
+                    builder.setEgress(currStat.getEgressPkts() + prevStats.getEgressPkts(),
+                                      currStat.getEgressBytes() + prevStats.getEgressBytes());
+                    builder.withCellId(counterId);
+                    return builder.build();
+                });
+            });
+        }
+        return mapCounterIdStats.values();
     }
 
     @Override
     public void enablePscEncap(int defaultQfi) throws UpfProgrammableException {
-        getUpfProgrammable().enablePscEncap(defaultQfi);
+        getLeaderUpfProgrammable().enablePscEncap(defaultQfi);
     }
 
     @Override
     public void disablePscEncap() throws UpfProgrammableException {
-        getUpfProgrammable().disablePscEncap();
-    }
-
-    @Override
-    public void sendPacketOut(ByteBuffer data) {
-        getUpfProgrammable().sendPacketOut(data);
+        getLeaderUpfProgrammable().disablePscEncap();
     }
 
     @Override
@@ -616,12 +766,38 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 try {
                     results.add(builder.build());
                 } catch (java.lang.IllegalArgumentException e) {
-                    log.warn("Corrupt UPF flow found in dataplane: {}",
+                    log.warn("Corrupt UPF flow found in data plane: {}",
                              e.getMessage());
                 }
             }
         }
         return results;
+    }
+
+    /**
+     * Send packet out via the UPF data plane.
+     * No guarantee on the selected physical device is given, the implementation
+     * sends the packet through one of the available UPF physical devices. Data
+     * is expected to contain an Ethernet frame.
+     * <p>
+     * The selected device should process the packet through the pipeline tables
+     * to select an output port and to apply eventual modifications (e.g.,
+     * MAC rewrite for routing, pushing a VLAN tag, etc.).
+     *
+     * @param data Ethernet frame bytes
+     * @throws UpfProgrammableException if the UPF data plane cannot send the packet
+     */
+    @Override
+    public void sendPacketOut(ByteBuffer data) throws UpfProgrammableException {
+        assertUpfIsReady();
+        var sendDevice = upfProgrammables.keySet().stream()
+                .filter(deviceId -> deviceService.isAvailable(deviceId)).findFirst();
+        if (sendDevice.isPresent()) {
+            upfProgrammables.get(sendDevice.get()).sendPacketOut(data);
+        } else {
+            throw new UpfProgrammableException(
+                    "Unable to send packet-out, no UPF physical device available!");
+        }
     }
 
     private boolean isMaxUeSet() {
@@ -654,28 +830,26 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     /**
-     * React to new devices. The first device recognized to have UPF functionality is taken as the
-     * UPF device.
+     * React to new devices. Setup the UPF physical device when it shows up on the
+     * device store.
      */
     private class InternalDeviceListener implements DeviceListener {
         @Override
         public void event(DeviceEvent event) {
             DeviceId deviceId = event.subject().id();
-            if (deviceId.equals(upfDeviceId)) {
+            if (upfDevices.contains(deviceId)) {
                 switch (event.type()) {
                     case DEVICE_ADDED:
                     case DEVICE_UPDATED:
                     case DEVICE_AVAILABILITY_CHANGED:
-                        if (deviceService.isAvailable(deviceId)) {
-                            log.debug("Event: {}, setting UPF", event.type());
-                            setUpfDevice(deviceId);
-                        }
+                        log.debug("Event: {}, setting UPF physical device", event.type());
+                        setUpfDevice(deviceId);
                         break;
                     case DEVICE_REMOVED:
                     case DEVICE_SUSPENDED:
-                        log.debug("Event: {}, unsetting UPF", event.type());
-                        unsetUpfDevice();
-                        break;
+                        // TODO: DEVICE_SUSPENDED is never generated in ONOS. What is the actual behaviour?
+                        log.debug("Event: {}, unsetting UPF physical device", event.type());
+                        unsetUpfDevice(deviceId);
                     case PORT_ADDED:
                     case PORT_UPDATED:
                     case PORT_REMOVED:
@@ -748,6 +922,184 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 default:
                     // TODO: we do not handle UNREGISTERED event for now
                     break;
+            }
+        }
+    }
+
+    private class InternalFlowRuleListener implements FlowRuleListener {
+
+        @Override
+        public void event(FlowRuleEvent event) {
+            eventExecutor.execute(() -> internalEventHandler(event));
+        }
+
+        private void internalEventHandler(FlowRuleEvent event) {
+            if ((event.type() == FlowRuleEvent.Type.RULE_ADD_REQUESTED ||
+                    event.type() == FlowRuleEvent.Type.RULE_REMOVE_REQUESTED) &&
+                    event.subject().deviceId().equals(leaderUpfDevice)) {
+                try {
+                    assertUpfIsReady();
+                } catch (IllegalStateException e) {
+                    log.warn("While handling event type {}: {}", event.type(), e.getMessage());
+                    return;
+                }
+                if (upfProgrammables.get(leaderUpfDevice).fromThisUpf(event.subject())) {
+                    log.debug("Relevant FlowRuleEvent {}: {}", event.type(), event.subject());
+                    FlowRule rule = event.subject();
+                    List<FlowRule> flowRules = Lists.newArrayList();
+                    upfProgrammables.keySet().stream()
+                            .filter(deviceId -> !deviceId.equals(leaderUpfDevice))
+                            .forEach(deviceId -> flowRules.add(copyFlowRuleForDevice(rule, deviceId)));
+                    switch (event.type()) {
+                        case RULE_ADD_REQUESTED:
+                            flowRuleService.applyFlowRules(flowRules.toArray(new FlowRule[0]));
+                            break;
+                        case RULE_REMOVE_REQUESTED:
+                            flowRuleService.removeFlowRules(flowRules.toArray(new FlowRule[0]));
+                            break;
+                        default:
+                            log.error("I should never reach this point on {}", event);
+                    }
+                }
+            }
+        }
+    }
+
+    private FlowRule copyFlowRuleForDevice(FlowRule original, DeviceId newDevice) {
+        var flowRuleBuilder = DefaultFlowRule.builder()
+                .fromApp(coreService.getAppId(original.appId()))
+                .forDevice(newDevice)
+                .forTable(original.table())
+                .withSelector(original.selector())
+                .withTreatment(original.treatment())
+                .withPriority(original.priority());
+        if (original.isPermanent()) {
+            flowRuleBuilder.makePermanent();
+        }
+        return flowRuleBuilder.build();
+    }
+
+    private class ReconcileUpfDevices implements Runnable {
+
+        @Override
+        public void run() {
+            try {
+                checkStateAndReconcile();
+            } catch (Exception e) {
+                log.error("Error during reconciliation: {}", e.getMessage());
+            }
+        }
+
+        private void checkStateAndReconcile() throws UpfProgrammableException {
+            log.trace("Running reconciliation task...");
+            assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
+            Collection<PacketDetectionRule> leaderPdrs = getLeaderUpfProgrammable().getPdrs();
+            Collection<ForwardingActionRule> leaderFars = getLeaderUpfProgrammable().getFars();
+            Collection<UpfInterface> leaderInterfaces = getLeaderUpfProgrammable().getInterfaces();
+
+            for (var entry : upfProgrammables.entrySet()) {
+                var deviceId = entry.getKey();
+                var upfProg = entry.getValue();
+                if (deviceId.equals(leaderUpfDevice)) {
+                    continue;
+                }
+                if (!mastershipService.isLocalMaster(deviceId)) {
+                    continue;
+                }
+                Collection<PacketDetectionRule> pdrs = upfProg.getPdrs();
+                Collection<ForwardingActionRule> fars = upfProg.getFars();
+                Collection<UpfInterface> interfaces = upfProg.getInterfaces();
+
+                // Do not deal with errors on UPFProgrammable calls, we will
+                // eventually converge in the next reconciliation cycle.
+
+                // First remove stale entries and then add the missing ones
+                // otherwise when an entry needs update, it won't be updated.
+                // (e.g., if a FAR needs to be updated, doing add and then remove
+                // translates in only a remove, delete then remove first remove
+                // the entry and the push the new one).
+
+                // ----- PDRs ----
+                if (!leaderPdrs.containsAll(pdrs)) {
+                    log.debug("Removing stale PDRs from {}", deviceId);
+                    Collection<PacketDetectionRule> toRemovePdrs = new HashSet<>(pdrs);
+                    toRemovePdrs.removeAll(leaderPdrs);
+                    for (var pdr : toRemovePdrs) {
+                        try {
+                            upfProg.removePdr(pdr);
+                        } catch (UpfProgrammableException e) {
+                            log.error("Error while reconciling {}: {} [{}]",
+                                      deviceId, e.getMessage(), pdr);
+                        }
+                    }
+                }
+                if (!pdrs.containsAll(leaderPdrs)) {
+                    log.debug("Adding missing PDRs on {}", deviceId);
+                    Collection<PacketDetectionRule> toAddPdrs = new HashSet<>(leaderPdrs);
+                    toAddPdrs.removeAll(pdrs);
+                    for (var pdr : toAddPdrs) {
+                        try {
+                            upfProg.addPdr(pdr);
+                        } catch (UpfProgrammableException e) {
+                            log.error("Error while reconciling {}: {} [{}]",
+                                      deviceId, e.getMessage(), pdr);
+                        }
+                    }
+                }
+                // ----- FARs ----
+                if (!leaderFars.containsAll(fars)) {
+                    log.debug("Removing stale FARs from {}", deviceId);
+                    Collection<ForwardingActionRule> toRemoveFars = new HashSet<>(fars);
+                    toRemoveFars.removeAll(leaderFars);
+                    for (var far : toRemoveFars) {
+                        try {
+                            upfProg.removeFar(far);
+                        } catch (UpfProgrammableException e) {
+                            log.error("Error while reconciling {}: {} [{}]",
+                                      deviceId, e.getMessage(), far);
+                        }
+                    }
+                }
+                if (!fars.containsAll(leaderFars)) {
+                    log.debug("Adding missing FARs on {}", deviceId);
+                    Collection<ForwardingActionRule> toAddFars = new HashSet<>(leaderFars);
+                    toAddFars.removeAll(fars);
+                    for (var far : toAddFars) {
+                        try {
+                            upfProg.addFar(far);
+                        } catch (UpfProgrammableException e) {
+                            log.error("Error while reconciling {}: {} [{}]",
+                                      deviceId, e.getMessage(), far);
+                        }
+                    }
+                }
+                // ----- Interfaces ----
+                if (!leaderInterfaces.containsAll(interfaces)) {
+                    log.debug("Removing stale UPF Interfaces from {}", deviceId);
+                    Collection<UpfInterface> toRemoveIntfs = new HashSet<>(interfaces);
+                    toRemoveIntfs.removeAll(leaderInterfaces);
+                    for (var intf : toRemoveIntfs) {
+                        try {
+                            upfProg.removeInterface(intf);
+                        } catch (UpfProgrammableException e) {
+                            log.error("Error while reconciling {}: {} [{}]",
+                                      deviceId, e.getMessage(), intf);
+                        }
+                    }
+                }
+                if (!interfaces.containsAll(leaderInterfaces)) {
+                    log.debug("Adding missing UPF Interfaces on {}", deviceId);
+                    Collection<UpfInterface> toAddIntfs = new HashSet<>(leaderInterfaces);
+                    toAddIntfs.removeAll(interfaces);
+                    for (var intf : toAddIntfs) {
+                        try {
+                            upfProg.addInterface(intf);
+                        } catch (UpfProgrammableException e) {
+                            log.error("Error while reconciling {}: {} [{}]",
+                                      deviceId, e.getMessage(), intf);
+                        }
+                    }
+                }
             }
         }
     }

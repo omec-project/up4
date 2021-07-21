@@ -36,26 +36,32 @@ class SinglePairLeaf(Topo):
         # dbuf one (ip=...). However, dbuf can still ping the switch gateway
         # address (gw=...) which is all we need to receive and send buffered
         # packets.
-        # DbufHost
+        # If we don't use the switch gateway as drain address, then
+        # we can specify the drainIp and drainMac, that will install a /32 route
+        # and an ARP entry for those values.
         dbuf1 = self.addHost('dbuf1', cls=DualHomedDbufHost, mac='00:00:00:00:db:0f',
-                             ip='140.0.99.1/24', gw='140.0.99.254')
+                             ip='140.0.99.1/24', drainIp="140.0.0.2", drainMac="00:aa:00:00:00:01")
         self.addLink(dbuf1, leaf1)  # port 1
         self.addLink(dbuf1, leaf2)  # port 1
 
         # pdn IPv4 host attached to leaf 2
-        # TODO: should pdn be dual-homed?
         pdn = self.addHost('pdn', cls=DualHomedIpv4Host, mac='00:00:00:00:00:20',
                            ip='140.0.200.1/24', gw='140.0.200.254')
         self.addLink(pdn, leaf1)  # port 2
         self.addLink(pdn, leaf2)  # port 2
 
         # enodeb IPv4 host attached to leaf 1
-        enodeb = self.addHost('enodeb', cls=IPv4Host, mac='00:00:00:00:00:10', ip='140.0.100.1/24',
-                              gw='140.0.100.254')
-        self.addLink(enodeb, leaf1)  # port 3
+        enodeb1 = self.addHost('enodeb', cls=IPv4Host, mac='00:00:00:00:00:10', ip='140.0.100.1/24',
+                               gw='140.0.100.254')
+        self.addLink(enodeb1, leaf1)  # port 3
+
+        # enodeb IPv4 host attached to leaf 2
+        enodeb2 = self.addHost('enodeb2', cls=IPv4Host, mac='00:00:00:00:00:11',
+                               ip='140.0.101.1/24', gw='140.0.101.254')
+        self.addLink(enodeb2, leaf2)  # port 3
 
         # Pair link
-        self.addLink(leaf1, leaf2)  # port 4 of leaf1 and port 3 of leaf2
+        self.addLink(leaf1, leaf2)  # port 4 of leaf1 and leaf2
 
 
 def main():

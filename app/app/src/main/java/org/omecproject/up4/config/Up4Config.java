@@ -7,6 +7,7 @@ package org.omecproject.up4.config;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.core.ApplicationId;
@@ -26,7 +27,8 @@ public class Up4Config extends Config<ApplicationId> {
     // JSON keys to look for in the network config
     public static final String KEY = "up4";  // base key that signals the presence of this config
     public static final String MAX_UES = "maxUes";
-    public static final String DEVICE_ID = "deviceId";
+    public static final String DEVICE_ID = "deviceId"; // TODO: remove this field after all configs updated
+    public static final String DEVICES = "devices";
     public static final String UE_POOLS = "uePools";
     public static final String S1U_PREFIX = "s1uPrefix";  // TODO: remove this field after all configs updated
     public static final String S1U_ADDR = "s1uAddr";
@@ -39,12 +41,14 @@ public class Up4Config extends Config<ApplicationId> {
 
     @Override
     public boolean isValid() {
-        return hasOnlyFields(DEVICE_ID, UE_POOLS, S1U_ADDR, S1U_PREFIX,
-                DBUF_DRAIN_ADDR, MAX_UES, PSC_ENCAP_ENABLED, DEFAULT_QFI) &&
+        return hasOnlyFields(DEVICE_ID, DEVICES, UE_POOLS, S1U_ADDR, S1U_PREFIX,
+                             DBUF_DRAIN_ADDR, MAX_UES, PSC_ENCAP_ENABLED, DEFAULT_QFI) &&
                 // Mandatory fields.
-                hasFields(DEVICE_ID, UE_POOLS) &&
+                (hasField(DEVICE_ID) || hasField(DEVICES)) &&
+                hasField(UE_POOLS) &&
                 (hasField(S1U_ADDR) || hasField(S1U_PREFIX)) &&
                 !uePools().isEmpty() &&
+                !upfDeviceIds().isEmpty() &&
                 isDbufConfigValid();
     }
 
@@ -61,12 +65,24 @@ public class Up4Config extends Config<ApplicationId> {
     }
 
     /**
-     * Gets the UP4 ONOS device ID.
+     * Returns the UPF device IDs.
      *
-     * @return UP4 device ID
+     * @return UPF device IDs
      */
-    public DeviceId up4DeviceId() {
-        return DeviceId.deviceId(object.path(DEVICE_ID).asText());
+    public List<DeviceId> upfDeviceIds() {
+        if (hasField(DEVICES)) {
+            List<DeviceId> deviceIds = Lists.newArrayList();
+            ArrayNode devices = (ArrayNode) object.path(DEVICES);
+            for (JsonNode deviceId : devices) {
+                String deviceIdString = deviceId.asText("");
+                if (!deviceIdString.equals("") && !deviceIds.contains(DeviceId.deviceId(deviceIdString))) {
+                    deviceIds.add(DeviceId.deviceId(deviceIdString));
+                }
+            }
+            return ImmutableList.copyOf(deviceIds);
+        } else {
+            return ImmutableList.of(DeviceId.deviceId(object.path(DEVICE_ID).asText()));
+        }
     }
 
     /**
@@ -81,7 +97,7 @@ public class Up4Config extends Config<ApplicationId> {
         } else if (hasField(S1U_PREFIX)) {
             // TODO: remove this whole block after all network configs have been updated
             log.warn("UP4 config field {} has been replaced by {}, please update your config!",
-                    S1U_PREFIX, S1U_ADDR);
+                     S1U_PREFIX, S1U_ADDR);
             String prefix = get(S1U_PREFIX, null);
             if (prefix == null) {
                 return null;
@@ -98,16 +114,6 @@ public class Up4Config extends Config<ApplicationId> {
         } else {
             return null;
         }
-    }
-
-    /**
-     * Set the S1U IPv4 address of the device.
-     *
-     * @param addr The S1U IPv4 address to assign
-     * @return an updated instance of this config
-     */
-    public Up4Config setS1uAddr(String addr) {
-        return (Up4Config) setOrClear(S1U_ADDR, addr);
     }
 
     /**
@@ -144,6 +150,7 @@ public class Up4Config extends Config<ApplicationId> {
 
     /**
      * Returns the maximum number of UEs the UPF can support, or -1 if not configured.
+     *
      * @return the maximum number of UEs the UPF can support
      */
     public long maxUes() {

@@ -24,7 +24,7 @@
       "basic": {
         "managementAddress": "grpc://mininet:50002?device_id=1",
         "driver": "stratum-bmv2",
-        "pipeconf": "org.onosproject.pipelines.fabric",
+        "pipeconf": "org.onosproject.pipelines.fabric-spgw",
         "locType": "grid",
         "gridX": 800,
         "gridY": 600
@@ -35,7 +35,7 @@
         "ipv4Loopback": "192.168.1.3",
         "routerMac": "00:AA:00:00:00:02",
         "pairDeviceId": "device:leaf1",
-        "pairLocalPort": 3,
+        "pairLocalPort": 4,
         "isEdgeRouter": true,
         "adjacencySids": []
       }
@@ -49,28 +49,32 @@
           "ips": [
             "140.0.99.254/24",
             "140.0.100.254/24",
+            "140.0.101.254/24",
             "140.0.200.254/24"
           ],
           "vlan-tagged": [
             99,
             100,
+            101,
             200
           ]
         }
       ]
     },
-    "device:leaf2/3": {
+    "device:leaf2/4": {
       "interfaces": [
         {
-          "name": "leaf2-3-pair",
+          "name": "leaf2-4-pair",
           "ips": [
             "140.0.99.254/24",
             "140.0.100.254/24",
+            "140.0.101.254/24",
             "140.0.200.254/24"
           ],
           "vlan-tagged": [
             99,
             100,
+            101,
             200
           ]
         }
@@ -101,7 +105,7 @@
     "device:leaf1/3": {
       "interfaces": [
         {
-          "name": "leaf1-2-enb",
+          "name": "leaf1-3-enb1",
           "ips": [
             "140.0.100.254/24"
           ],
@@ -128,6 +132,17 @@
             "140.0.200.254/24"
           ],
           "vlan-untagged": 200
+        }
+      ]
+    },
+    "device:leaf2/3": {
+      "interfaces": [
+        {
+          "name": "leaf2-3-enb2",
+          "ips": [
+            "140.0.101.254/24"
+          ],
+          "vlan-untagged": 101
         }
       ]
     }
@@ -165,7 +180,7 @@
     },
     "00:00:00:00:00:10/None": {
       "basic": {
-        "name": "enodeb",
+        "name": "enodeb1",
         "gridX": 100,
         "gridY": 700,
         "locType": "grid",
@@ -176,29 +191,38 @@
           "device:leaf1/3"
         ]
       }
+    },
+    "00:00:00:00:00:11/None": {
+      "basic": {
+        "name": "enodeb2",
+        "gridX": 750,
+        "gridY": 700,
+        "locType": "grid",
+        "ips": [
+          "140.0.101.1"
+        ],
+        "locations": [
+          "device:leaf2/3"
+        ]
+      }
     }
   },
   "apps": {
     "org.omecproject.up4": {
       "up4": {
-        "deviceId": "device:leaf1",
-        "s1uAddr": "140.0.100.254",
+        "devices": [
+          "device:leaf1",
+          "device:leaf2"
+        ],
+        "s1uAddr": "140.0.0.1",
         "maxUes": 32,
         "uePools": [
           "17.0.0.0/24"
         ],
-        "dbufDrainAddr": "140.0.99.254",
+        "dbufDrainAddr": "140.0.0.2",
         "pscEncapEnabled": false,
         "defaultQfi": 0
       }
-    },
-    "org.onosproject.route-service": {
-      "routes": [
-        {
-          "prefix": "17.0.0.0/24",
-          "nextHop": "140.0.100.1"
-        }
-      ]
     }
   }
 }

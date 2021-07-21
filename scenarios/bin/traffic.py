@@ -196,7 +196,7 @@ def main():
     parser.add_argument("--flow-count", type=int, default=1, help="How many flows to send/receive.")
     parser.add_argument("--ue-pool", type=IPv4Network, default=IPv4Network("17.0.0.0/24"),
                         help="The IPv4 prefix from which UE addresses will be drawn.")
-    parser.add_argument("--s1u-addr", type=IPv4Address, default=IPv4Address("140.0.100.254"),
+    parser.add_argument("--s1u-addr", type=IPv4Address, default=IPv4Address("140.0.0.1"),
                         help="The IPv4 address of the UPF's S1U interface")
     parser.add_argument("--enb-addr", type=IPv4Address, default=IPv4Address("140.0.100.1"),
                         help="The IPv4 address of the eNodeB")

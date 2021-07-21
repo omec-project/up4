@@ -18,22 +18,6 @@ def ip2long(ip):
     return struct.unpack("!L", packedIP)[0]
 
 
-def dbufCommand(name):
-    args = map(str, [
-        "-max_queues",
-        DBUF_NUM_QUEUES,
-        "-max_packet_slots_per_queue",
-        DBUF_MAX_PKTS_PER_QUEUE,
-        "-queue_drop_timeout",
-        DBUF_DROP_TIMEOUT_SEC,
-    ])
-    # Send to background
-    cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
-          % (" ".join(args), name)
-    print(cmd)
-    return cmd
-
-
 class IPv4Host(Host):
     """Host that can be configured with an IPv4 gateway (default route).
     """
@@ -63,16 +47,38 @@ class DbufHost(IPv4Host):
     def __init__(self, name, inNamespace=False, **params):
         super(DbufHost, self).__init__(name, inNamespace, **params)
 
-    def config(self, mac=None, ip=None, defaultRoute=None, lo='up', gw=None, **_params):
-        super(DbufHost, self).config(mac, ip, defaultRoute, lo, gw, **_params)
-        self.cmd(dbufCommand(self.name))
+    def config(self, drainIp=None, drainMac=None, **_params):
+        super(DbufHost, self).config(**_params)
+        self.setDrainIpAndMac(self.defaultIntf(), drainIp, drainMac)
+        self.startDbuf()
+
+    def startDbuf(self):
+        args = map(str, [
+            "-max_queues",
+            DBUF_NUM_QUEUES,
+            "-max_packet_slots_per_queue",
+            DBUF_MAX_PKTS_PER_QUEUE,
+            "-queue_drop_timeout",
+            DBUF_DROP_TIMEOUT_SEC,
+        ])
+        # Send to background
+        cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
+              % (" ".join(args), self.name)
+        print(cmd)
+        self.cmd(cmd)
+
+    def setDrainIpAndMac(self, intf, drainIp=None, drainMac=None):
+        if drainIp:
+            self.setHostRoute(drainIp, intf)
+            if drainMac:
+                self.setARP(drainIp, drainMac)
 
 
 class DualHomedIpv4Host(Host):
     """A dual homed host that can be configured with an IPv4 gateway (default route).
     """
 
-    def __init__(self, name, *args, **kwargs):
+    def __init__(self, name, **kwargs):
         super(DualHomedIpv4Host, self).__init__(name, **kwargs)
         self.bond0 = None
 
@@ -107,11 +113,11 @@ class DualHomedIpv4Host(Host):
         super(DualHomedIpv4Host, self).terminate()
 
 
-class DualHomedDbufHost(DualHomedIpv4Host):
+class DualHomedDbufHost(DualHomedIpv4Host, DbufHost):
 
     def __init__(self, name, inNamespace=False, **params):
         super(DualHomedDbufHost, self).__init__(name, inNamespace=inNamespace, **params)
 
-    def config(self, **_params):
+    def config(self, drainIp=None, drainMac=None, **_params):
         super(DualHomedDbufHost, self).config(**_params)
-        self.cmd(dbufCommand(self.name))
+        self.setDrainIpAndMac(self.bond0, drainIp, drainMac)
