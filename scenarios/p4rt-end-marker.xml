@@ -5,7 +5,7 @@
 <scenario name="p4rt-end-marker" description="Test forwarding of end-marker packet-out using P4Runtime">
     <group name="P4rt-End-Marker">
         <step name="Enb-Recv-End-Marker"
-              exec="mn-cmd enodeb traffic.py recv-gtp-end-marker -t 10"/>
+              exec="mn-cmd ${ENODEB1} traffic.py recv-gtp-end-marker -t 10"/>
         <step name="P4rt-Pkt-Out-End-Marker" delay="1"
               exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-pkt-out --type end-marker"/>
     </group>

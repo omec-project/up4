@@ -5,31 +5,45 @@
 <scenario name="p4rt-forwarding-qos" description="QoS based Forwarding test using p4runtime messages">
     <group name="P4rt-Forwarding-Qos">
         <group name="P4rt-Program">
-            <step name="P4rt-Set-Fwd-Qos"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows --qos 1 program"/>
-            <step name="Check-Up4-Flows-Fwd-Qos" requires="^"
-                  exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
+            <group name="Push-Up4-Flows-Qos">
+                <sequential var="${ENODEB#}"
+                    starts="P4rt-Set-Fwd-Qos-${#}"
+                    ends="P4rt-Set-Fwd-Qos-${#-1}">
+                <step name="P4rt-Set-Fwd-Qos-${#}"
+                      exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --qos 1 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                </sequential>
+            </group>
+            <step name="Check-Up4-Flows-Fwd-Qos" requires="Push-Up4-Flows-Qos"
+                  exec="onos-cli-grep ${OCI} up4:read-flows '${P4RT_UP4_FLOWS} flows found'"/>
             <step name="Check-Flow-Rules-Qid" requires="^"
                   exec="onos-cli-grep ${OCI} flows 'qid=0x5'"/>
             <step name="Check-Flow-Rules-Fwd-Qos" requires="^" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
         <group name="Check-Traffic-Fwd-Qos" requires="P4rt-Program">
-            <!-- Downlink -->
-            <step name="Downlink-Enb-Recv-Gtp-Fwd-Qos" requires="P4rt-Program"
-                  exec="mn-cmd enodeb traffic.py recv-gtp -t 10"/>
-            <step name="Downlink-Pdn-Send-Udp-Fwd-Qos" requires="P4rt-Program" delay="5"
-                  exec="mn-cmd pdn traffic.py send-udp -c 10"/>
-            <!-- Uplink -->
-            <step name="Uplink-Pdn-Recv-Udp-Fwd-Qos" requires="P4rt-Program"
-                  exec="mn-cmd pdn traffic.py recv-udp -t 10"/>
-            <step name="Uplink-Enb-Send-Gtp-Fwd-Qos" requires="P4rt-Program" delay="5"
-                  exec="mn-cmd enodeb traffic.py send-gtp -c 10"/>
+            <parallel var="${ENODEB#}">
+                <!-- Downlink -->
+                <step name="Downlink-Enb-Recv-Gtp-Fwd-Qos-${#}" requires="P4rt-Program"
+                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <step name="Downlink-Pdn-Send-Udp-Fwd-Qos-${#}" requires="P4rt-Program" delay="5"
+                      exec="mn-cmd pdn traffic.py send-udp -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <!-- Uplink -->
+                <step name="Uplink-Pdn-Recv-Udp-Fwd-Qos-${#}" requires="P4rt-Program"
+                      exec="mn-cmd pdn traffic.py recv-udp -t 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <step name="Uplink-Enb-Send-Gtp-Fwd-Qos-${#}" requires="P4rt-Program" delay="5"
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+            </parallel>
         </group>
         <group name="P4rt-Clear-Fwd-Qos" requires="~Check-Traffic-Fwd-Qos">
-            <step name="P4rt-Unset-Fwd-Qos" requires="~Check-Traffic-Fwd-Qos"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows clear"/>
-            <step name="Check-Up4-Flows-Fwd-Qos-Cleared" requires="^"
+            <group name="Clear-Up4-Flows-Qos">
+                <sequential var="${ENODEB#}"
+                    starts="P4rt-Unset-Fwd-Qos-${#}"
+                    ends="P4rt-Unset-Fwd-Qos-${#-1}">
+                    <step name="P4rt-Unset-Fwd-Qos-${#}" requires="~Check-Traffic-Fwd-Qos"
+                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows clear --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                </sequential>
+            </group>
+            <step name="Check-Up4-Flows-Fwd-Qos-Cleared" requires="Clear-Up4-Flows-Qos"
                   exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
             <step name="Check-Flow-Rules-Fwd-Qos-Cleared" requires="^" delay="5"
                   exec="onos-check-flows ${OCI}"/>

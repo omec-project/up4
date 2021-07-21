@@ -5,26 +5,42 @@
 <scenario name="pfcp-forwarding" description="Set up and test UE data forwarding with the PFCP client">
     <group name="Pfcp-Forwarding">
         <group name="Pfcp-Setup-Fwd">
-            <step name="Pfcp-Session-Create"
-                  exec="mock-smf-cmd create --session-count 5"/>
-            <step name="Pfcp-Session" requires="^" delay="5"
-                  exec="mock-smf-cmd modify --session-count 5"/>
+            <group name="Pfcp-Push-Fwd" delay="5">
+                <sequential var="${ENODEB#}"
+                            starts="Pfcp-Session-Create-${#}"
+                            ends="Pfcp-Session-${#-1}">
+                    <step name="Pfcp-Session-Create-${#}"
+                          exec="mock-smf-cmd create --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                    <step name="Pfcp-Session-${#}" requires="^"
+                          exec="mock-smf-cmd modify --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                </sequential>
+            </group>
+            <step name="Check-Up4-Flows-Fwd" requires="Pfcp-Push-Fwd" delay="5"
+                  exec="onos-cli-grep ${OCI} up4:read-flows '${PFCP_UP4_FLOWS} flows found'"/>
+            <step name="Check-Flow-Rules-Fwd" requires="Pfcp-Push-Fwd" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
         </group>
-
         <group name="Check-Traffic-Fwd" requires="Pfcp-Setup-Fwd" delay="5">
-            <!-- Downlink -->
-            <step name="Downlink-Enb-Recv-Gtp-Fwd" requires="Pfcp-Setup-Fwd"
-                  exec="mn-cmd enodeb traffic.py recv-gtp -t 10 --flow-count 5"/>
-            <step name="Downlink-Pdn-Send-Udp-Fwd" requires="Pfcp-Setup-Fwd" delay="5"
-                  exec="mn-cmd pdn traffic.py send-udp -c 10 --flow-count 5"/>
-            <!-- Uplink -->
-            <step name="Uplink-Pdn-Recv-Udp-Fwd" requires="Pfcp-Setup-Fwd"
-                  exec="mn-cmd pdn traffic.py recv-udp -t 10 --flow-count 5"/>
-            <step name="Uplink-Enb-Send-Gtp-Fwd" requires="Pfcp-Setup-Fwd" delay="5"
-                  exec="mn-cmd enodeb traffic.py send-gtp -c 10 --flow-count 5"/>
+            <parallel var="${ENODEB#}">
+                <!-- Downlink -->
+                <step name="Downlink-Enb-Recv-Gtp-Fwd-${#}" requires="Pfcp-Setup-Fwd"
+                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 10 --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <step name="Downlink-Pdn-Send-Udp-Fwd-${#}" requires="Pfcp-Setup-Fwd" delay="5"
+                      exec="mn-cmd pdn traffic.py send-udp -c 10 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <!-- Uplink -->
+                <step name="Uplink-Pdn-Recv-Udp-Fwd-${#}" requires="Pfcp-Setup-Fwd"
+                      exec="mn-cmd pdn traffic.py recv-udp -t 10 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <step name="Uplink-Enb-Send-Gtp-Fwd-${#}" requires="Pfcp-Setup-Fwd" delay="5"
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+            </parallel>
         </group>
-
-        <step name="Pfcp-Clear-Fwd" requires="~Check-Traffic-Fwd"
-              exec="mock-smf-cmd delete --session-count 5"/>
+        <group name="Pfcp-Clear-Fwd">
+            <sequential var="${ENODEB#}"
+                starts="Clear-Fwd-${#}"
+                ends="Clear-Fwd-${#-1}">
+                <step name="Clear-Fwd-${#}" requires="~Check-Traffic-Fwd"
+                      exec="mock-smf-cmd delete --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+            </sequential>
+        </group>
     </group>
 </scenario>
