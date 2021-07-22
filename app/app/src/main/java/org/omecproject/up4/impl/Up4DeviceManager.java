@@ -192,10 +192,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         Long reconcileInterval = getLongProperty(properties, UPF_RECONCILE_INTERVAL);
         if (reconcileInterval != null && reconcileInterval != upfReconcileInterval) {
             upfReconcileInterval = reconcileInterval;
-            if (reconciliationTask != null) {
-                reconciliationTask.cancel(false);
-                reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
-                        new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
+            synchronized (upfInitialized) {
+                if (reconciliationTask != null) {
+                    reconciliationTask.cancel(false);
+                    reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
+                            new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
+                }
             }
         }
     }
@@ -203,6 +205,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     protected void preDeactivate() {
         // Only clean up the state when the deactivation is triggered by ApplicationService
         log.info("Running Up4DeviceManager preDeactivation hook.");
+        // Stop reconcile thread when UPF is being uninitialized
+        stopReconcile();
         if (isReady()) {
             upfProgrammables.values().forEach(UpfDevice::cleanUp);
         }
@@ -222,12 +226,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         piPipeconfService.removeListener(piPipeconfListener);
         flowRuleService.removeListener(flowRuleListener);
 
+        stopReconcile();
         eventExecutor.shutdownNow();
-
-        if (reconciliationTask != null) {
-            reconciliationTask.cancel(true);
-            reconciliationTask = null;
-        }
         reconciliationExecutor.shutdown();
 
         reconciliationExecutor = null;
@@ -346,6 +346,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     } catch (UpfProgrammableException e) {
                         log.info(e.getMessage());
                     }
+                    // Start reconcile thread only when UPF data plane is initialized
+                    reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
+                            new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
                     log.info("UPF data plane setup successful!");
                 }
             }
@@ -392,6 +395,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
      */
     private void unsetUpfDataPlane() {
         synchronized (upfInitialized) {
+            // Stop reconcile thread when UPF is being uninitialized
+            stopReconcile();
             try {
                 assertUpfIsReady();
                 upfProgrammables.replaceAll((deviceId, upfProg) -> {
@@ -426,6 +431,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 log.error("unsetUpfDevice(DeviceId) should be called when device is not in the store!");
                 return;
             }
+            // Stop reconcile thread when UPF is being uninitialized
+            stopReconcile();
             upfProgrammables.remove(deviceId);
             upfInitialized.set(false);
         }
@@ -433,11 +440,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     private void upfUpdateConfig(Up4Config config) {
         if (config == null) {
-            // Stop reconcile thread when up4 config is removed
-            if (reconciliationTask != null) {
-                reconciliationTask.cancel(true);
-                reconciliationTask = null;
-            }
             unsetUpfDataPlane();
             this.config = null;
         } else if (config.isValid()) {
@@ -447,9 +449,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             upfDevices.addAll(upfDeviceIds);
             upfDeviceIds.forEach(this::setUpfDevice);
             updateDbufTunnel();
-            // Start reconcile thread only when up4 config is available
-            reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
-                    new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
         } else {
             log.error("Invalid UP4 config loaded! Cannot set up UPF.");
         }
@@ -831,6 +830,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 .setBufferFlag(true)
                 .setTunnel(dbufTunnel)
                 .build();
+    }
+
+    private void stopReconcile() {
+        if (reconciliationTask != null) {
+            reconciliationTask.cancel(true);
+            reconciliationTask = null;
+        }
     }
 
     /**
