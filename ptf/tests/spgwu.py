@@ -5,13 +5,13 @@
 # SPGWU TESTS
 #
 # To run all tests:
-#     make check TEST=spgw
+#     make check TEST=spgwu
 #
 # To run a specific test case:
-#     make check TEST=spgw.<TEST CLASS NAME>
+#     make check TEST=spgwu.<TEST CLASS NAME>
 #
 # For example:
-#     make check TEST=spgw.GtpuEncapDownlinkTest
+#     make check TEST=spgwu.GtpuEncapDownlinkTest
 # ------------------------------------------------------------------------------
 from time import sleep
 
@@ -23,7 +23,8 @@ from scapy.contrib import gtp
 from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
 
 from convert import encode
-from spgwu_base import GtpuBaseTest, UDP_GTP_PORT
+from spgwu_base import GtpuBaseTest, UDP_GTP_PORT, GTPU_EXT_PSC_TYPE_DL, \
+    GTPU_EXT_PSC_TYPE_UL
 from unittest import skip
 
 from extra_headers import CpuHeader
@@ -350,3 +351,100 @@ class AclPuntTest(GtpuBaseTest):
         testutils.send_packet(self, self.port1, pkt)
 
         self.verify_packet_in(exp_pkt_in_msg)
+
+
+@group("gtpu")
+class GtpuEncapPscDownlinkTest(GtpuBaseTest):
+    """ Tests that a packet received from the internet/core gets encapsulated and forwarded
+        with PDU Session Container extension header.
+    """
+
+    def runTest(self):
+        # Test with different type of packets.
+        for pkt_type in self.supported_l4:
+            print_inline("%s ... " % pkt_type)
+            pkt = getattr(testutils,
+                          "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
+                                                         ip_src=PDN_IPV4, ip_dst=UE_IPV4)
+            self.testPacket(pkt)
+
+    @autocleanup
+    def testPacket(self, pkt):
+        QFI = 1
+        # build the expected encapsulated packet
+        exp_pkt = pkt.copy()
+        dst_mac = ENODEB_MAC
+
+        # Encap with PSC ext header and given QFI
+        exp_pkt = self.gtpu_encap(exp_pkt, ip_src=S1U_IPV4, ip_dst=ENODEB_IPV4,
+                                  ext_psc_type=GTPU_EXT_PSC_TYPE_DL, ext_psc_qfi=1)
+
+        # Expected pkt should have routed MAC addresses and decremented hop
+        # limit (TTL).
+        pkt_route(exp_pkt, dst_mac)
+        pkt_decrement_ttl(exp_pkt)
+
+        # PDR counter ID
+        ctr_id = self.new_counter_id()
+
+        # program all the tables
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False,
+                                          qfi=1)
+
+        # read pre and post-QoS packet and byte counters
+        self.read_pdr_counters(ctr_id)
+
+        # send packet and verify it is encapsulated and routed
+        testutils.send_packet(self, self.port1, pkt)
+        testutils.verify_packet(self, exp_pkt, self.port2)
+
+        # Check if pre and post-QoS packet and byte counters incremented
+        self.verify_counters_increased(ctr_id, 1, len(pkt), 1, len(pkt))
+
+
+@group("gtpu")
+class GtpuDecapPscUplinkTest(GtpuBaseTest):
+    """ Tests that a packet received from a UE with PSC header gets decapsulated
+        and routed.
+    """
+
+    def runTest(self):
+        # Test with different type of packets.
+        for pkt_type in self.supported_l4:
+            print_inline("%s ... " % pkt_type)
+            pkt = getattr(testutils,
+                          "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
+                                                         ip_src=UE_IPV4, ip_dst=PDN_IPV4)
+            pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4,
+                                  ext_psc_type=GTPU_EXT_PSC_TYPE_UL, ext_psc_qfi=1)
+
+            self.testPacket(pkt)
+
+    @autocleanup
+    def testPacket(self, pkt):
+
+        if gtp.GTP_U_Header not in pkt:
+            raise AssertionError("Packet given to decap test is not encapsulated!")
+        # build the expected decapsulated packet
+        exp_pkt = self.gtpu_decap(pkt)
+        dst_mac = PDN_MAC
+        # Expected pkt should have routed MAC addresses and decremented hop
+        # limit (TTL).
+        pkt_route(exp_pkt, dst_mac)
+        pkt_decrement_ttl(exp_pkt)
+
+        # PDR counter ID
+        ctr_id = self.new_counter_id()
+
+        # program all the tables
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False, qfi=1)
+
+        # read pre and post-QoS packet and byte counters
+        self.read_pdr_counters(ctr_id)
+
+        # send packet and verify it is decapsulated and routed
+        testutils.send_packet(self, self.port1, pkt)
+        testutils.verify_packet(self, exp_pkt, self.port2)
+
+        # Check if pre and post-QoS packet and byte counters incremented
+        self.verify_counters_increased(ctr_id, 1, len(pkt), 1, len(pkt))

@@ -135,7 +135,8 @@ control ExecuteFar (inout parsed_headers_t    hdr,
     @hidden
     action _udp_encap(ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
                       L4Port udp_sport, L4Port udp_dport,
-                      bit<16> ipv4_total_len) {
+                      bit<16> ipv4_total_len,
+                      bit<16> udp_len) {
         hdr.outer_ipv4.setValid();
         hdr.outer_ipv4.version = IP_VERSION_4;
         hdr.outer_ipv4.ihl = IPV4_MIN_IHL;
@@ -154,22 +155,12 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         hdr.outer_udp.setValid();
         hdr.outer_udp.sport = udp_sport;
         hdr.outer_udp.dport = udp_dport;
-        hdr.outer_udp.len = hdr.ipv4.total_len
-                + (UDP_HDR_SIZE + GTP_HDR_MIN_SIZE);
-        hdr.outer_udp.checksum = 0; // Never updated due to p4 limittions
+        hdr.outer_udp.len = udp_len;
+        hdr.outer_udp.checksum = 0; // Never updated due to p4 limitations
     }
 
     @hidden
-    action gtpu_encap(ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
-                      L4Port     udp_sport, teid_t teid) {
-        _udp_encap(
-            src_addr,
-            dst_addr,
-            udp_sport,
-            L4Port.GTP_GPDU,
-            hdr.ipv4.total_len + IPV4_HDR_SIZE + UDP_HDR_SIZE + GTP_HDR_MIN_SIZE
-        );
-
+    action _gtpu_encap(teid_t teid) {
         hdr.gtpu.setValid();
         hdr.gtpu.version = GTP_V1;
         hdr.gtpu.pt = GTP_PROTOCOL_TYPE_GTP;
@@ -182,14 +173,55 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         hdr.gtpu.teid = teid;
     }
 
+    @hidden
+    action gtpu_only(ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
+                      L4Port     udp_sport, teid_t teid) {
+        _udp_encap(src_addr, dst_addr, udp_sport, L4Port.GTP_GPDU,
+                   hdr.ipv4.total_len + IPV4_HDR_SIZE + UDP_HDR_SIZE + GTP_HDR_MIN_SIZE,
+                   hdr.ipv4.total_len + UDP_HDR_SIZE + GTP_HDR_MIN_SIZE);
+        _gtpu_encap(teid);
+    }
+
+    @hidden
+    action gtpu_with_psc(ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
+                            L4Port     udp_sport, teid_t teid, bit<6> qfi) {
+        _udp_encap(src_addr, dst_addr, udp_sport, L4Port.GTP_GPDU,
+                   hdr.ipv4.total_len + IPV4_HDR_SIZE + UDP_HDR_SIZE + GTP_HDR_MIN_SIZE
+                    + GTPU_OPTIONS_HDR_BYTES + GTPU_EXT_PSC_HDR_BYTES,
+                   hdr.ipv4.total_len + UDP_HDR_SIZE + GTP_HDR_MIN_SIZE
+                    + GTPU_OPTIONS_HDR_BYTES + GTPU_EXT_PSC_HDR_BYTES);
+        _gtpu_encap(teid);
+        hdr.gtpu.msglen = hdr.ipv4.total_len + GTPU_OPTIONS_HDR_BYTES
+                            + GTPU_EXT_PSC_HDR_BYTES; // Override msglen set by _gtpu_encap
+        hdr.gtpu.ex_flag = 1; // Override value set by _gtpu_encap
+        hdr.gtpu_options.setValid();
+        hdr.gtpu_options.seq_num   = 0;
+        hdr.gtpu_options.n_pdu_num = 0;
+        hdr.gtpu_options.next_ext  = GTPU_NEXT_EXT_PSC;
+        hdr.gtpu_ext_psc.setValid();
+        hdr.gtpu_ext_psc.len      = GTPU_EXT_PSC_LEN;
+        hdr.gtpu_ext_psc.type     = GTPU_EXT_PSC_TYPE_DL;
+        hdr.gtpu_ext_psc.spare0   = 0;
+        hdr.gtpu_ext_psc.ppp      = 0;
+        hdr.gtpu_ext_psc.rqi      = 0;
+        hdr.gtpu_ext_psc.qfi      = qfi;
+        hdr.gtpu_ext_psc.next_ext = GTPU_NEXT_EXT_NONE;
+    }
 
     action do_gtpu_tunnel() {
-        gtpu_encap(local_meta.far.tunnel_out_src_ipv4_addr,
+        gtpu_only(local_meta.far.tunnel_out_src_ipv4_addr,
                    local_meta.far.tunnel_out_dst_ipv4_addr,
                    local_meta.far.tunnel_out_udp_sport,
                    local_meta.far.tunnel_out_teid);
     }
 
+    action do_gtpu_tunnel_with_psc() {
+        gtpu_with_psc(local_meta.far.tunnel_out_src_ipv4_addr,
+                       local_meta.far.tunnel_out_dst_ipv4_addr,
+                       local_meta.far.tunnel_out_udp_sport,
+                       local_meta.far.tunnel_out_teid,
+                       local_meta.far.tunnel_out_qfi);
+    }
 
     action do_forward() {
         // Currently a no-op due to forwarding being logically separated
@@ -223,7 +255,11 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         }
         if (local_meta.far.needs_tunneling) {
             if (local_meta.far.tunnel_out_type == TunnelType.GTPU) {
+              if(local_meta.far.needs_ext_psc) {
+                do_gtpu_tunnel_with_psc();
+              } else {
                 do_gtpu_tunnel();
+              }
             }
         }
         if (local_meta.far.needs_dropping) {
@@ -254,6 +290,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         }
     }
 
+    // TODO: eventually add the SliceId to let PFCP agent set the slice ID.
     action set_source_iface(InterfaceType src_iface, Direction direction) {
         // Interface type can be access, core, n6_lan, etc (see InterfaceType enum)
         // If interface is from the control plane, direction can be either up or down
@@ -275,6 +312,8 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     @hidden
     action gtpu_decap() {
         hdr.gtpu.setInvalid();
+        hdr.gtpu_options.setInvalid();
+        hdr.gtpu_ext_psc.setInvalid();
         hdr.outer_ipv4.setInvalid();
         hdr.outer_udp.setInvalid();
     }
@@ -293,16 +332,16 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.needs_gtpu_decap     = (bool)needs_gtpu_decap;
     }
 
-    action set_pdr_attributes_qos(pdr_id_t                 id,
-                                  fseid_t                  fseid,
-                                  counter_index_t          ctr_id,
-                                  far_id_t                 far_id,
-                                  scheduling_priority_t    scheduling_priority,
-                                  bit<1>                   needs_gtpu_decap
+    action set_pdr_attributes_qos(pdr_id_t          id,
+                                  fseid_t           fseid,
+                                  counter_index_t   ctr_id,
+                                  far_id_t          far_id,
+                                  tc_t              tc,
+                                  bit<1>            needs_gtpu_decap
                                  )
     {
         set_pdr_attributes(id, fseid, ctr_id, far_id, needs_gtpu_decap);
-        local_meta.scheduling_priority     = scheduling_priority;
+        local_meta.tc = tc;
     }
 
     // Contains PDRs for both the Uplink and Downlink Direction
@@ -322,6 +361,9 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             local_meta.ue_l4_port       : range     @name("ue_l4_port");
             local_meta.inet_l4_port     : range     @name("inet_l4_port");
             hdr.ipv4.proto              : ternary   @name("ip_proto");
+            // TODO: is necessary to match on validity bit?
+            hdr.gtpu_ext_psc.isValid()  : optional  @name("psc_ext_presence");
+            hdr.gtpu_ext_psc.qfi        : optional  @name("qfi");
         }
         actions = {
             set_pdr_attributes;
@@ -332,6 +374,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     action load_normal_far_attributes(bit<1> needs_dropping,
                                       bit<1> notify_cp) {
         local_meta.far.needs_tunneling = false;
+        local_meta.far.needs_ext_psc = false;
         local_meta.far.needs_dropping    = (bool)needs_dropping;
         local_meta.far.notify_cp = (bool)notify_cp;
     }
@@ -342,7 +385,9 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                                     ipv4_addr_t    src_addr,
                                     ipv4_addr_t    dst_addr,
                                     teid_t         teid,
-                                    L4Port         sport) {
+                                    L4Port         sport
+                                    ) {
+        local_meta.far.needs_ext_psc = false;
         local_meta.far.needs_tunneling = true;
         local_meta.far.needs_dropping = (bool)needs_dropping;
         local_meta.far.notify_cp = (bool)notify_cp;
@@ -353,6 +398,24 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.far.tunnel_out_udp_sport     = sport;
         local_meta.bar.needs_buffering = (bool)needs_buffering;
     }
+
+    action load_tunnel_far_attributes_qfi(bit<1> needs_dropping,
+                                        bit<1> notify_cp,
+                                        bit<1> needs_buffering,
+                                        TunnelType     tunnel_type,
+                                        ipv4_addr_t    src_addr,
+                                        ipv4_addr_t    dst_addr,
+                                        teid_t         teid,
+                                        L4Port         sport,
+                                        bit<6>         qfi
+                                        ) {
+        load_tunnel_far_attributes(needs_dropping, notify_cp, needs_buffering,
+                                    tunnel_type, src_addr, dst_addr, teid,
+                                    sport);
+        local_meta.far.needs_ext_psc = true;
+        local_meta.far.tunnel_out_qfi = qfi;
+    }
+
     table load_far_attributes {
         key = {
             local_meta.far.id : exact      @name("far_id");
@@ -361,6 +424,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         actions = {
             load_normal_far_attributes;
             load_tunnel_far_attributes;
+            load_tunnel_far_attributes_qfi;
         }
     }
 

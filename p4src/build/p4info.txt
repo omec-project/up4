@@ -198,6 +198,18 @@ tables {
     bitwidth: 8
     match_type: TERNARY
   }
+  match_fields {
+    id: 9
+    name: "psc_ext_presence"
+    bitwidth: 1
+    match_type: OPTIONAL
+  }
+  match_fields {
+    id: 10
+    name: "qfi"
+    bitwidth: 6
+    match_type: OPTIONAL
+  }
   action_refs {
     id: 31939583
   }
@@ -236,6 +248,9 @@ tables {
     id: 20110435
   }
   action_refs {
+    id: 23143054
+  }
+  action_refs {
     id: 21257015
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
@@ -255,6 +270,13 @@ actions {
     id: 23646333
     name: "PreQosPipe.ExecuteFar.do_gtpu_tunnel"
     alias: "do_gtpu_tunnel"
+  }
+}
+actions {
+  preamble {
+    id: 20593371
+    name: "PreQosPipe.ExecuteFar.do_gtpu_tunnel_with_psc"
+    alias: "do_gtpu_tunnel_with_psc"
   }
 }
 actions {
@@ -424,8 +446,8 @@ actions {
   }
   params {
     id: 5
-    name: "scheduling_priority"
-    bitwidth: 32
+    name: "tc"
+    bitwidth: 2
   }
   params {
     id: 6
@@ -495,6 +517,58 @@ actions {
     id: 8
     name: "sport"
     bitwidth: 16
+  }
+}
+actions {
+  preamble {
+    id: 23143054
+    name: "PreQosPipe.load_tunnel_far_attributes_qfi"
+    alias: "load_tunnel_far_attributes_qfi"
+  }
+  params {
+    id: 1
+    name: "needs_dropping"
+    bitwidth: 1
+  }
+  params {
+    id: 2
+    name: "notify_cp"
+    bitwidth: 1
+  }
+  params {
+    id: 3
+    name: "needs_buffering"
+    bitwidth: 1
+  }
+  params {
+    id: 4
+    name: "tunnel_type"
+    bitwidth: 8
+  }
+  params {
+    id: 5
+    name: "src_addr"
+    bitwidth: 32
+  }
+  params {
+    id: 6
+    name: "dst_addr"
+    bitwidth: 32
+  }
+  params {
+    id: 7
+    name: "teid"
+    bitwidth: 32
+  }
+  params {
+    id: 8
+    name: "sport"
+    bitwidth: 16
+  }
+  params {
+    id: 9
+    name: "qfi"
+    bitwidth: 6
   }
 }
 action_profiles {

@@ -30,6 +30,7 @@ public final class Up4P4InfoConstants {
     public static final PiActionId LOAD_PDR = PiActionId.of("PreQosPipe.set_pdr_attributes");
     public static final PiActionId LOAD_PDR_QOS = PiActionId.of("PreQosPipe.set_pdr_attributes_qos");
     public static final PiActionId LOAD_FAR_TUNNEL = PiActionId.of("PreQosPipe.load_tunnel_far_attributes");
+    public static final PiActionId LOAD_FAR_TUNNEL_QFI = PiActionId.of("PreQosPipe.load_tunnel_far_attributes_qfi");
     public static final PiActionId LOAD_FAR_NORMAL = PiActionId.of("PreQosPipe.load_normal_far_attributes");
     // Match key names
     //   interface lookup table

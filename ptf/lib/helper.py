@@ -244,6 +244,9 @@ class P4InfoHelper(object):
             lpm = p4runtime_match.range
             lpm.low = encode(value[0], bitwidth)
             lpm.high = encode(value[1], bitwidth)
+        elif match_type == p4info_pb2.MatchField.OPTIONAL:
+            optional = p4runtime_match.optional
+            optional.value = encode(value, bitwidth)
         else:
             raise Exception("Unsupported match type with type %r" % match_type)
         return p4runtime_match

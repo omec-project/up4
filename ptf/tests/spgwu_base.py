@@ -24,6 +24,9 @@ UDP_GTP_PORT = 2152
 DHCP_SERVER_PORT = 67
 DHCP_CLIENT_PORT = 68
 
+GTPU_EXT_PSC_TYPE_DL = 0
+GTPU_EXT_PSC_TYPE_UL = 1
+
 
 class GtpuBaseTest(P4RuntimeTest):
 
@@ -57,11 +60,21 @@ class GtpuBaseTest(P4RuntimeTest):
         """
         return random.randint(0, limit - 1)
 
-    def gtpu_encap(self, pkt, ip_ver=4, ip_src=None, ip_dst=None, teid=None):
+    def gtpu_encap(
+        self,
+        pkt,
+        ip_ver=4,
+        ip_src=None,
+        ip_dst=None,
+        teid=None,
+        ext_psc_type=None,
+        ext_psc_qfi=None,
+    ):
         """ Adds IP, UDP, and GTP-U headers to the packet situated after the ethernet header.
             Tunnel IP header is v4 if ip_ver==4, else it is v6.
             Params ip_src and ip_dst are the tunnel endpoints, and teid is the tunnel ID.
             If a source, dest, or teid is not provided, they will be randomized.
+            If ext_psc_type is add the PSC ext header with given QFI.
         """
         ether_payload = pkt[Ether].payload
 
@@ -74,21 +87,27 @@ class GtpuBaseTest(P4RuntimeTest):
         if ip_dst is None:
             ip_dst = self.random_ip_addr()
 
-        return Ether(src=pkt[Ether].src, dst=pkt[Ether].dst) / \
-               IPHeader(src=ip_src, dst=ip_dst, id=5395) / \
-               UDP(sport=UDP_GTP_PORT, dport=UDP_GTP_PORT, chksum=0) / \
-               gtp.GTP_U_Header(gtp_type=255, teid=teid) / \
-               ether_payload
+        gtp_pkt = Ether(src=pkt[Ether].src, dst=pkt[Ether].dst) / \
+                    IPHeader(src=ip_src, dst=ip_dst, id=5395) / \
+                    UDP(sport=UDP_GTP_PORT, dport=UDP_GTP_PORT, chksum=0) / \
+                    gtp.GTP_U_Header(gtp_type=255, teid=teid)
+        if ext_psc_type is not None:
+            gtp_pkt = gtp_pkt / gtp.GTPPDUSessionContainer(type=ext_psc_type, QFI=ext_psc_qfi)
+        return gtp_pkt / ether_payload
 
     def gtpu_decap(self, pkt):
-        """ Strips out the outer IP, UDP, and GTP-U headers from the given packet.
+        """ Strips out the outer IP, UDP, GTP-U and GTP-U ext headers from the
+            given packet.
         """
         # isolate the ethernet header
         ether_header = pkt.copy()
         ether_header[Ether].remove_payload()
-
+        if gtp.GTPPDUSessionContainer in pkt:
+            payload = pkt[gtp.GTPPDUSessionContainer].payload
+        elif gtp.GTP_U_Header in pkt:
+            payload = pkt[gtp.GTP_U_Header].payload
         # discard the tunnel layers
-        return ether_header / pkt[gtp.GTP_U_Header].payload
+        return ether_header / payload
 
     _last_read_counter_values = {}
 
@@ -302,7 +321,7 @@ class GtpuBaseTest(P4RuntimeTest):
     def add_pdr(self, pdr_id, far_id, session_id, src_iface, ctr_id, ue_addr=None, ue_mask=None,
                 teid=None, tunnel_dst_ip=None, inet_addr=None, inet_mask=None, ue_l4_port=None,
                 ue_l4_port_hi=None, inet_l4_port=None, inet_l4_port_hi=None, ip_proto=None,
-                ip_proto_mask=None, needs_gtpu_decap=False, priority=10):
+                qfi=None, ip_proto_mask=None, needs_gtpu_decap=False, priority=10):
 
         ALL_ONES_32 = (1 << 32) - 1
         ALL_ONES_8 = (1 << 8) - 1
@@ -323,6 +342,9 @@ class GtpuBaseTest(P4RuntimeTest):
             match_fields["teid"] = (teid, ALL_ONES_32)
         if tunnel_dst_ip is not None:
             match_fields["tunnel_ipv4_dst"] = (tunnel_dst_ip, ALL_ONES_32)
+        if qfi is not None:
+            match_fields["psc_ext_presence"] = True
+            match_fields["qfi"] = qfi
 
         self.insert(
             self.helper.build_table_entry(
@@ -349,7 +371,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
     def add_far(self, far_id, session_id, drop=False, notify_cp=False, tunnel=False,
                 tunnel_type="GTPU", teid=None, src_addr=None, dst_addr=None, sport=2152,
-                buffer=False):
+                buffer=False, qfi=None):
 
         if tunnel:
             if (None in [src_addr, dst_addr, sport]):
@@ -366,9 +388,13 @@ class GtpuBaseTest(P4RuntimeTest):
                 "src_addr": src_addr,
                 "dst_addr": dst_addr,
                 "teid": teid,
-                "sport": sport
+                "sport": sport,
             }
-            action_name = "PreQosPipe.load_tunnel_far_attributes"
+            if qfi:
+                action_params["qfi"] = qfi
+                action_name = "PreQosPipe.load_tunnel_far_attributes_qfi"
+            else:
+                action_name = "PreQosPipe.load_tunnel_far_attributes"
         else:
             action_params = {"needs_dropping": drop, "notify_cp": notify_cp}
             action_name = "PreQosPipe.load_normal_far_attributes"
@@ -381,7 +407,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 }, action_name=action_name, action_params=action_params))
 
     def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                   session_id=None, pdr_id=None, far_id=None):
+                                   session_id=None, pdr_id=None, far_id=None, qfi=None):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -418,6 +444,7 @@ class GtpuBaseTest(P4RuntimeTest):
             ue_l4_port=ue_l4_port,
             inet_l4_port=inet_l4_port,
             ip_proto=inner_pkt[IP].proto,
+            qfi=qfi,
             needs_gtpu_decap=True,
         )
 
@@ -427,7 +454,8 @@ class GtpuBaseTest(P4RuntimeTest):
                                    dst_mac=exp_pkt[Ether].dst, egress_port=outport)
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                     buffer=False, session_id=None, pdr_id=None, far_id=None):
+                                     buffer=False, session_id=None, pdr_id=None, far_id=None,
+                                     qfi=None):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -474,7 +502,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
         self.add_far(far_id=far_id, session_id=session_id, drop=drop, buffer=buffer, tunnel=True,
                      teid=exp_pkt[gtp.GTP_U_Header].teid, src_addr=exp_pkt[IP].src,
-                     dst_addr=exp_pkt[IP].dst)
+                     dst_addr=exp_pkt[IP].dst, qfi=qfi)
         if not drop:
             self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', src_mac=exp_pkt[Ether].src,
                                    dst_mac=exp_pkt[Ether].dst, egress_port=outport)
