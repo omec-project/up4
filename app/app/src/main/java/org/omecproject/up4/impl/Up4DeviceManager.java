@@ -177,10 +177,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         netCfgService.registerConfigFactory(up4ConfigFactory);
         netCfgService.registerConfigFactory(dbufConfigFactory);
 
-        // Start reconcile thread
-        reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
-                new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
-
         // Still need this in case both netcfg and pipeconf event happen before UP4 activation
         updateConfig();
 
@@ -198,9 +194,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             upfReconcileInterval = reconcileInterval;
             if (reconciliationTask != null) {
                 reconciliationTask.cancel(false);
+                reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
+                        new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
             }
-            reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
-                    new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
         }
     }
 
@@ -437,6 +433,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     private void upfUpdateConfig(Up4Config config) {
         if (config == null) {
+            // Stop reconcile thread when up4 config is removed
+            if (reconciliationTask != null) {
+                reconciliationTask.cancel(true);
+                reconciliationTask = null;
+            }
             unsetUpfDataPlane();
             this.config = null;
         } else if (config.isValid()) {
@@ -446,6 +447,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             upfDevices.addAll(upfDeviceIds);
             upfDeviceIds.forEach(this::setUpfDevice);
             updateDbufTunnel();
+            // Start reconcile thread only when up4 config is available
+            reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
+                    new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
         } else {
             log.error("Invalid UP4 config loaded! Cannot set up UPF.");
         }
