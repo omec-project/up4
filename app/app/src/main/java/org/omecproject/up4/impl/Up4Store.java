@@ -38,11 +38,13 @@ public interface Up4Store {
     void learnBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
 
     /**
-     * Forgets the given FAR ID as being a buffering one.
+     * Forgets the given FAR ID as being a buffering one. Returns true if the given
+     * FAR IDs is known to be a buffering one.
      *
      * @param farId FAR ID
+     * @return true if the given FAR IDs is known to be a buffering one
      */
-    void forgetBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
+    boolean forgetBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
 
     /**
      * Returns the set of known buffering FAR IDs.
@@ -55,27 +57,34 @@ public interface Up4Store {
      *
      * @param pdr PDR
      */
-    void learnFarIdToUeAddrs(PacketDetectionRule pdr);
+    void learnFarIdToUeAddr(PacketDetectionRule pdr);
 
     /**
-     * Returns the set of UE addresses associated with the given FAR ID.
+     * Returns the UE address associated with the given FAR ID.
      *
      * @param farId FAR ID
-     * @return Set of Ip4Address
+     * @return the Ip4Address assigned to UE
      */
-    Set<Ip4Address> ueAddrsOfFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
+    Ip4Address ueAddrOfFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
 
     /**
      * Removes the given UE address from the FAR ID to UE address map.
-     * @param ueAddr UE address
+     * @param pdr PDR
      */
-    void forgetUeAddr(Ip4Address ueAddr);
+    void forgetUeAddr(PacketDetectionRule pdr);
 
     /**
-     * Returns the FAR ID to UE addresses map.
+     * Returns the FAR ID to UE address map.
      *
-     * @return map
+     * @return mapping far id to ue address
      */
-    Map<ImmutablePair<ImmutableByteSequence, Integer>, Set<Ip4Address>> getFarIdToUeAddrs();
+    Map<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address> getFarIdsToUeAddrs();
+
+    /**
+     * Returns the UE to FAR ID address map.
+     *
+     * @return mapping ue to far id
+     */
+    Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> getReverseFarIdsToUeAddrs();
 
 }
