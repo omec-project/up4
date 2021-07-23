@@ -195,8 +195,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             synchronized (upfInitialized) {
                 if (reconciliationTask != null) {
                     reconciliationTask.cancel(false);
-                    reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
-                            new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
+                    if (upfInitialized.get()) {
+                        reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
+                                new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
+                    }
                 }
             }
         }
@@ -226,7 +228,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         piPipeconfService.removeListener(piPipeconfListener);
         flowRuleService.removeListener(flowRuleListener);
 
-        stopReconcile();
         eventExecutor.shutdownNow();
         reconciliationExecutor.shutdown();
 
