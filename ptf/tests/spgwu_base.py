@@ -184,7 +184,8 @@ class GtpuBaseTest(P4RuntimeTest):
                 },
             ))
 
-    def add_global_session(self, global_session_id=1025, n4_teid=1025, default_pdr_id=0,
+    # TODO: this is never used, should we remove it?
+    def add_global_session(self, n4_teid=1025, default_pdr_id=0,
                            default_far_id=0, default_ctr_id=0, n4_ip=None, smf_ip="192.168.1.52",
                            smf_mac="0a:0b:0c:0d:0e:0f", smf_port=None, miss_pdr_ctr_id=None,
                            dhcp_req_ctr_id=None):
@@ -206,12 +207,11 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_name="PreQosPipe.set_pdr_attributes", action_params={
                     "id": miss_pdr_id,
                     "ctr_id": self.miss_pdr_ctr_id,
-                    "fseid": global_session_id,
                     "far_id": drop_far_id,
                     "needs_gtpu_decap": False,
                     "needs_udp_decap": False,
                 }))
-        self.add_far(far_id=drop_far_id, session_id=global_session_id, drop=True)
+        self.add_far(far_id=drop_far_id, drop=True)
 
         # Redirect DHCP messages from UEs to the SMF via N4
         dhcp_req_pdr_id = self.unique_rule_id()
@@ -220,10 +220,10 @@ class GtpuBaseTest(P4RuntimeTest):
         towards_smf_far_id = self.unique_rule_id()
 
         self.add_pdr(pdr_id=dhcp_req_pdr_id, far_id=towards_smf_far_id,
-                     session_id=global_session_id, src_iface="ACCESS", ctr_id=self.dhcp_req_ctr_id,
+                     src_iface="ACCESS", ctr_id=self.dhcp_req_ctr_id,
                      inet_l4_port=DHCP_SERVER_PORT, needs_gtpu_decap=True)
 
-        self.add_far(far_id=towards_smf_far_id, session_id=global_session_id, tunnel=True,
+        self.add_far(far_id=towards_smf_far_id, tunnel=True,
                      teid=n4_teid, src_addr=n4_ip, dst_addr=smf_ip)
 
         self.add_routing_entry(ip_prefix=smf_ip + '/32', dst_mac=smf_mac, egress_port=smf_port)
@@ -299,7 +299,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
         # yapf: enable
 
-    def add_pdr(self, pdr_id, far_id, session_id, src_iface, ctr_id, ue_addr=None, ue_mask=None,
+    def add_pdr(self, pdr_id, far_id, src_iface, ctr_id, ue_addr=None, ue_mask=None,
                 teid=None, tunnel_dst_ip=None, inet_addr=None, inet_mask=None, ue_l4_port=None,
                 ue_l4_port_hi=None, inet_l4_port=None, inet_l4_port_hi=None, ip_proto=None,
                 ip_proto_mask=None, needs_gtpu_decap=False, priority=10):
@@ -331,7 +331,6 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_name="PreQosPipe.set_pdr_attributes",
                 action_params={
                     "id": pdr_id,
-                    "fseid": session_id,
                     "far_id": far_id,
                     "needs_gtpu_decap": needs_gtpu_decap,
                     "ctr_id": ctr_id,
@@ -339,15 +338,14 @@ class GtpuBaseTest(P4RuntimeTest):
                 priority=priority,
             ))
 
-    def remove_far(self, far_id, session_id):
+    def remove_far(self, far_id):
         self.delete(
             self.helper.build_table_entry(
                 table_name="PreQosPipe.fars", match_fields={
                     "far_id": far_id,
-                    "session_id": session_id,
                 }))
 
-    def add_far(self, far_id, session_id, drop=False, notify_cp=False, tunnel=False,
+    def add_far(self, far_id, drop=False, notify_cp=False, tunnel=False,
                 tunnel_type="GTPU", teid=None, src_addr=None, dst_addr=None, sport=2152,
                 buffer=False):
 
@@ -377,16 +375,13 @@ class GtpuBaseTest(P4RuntimeTest):
             self.helper.build_table_entry(
                 table_name="PreQosPipe.load_far_attributes", match_fields={
                     "far_id": far_id,
-                    "session_id": session_id,
                 }, action_name=action_name, action_params=action_params))
 
     def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                   session_id=None, pdr_id=None, far_id=None):
+                                   pdr_id=None, far_id=None):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
         """
-        if session_id is None:
-            session_id = random.randint(0, 1023)
 
         inner_pkt = pkt[gtp.GTP_U_Header].payload
 
@@ -410,7 +405,6 @@ class GtpuBaseTest(P4RuntimeTest):
         self.add_pdr(
             pdr_id=pdr_id,
             far_id=far_id,
-            session_id=session_id,
             src_iface="ACCESS",
             ctr_id=ctr_id,
             ue_addr=inner_pkt[IP].src,
@@ -421,18 +415,16 @@ class GtpuBaseTest(P4RuntimeTest):
             needs_gtpu_decap=True,
         )
 
-        self.add_far(far_id=far_id, session_id=session_id, drop=drop)
+        self.add_far(far_id=far_id, drop=drop)
         if not drop:
             self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', src_mac=exp_pkt[Ether].src,
                                    dst_mac=exp_pkt[Ether].dst, egress_port=outport)
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                     buffer=False, session_id=None, pdr_id=None, far_id=None):
+                                     buffer=False, pdr_id=None, far_id=None):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
-        if session_id is None:
-            session_id = random.randint(0, 1023)
 
         # pkt should not be encapsulated, but exp_pkt should be
         if gtp.GTP_U_Header in pkt:
@@ -461,7 +453,6 @@ class GtpuBaseTest(P4RuntimeTest):
         self.add_pdr(
             pdr_id=pdr_id,
             far_id=far_id,
-            session_id=session_id,
             src_iface="CORE",
             ctr_id=ctr_id,
             ue_addr=pkt[IP].dst,
@@ -472,7 +463,7 @@ class GtpuBaseTest(P4RuntimeTest):
             needs_gtpu_decap=False,
         )
 
-        self.add_far(far_id=far_id, session_id=session_id, drop=drop, buffer=buffer, tunnel=True,
+        self.add_far(far_id=far_id, drop=drop, buffer=buffer, tunnel=True,
                      teid=exp_pkt[gtp.GTP_U_Header].teid, src_addr=exp_pkt[IP].src,
                      dst_addr=exp_pkt[IP].dst)
         if not drop:

@@ -55,18 +55,12 @@ typedef bit<32> teid_t;
 typedef bit<64> seid_t;
 // F-TEID = (4-byte)TEID + GTP endpoint (gnodeb OR UPF) address
 typedef bit<64> fteid_t;
-// F-SEID = 8-byte SEID + UPF IP(v4/v6) address
-typedef bit<96> fseid_t;
-// In hardware the full F-TEID and F-SEIDs should be replaced by shorter
-// unique identifiers to reduce memory. The slow path can maintain the
-// short ID <--> F-TEID/F-SEID mapping.
 
 
 const pdr_id_t DEFAULT_PDR_ID = 0;
 const far_id_t DEFAULT_FAR_ID = 0;
 const qer_id_t DEFAULT_QER_ID = 0;
 const qfi_t    DEFAULT_QFI    = 0;
-const fseid_t  DEFAULT_FSEID  = 0;
 
 //------------------------------------------------------------------------------
 // ENUMS

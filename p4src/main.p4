@@ -199,7 +199,7 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         // Send digest. This is equivalent to a PFCP Downlink Data Notification (DDN), used to
         // notify control plane to initiate the paging procedure to locate and wake-up the UE.
         // FIXME: what is the first argument 1 used for?
-        digest<ddn_digest_t>(1, { local_meta.fseid });
+        digest<ddn_digest_t>(1, { local_meta.far.id }); // TODO: I believe this is wrong, what should we pass in DDN?
         // The actual buffering cannot be expressed in the logical pipeline.
         mark_to_drop(std_meta);
         exit;
@@ -280,28 +280,25 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     }
 
     action set_pdr_attributes(pdr_id_t          id,
-                              fseid_t           fseid,
                               counter_index_t   ctr_id,
                               far_id_t          far_id,
                               bit<1>            needs_gtpu_decap
                              )
     {
         local_meta.pdr.id       = id;
-        local_meta.fseid        = fseid;
         local_meta.pdr.ctr_idx  = ctr_id;
         local_meta.far.id       = far_id;
         local_meta.needs_gtpu_decap     = (bool)needs_gtpu_decap;
     }
 
     action set_pdr_attributes_qos(pdr_id_t                 id,
-                                  fseid_t                  fseid,
                                   counter_index_t          ctr_id,
                                   far_id_t                 far_id,
                                   scheduling_priority_t    scheduling_priority,
                                   bit<1>                   needs_gtpu_decap
                                  )
     {
-        set_pdr_attributes(id, fseid, ctr_id, far_id, needs_gtpu_decap);
+        set_pdr_attributes(id, ctr_id, far_id, needs_gtpu_decap);
         local_meta.scheduling_priority     = scheduling_priority;
     }
 
@@ -356,7 +353,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     table load_far_attributes {
         key = {
             local_meta.far.id : exact      @name("far_id");
-            local_meta.fseid  : exact      @name("session_id");
         }
         actions = {
             load_normal_far_attributes;

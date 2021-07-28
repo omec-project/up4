@@ -223,12 +223,6 @@ tables {
     bitwidth: 32
     match_type: EXACT
   }
-  match_fields {
-    id: 2
-    name: "session_id"
-    bitwidth: 96
-    match_type: EXACT
-  }
   action_refs {
     id: 25716083
   }
@@ -377,21 +371,16 @@ actions {
   }
   params {
     id: 2
-    name: "fseid"
-    bitwidth: 96
-  }
-  params {
-    id: 3
     name: "ctr_id"
     bitwidth: 32
   }
   params {
-    id: 4
+    id: 3
     name: "far_id"
     bitwidth: 32
   }
   params {
-    id: 5
+    id: 4
     name: "needs_gtpu_decap"
     bitwidth: 1
   }
@@ -409,26 +398,21 @@ actions {
   }
   params {
     id: 2
-    name: "fseid"
-    bitwidth: 96
-  }
-  params {
-    id: 3
     name: "ctr_id"
     bitwidth: 32
   }
   params {
-    id: 4
+    id: 3
     name: "far_id"
     bitwidth: 32
   }
   params {
-    id: 5
+    id: 4
     name: "scheduling_priority"
     bitwidth: 32
   }
   params {
-    id: 6
+    id: 5
     name: "needs_gtpu_decap"
     bitwidth: 1
   }
@@ -588,11 +572,11 @@ type_info {
     key: "ddn_digest_t"
     value {
       members {
-        name: "fseid"
+        name: "far_id"
         type_spec {
           bitstring {
             bit {
-              bitwidth: 96
+              bitwidth: 32
             }
           }
         }

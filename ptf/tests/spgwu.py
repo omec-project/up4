@@ -29,7 +29,7 @@ from unittest import skip
 from extra_headers import CpuHeader
 
 CPU_CLONE_SESSION_ID = 99
-FSEID_BITWIDTH = 96
+FARID_BITWIDTH = 32
 UE_IPV4 = "17.0.0.1"
 ENODEB_IPV4 = "140.0.100.1"
 S1U_IPV4 = "140.0.100.2"
@@ -228,6 +228,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
 
 
+# TODO: fix, far_id is not enough for DDN?
 class GtpuDdnDigestTest(GtpuBaseTest):
     """ Tests that the switch sends digests for buffering FARs.
     """
@@ -243,7 +244,7 @@ class GtpuDdnDigestTest(GtpuBaseTest):
 
     @autocleanup
     def testPacket(self, pkt):
-        # Wait up to 1 seconds before sending duplicate digests for the same FSEID.
+        # Wait up to 1 seconds before sending duplicate digests for the same FARID.
         self.set_up_ddn_digest(ack_timeout_ns=1 * 10**9)
 
         # Build the expected encapsulated pkt that we would receive as output without buffering.
@@ -257,9 +258,9 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # Program all the tables.
-        fseid = 0xBEEF
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, buffer=True,
-                                          session_id=fseid)
+        far_id = 0xBEEF
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id,
+                                          far_id=far_id, buffer=True)
 
         # Read pre and post-QoS packet and byte counters.
         self.read_pdr_counters(ctr_id)
@@ -270,7 +271,7 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
         # Verify that we have received the DDN digest
         exp_digest_data = self.helper.build_p4data_struct(
-            [self.helper.build_p4data_bitstring(encode(fseid, FSEID_BITWIDTH))])
+            [self.helper.build_p4data_bitstring(encode(far_id, FARID_BITWIDTH))])
         self.verify_digest_list("ddn_digest_t", exp_digest_data)
 
         # Send 2nd packet immediately, verify counter increase but NO digest should be generated.

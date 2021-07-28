@@ -122,7 +122,7 @@ struct bar_metadata_t {
 }
 
 struct ddn_digest_t {
-    fseid_t  fseid;
+    far_id_t  far_id;
 }
 
 
@@ -153,8 +153,6 @@ struct local_metadata_t {
     teid_t teid;    // local Tunnel ID.  F-TEID = TEID + GTP endpoint address
     // seid_t seid; // local Session ID. F-SEID = SEID + GTP endpoint address
 
-    // fteid_t fteid;
-    fseid_t fseid;
     scheduling_priority_t scheduling_priority;
 
     ipv4_addr_t next_hop_ip;
