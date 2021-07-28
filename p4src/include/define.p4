@@ -68,10 +68,6 @@ typedef bit<96> fseid_t;
 // unique identifiers to reduce memory. The slow path can maintain the
 // short ID <--> F-TEID/F-SEID mapping.
 
-typedef bit<4> slice_t;
-typedef bit<2> tc_t;
-typedef bit<6> slice_tc_t;
-
 const pdr_id_t DEFAULT_PDR_ID = 0;
 const far_id_t DEFAULT_FAR_ID = 0;
 const qer_id_t DEFAULT_QER_ID = 0;

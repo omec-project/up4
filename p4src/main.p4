@@ -332,18 +332,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.needs_gtpu_decap     = (bool)needs_gtpu_decap;
     }
 
-    action set_pdr_attributes_qos(pdr_id_t          id,
-                                  fseid_t           fseid,
-                                  counter_index_t   ctr_id,
-                                  far_id_t          far_id,
-                                  tc_t              tc,
-                                  bit<1>            needs_gtpu_decap
-                                 )
-    {
-        set_pdr_attributes(id, fseid, ctr_id, far_id, needs_gtpu_decap);
-        local_meta.tc = tc;
-    }
-
     // Contains PDRs for both the Uplink and Downlink Direction
     // One PDR's match conditions are made of PDI and a set of 5-tuple filters (SDFs).
     // The PDR matches if the PDI and any of the SDFs match, but 'filter1 or filter2' cannot be
@@ -367,7 +355,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         }
         actions = {
             set_pdr_attributes;
-            set_pdr_attributes_qos;
         }
     }
 
