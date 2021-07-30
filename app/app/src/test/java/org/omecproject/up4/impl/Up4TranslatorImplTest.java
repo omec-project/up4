@@ -33,11 +33,11 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
-    public void up4EntryToUplinkPriorityPdrTest() {
-        PacketDetectionRule expectedPdr = TestImplConstants.UPLINK_PRIORITY_PDR;
+    public void up4EntryToUplinkQosPdrTest() {
+        PacketDetectionRule expectedPdr = TestImplConstants.UPLINK_QOS_PDR;
         PacketDetectionRule translatedPdr;
         try {
-            translatedPdr = up4Translator.up4EntryToPdr(TestImplConstants.UP4_UPLINK_PRIORITY_PDR);
+            translatedPdr = up4Translator.up4EntryToPdr(TestImplConstants.UP4_UPLINK_QOS_PDR);
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("UP4 uplink PDR should translate to abstract PDR without error.", false);
             return;
@@ -164,11 +164,11 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
-    public void uplinkPriorityPdrToUp4EntryTest() {
+    public void uplinkQosPdrToUp4EntryTest() {
         PiTableEntry translatedRule;
-        PiTableEntry expectedRule = TestImplConstants.UP4_UPLINK_PRIORITY_PDR;
+        PiTableEntry expectedRule = TestImplConstants.UP4_UPLINK_QOS_PDR;
         try {
-            translatedRule = up4Translator.pdrToUp4Entry(TestImplConstants.UPLINK_PRIORITY_PDR);
+            translatedRule = up4Translator.pdrToUp4Entry(TestImplConstants.UPLINK_QOS_PDR);
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("Abstract uplink PDR should correctly translate to UP4 PDR without error",
                        false);
@@ -192,11 +192,11 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
-    public void downlinkPriorityPdrToUp4EntryTest() {
+    public void downlinkQosPdrToUp4EntryTest() {
         PiTableEntry translatedRule;
-        PiTableEntry expectedRule = TestImplConstants.UP4_DOWNLINK_PRIORITY_PDR;
+        PiTableEntry expectedRule = TestImplConstants.UP4_DOWNLINK_QOS_PDR;
         try {
-            translatedRule = up4Translator.pdrToUp4Entry(TestImplConstants.DOWNLINK_PRIORITY_PDR);
+            translatedRule = up4Translator.pdrToUp4Entry(TestImplConstants.DOWNLINK_QOS_PDR);
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("Abstract downlink PDR should correctly translate to UP4 PDR without error",
                        false);

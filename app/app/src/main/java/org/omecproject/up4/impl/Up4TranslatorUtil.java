@@ -15,6 +15,7 @@ import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiExactFieldMatch;
 import org.onosproject.net.pi.runtime.PiFieldMatch;
 import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
+import org.onosproject.net.pi.runtime.PiOptionalFieldMatch;
 import org.onosproject.net.pi.runtime.PiRangeFieldMatch;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
@@ -45,6 +46,8 @@ final class Up4TranslatorUtil {
             return ((PiTernaryFieldMatch) field).value();
         } else if (field.type() == PiMatchType.RANGE) {
             return ((PiRangeFieldMatch) field).lowValue();
+        } else if (field.type() == PiMatchType.OPTIONAL) {
+            return ((PiOptionalFieldMatch) field).value();
         } else {
             throw new Up4TranslatorImpl.Up4TranslationException(
                     String.format("Field %s has unknown match type: %s", fieldId.toString(), field.type().toString()));
@@ -73,14 +76,28 @@ final class Up4TranslatorUtil {
         return getParamValue((PiAction) entry.action(), paramId);
     }
 
+    static boolean fieldIsPresent(PiTableEntry entry, PiMatchFieldId fieldId) {
+        return entry.matchKey().fieldMatch(fieldId).isPresent();
+    }
+
     static int getFieldInt(PiTableEntry entry, PiMatchFieldId fieldId)
             throws Up4TranslatorImpl.Up4TranslationException {
         return byteSeqToInt(getFieldValue(entry, fieldId));
     }
 
+    static byte getFieldByte(PiTableEntry entry, PiMatchFieldId fieldId)
+            throws Up4TranslatorImpl.Up4TranslationException {
+        return byteSeqToByte(getFieldValue(entry, fieldId));
+    }
+
     static int getParamInt(PiTableEntry entry, PiActionParamId paramId)
             throws Up4TranslatorImpl.Up4TranslationException {
         return byteSeqToInt(getParamValue(entry, paramId));
+    }
+
+    static byte getParamByte(PiTableEntry entry, PiActionParamId paramId)
+            throws Up4TranslatorImpl.Up4TranslationException {
+        return byteSeqToByte(getParamValue(entry, paramId));
     }
 
     static Ip4Address getParamAddress(PiTableEntry entry, PiActionParamId paramId)
@@ -108,6 +125,14 @@ final class Up4TranslatorUtil {
             return sequence.fit(32).asReadOnlyBuffer().getInt();
         } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
             throw new IllegalArgumentException("Attempted to convert a >4 byte wide sequence to an integer!");
+        }
+    }
+
+    static byte byteSeqToByte(ImmutableByteSequence sequence) {
+        try {
+            return sequence.fit(8).asReadOnlyBuffer().get();
+        } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
+            throw new IllegalArgumentException("Attempted to convert a >1 byte wide sequence to an byte!");
         }
     }
 }

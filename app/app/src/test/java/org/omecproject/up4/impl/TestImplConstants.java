@@ -18,6 +18,7 @@ import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiExactFieldMatch;
 import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
 import org.onosproject.net.pi.runtime.PiMatchKey;
+import org.onosproject.net.pi.runtime.PiOptionalFieldMatch;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 
@@ -38,11 +39,8 @@ public final class TestImplConstants {
     public static final int DOWNLINK_FAR_ID = 2;
     public static final int DOWNLINK_PHYSICAL_FAR_ID = 5;
 
-    public static final int UPLINK_PRIORITY = 9;
-    public static final int DOWNLINK_PRIORITY = 1;
-    public static final int UPLINK_QID = 1;
-    public static final int DOWNLINK_QID = 5;
-    public static final int DEFAULT_SCHEDULING_PRIORITY = 0;
+    public static final byte UPLINK_QFI = 1;
+    public static final byte DOWNLINK_QFI = 5;
 
     public static final ImmutableByteSequence TEID = ImmutableByteSequence.copyFrom(0xff);
     public static final Ip4Address UE_ADDR = Ip4Address.valueOf("17.0.0.1");
@@ -68,7 +66,6 @@ public final class TestImplConstants {
             .withLocalFarId(UPLINK_FAR_ID)
             .withSessionId(SESSION_ID)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
-            .withSchedulingPriority(DEFAULT_SCHEDULING_PRIORITY)
             .build();
 
     public static final PacketDetectionRule DOWNLINK_PDR = PacketDetectionRule.builder()
@@ -76,24 +73,23 @@ public final class TestImplConstants {
             .withLocalFarId(DOWNLINK_FAR_ID)
             .withSessionId(SESSION_ID)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
-            .withSchedulingPriority(DEFAULT_SCHEDULING_PRIORITY)
             .build();
 
-    public static final PacketDetectionRule UPLINK_PRIORITY_PDR = PacketDetectionRule.builder()
+    public static final PacketDetectionRule UPLINK_QOS_PDR = PacketDetectionRule.builder()
             .withTunnelDst(S1U_ADDR)
             .withTeid(TEID)
             .withLocalFarId(UPLINK_FAR_ID)
             .withSessionId(SESSION_ID)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
-            .withSchedulingPriority(UPLINK_PRIORITY)
+            .withQfi(UPLINK_QFI)
             .build();
 
-    public static final PacketDetectionRule DOWNLINK_PRIORITY_PDR = PacketDetectionRule.builder()
+    public static final PacketDetectionRule DOWNLINK_QOS_PDR = PacketDetectionRule.builder()
             .withUeAddr(UE_ADDR)
             .withLocalFarId(DOWNLINK_FAR_ID)
             .withSessionId(SESSION_ID)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
-            .withSchedulingPriority(DOWNLINK_PRIORITY)
+            .withQfiPush(DOWNLINK_QFI)
             .build();
 
     public static final ForwardingActionRule UPLINK_FAR = ForwardingActionRule.builder()
@@ -110,7 +106,7 @@ public final class TestImplConstants {
 
     public static final UpfInterface DOWNLINK_INTERFACE = UpfInterface.createUePoolFrom(UE_POOL);
 
-    public static final PiTableEntry UP4_UPLINK_PRIORITY_PDR = PiTableEntry.builder()
+    public static final PiTableEntry UP4_UPLINK_QOS_PDR = PiTableEntry.builder()
             .forTable(Up4P4InfoConstants.PDR_TBL)
             .withMatchKey(PiMatchKey.builder()
                                   .addFieldMatch(new PiExactFieldMatch(
@@ -121,37 +117,44 @@ public final class TestImplConstants {
                                   .addFieldMatch(new PiTernaryFieldMatch(
                                           Up4P4InfoConstants.TUNNEL_DST_KEY,
                                           ImmutableByteSequence.copyFrom(S1U_ADDR.toOctets()), ALL_ONES_32))
+                                  .addFieldMatch(new PiOptionalFieldMatch(
+                                          Up4P4InfoConstants.HAS_QFI_KEY,
+                                          TRUE_BYTE
+                                  ))
+                                  .addFieldMatch(new PiOptionalFieldMatch(
+                                          Up4P4InfoConstants.QFI_KEY,
+                                          ImmutableByteSequence.copyFrom(UPLINK_QFI)
+                                  ))
                                   .build())
             .withAction(PiAction.builder()
-                                .withId(Up4P4InfoConstants.LOAD_PDR_QOS)
+                                .withId(Up4P4InfoConstants.LOAD_PDR)
                                 .withParameters(Arrays.asList(
                                         new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, SESSION_ID),
                                         new PiActionParam(Up4P4InfoConstants.CTR_ID, UPLINK_COUNTER_CELL_ID),
                                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, UPLINK_FAR_ID),
-                                        new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, TRUE_BYTE),
-                                        new PiActionParam(Up4P4InfoConstants.SCHEDULING_PRIORITY, UPLINK_PRIORITY)
+                                        new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, TRUE_BYTE)
                                 ))
                                 .build())
             .build();
 
-    public static final PiTableEntry UP4_DOWNLINK_PRIORITY_PDR = PiTableEntry.builder()
+    public static final PiTableEntry UP4_DOWNLINK_QOS_PDR = PiTableEntry.builder()
             .forTable(Up4P4InfoConstants.PDR_TBL)
             .withMatchKey(PiMatchKey.builder()
                                   .addFieldMatch(new PiExactFieldMatch(
                                           Up4P4InfoConstants.SRC_IFACE_KEY,
-                                          ImmutableByteSequence.copyFrom((byte) Up4P4InfoConstants.IFACE_CORE)))
+                                          ImmutableByteSequence.copyFrom(Up4P4InfoConstants.IFACE_CORE)))
                                   .addFieldMatch(new PiTernaryFieldMatch(
                                           Up4P4InfoConstants.UE_ADDR_KEY,
                                           ImmutableByteSequence.copyFrom(UE_ADDR.toOctets()), ALL_ONES_32))
                                   .build())
             .withAction(PiAction.builder()
-                                .withId(Up4P4InfoConstants.LOAD_PDR_QOS)
+                                .withId(Up4P4InfoConstants.LOAD_PDR_QOS_DOWN)
                                 .withParameters(Arrays.asList(
                                         new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, SESSION_ID),
                                         new PiActionParam(Up4P4InfoConstants.CTR_ID, DOWNLINK_COUNTER_CELL_ID),
                                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, DOWNLINK_FAR_ID),
                                         new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, FALSE_BYTE),
-                                        new PiActionParam(Up4P4InfoConstants.SCHEDULING_PRIORITY, DOWNLINK_PRIORITY)
+                                        new PiActionParam(Up4P4InfoConstants.QFI, DOWNLINK_QFI)
                                 ))
                                 .build())
             .build();

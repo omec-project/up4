@@ -131,6 +131,7 @@ struct parsed_headers_t {
 struct pdr_metadata_t {
     pdr_id_t id;
     counter_index_t ctr_idx;
+    bit<6> tunnel_out_qfi;
 }
 
 // Data associated with Buffering and BARs
@@ -156,14 +157,11 @@ struct far_metadata_t {
     bool needs_tunneling;
     bool notify_cp;
 
-    bool needs_ext_psc; // used to signal gtpu encap with PSC extension
-
     TunnelType  tunnel_out_type;
     ipv4_addr_t tunnel_out_src_ipv4_addr;
     ipv4_addr_t tunnel_out_dst_ipv4_addr;
     L4Port      tunnel_out_udp_sport;
     teid_t      tunnel_out_teid;
-    bit<6>      tunnel_out_qfi;
 
     ipv4_addr_t next_hop_ip;
 }
@@ -184,6 +182,7 @@ struct local_metadata_t {
     bool needs_gtpu_decap;
     bool needs_udp_decap; // unused
     bool needs_vlan_removal; // unused
+    bool needs_ext_psc; // used to signal gtpu encap with PSC extension
 
     InterfaceType src_iface;
     InterfaceType dst_iface; // unused

@@ -355,8 +355,8 @@ class AclPuntTest(GtpuBaseTest):
 
 @group("gtpu")
 class GtpuEncapPscDownlinkTest(GtpuBaseTest):
-    """ Tests that a packet received from the internet/core gets encapsulated and forwarded
-        with PDU Session Container extension header.
+    """ Tests that a packet received from the internet/core gets encapsulated
+        and forwarded with PDU Session Container extension header.
     """
 
     def runTest(self):

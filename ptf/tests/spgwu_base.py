@@ -203,6 +203,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 },
             ))
 
+    # TODO: never used, we should remove
     def add_global_session(self, global_session_id=1025, n4_teid=1025, default_pdr_id=0,
                            default_far_id=0, default_ctr_id=0, n4_ip=None, smf_ip="192.168.1.52",
                            smf_mac="0a:0b:0c:0d:0e:0f", smf_port=None, miss_pdr_ctr_id=None,
@@ -321,12 +322,20 @@ class GtpuBaseTest(P4RuntimeTest):
     def add_pdr(self, pdr_id, far_id, session_id, src_iface, ctr_id, ue_addr=None, ue_mask=None,
                 teid=None, tunnel_dst_ip=None, inet_addr=None, inet_mask=None, ue_l4_port=None,
                 ue_l4_port_hi=None, inet_l4_port=None, inet_l4_port_hi=None, ip_proto=None,
-                qfi=None, ip_proto_mask=None, needs_gtpu_decap=False, priority=10):
+                qfi=None, ip_proto_mask=None, needs_gtpu_decap=False, priority=10, direction="UPLINK"):
 
         ALL_ONES_32 = (1 << 32) - 1
         ALL_ONES_8 = (1 << 8) - 1
 
+        qos_down = False
         _src_iface = self.helper.get_enum_member_val("InterfaceType", src_iface)
+        action_params = {
+            "id": pdr_id,
+            "fseid": session_id,
+            "far_id": far_id,
+            "needs_gtpu_decap": needs_gtpu_decap,
+            "ctr_id": ctr_id,
+        }
         match_fields = {"src_iface": _src_iface}
         if ue_addr is not None:
             match_fields["ue_addr"] = (ue_addr, ue_mask or ALL_ONES_32)
@@ -343,21 +352,19 @@ class GtpuBaseTest(P4RuntimeTest):
         if tunnel_dst_ip is not None:
             match_fields["tunnel_ipv4_dst"] = (tunnel_dst_ip, ALL_ONES_32)
         if qfi is not None:
-            match_fields["psc_ext_presence"] = True
-            match_fields["qfi"] = qfi
+            if direction is "DOWNLINK":
+                qos_down = True
+                action_params["qfi"] = qfi
+            else:
+                match_fields["has_qfi"] = True
+                match_fields["qfi"] = qfi
 
         self.insert(
             self.helper.build_table_entry(
                 table_name="PreQosPipe.pdrs",
                 match_fields=match_fields,
-                action_name="PreQosPipe.set_pdr_attributes",
-                action_params={
-                    "id": pdr_id,
-                    "fseid": session_id,
-                    "far_id": far_id,
-                    "needs_gtpu_decap": needs_gtpu_decap,
-                    "ctr_id": ctr_id,
-                },
+                action_name="PreQosPipe.set_pdr_attributes_qos_down" if qos_down else "PreQosPipe.set_pdr_attributes",
+                action_params=action_params,
                 priority=priority,
             ))
 
@@ -371,7 +378,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
     def add_far(self, far_id, session_id, drop=False, notify_cp=False, tunnel=False,
                 tunnel_type="GTPU", teid=None, src_addr=None, dst_addr=None, sport=2152,
-                buffer=False, qfi=None):
+                buffer=False):
 
         if tunnel:
             if (None in [src_addr, dst_addr, sport]):
@@ -390,11 +397,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 "teid": teid,
                 "sport": sport,
             }
-            if qfi:
-                action_params["qfi"] = qfi
-                action_name = "PreQosPipe.load_tunnel_far_attributes_qfi"
-            else:
-                action_name = "PreQosPipe.load_tunnel_far_attributes"
+            action_name = "PreQosPipe.load_tunnel_far_attributes"
         else:
             action_params = {"needs_dropping": drop, "notify_cp": notify_cp}
             action_name = "PreQosPipe.load_normal_far_attributes"
@@ -446,6 +449,7 @@ class GtpuBaseTest(P4RuntimeTest):
             ip_proto=inner_pkt[IP].proto,
             qfi=qfi,
             needs_gtpu_decap=True,
+            direction="UPLINK",
         )
 
         self.add_far(far_id=far_id, session_id=session_id, drop=drop)
@@ -498,11 +502,13 @@ class GtpuBaseTest(P4RuntimeTest):
             inet_l4_port=inet_l4_port,
             ip_proto=pkt[IP].proto,
             needs_gtpu_decap=False,
+            qfi=qfi,
+            direction="DOWNLINK",
         )
 
         self.add_far(far_id=far_id, session_id=session_id, drop=drop, buffer=buffer, tunnel=True,
                      teid=exp_pkt[gtp.GTP_U_Header].teid, src_addr=exp_pkt[IP].src,
-                     dst_addr=exp_pkt[IP].dst, qfi=qfi)
+                     dst_addr=exp_pkt[IP].dst)
         if not drop:
             self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', src_mac=exp_pkt[Ether].src,
                                    dst_mac=exp_pkt[Ether].dst, egress_port=outport)

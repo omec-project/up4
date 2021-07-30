@@ -16,12 +16,19 @@ import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiExactFieldMatch;
 import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
 import org.onosproject.net.pi.runtime.PiMatchKey;
+import org.onosproject.net.pi.runtime.PiOptionalFieldMatch;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+
+import static org.omecproject.up4.impl.Up4P4InfoConstants.HAS_QFI_KEY;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.LOAD_PDR;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.LOAD_PDR_QOS_DOWN;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.QFI;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.QFI_KEY;
 
 /**
  * Utility class for transforming PiTableEntries to classes more specific to the UPF pipelines,
@@ -32,6 +39,9 @@ public class Up4TranslatorImpl implements Up4Translator {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
+
+    public static final byte FALSE = (byte) 0x00;
+    public static final byte TRUE = (byte) 0x01;
 
     @Override
     public boolean isUp4Pdr(PiTableEntry entry) {
@@ -58,6 +68,11 @@ public class Up4TranslatorImpl implements Up4Translator {
             // GTP-matching PDRs will match on the F-TEID (tunnel destination address + TEID)
             pdrBuilder.withTunnel(Up4TranslatorUtil.getFieldValue(entry, Up4P4InfoConstants.TEID_KEY),
                                   Up4TranslatorUtil.getFieldAddress(entry, Up4P4InfoConstants.TUNNEL_DST_KEY));
+            if (Up4TranslatorUtil.fieldIsPresent(entry, HAS_QFI_KEY) &&
+                    Up4TranslatorUtil.fieldIsPresent(entry, QFI_KEY) &&
+                    Up4TranslatorUtil.getFieldByte(entry, HAS_QFI_KEY) == TRUE) {
+                pdrBuilder.withQfi(Up4TranslatorUtil.getFieldByte(entry, QFI_KEY));
+            }
         } else if (srcInterface == Up4P4InfoConstants.IFACE_CORE) {
             // Non-GTP-matching PDRs will match on the UE address
             pdrBuilder.withUeAddr(Up4TranslatorUtil.getFieldAddress(entry, Up4P4InfoConstants.UE_ADDR_KEY));
@@ -73,23 +88,21 @@ public class Up4TranslatorImpl implements Up4Translator {
                     entry, Up4P4InfoConstants.SESSION_ID_PARAM);
             int localFarId = Up4TranslatorUtil.getParamInt(
                     entry, Up4P4InfoConstants.FAR_ID_PARAM);
-            int schedulingPriority = 0;
             pdrBuilder.withSessionId(sessionId)
                     .withCounterId(Up4TranslatorUtil.getParamInt(
                             entry, Up4P4InfoConstants.CTR_ID))
-                    .withLocalFarId(localFarId)
-                    .withSchedulingPriority(schedulingPriority);
-        } else if (actionId.equals(Up4P4InfoConstants.LOAD_PDR_QOS) && !action.parameters().isEmpty()) {
+                    .withLocalFarId(localFarId);
+        } else if (actionId.equals(Up4P4InfoConstants.LOAD_PDR_QOS_DOWN) && !action.parameters().isEmpty()) {
             ImmutableByteSequence sessionId = Up4TranslatorUtil.getParamValue(
                     entry, Up4P4InfoConstants.SESSION_ID_PARAM);
             int localFarId = Up4TranslatorUtil.getParamInt(entry, Up4P4InfoConstants.FAR_ID_PARAM);
-            int schedulingPriority = Up4TranslatorUtil.getParamInt(
-                    entry, Up4P4InfoConstants.SCHEDULING_PRIORITY);
+            byte qfi = Up4TranslatorUtil.getParamByte(
+                    entry, Up4P4InfoConstants.QFI);
             pdrBuilder.withSessionId(sessionId)
                     .withCounterId(Up4TranslatorUtil.getParamInt(
                             entry, Up4P4InfoConstants.CTR_ID))
                     .withLocalFarId(localFarId)
-                    .withSchedulingPriority(schedulingPriority);
+                    .withQfiPush(qfi);
         }
         return pdrBuilder.build();
     }
@@ -117,7 +130,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             farBuilder.setDropFlag(dropFlag).setNotifyFlag(notifyFlag);
             if (tunnelFlag) {
                 // Parameters exclusive to encapsulating FARs
-                bufferFlag = Up4TranslatorUtil.getParamInt(entry, Up4P4InfoConstants.BUFFER_FLAG) > 0;
+                bufferFlag = Up4TranslatorUtil.getParamByte(entry, Up4P4InfoConstants.BUFFER_FLAG) == TRUE;
                 farBuilder.setTunnel(
                         Up4TranslatorUtil.getParamAddress(entry, Up4P4InfoConstants.TUNNEL_SRC_PARAM),
                         Up4TranslatorUtil.getParamAddress(entry, Up4P4InfoConstants.TUNNEL_DST_PARAM),
@@ -200,12 +213,19 @@ public class Up4TranslatorImpl implements Up4Translator {
 
     @Override
     public PiTableEntry pdrToUp4Entry(PacketDetectionRule pdr) throws Up4TranslationException {
-        PiMatchKey matchKey;
-        PiAction action;
-        int decapFlag;
+        PiMatchKey.Builder matchBuilder;
+        PiActionId actionId = LOAD_PDR;
+        byte decapFlag;
+        // FIXME: pdr_id is not yet stored on writes so it cannot be read
+        PiAction.Builder actionBuilder = PiAction.builder()
+                .withParameters(Arrays.asList(
+                        new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, pdr.sessionId()),
+                        new PiActionParam(Up4P4InfoConstants.CTR_ID, pdr.counterId()),
+                        new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, pdr.farId())
+                ));
         if (pdr.matchesEncapped()) {
-            decapFlag = 1;
-            matchKey = PiMatchKey.builder()
+            decapFlag = TRUE;
+            matchBuilder = PiMatchKey.builder()
                     .addFieldMatch(new PiExactFieldMatch(
                             Up4P4InfoConstants.SRC_IFACE_KEY,
                             toImmutableByte(Up4P4InfoConstants.IFACE_ACCESS)))
@@ -213,41 +233,34 @@ public class Up4TranslatorImpl implements Up4Translator {
                             Up4P4InfoConstants.TEID_KEY, pdr.teid(), allOnes32))
                     .addFieldMatch(new PiTernaryFieldMatch(
                             Up4P4InfoConstants.TUNNEL_DST_KEY,
-                            ImmutableByteSequence.copyFrom(pdr.tunnelDest().toOctets()), allOnes32))
-                    .build();
+                            ImmutableByteSequence.copyFrom(pdr.tunnelDest().toOctets()), allOnes32));
+            if (pdr.hasQfi()) {
+                matchBuilder
+                        .addFieldMatch(new PiOptionalFieldMatch(
+                                HAS_QFI_KEY, ImmutableByteSequence.copyFrom(TRUE)))
+                        .addFieldMatch(new PiOptionalFieldMatch(
+                                QFI_KEY, ImmutableByteSequence.copyFrom(pdr.qfi())));
+            }
         } else {
-            decapFlag = 0;
-            matchKey = PiMatchKey.builder()
+            decapFlag = FALSE;
+            matchBuilder = PiMatchKey.builder()
                     .addFieldMatch(new PiExactFieldMatch(
                             Up4P4InfoConstants.SRC_IFACE_KEY,
                             toImmutableByte(Up4P4InfoConstants.IFACE_CORE)))
                     .addFieldMatch(new PiTernaryFieldMatch(
                             Up4P4InfoConstants.UE_ADDR_KEY,
-                            ImmutableByteSequence.copyFrom(pdr.ueAddress().toOctets()), allOnes32))
-                    .build();
+                            ImmutableByteSequence.copyFrom(pdr.ueAddress().toOctets()), allOnes32));
+            if (pdr.hasQfi()) {
+                actionId = LOAD_PDR_QOS_DOWN;
+                actionBuilder.withParameter(new PiActionParam(QFI, pdr.qfi()));
+            }
         }
-        // FIXME: pdr_id is not yet stored on writes so it cannot be read
-        PiAction.Builder builder = PiAction.builder()
-                .withParameters(Arrays.asList(
-                        new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, pdr.sessionId()),
-                        new PiActionParam(Up4P4InfoConstants.CTR_ID, pdr.counterId()),
-                        new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, pdr.farId()),
-                        new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, toImmutableByte(decapFlag))
-                ));
-        if (pdr.hasSchedulingPriority()) {
-            action = builder
-                    .withId(Up4P4InfoConstants.LOAD_PDR_QOS)
-                    .withParameter(new PiActionParam(Up4P4InfoConstants.SCHEDULING_PRIORITY, pdr.schedulingPriority()))
-                    .build();
-        } else {
-            action = builder
-                    .withId(Up4P4InfoConstants.LOAD_PDR)
-                    .build();
-        }
+        actionBuilder.withParameter(new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, decapFlag))
+                .withId(actionId);
         return PiTableEntry.builder()
                 .forTable(Up4P4InfoConstants.PDR_TBL)
-                .withMatchKey(matchKey)
-                .withAction(action)
+                .withMatchKey(matchBuilder.build())
+                .withAction(actionBuilder.build())
                 .build();
     }
 

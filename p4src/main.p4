@@ -220,7 +220,7 @@ control ExecuteFar (inout parsed_headers_t    hdr,
                        local_meta.far.tunnel_out_dst_ipv4_addr,
                        local_meta.far.tunnel_out_udp_sport,
                        local_meta.far.tunnel_out_teid,
-                       local_meta.far.tunnel_out_qfi);
+                       local_meta.pdr.tunnel_out_qfi);
     }
 
     action do_forward() {
@@ -255,7 +255,7 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         }
         if (local_meta.far.needs_tunneling) {
             if (local_meta.far.tunnel_out_type == TunnelType.GTPU) {
-              if(local_meta.far.needs_ext_psc) {
+              if(local_meta.needs_ext_psc) {
                 do_gtpu_tunnel_with_psc();
               } else {
                 do_gtpu_tunnel();
@@ -318,6 +318,21 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         hdr.outer_udp.setInvalid();
     }
 
+    @hidden
+    action _set_pdr(pdr_id_t          id,
+                    fseid_t           fseid,
+                    counter_index_t   ctr_id,
+                    far_id_t          far_id,
+                    bit<1>            needs_gtpu_decap
+                    )
+    {
+        local_meta.pdr.id       = id;
+        local_meta.fseid        = fseid;
+        local_meta.pdr.ctr_idx  = ctr_id;
+        local_meta.far.id       = far_id;
+        local_meta.needs_gtpu_decap     = (bool)needs_gtpu_decap;
+    }
+
     action set_pdr_attributes(pdr_id_t          id,
                               fseid_t           fseid,
                               counter_index_t   ctr_id,
@@ -325,11 +340,21 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                               bit<1>            needs_gtpu_decap
                              )
     {
-        local_meta.pdr.id       = id;
-        local_meta.fseid        = fseid;
-        local_meta.pdr.ctr_idx  = ctr_id;
-        local_meta.far.id       = far_id;
-        local_meta.needs_gtpu_decap     = (bool)needs_gtpu_decap;
+        _set_pdr(id, fseid, ctr_id, far_id, needs_gtpu_decap);
+        local_meta.needs_ext_psc = false;
+    }
+
+    action set_pdr_attributes_qos_down(pdr_id_t          id,
+                                       fseid_t           fseid,
+                                       counter_index_t   ctr_id,
+                                       far_id_t          far_id,
+                                       bit<1>            needs_gtpu_decap,
+                                       bit<6>            qfi
+                                       )
+    {
+        _set_pdr(id, fseid, ctr_id, far_id, needs_gtpu_decap);
+        local_meta.needs_ext_psc        = true;
+        local_meta.pdr.tunnel_out_qfi   = qfi;
     }
 
     // Contains PDRs for both the Uplink and Downlink Direction
@@ -349,19 +374,18 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             local_meta.ue_l4_port       : range     @name("ue_l4_port");
             local_meta.inet_l4_port     : range     @name("inet_l4_port");
             hdr.ipv4.proto              : ternary   @name("ip_proto");
-            // TODO: is necessary to match on validity bit?
-            hdr.gtpu_ext_psc.isValid()  : optional  @name("psc_ext_presence");
+            hdr.gtpu_ext_psc.isValid()  : optional  @name("has_qfi");
             hdr.gtpu_ext_psc.qfi        : optional  @name("qfi");
         }
         actions = {
             set_pdr_attributes;
+            set_pdr_attributes_qos_down;
         }
     }
 
     action load_normal_far_attributes(bit<1> needs_dropping,
                                       bit<1> notify_cp) {
         local_meta.far.needs_tunneling = false;
-        local_meta.far.needs_ext_psc = false;
         local_meta.far.needs_dropping    = (bool)needs_dropping;
         local_meta.far.notify_cp = (bool)notify_cp;
     }
@@ -372,9 +396,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                                     ipv4_addr_t    src_addr,
                                     ipv4_addr_t    dst_addr,
                                     teid_t         teid,
-                                    L4Port         sport
-                                    ) {
-        local_meta.far.needs_ext_psc = false;
+                                    L4Port         sport) {
         local_meta.far.needs_tunneling = true;
         local_meta.far.needs_dropping = (bool)needs_dropping;
         local_meta.far.notify_cp = (bool)notify_cp;
@@ -386,23 +408,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.bar.needs_buffering = (bool)needs_buffering;
     }
 
-    action load_tunnel_far_attributes_qfi(bit<1> needs_dropping,
-                                        bit<1> notify_cp,
-                                        bit<1> needs_buffering,
-                                        TunnelType     tunnel_type,
-                                        ipv4_addr_t    src_addr,
-                                        ipv4_addr_t    dst_addr,
-                                        teid_t         teid,
-                                        L4Port         sport,
-                                        bit<6>         qfi
-                                        ) {
-        load_tunnel_far_attributes(needs_dropping, notify_cp, needs_buffering,
-                                    tunnel_type, src_addr, dst_addr, teid,
-                                    sport);
-        local_meta.far.needs_ext_psc = true;
-        local_meta.far.tunnel_out_qfi = qfi;
-    }
-
     table load_far_attributes {
         key = {
             local_meta.far.id : exact      @name("far_id");
@@ -411,7 +416,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         actions = {
             load_normal_far_attributes;
             load_tunnel_far_attributes;
-            load_tunnel_far_attributes_qfi;
         }
     }
 

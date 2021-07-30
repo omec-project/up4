@@ -200,7 +200,7 @@ tables {
   }
   match_fields {
     id: 9
-    name: "psc_ext_presence"
+    name: "has_qfi"
     bitwidth: 1
     match_type: OPTIONAL
   }
@@ -212,6 +212,9 @@ tables {
   }
   action_refs {
     id: 31939583
+  }
+  action_refs {
+    id: 19601557
   }
   action_refs {
     id: 21257015
@@ -243,9 +246,6 @@ tables {
   }
   action_refs {
     id: 20110435
-  }
-  action_refs {
-    id: 23143054
   }
   action_refs {
     id: 21257015
@@ -417,6 +417,43 @@ actions {
 }
 actions {
   preamble {
+    id: 19601557
+    name: "PreQosPipe.set_pdr_attributes_qos_down"
+    alias: "set_pdr_attributes_qos_down"
+  }
+  params {
+    id: 1
+    name: "id"
+    bitwidth: 32
+  }
+  params {
+    id: 2
+    name: "fseid"
+    bitwidth: 96
+  }
+  params {
+    id: 3
+    name: "ctr_id"
+    bitwidth: 32
+  }
+  params {
+    id: 4
+    name: "far_id"
+    bitwidth: 32
+  }
+  params {
+    id: 5
+    name: "needs_gtpu_decap"
+    bitwidth: 1
+  }
+  params {
+    id: 6
+    name: "qfi"
+    bitwidth: 6
+  }
+}
+actions {
+  preamble {
     id: 25716083
     name: "PreQosPipe.load_normal_far_attributes"
     alias: "load_normal_far_attributes"
@@ -477,58 +514,6 @@ actions {
     id: 8
     name: "sport"
     bitwidth: 16
-  }
-}
-actions {
-  preamble {
-    id: 23143054
-    name: "PreQosPipe.load_tunnel_far_attributes_qfi"
-    alias: "load_tunnel_far_attributes_qfi"
-  }
-  params {
-    id: 1
-    name: "needs_dropping"
-    bitwidth: 1
-  }
-  params {
-    id: 2
-    name: "notify_cp"
-    bitwidth: 1
-  }
-  params {
-    id: 3
-    name: "needs_buffering"
-    bitwidth: 1
-  }
-  params {
-    id: 4
-    name: "tunnel_type"
-    bitwidth: 8
-  }
-  params {
-    id: 5
-    name: "src_addr"
-    bitwidth: 32
-  }
-  params {
-    id: 6
-    name: "dst_addr"
-    bitwidth: 32
-  }
-  params {
-    id: 7
-    name: "teid"
-    bitwidth: 32
-  }
-  params {
-    id: 8
-    name: "sport"
-    bitwidth: 16
-  }
-  params {
-    id: 9
-    name: "qfi"
-    bitwidth: 6
   }
 }
 action_profiles {
