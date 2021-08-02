@@ -177,10 +177,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         netCfgService.registerConfigFactory(up4ConfigFactory);
         netCfgService.registerConfigFactory(dbufConfigFactory);
 
-        // Start reconcile thread
-        reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
-                new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
-
         // Still need this in case both netcfg and pipeconf event happen before UP4 activation
         updateConfig();
 
@@ -196,17 +192,23 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         Long reconcileInterval = getLongProperty(properties, UPF_RECONCILE_INTERVAL);
         if (reconcileInterval != null && reconcileInterval != upfReconcileInterval) {
             upfReconcileInterval = reconcileInterval;
-            if (reconciliationTask != null) {
-                reconciliationTask.cancel(false);
+            synchronized (upfInitialized) {
+                if (reconciliationTask != null) {
+                    reconciliationTask.cancel(false);
+                    if (upfInitialized.get()) {
+                        reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
+                                new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
+                    }
+                }
             }
-            reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
-                    new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
         }
     }
 
     protected void preDeactivate() {
         // Only clean up the state when the deactivation is triggered by ApplicationService
         log.info("Running Up4DeviceManager preDeactivation hook.");
+        // Stop reconcile thread when UPF is being uninitialized
+        stopReconcile();
         if (isReady()) {
             upfProgrammables.values().forEach(UpfDevice::cleanUp);
         }
@@ -227,11 +229,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         flowRuleService.removeListener(flowRuleListener);
 
         eventExecutor.shutdownNow();
-
-        if (reconciliationTask != null) {
-            reconciliationTask.cancel(true);
-            reconciliationTask = null;
-        }
         reconciliationExecutor.shutdown();
 
         reconciliationExecutor = null;
@@ -350,6 +347,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     } catch (UpfProgrammableException e) {
                         log.info(e.getMessage());
                     }
+                    // Start reconcile thread only when UPF data plane is initialized
+                    reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
+                            new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
                     log.info("UPF data plane setup successful!");
                 }
             }
@@ -396,6 +396,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
      */
     private void unsetUpfDataPlane() {
         synchronized (upfInitialized) {
+            // Stop reconcile thread when UPF is being uninitialized
+            stopReconcile();
             try {
                 assertUpfIsReady();
                 upfProgrammables.replaceAll((deviceId, upfProg) -> {
@@ -430,6 +432,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 log.error("unsetUpfDevice(DeviceId) should be called when device is not in the store!");
                 return;
             }
+            // Stop reconcile thread when UPF is being uninitialized
+            stopReconcile();
             upfProgrammables.remove(deviceId);
             upfInitialized.set(false);
         }
@@ -636,6 +640,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         assertUpfIsReady();
         // TODO: add get on builder can simply this, by removing the need for building the PdrStat every time.
         PdrStats.Builder builder = PdrStats.builder();
+        builder.withCellId(counterIdx);
         PdrStats prevStats = builder.build();
         for (UpfProgrammable upfProg : upfProgrammables.values()) {
             PdrStats pdrStat = upfProg.readCounter(counterIdx);
@@ -827,6 +832,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 .setBufferFlag(true)
                 .setTunnel(dbufTunnel)
                 .build();
+    }
+
+    private void stopReconcile() {
+        if (reconciliationTask != null) {
+            reconciliationTask.cancel(true);
+            reconciliationTask = null;
+        }
     }
 
     /**
