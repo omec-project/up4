@@ -344,16 +344,18 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.needs_ext_psc = false;
     }
 
-    action set_pdr_attributes_qos_down(pdr_id_t          id,
+    action set_pdr_attributes_qos(pdr_id_t          id,
                                        fseid_t           fseid,
                                        counter_index_t   ctr_id,
                                        far_id_t          far_id,
                                        bit<1>            needs_gtpu_decap,
+                                       // Used to push QFI, valid for 5G traffic only
+                                       bit<1>            needs_qfi_push,
                                        bit<6>            qfi
                                        )
     {
         _set_pdr(id, fseid, ctr_id, far_id, needs_gtpu_decap);
-        local_meta.needs_ext_psc        = true;
+        local_meta.needs_ext_psc        = (bool)needs_qfi_push;
         local_meta.pdr.tunnel_out_qfi   = qfi;
     }
 
@@ -374,12 +376,13 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             local_meta.ue_l4_port       : range     @name("ue_l4_port");
             local_meta.inet_l4_port     : range     @name("inet_l4_port");
             hdr.ipv4.proto              : ternary   @name("ip_proto");
+            // Match on QFI, valid for 5G traffic only
             hdr.gtpu_ext_psc.isValid()  : ternary  @name("has_qfi");
             hdr.gtpu_ext_psc.qfi        : ternary  @name("qfi");
         }
         actions = {
             set_pdr_attributes;
-            set_pdr_attributes_qos_down;
+            set_pdr_attributes_qos;
         }
     }
 

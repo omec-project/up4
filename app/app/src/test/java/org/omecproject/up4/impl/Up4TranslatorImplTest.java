@@ -20,45 +20,49 @@ public class Up4TranslatorImplTest {
 
     @Test
     public void up4EntryToUplinkPdrTest() {
-        PacketDetectionRule expectedPdr = TestImplConstants.UPLINK_PDR;
-        PacketDetectionRule translatedPdr;
-        try {
-            translatedPdr = up4Translator.up4EntryToPdr(TestImplConstants.UP4_UPLINK_PDR);
-        } catch (Up4Translator.Up4TranslationException e) {
-            assertThat("UP4 uplink PDR should translate to abstract PDR without error.", false);
-            return;
-        }
-        assertThat("Translated PDR should be uplink.", translatedPdr.matchesEncapped());
-        assertThat(translatedPdr, equalTo(expectedPdr));
+        up4ToPdrUplink(TestImplConstants.UPLINK_PDR, TestImplConstants.UP4_UPLINK_PDR);
     }
 
     @Test
     public void up4EntryToUplinkQosPdrTest() {
-        PacketDetectionRule expectedPdr = TestImplConstants.UPLINK_QOS_PDR;
+        up4ToPdrUplink(TestImplConstants.UPLINK_QOS_PDR, TestImplConstants.UP4_UPLINK_QOS_PDR);
+        up4ToPdrUplink(TestImplConstants.UPLINK_QOS_4G_PDR, TestImplConstants.UP4_UPLINK_QOS_4G_PDR);
+    }
+
+    public void up4ToPdrUplink(PacketDetectionRule expected, PiTableEntry up4Entry) {
         PacketDetectionRule translatedPdr;
         try {
-            translatedPdr = up4Translator.up4EntryToPdr(TestImplConstants.UP4_UPLINK_QOS_PDR);
+            translatedPdr = up4Translator.up4EntryToPdr(up4Entry);
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("UP4 uplink PDR should translate to abstract PDR without error.", false);
             return;
         }
         assertThat("Translated PDR should be uplink.", translatedPdr.matchesEncapped());
-        assertThat(translatedPdr, equalTo(expectedPdr));
+        assertThat(translatedPdr, equalTo(expected));
     }
 
     @Test
     public void up4EntryToDownlinkPdrTest() {
-        PacketDetectionRule expectedPdr = TestImplConstants.DOWNLINK_PDR;
+        up4ToPdrDownlink(TestImplConstants.DOWNLINK_PDR, TestImplConstants.UP4_DOWNLINK_PDR);
+    }
+
+    @Test
+    public void up4EntryToDownlinkQosPdrTest() {
+        up4ToPdrDownlink(TestImplConstants.DOWNLINK_QOS_PDR, TestImplConstants.UP4_DOWNLINK_QOS_PDR);
+        up4ToPdrDownlink(TestImplConstants.DOWNLINK_QOS_4G_PDR, TestImplConstants.UP4_DOWNLINK_QOS_4G_PDR);
+    }
+
+    public void up4ToPdrDownlink(PacketDetectionRule expected, PiTableEntry up4Entry) {
         PacketDetectionRule translatedPdr;
         try {
-            translatedPdr = up4Translator.up4EntryToPdr(TestImplConstants.UP4_DOWNLINK_PDR);
+            translatedPdr = up4Translator.up4EntryToPdr(up4Entry);
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("UP4 downlink PDR should translate to abstract PDR without error.", false);
             return;
         }
 
         assertThat("Translated PDR should be downlink.", translatedPdr.matchesUnencapped());
-        assertThat(translatedPdr, equalTo(expectedPdr));
+        assertThat(translatedPdr, equalTo(expected));
     }
 
     @Test
@@ -151,58 +155,48 @@ public class Up4TranslatorImplTest {
 
     @Test
     public void uplinkPdrToUp4EntryTest() {
-        PiTableEntry translatedRule;
-        PiTableEntry expectedRule = TestImplConstants.UP4_UPLINK_PDR;
-        try {
-            translatedRule = up4Translator.pdrToUp4Entry(TestImplConstants.UPLINK_PDR);
-        } catch (Up4Translator.Up4TranslationException e) {
-            assertThat("Abstract uplink PDR should correctly translate to UP4 PDR without error",
-                       false);
-            return;
-        }
-        assertThat(translatedRule, equalTo(expectedRule));
+        pdrToUp4Uplink(TestImplConstants.UP4_UPLINK_PDR, TestImplConstants.UPLINK_PDR);
     }
 
     @Test
     public void uplinkQosPdrToUp4EntryTest() {
+        pdrToUp4Uplink(TestImplConstants.UP4_UPLINK_QOS_PDR, TestImplConstants.UPLINK_QOS_PDR);
+        pdrToUp4Uplink(TestImplConstants.UP4_UPLINK_QOS_4G_PDR, TestImplConstants.UPLINK_QOS_4G_PDR);
+    }
+
+    public void pdrToUp4Uplink(PiTableEntry expected, PacketDetectionRule pdr) {
         PiTableEntry translatedRule;
-        PiTableEntry expectedRule = TestImplConstants.UP4_UPLINK_QOS_PDR;
         try {
-            translatedRule = up4Translator.pdrToUp4Entry(TestImplConstants.UPLINK_QOS_PDR);
+            translatedRule = up4Translator.pdrToUp4Entry(pdr);
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("Abstract uplink PDR should correctly translate to UP4 PDR without error",
                        false);
             return;
         }
-        assertThat(translatedRule, equalTo(expectedRule));
+        assertThat(translatedRule, equalTo(expected));
     }
 
     @Test
     public void downlinkPdrToUp4EntryTest() {
-        PiTableEntry translatedRule;
-        PiTableEntry expectedRule = TestImplConstants.UP4_DOWNLINK_PDR;
-        try {
-            translatedRule = up4Translator.pdrToUp4Entry(TestImplConstants.DOWNLINK_PDR);
-        } catch (Up4Translator.Up4TranslationException e) {
-            assertThat("Abstract downlink PDR should correctly translate to UP4 PDR without error",
-                       false);
-            return;
-        }
-        assertThat(translatedRule, equalTo(expectedRule));
+        pdrToUp4Downlink(TestImplConstants.UP4_DOWNLINK_PDR, TestImplConstants.DOWNLINK_PDR);
     }
 
     @Test
     public void downlinkQosPdrToUp4EntryTest() {
+        pdrToUp4Downlink(TestImplConstants.UP4_DOWNLINK_QOS_PDR, TestImplConstants.DOWNLINK_QOS_PDR);
+        pdrToUp4Downlink(TestImplConstants.UP4_DOWNLINK_QOS_4G_PDR, TestImplConstants.DOWNLINK_QOS_4G_PDR);
+    }
+
+    public void pdrToUp4Downlink(PiTableEntry expected, PacketDetectionRule pdr) {
         PiTableEntry translatedRule;
-        PiTableEntry expectedRule = TestImplConstants.UP4_DOWNLINK_QOS_PDR;
         try {
-            translatedRule = up4Translator.pdrToUp4Entry(TestImplConstants.DOWNLINK_QOS_PDR);
+            translatedRule = up4Translator.pdrToUp4Entry(pdr);
         } catch (Up4Translator.Up4TranslationException e) {
             assertThat("Abstract downlink PDR should correctly translate to UP4 PDR without error",
                        false);
             return;
         }
-        assertThat(translatedRule, equalTo(expectedRule));
+        assertThat(translatedRule, equalTo(expected));
     }
 
     @Test

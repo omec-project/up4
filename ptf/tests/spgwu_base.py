@@ -322,12 +322,12 @@ class GtpuBaseTest(P4RuntimeTest):
     def add_pdr(self, pdr_id, far_id, session_id, src_iface, ctr_id, ue_addr=None, ue_mask=None,
                 teid=None, tunnel_dst_ip=None, inet_addr=None, inet_mask=None, ue_l4_port=None,
                 ue_l4_port_hi=None, inet_l4_port=None, inet_l4_port_hi=None, ip_proto=None,
-                qfi=None, ip_proto_mask=None, needs_gtpu_decap=False, priority=10, direction="UPLINK"):
-
+                qfi=None, ip_proto_mask=None, needs_gtpu_decap=False, priority=10,
+                with_qfi_push=False, with_qfi_match=False):
+        # with_qfi_push and with_qfi_match make sense only if qfi != None
         ALL_ONES_32 = (1 << 32) - 1
         ALL_ONES_8 = (1 << 8) - 1
 
-        qos_down = False
         _src_iface = self.helper.get_enum_member_val("InterfaceType", src_iface)
         action_params = {
             "id": pdr_id,
@@ -336,6 +336,7 @@ class GtpuBaseTest(P4RuntimeTest):
             "needs_gtpu_decap": needs_gtpu_decap,
             "ctr_id": ctr_id,
         }
+        action_name = "PreQosPipe.set_pdr_attributes"
         match_fields = {"src_iface": _src_iface}
         if ue_addr is not None:
             match_fields["ue_addr"] = (ue_addr, ue_mask or ALL_ONES_32)
@@ -352,18 +353,19 @@ class GtpuBaseTest(P4RuntimeTest):
         if tunnel_dst_ip is not None:
             match_fields["tunnel_ipv4_dst"] = (tunnel_dst_ip, ALL_ONES_32)
         if qfi is not None:
-            if direction is "DOWNLINK":
-                qos_down = True
-                action_params["qfi"] = qfi
-            else:
+            if with_qfi_match:
                 match_fields["has_qfi"] = True
                 match_fields["qfi"] = qfi
+            else:
+                action_name = "PreQosPipe.set_pdr_attributes_qos"
+                action_params["qfi"] = qfi
+                action_params["needs_qfi_push"] = with_qfi_push
 
         self.insert(
             self.helper.build_table_entry(
                 table_name="PreQosPipe.pdrs",
                 match_fields=match_fields,
-                action_name="PreQosPipe.set_pdr_attributes_qos_down" if qos_down else "PreQosPipe.set_pdr_attributes",
+                action_name=action_name,
                 action_params=action_params,
                 priority=priority,
             ))
@@ -410,7 +412,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 }, action_name=action_name, action_params=action_params))
 
     def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                   session_id=None, pdr_id=None, far_id=None, qfi=None):
+                                   session_id=None, pdr_id=None, far_id=None, qfi=None, match_qfi=True):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -449,17 +451,17 @@ class GtpuBaseTest(P4RuntimeTest):
             ip_proto=inner_pkt[IP].proto,
             qfi=qfi,
             needs_gtpu_decap=True,
-            direction="UPLINK",
+            with_qfi_match=match_qfi
         )
 
         self.add_far(far_id=far_id, session_id=session_id, drop=drop)
         if not drop:
             self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', src_mac=exp_pkt[Ether].src,
-                                   dst_mac=exp_pkt[Ether].dst, egress_port=outport)
+                                   dst_mac=exp_padd_entries_for_downlink_pktkt[Ether].dst, egress_port=outport)
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
                                      buffer=False, session_id=None, pdr_id=None, far_id=None,
-                                     qfi=None):
+                                     qfi=None, push_qfi=True):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -503,7 +505,7 @@ class GtpuBaseTest(P4RuntimeTest):
             ip_proto=pkt[IP].proto,
             needs_gtpu_decap=False,
             qfi=qfi,
-            direction="DOWNLINK",
+            with_qfi_push=push_qfi,
         )
 
         self.add_far(far_id=far_id, session_id=session_id, drop=drop, buffer=buffer, tunnel=True,

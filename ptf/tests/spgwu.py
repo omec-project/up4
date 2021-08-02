@@ -370,7 +370,6 @@ class GtpuEncapPscDownlinkTest(GtpuBaseTest):
 
     @autocleanup
     def testPacket(self, pkt):
-        QFI = 1
         # build the expected encapsulated packet
         exp_pkt = pkt.copy()
         dst_mac = ENODEB_MAC
@@ -389,7 +388,7 @@ class GtpuEncapPscDownlinkTest(GtpuBaseTest):
 
         # program all the tables
         self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False,
-                                          qfi=1)
+                                          qfi=1, push_qfi=True)
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)
@@ -437,7 +436,7 @@ class GtpuDecapPscUplinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False, qfi=1)
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False, qfi=10, match_qfi=True)
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)
