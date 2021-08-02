@@ -202,13 +202,13 @@ tables {
     id: 9
     name: "has_qfi"
     bitwidth: 1
-    match_type: OPTIONAL
+    match_type: TERNARY
   }
   match_fields {
     id: 10
     name: "qfi"
     bitwidth: 6
-    match_type: OPTIONAL
+    match_type: TERNARY
   }
   action_refs {
     id: 31939583

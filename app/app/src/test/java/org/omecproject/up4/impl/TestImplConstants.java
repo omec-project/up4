@@ -18,7 +18,6 @@ import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiExactFieldMatch;
 import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
 import org.onosproject.net.pi.runtime.PiMatchKey;
-import org.onosproject.net.pi.runtime.PiOptionalFieldMatch;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 
@@ -29,6 +28,7 @@ public final class TestImplConstants {
     public static final ApplicationId APP_ID = new DefaultApplicationId(5000, "up4");
     public static final int DEFAULT_PRIORITY = 10;
     public static final ImmutableByteSequence ALL_ONES_32 = ImmutableByteSequence.ofOnes(4);
+    public static final ImmutableByteSequence ALL_ONES_8 = ImmutableByteSequence.ofOnes(1);
     public static final ImmutableByteSequence SESSION_ID =
             ImmutableByteSequence.ofOnes(Up4P4InfoConstants.SESSION_ID_BITWIDTH / 8);
     public static final int UPLINK_COUNTER_CELL_ID = 1;
@@ -117,13 +117,14 @@ public final class TestImplConstants {
                                   .addFieldMatch(new PiTernaryFieldMatch(
                                           Up4P4InfoConstants.TUNNEL_DST_KEY,
                                           ImmutableByteSequence.copyFrom(S1U_ADDR.toOctets()), ALL_ONES_32))
-                                  .addFieldMatch(new PiOptionalFieldMatch(
+                                  .addFieldMatch(new PiTernaryFieldMatch(
                                           Up4P4InfoConstants.HAS_QFI_KEY,
-                                          TRUE_BYTE
+                                          TRUE_BYTE, ALL_ONES_8
                                   ))
-                                  .addFieldMatch(new PiOptionalFieldMatch(
+                                  .addFieldMatch(new PiTernaryFieldMatch(
                                           Up4P4InfoConstants.QFI_KEY,
-                                          ImmutableByteSequence.copyFrom(UPLINK_QFI)
+                                          ImmutableByteSequence.copyFrom(UPLINK_QFI),
+                                          ALL_ONES_8
                                   ))
                                   .build())
             .withAction(PiAction.builder()

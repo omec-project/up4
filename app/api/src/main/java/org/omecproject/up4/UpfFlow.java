@@ -90,6 +90,10 @@ public final class UpfFlow {
         String pdrString = "NO PDR!";
         if (pdr != null) {
             pdrString = pdr.matchString();
+            if(pdr.hasQfi() && pdr.matchesUnencapped()) {
+                // Push QFI
+                pdrString = String.format("%s, Push_qfi(%s)", pdrString, pdr.qfi());
+            }
         }
         String statString = "NO STATISTICS!";
         if (flowStats != null) {

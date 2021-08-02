@@ -16,7 +16,6 @@ import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiExactFieldMatch;
 import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
 import org.onosproject.net.pi.runtime.PiMatchKey;
-import org.onosproject.net.pi.runtime.PiOptionalFieldMatch;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 import org.slf4j.Logger;
@@ -39,6 +38,7 @@ public class Up4TranslatorImpl implements Up4Translator {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
+    private final ImmutableByteSequence allOnes8 = ImmutableByteSequence.ofOnes(1);
 
     public static final byte FALSE = (byte) 0x00;
     public static final byte TRUE = (byte) 0x01;
@@ -236,10 +236,10 @@ public class Up4TranslatorImpl implements Up4Translator {
                             ImmutableByteSequence.copyFrom(pdr.tunnelDest().toOctets()), allOnes32));
             if (pdr.hasQfi()) {
                 matchBuilder
-                        .addFieldMatch(new PiOptionalFieldMatch(
-                                HAS_QFI_KEY, ImmutableByteSequence.copyFrom(TRUE)))
-                        .addFieldMatch(new PiOptionalFieldMatch(
-                                QFI_KEY, ImmutableByteSequence.copyFrom(pdr.qfi())));
+                        .addFieldMatch(new PiTernaryFieldMatch(
+                                HAS_QFI_KEY, ImmutableByteSequence.copyFrom(TRUE), allOnes8))
+                        .addFieldMatch(new PiTernaryFieldMatch(
+                                QFI_KEY, ImmutableByteSequence.copyFrom(pdr.qfi()), allOnes8));
             }
         } else {
             decapFlag = FALSE;

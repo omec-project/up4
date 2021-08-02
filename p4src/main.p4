@@ -374,8 +374,8 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             local_meta.ue_l4_port       : range     @name("ue_l4_port");
             local_meta.inet_l4_port     : range     @name("inet_l4_port");
             hdr.ipv4.proto              : ternary   @name("ip_proto");
-            hdr.gtpu_ext_psc.isValid()  : optional  @name("has_qfi");
-            hdr.gtpu_ext_psc.qfi        : optional  @name("qfi");
+            hdr.gtpu_ext_psc.isValid()  : ternary  @name("has_qfi");
+            hdr.gtpu_ext_psc.qfi        : ternary  @name("qfi");
         }
         actions = {
             set_pdr_attributes;
