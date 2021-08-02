@@ -283,12 +283,14 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                               fseid_t           fseid,
                               counter_index_t   ctr_id,
                               far_id_t          far_id,
+                              qer_id_t          qer_id,
                               bit<1>            needs_gtpu_decap
                              )
     {
         local_meta.pdr.id       = id;
         local_meta.fseid        = fseid;
         local_meta.pdr.ctr_idx  = ctr_id;
+        local_meta.pdr.qerid    = qer_id;
         local_meta.far.id       = far_id;
         local_meta.needs_gtpu_decap     = (bool)needs_gtpu_decap;
     }
@@ -297,11 +299,12 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                                   fseid_t                  fseid,
                                   counter_index_t          ctr_id,
                                   far_id_t                 far_id,
+                                  qer_id_t                 qer_id,
                                   scheduling_priority_t    scheduling_priority,
                                   bit<1>                   needs_gtpu_decap
                                  )
     {
-        set_pdr_attributes(id, fseid, ctr_id, far_id, needs_gtpu_decap);
+        set_pdr_attributes(id, fseid, ctr_id, far_id, qer_id, needs_gtpu_decap);
         local_meta.scheduling_priority     = scheduling_priority;
     }
 
@@ -363,6 +366,9 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             load_tunnel_far_attributes;
         }
     }
+
+    // QER Meter: conveys information from QER MBR and GBR
+    meter(QER_METER_SIZE, MeterType.bytes) qer_meter;
 
 
     //----------------------------------------
@@ -436,9 +442,17 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             // Count packets at a counter index unique to whichever PDR matched.
             pre_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
 
-            // Perform whatever header removal the matching PDR required.
+            // Perform whatever header removal the matching PDR required.set_pdr_attributes
             if (local_meta.needs_gtpu_decap) {
                 gtpu_decap();
+            }
+
+            // Apply metering
+            qer_meter.execute_meter(local_meta.pdr.qerid, local_meta.packet_color);
+            if (local_meta.packet_color == V1MODEL_METER_COLOR_RED) {
+                // We allow both YELLOW and GREEN packet, and drop only RED
+                mark_to_drop(std_meta);
+                exit;
             }
 
             // Look up FAR info using the FAR-ID loaded by the PDR table.

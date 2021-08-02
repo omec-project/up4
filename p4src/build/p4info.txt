@@ -392,6 +392,11 @@ actions {
   }
   params {
     id: 5
+    name: "qer_id"
+    bitwidth: 32
+  }
+  params {
+    id: 6
     name: "needs_gtpu_decap"
     bitwidth: 1
   }
@@ -424,11 +429,16 @@ actions {
   }
   params {
     id: 5
-    name: "scheduling_priority"
+    name: "qer_id"
     bitwidth: 32
   }
   params {
     id: 6
+    name: "scheduling_priority"
+    bitwidth: 32
+  }
+  params {
+    id: 7
     name: "needs_gtpu_decap"
     bitwidth: 1
   }
@@ -539,6 +549,17 @@ direct_counters {
     unit: BOTH
   }
   direct_table_id: 47204971
+}
+meters {
+  preamble {
+    id: 343268472
+    name: "PreQosPipe.qer_meter"
+    alias: "qer_meter"
+  }
+  spec {
+    unit: BYTES
+  }
+  size: 2147483647
 }
 controller_packet_metadata {
   preamble {

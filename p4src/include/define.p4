@@ -18,6 +18,12 @@
 // Table sizes to be tuned for hardware
 #define MAX_PDRS 1024
 #define MAX_ROUTES 1024
+// FIXME: use a reasonable meter size, compiler max is int32_max (not uint32_max)
+#define QER_METER_SIZE (1 << 32) - 1
+
+#define COLOR_GREEN 0
+#define COLOR_YELLOW 1
+#define COLOR_RED 2
 
 
 // Some sizes

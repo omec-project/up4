@@ -111,6 +111,7 @@ struct parsed_headers_t {
 struct pdr_metadata_t {
     pdr_id_t id;
     counter_index_t ctr_idx;
+    qer_id_t qerid;
 }
 
 // Data associated with Buffering and BARs
@@ -179,6 +180,8 @@ struct local_metadata_t {
     pdr_metadata_t pdr;
     far_metadata_t far;
     bar_metadata_t bar;
+
+    bit<2> packet_color;
 }
 
 
