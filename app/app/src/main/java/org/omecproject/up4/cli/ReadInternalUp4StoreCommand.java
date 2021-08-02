@@ -62,11 +62,11 @@ public class ReadInternalUp4StoreCommand extends AbstractShellCommand {
                     "}=" + value));
         }
 
-        Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> reverseFarIdsToUeAddrs =
-                upfStore.getReverseFarIdsToUeAddrs();
-        print("reverseFarIdToUeAddrs size: " + reverseFarIdsToUeAddrs.size());
+        Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> ueAddrsToFarIds =
+                upfStore.getUeAddrsToFarIds();
+        print("ueAddrsToFarIds size: " + ueAddrsToFarIds.size());
         if (verbose) {
-            reverseFarIdsToUeAddrs.forEach((key, value) -> print(key + "=RuleIdentifier{" +
+            ueAddrsToFarIds.forEach((key, value) -> print(key + "=RuleIdentifier{" +
                     "sessionlocalId=" + value.getRight() +
                     ", pfcpSessionId=" + value.getLeft() +
                     "}"));

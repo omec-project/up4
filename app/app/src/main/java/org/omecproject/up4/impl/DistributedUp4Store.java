@@ -45,7 +45,6 @@ public class DistributedUp4Store implements Up4Store {
 
     protected static final String BUFFER_FAR_ID_MAP_NAME = "up4-buffer-far-id";
     protected static final String FAR_ID_UE_MAP_NAME = "up4-far-id-ue";
-    private static final String BUFFER_TAG = "";
 
     protected static final KryoNamespace.Builder SERIALIZER = KryoNamespace.newBuilder()
             .register(KryoNamespaces.API)
@@ -53,19 +52,19 @@ public class DistributedUp4Store implements Up4Store {
 
     // NOTE If we can afford to lose the buffer state, we can make this map a simple concurrent map.
     // This can happen in case of instance failure or change in the DNS resolution.
-    protected EventuallyConsistentMap<ImmutablePair<ImmutableByteSequence, Integer>, String> bufferFarIds;
+    protected EventuallyConsistentMap<ImmutablePair<ImmutableByteSequence, Integer>, Boolean> bufferFarIds;
     protected EventuallyConsistentMap<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address> farIdToUeAddr;
     private EventuallyConsistentMapListener<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address>
             farIdToUeAddrListener;
     // Local, reversed copy of farIdToUeAddrMapper for reverse lookup
-    protected Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> reverseFarIdToUeAddr;
+    protected Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> ueAddrToFarId;
 
     @Activate
     protected void activate() {
         // Allow unit test to inject farIdMap here.
         if (storageService != null) {
             this.bufferFarIds =
-                storageService.<ImmutablePair<ImmutableByteSequence, Integer>, String>eventuallyConsistentMapBuilder()
+                storageService.<ImmutablePair<ImmutableByteSequence, Integer>, Boolean>eventuallyConsistentMapBuilder()
                             .withName(BUFFER_FAR_ID_MAP_NAME)
                             .withSerializer(SERIALIZER)
                             .withTimestampProvider((k, v) -> new WallClockTimestamp())
@@ -80,8 +79,8 @@ public class DistributedUp4Store implements Up4Store {
         farIdToUeAddrListener = new FarIdToUeAddrMapListener();
         farIdToUeAddr.addListener(farIdToUeAddrListener);
 
-        reverseFarIdToUeAddr = Maps.newConcurrentMap();
-        farIdToUeAddr.entrySet().forEach(entry -> reverseFarIdToUeAddr.put(entry.getValue(), entry.getKey()));
+        ueAddrToFarId = Maps.newConcurrentMap();
+        farIdToUeAddr.entrySet().forEach(entry -> ueAddrToFarId.put(entry.getValue(), entry.getKey()));
 
         log.info("Started");
     }
@@ -90,8 +89,11 @@ public class DistributedUp4Store implements Up4Store {
     protected void deactivate() {
         this.farIdToUeAddr.removeListener(farIdToUeAddrListener);
         this.bufferFarIds.destroy();
+        this.bufferFarIds = null;
         this.farIdToUeAddr.destroy();
-        this.reverseFarIdToUeAddr.clear();
+        this.farIdToUeAddr = null;
+        this.ueAddrToFarId.clear();
+        this.ueAddrToFarId = null;
 
         log.info("Stopped");
     }
@@ -100,7 +102,7 @@ public class DistributedUp4Store implements Up4Store {
     public void reset() {
         bufferFarIds.clear();
         farIdToUeAddr.clear();
-        reverseFarIdToUeAddr.clear();
+        ueAddrToFarId.clear();
     }
 
     @Override
@@ -112,7 +114,7 @@ public class DistributedUp4Store implements Up4Store {
     @Override
     public void learnBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId) {
         checkNotNull(farId);
-        bufferFarIds.put(farId, BUFFER_TAG);
+        bufferFarIds.put(farId, true);
     }
 
     @Override
@@ -139,7 +141,7 @@ public class DistributedUp4Store implements Up4Store {
 
     @Override
     public void forgetUeAddr(PacketDetectionRule pdr) {
-        ImmutablePair<ImmutableByteSequence, Integer> ruleId = reverseFarIdToUeAddr.get(pdr.ueAddress());
+        ImmutablePair<ImmutableByteSequence, Integer> ruleId = ueAddrToFarId.get(pdr.ueAddress());
         if (ruleId == null) {
             log.warn("Unable to find the pfcp session id and the local" +
                     "far id associated to {}", pdr.ueAddress());
@@ -155,8 +157,8 @@ public class DistributedUp4Store implements Up4Store {
     }
 
     @Override
-    public Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> getReverseFarIdsToUeAddrs() {
-        return ImmutableMap.copyOf(reverseFarIdToUeAddr);
+    public Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> getUeAddrsToFarIds() {
+        return ImmutableMap.copyOf(ueAddrToFarId);
     }
 
     private class FarIdToUeAddrMapListener
@@ -166,10 +168,10 @@ public class DistributedUp4Store implements Up4Store {
                 EventuallyConsistentMapEvent<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address> event) {
             switch (event.type()) {
                 case PUT:
-                    reverseFarIdToUeAddr.put(event.value(), event.key());
+                    ueAddrToFarId.put(event.value(), event.key());
                     break;
                 case REMOVE:
-                    reverseFarIdToUeAddr.remove(event.value());
+                    ueAddrToFarId.remove(event.value());
                     break;
                 default:
                     break;

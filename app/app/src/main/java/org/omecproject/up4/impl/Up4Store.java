@@ -85,6 +85,6 @@ public interface Up4Store {
      *
      * @return mapping ue to far id
      */
-    Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> getReverseFarIdsToUeAddrs();
+    Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> getUeAddrsToFarIds();
 
 }

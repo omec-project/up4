@@ -22,7 +22,7 @@ public final class TestDistributedUp4Store {
     public static DistributedUp4Store build() {
         var store = new DistributedUp4Store();
 
-        TestEventuallyConsistentMap.Builder<ImmutablePair<ImmutableByteSequence, Integer>, String>
+        TestEventuallyConsistentMap.Builder<ImmutablePair<ImmutableByteSequence, Integer>, Boolean>
                 bufferFarIdsBuilder = TestEventuallyConsistentMap.builder();
         bufferFarIdsBuilder.withName(BUFFER_FAR_ID_MAP_NAME)
                 .withTimestampProvider((k, v) -> new WallClockTimestamp())
