@@ -640,6 +640,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         assertUpfIsReady();
         // TODO: add get on builder can simply this, by removing the need for building the PdrStat every time.
         PdrStats.Builder builder = PdrStats.builder();
+        builder.withCellId(counterIdx);
         PdrStats prevStats = builder.build();
         for (UpfProgrammable upfProg : upfProgrammables.values()) {
             PdrStats pdrStat = upfProg.readCounter(counterIdx);
