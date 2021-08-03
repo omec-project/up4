@@ -47,23 +47,29 @@ public class ReadInternalUp4StoreCommand extends AbstractShellCommand {
         Set<ImmutablePair<ImmutableByteSequence, Integer>> bufferFarIds = upfStore.getBufferFarIds();
         print("bufferFarIds size: " + bufferFarIds.size());
         if (verbose) {
-            bufferFarIds.forEach(upfRuleIdentifier ->
-                                         print("RuleIdentifier{" +
-                                                       "sessionlocalId=" + upfRuleIdentifier.getLeft() +
-                                                       ", pfcpSessionId=" + upfRuleIdentifier.getRight() +
-                                                       "}"));
+            bufferFarIds.forEach(upfRuleIdentifier -> print("RuleIdentifier{" +
+                    "sessionlocalId=" + upfRuleIdentifier.getRight() +
+                    ", pfcpSessionId=" + upfRuleIdentifier.getLeft() +
+                    "}"));
         }
 
-        Map<ImmutablePair<ImmutableByteSequence, Integer>, Set<Ip4Address>> farIdToUeAddrs =
-                upfStore.getFarIdToUeAddrs();
-        print("farIdToUeAddrs size: " + farIdToUeAddrs.size());
+        Map<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address> farIdsToUeAddrs = upfStore.getFarIdsToUeAddrs();
+        print("farIdToUeAddrs size: " + farIdsToUeAddrs.size());
         if (verbose) {
-            farIdToUeAddrs.entrySet()
-                    .forEach(entry ->
-                                     print("RuleIdentifier{" +
-                                                   "sessionlocalId=" + entry.getKey().getLeft() +
-                                                   ", pfcpSessionId=" + entry.getKey().getRight() +
-                                                   "}" + entry.getValue()));
+            farIdsToUeAddrs.forEach((key, value) -> print("RuleIdentifier{" +
+                    "sessionlocalId=" + key.getRight() +
+                    ", pfcpSessionId=" + key.getLeft() +
+                    "}=" + value));
+        }
+
+        Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> ueAddrsToFarIds =
+                upfStore.getUeAddrsToFarIds();
+        print("ueAddrsToFarIds size: " + ueAddrsToFarIds.size());
+        if (verbose) {
+            ueAddrsToFarIds.forEach((key, value) -> print(key + "=RuleIdentifier{" +
+                    "sessionlocalId=" + value.getRight() +
+                    ", pfcpSessionId=" + value.getLeft() +
+                    "}"));
         }
     }
 }
