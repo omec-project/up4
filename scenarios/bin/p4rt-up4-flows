@@ -186,13 +186,15 @@ def main():
         entry.action['fseid'] = str(args.session_id)
         entry.action['ctr_id'] = str(pdr_ctr_uplink)
         entry.action['far_id'] = str(far_uplink)
+        entry.action['needs_gtpu_decap'] = TRUE
         add_entry(entry, args.action)
 
         ## Downlink
         if args.qfi is None:
             entry = sh.TableEntry('PreQosPipe.pdrs')(action='PreQosPipe.set_pdr_attributes')
         else:
-            entry = sh.TableEntry('PreQosPipe.pdrs')(action='PreQosPipe.set_pdr_attributes_qos_down')
+            entry = sh.TableEntry('PreQosPipe.pdrs')(action='PreQosPipe.set_pdr_attributes_qos')
+            entry.action['needs_qfi_push'] = TRUE
             entry.action['qfi'] = str(args.qfi)
         # Match fields
         entry.match['src_iface'] = IFACE_CORE
@@ -202,6 +204,7 @@ def main():
         entry.action['fseid'] = str(args.session_id)
         entry.action['ctr_id'] = str(pdr_ctr_downlink)
         entry.action['far_id'] = str(far_downlink)
+        entry.action['needs_gtpu_decap'] = FALSE
         add_entry(entry, args.action)
 
         # ========================#
