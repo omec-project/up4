@@ -82,6 +82,16 @@ public final class TestImplConstants {
             .withSessionId(SESSION_ID)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
             .withQfi(UPLINK_QFI)
+            .withQfiMatch()
+            .build();
+
+    public static final PacketDetectionRule UPLINK_QOS_4G_PDR = PacketDetectionRule.builder()
+            .withTunnelDst(S1U_ADDR)
+            .withTeid(TEID)
+            .withLocalFarId(UPLINK_FAR_ID)
+            .withSessionId(SESSION_ID)
+            .withCounterId(UPLINK_COUNTER_CELL_ID)
+            .withQfi(UPLINK_QFI)
             .build();
 
     public static final PacketDetectionRule DOWNLINK_QOS_PDR = PacketDetectionRule.builder()
@@ -89,7 +99,16 @@ public final class TestImplConstants {
             .withLocalFarId(DOWNLINK_FAR_ID)
             .withSessionId(SESSION_ID)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
-            .withQfiPush(DOWNLINK_QFI)
+            .withQfi(DOWNLINK_QFI)
+            .withQfiPush()
+            .build();
+
+    public static final PacketDetectionRule DOWNLINK_QOS_4G_PDR = PacketDetectionRule.builder()
+            .withUeAddr(UE_ADDR)
+            .withLocalFarId(DOWNLINK_FAR_ID)
+            .withSessionId(SESSION_ID)
+            .withCounterId(DOWNLINK_COUNTER_CELL_ID)
+            .withQfi(DOWNLINK_QFI)
             .build();
 
     public static final ForwardingActionRule UPLINK_FAR = ForwardingActionRule.builder()
@@ -138,6 +157,31 @@ public final class TestImplConstants {
                                 .build())
             .build();
 
+    public static final PiTableEntry UP4_UPLINK_QOS_4G_PDR = PiTableEntry.builder()
+            .forTable(Up4P4InfoConstants.PDR_TBL)
+            .withMatchKey(PiMatchKey.builder()
+                                  .addFieldMatch(new PiExactFieldMatch(
+                                          Up4P4InfoConstants.SRC_IFACE_KEY,
+                                          ImmutableByteSequence.copyFrom(Up4P4InfoConstants.IFACE_ACCESS)))
+                                  .addFieldMatch(new PiTernaryFieldMatch(
+                                          Up4P4InfoConstants.TEID_KEY, TEID, ALL_ONES_32))
+                                  .addFieldMatch(new PiTernaryFieldMatch(
+                                          Up4P4InfoConstants.TUNNEL_DST_KEY,
+                                          ImmutableByteSequence.copyFrom(S1U_ADDR.toOctets()), ALL_ONES_32))
+                                  .build())
+            .withAction(PiAction.builder()
+                                .withId(Up4P4InfoConstants.LOAD_PDR_QOS)
+                                .withParameters(Arrays.asList(
+                                        new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, SESSION_ID),
+                                        new PiActionParam(Up4P4InfoConstants.CTR_ID, UPLINK_COUNTER_CELL_ID),
+                                        new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, UPLINK_FAR_ID),
+                                        new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, TRUE_BYTE),
+                                        new PiActionParam(Up4P4InfoConstants.QFI_PUSH_FLAG_PARAM, FALSE_BYTE),
+                                        new PiActionParam(Up4P4InfoConstants.QFI, UPLINK_QFI)
+                                ))
+                                .build())
+            .build();
+
     public static final PiTableEntry UP4_DOWNLINK_QOS_PDR = PiTableEntry.builder()
             .forTable(Up4P4InfoConstants.PDR_TBL)
             .withMatchKey(PiMatchKey.builder()
@@ -149,12 +193,36 @@ public final class TestImplConstants {
                                           ImmutableByteSequence.copyFrom(UE_ADDR.toOctets()), ALL_ONES_32))
                                   .build())
             .withAction(PiAction.builder()
-                                .withId(Up4P4InfoConstants.LOAD_PDR_QOS_DOWN)
+                                .withId(Up4P4InfoConstants.LOAD_PDR_QOS)
                                 .withParameters(Arrays.asList(
                                         new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, SESSION_ID),
                                         new PiActionParam(Up4P4InfoConstants.CTR_ID, DOWNLINK_COUNTER_CELL_ID),
                                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, DOWNLINK_FAR_ID),
                                         new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, FALSE_BYTE),
+                                        new PiActionParam(Up4P4InfoConstants.QFI_PUSH_FLAG_PARAM, TRUE_BYTE),
+                                        new PiActionParam(Up4P4InfoConstants.QFI, DOWNLINK_QFI)
+                                ))
+                                .build())
+            .build();
+
+    public static final PiTableEntry UP4_DOWNLINK_QOS_4G_PDR = PiTableEntry.builder()
+            .forTable(Up4P4InfoConstants.PDR_TBL)
+            .withMatchKey(PiMatchKey.builder()
+                                  .addFieldMatch(new PiExactFieldMatch(
+                                          Up4P4InfoConstants.SRC_IFACE_KEY,
+                                          ImmutableByteSequence.copyFrom(Up4P4InfoConstants.IFACE_CORE)))
+                                  .addFieldMatch(new PiTernaryFieldMatch(
+                                          Up4P4InfoConstants.UE_ADDR_KEY,
+                                          ImmutableByteSequence.copyFrom(UE_ADDR.toOctets()), ALL_ONES_32))
+                                  .build())
+            .withAction(PiAction.builder()
+                                .withId(Up4P4InfoConstants.LOAD_PDR_QOS)
+                                .withParameters(Arrays.asList(
+                                        new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, SESSION_ID),
+                                        new PiActionParam(Up4P4InfoConstants.CTR_ID, DOWNLINK_COUNTER_CELL_ID),
+                                        new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, DOWNLINK_FAR_ID),
+                                        new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, FALSE_BYTE),
+                                        new PiActionParam(Up4P4InfoConstants.QFI_PUSH_FLAG_PARAM, FALSE_BYTE),
                                         new PiActionParam(Up4P4InfoConstants.QFI, DOWNLINK_QFI)
                                 ))
                                 .build())

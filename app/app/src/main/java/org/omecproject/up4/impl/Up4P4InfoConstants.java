@@ -28,7 +28,7 @@ public final class Up4P4InfoConstants {
     // Action names
     public static final PiActionId LOAD_IFACE = PiActionId.of("PreQosPipe.set_source_iface");
     public static final PiActionId LOAD_PDR = PiActionId.of("PreQosPipe.set_pdr_attributes");
-    public static final PiActionId LOAD_PDR_QOS_DOWN = PiActionId.of("PreQosPipe.set_pdr_attributes_qos_down");
+    public static final PiActionId LOAD_PDR_QOS = PiActionId.of("PreQosPipe.set_pdr_attributes_qos");
     public static final PiActionId LOAD_FAR_TUNNEL = PiActionId.of("PreQosPipe.load_tunnel_far_attributes");
     public static final PiActionId LOAD_FAR_NORMAL = PiActionId.of("PreQosPipe.load_normal_far_attributes");
     // Match key names
@@ -51,6 +51,7 @@ public final class Up4P4InfoConstants {
     //   pdr table
     public static final PiActionParamId PDR_ID_PARAM = PiActionParamId.of("id");
     public static final PiActionParamId DECAP_FLAG_PARAM = PiActionParamId.of("needs_gtpu_decap");
+    public static final PiActionParamId QFI_PUSH_FLAG_PARAM = PiActionParamId.of("needs_qfi_push");
     public static final PiActionParamId CTR_ID = PiActionParamId.of("ctr_id");
     public static final PiActionParamId FAR_ID_PARAM = PiActionParamId.of("far_id");
     public static final PiActionParamId SESSION_ID_PARAM = PiActionParamId.of("fseid");

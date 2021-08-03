@@ -25,9 +25,10 @@ import java.util.Arrays;
 
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HAS_QFI_KEY;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.LOAD_PDR;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.LOAD_PDR_QOS_DOWN;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.LOAD_PDR_QOS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.QFI;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.QFI_KEY;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.QFI_PUSH_FLAG_PARAM;
 
 /**
  * Utility class for transforming PiTableEntries to classes more specific to the UPF pipelines,
@@ -72,6 +73,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                     Up4TranslatorUtil.fieldIsPresent(entry, QFI_KEY) &&
                     Up4TranslatorUtil.getFieldByte(entry, HAS_QFI_KEY) == TRUE) {
                 pdrBuilder.withQfi(Up4TranslatorUtil.getFieldByte(entry, QFI_KEY));
+                pdrBuilder.withQfiMatch();
             }
         } else if (srcInterface == Up4P4InfoConstants.IFACE_CORE) {
             // Non-GTP-matching PDRs will match on the UE address
@@ -92,7 +94,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                     .withCounterId(Up4TranslatorUtil.getParamInt(
                             entry, Up4P4InfoConstants.CTR_ID))
                     .withLocalFarId(localFarId);
-        } else if (actionId.equals(Up4P4InfoConstants.LOAD_PDR_QOS_DOWN) && !action.parameters().isEmpty()) {
+        } else if (actionId.equals(Up4P4InfoConstants.LOAD_PDR_QOS) && !action.parameters().isEmpty()) {
             ImmutableByteSequence sessionId = Up4TranslatorUtil.getParamValue(
                     entry, Up4P4InfoConstants.SESSION_ID_PARAM);
             int localFarId = Up4TranslatorUtil.getParamInt(entry, Up4P4InfoConstants.FAR_ID_PARAM);
@@ -102,7 +104,10 @@ public class Up4TranslatorImpl implements Up4Translator {
                     .withCounterId(Up4TranslatorUtil.getParamInt(
                             entry, Up4P4InfoConstants.CTR_ID))
                     .withLocalFarId(localFarId)
-                    .withQfiPush(qfi);
+                    .withQfi(qfi);
+            if (Up4TranslatorUtil.getParamByte(entry, QFI_PUSH_FLAG_PARAM) == TRUE) {
+                pdrBuilder.withQfiPush();
+            }
         }
         return pdrBuilder.build();
     }
@@ -234,13 +239,6 @@ public class Up4TranslatorImpl implements Up4Translator {
                     .addFieldMatch(new PiTernaryFieldMatch(
                             Up4P4InfoConstants.TUNNEL_DST_KEY,
                             ImmutableByteSequence.copyFrom(pdr.tunnelDest().toOctets()), allOnes32));
-            if (pdr.hasQfi()) {
-                matchBuilder
-                        .addFieldMatch(new PiTernaryFieldMatch(
-                                HAS_QFI_KEY, ImmutableByteSequence.copyFrom(TRUE), allOnes8))
-                        .addFieldMatch(new PiTernaryFieldMatch(
-                                QFI_KEY, ImmutableByteSequence.copyFrom(pdr.qfi()), allOnes8));
-            }
         } else {
             decapFlag = FALSE;
             matchBuilder = PiMatchKey.builder()
@@ -250,11 +248,18 @@ public class Up4TranslatorImpl implements Up4Translator {
                     .addFieldMatch(new PiTernaryFieldMatch(
                             Up4P4InfoConstants.UE_ADDR_KEY,
                             ImmutableByteSequence.copyFrom(pdr.ueAddress().toOctets()), allOnes32));
-            if (pdr.hasQfi()) {
-                actionId = LOAD_PDR_QOS_DOWN;
-                actionBuilder.withParameter(new PiActionParam(QFI, pdr.qfi()));
-            }
         }
+        if (pdr.matchQfi()) {
+            matchBuilder.addFieldMatch(new PiTernaryFieldMatch(
+                    HAS_QFI_KEY, ImmutableByteSequence.copyFrom(TRUE), allOnes8))
+                    .addFieldMatch(new PiTernaryFieldMatch(
+                            QFI_KEY, ImmutableByteSequence.copyFrom(pdr.qfi()), allOnes8));
+        } else if (pdr.hasQfi()) {
+            actionId = LOAD_PDR_QOS;
+            actionBuilder.withParameter(new PiActionParam(QFI, pdr.qfi()));
+            actionBuilder.withParameter(new PiActionParam(QFI_PUSH_FLAG_PARAM, pdr.pushQfi() ? TRUE : FALSE));
+        }
+
         actionBuilder.withParameter(new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, decapFlag))
                 .withId(actionId);
         return PiTableEntry.builder()
