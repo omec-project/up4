@@ -188,7 +188,7 @@ public class Up4NorthComponent {
             } else if (up4Translator.isUp4Pdr(entry)) {
                 PacketDetectionRule pdr = up4Translator.up4EntryToPdr(entry);
                 log.debug("Translated UP4 PDR successfully. Deleting.");
-                updateFseidMap(pdr, false);
+                removeFromFseidMap(pdr);
                 up4Service.removePdr(pdr);
 
             } else if (up4Translator.isUp4Far(entry)) {
@@ -235,7 +235,7 @@ public class Up4NorthComponent {
                 up4Service.addInterface(iface);
             } else if (up4Translator.isUp4Pdr(entry)) {
                 PacketDetectionRule pdr = up4Translator.up4EntryToPdr(entry);
-                updateFseidMap(pdr, true);
+                addToFseidMap(pdr);
                 up4Service.addPdr(pdr);
             } else if (up4Translator.isUp4Far(entry)) {
                 ForwardingActionRule far = up4Translator.up4EntryToFar(entry);
@@ -271,7 +271,7 @@ public class Up4NorthComponent {
         }
     }
 
-    private void updateFseidMap(PacketDetectionRule pdr, boolean add) {
+    private void addToFseidMap(PacketDetectionRule pdr) {
         // We know from the PFCP spec that when installing PDRs for the same UE, the F-SEID will be
         // the same for all PDRs, both downlink and uplink. The F-SEID for a given UE will only
         // change after a detach. For simplicity, we never remove values. The map provides the
@@ -279,16 +279,17 @@ public class Up4NorthComponent {
         // we should consider querying for F-SEID in UpfProgrammable, which can be more efficient
         // (e.g., by searching in the PDR flow rules).
         if (pdr.ueAddress() != null) {
-            if (add) {
-                log.debug("Updating map with last seen F-SEID: {} -> {}", pdr.ueAddress(), pdr.sessionId());
-                fseids.put(pdr.ueAddress(), pdr.sessionId());
-            } else {
-                log.debug("Removing from map last seen F-SEID: {}", pdr.ueAddress());
-                fseids.remove(pdr.ueAddress());
-            }
+            log.debug("Updating map with last seen F-SEID: {} -> {}", pdr.ueAddress(), pdr.sessionId());
+            fseids.put(pdr.ueAddress(), pdr.sessionId());
         }
     }
 
+    private void removeFromFseidMap(PacketDetectionRule pdr) {
+        if (pdr.ueAddress() != null) {
+            log.debug("Removing from map last seen F-SEID: {}", pdr.ueAddress());
+            fseids.remove(pdr.ueAddress());
+        }
+    }
 
     /**
      * Find all table entries that match the requested entry, and translate them to p4runtime
