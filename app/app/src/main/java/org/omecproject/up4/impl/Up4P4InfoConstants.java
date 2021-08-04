@@ -41,7 +41,6 @@ public final class Up4P4InfoConstants {
     public static final PiMatchFieldId TUNNEL_DST_KEY = PiMatchFieldId.of("tunnel_ipv4_dst");
     //   far table
     public static final PiMatchFieldId FAR_ID_KEY = PiMatchFieldId.of("far_id");
-    public static final PiMatchFieldId SESSION_ID_KEY = PiMatchFieldId.of("session_id");
     // Action parameter names
     //   interface lookup table
     public static final PiActionParamId SRC_IFACE_PARAM = PiActionParamId.of("src_iface");
@@ -51,7 +50,6 @@ public final class Up4P4InfoConstants {
     public static final PiActionParamId DECAP_FLAG_PARAM = PiActionParamId.of("needs_gtpu_decap");
     public static final PiActionParamId CTR_ID = PiActionParamId.of("ctr_id");
     public static final PiActionParamId FAR_ID_PARAM = PiActionParamId.of("far_id");
-    public static final PiActionParamId SESSION_ID_PARAM = PiActionParamId.of("fseid");
     public static final PiActionParamId SCHEDULING_PRIORITY = PiActionParamId.of("scheduling_priority");
     //   far table
     public static final PiActionParamId TUNNEL_TYPE_PARAM = PiActionParamId.of("tunnel_type");

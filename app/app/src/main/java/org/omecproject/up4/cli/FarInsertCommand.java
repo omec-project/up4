@@ -21,27 +21,23 @@ import org.onosproject.net.behaviour.upf.GtpTunnel;
         description = "Insert a forwarding action rule into the UP4 dataplane")
 public class FarInsertCommand extends AbstractShellCommand {
 
-    @Argument(index = 0, name = "session-id",
-            description = "Session ID for this PDR",
-            required = true)
-    long sessionId = 0;
 
-    @Argument(index = 1, name = "far-id",
-            description = "ID of the FAR",
+    @Argument(index = 0, name = "far-id",
+            description = "Global ID of the FAR",
             required = true)
     int farId = 0;
 
-    @Argument(index = 2, name = "teid",
+    @Argument(index = 1, name = "teid",
             description = "Teid of the tunnel the packet should enter",
             required = false)
     int teid = -1;
 
-    @Argument(index = 3, name = "tunnel-src",
+    @Argument(index = 2, name = "tunnel-src",
             description = "Src IP of the tunnel the packet should enter",
             required = false)
     String tunnelSrc = null;
 
-    @Argument(index = 4, name = "tunnel-dst",
+    @Argument(index = 3, name = "tunnel-dst",
             description = "Dst IP of the tunnel the packet should enter",
             required = false)
     String tunnelDst = null;
@@ -51,8 +47,7 @@ public class FarInsertCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         var farBuilder = ForwardingActionRule.builder()
-                .setFarId(farId)
-                .withSessionId(sessionId);
+                .setFarId(farId);
 
         if (teid != -1) {
             farBuilder.setTunnel(GtpTunnel.builder()

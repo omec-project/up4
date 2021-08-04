@@ -4,9 +4,7 @@
  */
 package org.omecproject.up4.impl;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.onlab.packet.Ip4Address;
-import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 
 import java.util.Map;
@@ -28,14 +26,14 @@ public interface Up4Store {
      * @param farId FAR ID
      * @return boolean
      */
-    boolean isFarIdBuffering(ImmutablePair<ImmutableByteSequence, Integer> farId);
+    boolean isFarIdBuffering(int farId);
 
     /**
      * Learns the given FAR ID as being a buffering one.
      *
      * @param farId FAR ID
      */
-    void learnBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
+    void learnBufferingFarId(int farId);
 
     /**
      * Forgets the given FAR ID as being a buffering one. Returns true if the given
@@ -44,13 +42,13 @@ public interface Up4Store {
      * @param farId FAR ID
      * @return true if the given FAR IDs is known to be a buffering one
      */
-    boolean forgetBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
+    boolean forgetBufferingFarId(int farId);
 
     /**
      * Returns the set of known buffering FAR IDs.
      * @return set
      */
-    Set<ImmutablePair<ImmutableByteSequence, Integer>> getBufferFarIds();
+    Set<Integer> getBufferFarIds();
 
     /**
      * Stores the mapping between FAR ID and UE address as defined by the given PDR.
@@ -65,7 +63,7 @@ public interface Up4Store {
      * @param farId FAR ID
      * @return the Ip4Address assigned to UE
      */
-    Ip4Address ueAddrOfFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
+    Ip4Address ueAddrOfFarId(int farId);
 
     /**
      * Removes the given UE address from the FAR ID to UE address map.
@@ -78,13 +76,13 @@ public interface Up4Store {
      *
      * @return mapping far id to ue address
      */
-    Map<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address> getFarIdsToUeAddrs();
+    Map<Integer, Ip4Address> getFarIdsToUeAddrs();
 
     /**
      * Returns the UE to FAR ID address map.
      *
      * @return mapping ue to far id
      */
-    Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> getUeAddrsToFarIds();
+    Map<Ip4Address, Integer> getUeAddrsToFarIds();
 
 }

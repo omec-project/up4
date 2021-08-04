@@ -4,9 +4,7 @@
  */
 package org.omecproject.up4.impl;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.onlab.packet.Ip4Address;
-import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.store.service.TestEventuallyConsistentMap;
 import org.onosproject.store.service.WallClockTimestamp;
 
@@ -22,13 +20,13 @@ public final class TestDistributedUp4Store {
     public static DistributedUp4Store build() {
         var store = new DistributedUp4Store();
 
-        TestEventuallyConsistentMap.Builder<ImmutablePair<ImmutableByteSequence, Integer>, Boolean>
+        TestEventuallyConsistentMap.Builder<Integer, Boolean>
                 bufferFarIdsBuilder = TestEventuallyConsistentMap.builder();
         bufferFarIdsBuilder.withName(BUFFER_FAR_ID_MAP_NAME)
                 .withTimestampProvider((k, v) -> new WallClockTimestamp())
                 .withSerializer(SERIALIZER.build());
 
-        TestEventuallyConsistentMap.Builder<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address>
+        TestEventuallyConsistentMap.Builder<Integer, Ip4Address>
                 farIdToUeAddrBuilder = TestEventuallyConsistentMap.builder();
         farIdToUeAddrBuilder.withName(FAR_ID_UE_MAP_NAME)
                 .withTimestampProvider((k, v) -> new WallClockTimestamp())

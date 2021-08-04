@@ -4,7 +4,6 @@
  */
 package org.omecproject.up4;
 
-import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import org.onosproject.net.behaviour.upf.PdrStats;
@@ -15,7 +14,6 @@ import static com.google.common.base.Preconditions.checkArgument;
  * Helper class primarily intended for organizing and printing PDRs and FARs, grouped by UE.
  */
 public final class UpfFlow {
-    private final ImmutableByteSequence pfcpSessionId;
     private final PacketDetectionRule pdr;
     private final ForwardingActionRule far;
     private final PdrStats flowStats;
@@ -36,9 +34,8 @@ public final class UpfFlow {
         DOWNLINK
     }
 
-    private UpfFlow(Type type, ImmutableByteSequence pfcpSessionId,
-                    PacketDetectionRule pdr, ForwardingActionRule far, PdrStats flowStats) {
-        this.pfcpSessionId = pfcpSessionId;
+    private UpfFlow(Type type, PacketDetectionRule pdr, ForwardingActionRule far,
+                    PdrStats flowStats) {
         this.pdr = pdr;
         this.far = far;
         this.flowStats = flowStats;
@@ -96,8 +93,8 @@ public final class UpfFlow {
             statString = String.format("%5d Ingress pkts -> %5d Egress pkts",
                     flowStats.getIngressPkts(), flowStats.getEgressPkts());
         }
-        return String.format("SEID:%s - %s  -->  %s;\n    >> %s",
-                pfcpSessionId, pdrString, farString, statString);
+        return String.format("%s  -->  %s;\n    >> %s",
+                             pdrString, farString, statString);
     }
 
     public static Builder builder() {
@@ -113,7 +110,7 @@ public final class UpfFlow {
         }
 
         /**
-         * Add a PDR to the session. The PFCP session ID and the FAR ID set by this PDR should match whatever FAR
+         * Add a PDR to the session. The FAR ID set by this PDR should match whatever FAR
          * is added (if a FAR is added). If this condition is violated, the call to build() will fail.
          *
          * @param pdr the PacketDetectionRule to add
@@ -125,7 +122,7 @@ public final class UpfFlow {
         }
 
         /**
-         * Add a FAR to the session. The PFCP session ID and the FAR ID read by this FAR should match whatever PDR
+         * Add a FAR to the session. The FAR ID read by this FAR should match whatever PDR
          * is added (if a PDR is added). If this condition is violated, the call to build() will fail.
          *
          * @param far the ForwardingActionRule to add
@@ -151,10 +148,7 @@ public final class UpfFlow {
 
         public UpfFlow build() {
             Type type = Type.UNKNOWN;
-            ImmutableByteSequence sessionId = null;
             if (pdr != null && far != null) {
-                checkArgument(pdr.sessionId().equals(far.sessionId()),
-                        "PFCP session ID of PDR and FAR must match!");
                 checkArgument(pdr.farId() == far.farId(),
                         "FAR ID set by PDR and read by FAR must match!");
             }
@@ -163,10 +157,8 @@ public final class UpfFlow {
                     checkArgument(pdr.counterId() == flowStats.getCellId(),
                             "Counter statistics provided do not use counter index set by provided PDR!");
                 }
-                sessionId = pdr.sessionId();
                 type = pdr.matchesEncapped() ? Type.UPLINK : Type.DOWNLINK;
             } else if (far != null) {
-                sessionId = far.sessionId();
                 if (far.forwards()) {
                     type = Type.UPLINK;
                 } else if (far.encaps()) {
@@ -174,7 +166,7 @@ public final class UpfFlow {
                 }
             }
 
-            return new UpfFlow(type, sessionId, pdr, far, flowStats);
+            return new UpfFlow(type, pdr, far, flowStats);
         }
     }
 }

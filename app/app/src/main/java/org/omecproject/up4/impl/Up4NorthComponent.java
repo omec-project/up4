@@ -275,10 +275,11 @@ public class Up4NorthComponent {
         // last-seen F-SEID for a given UE. When scaling the number of UEs, if memory is an issues,
         // we should consider querying for F-SEID in UpfProgrammable, which can be more efficient
         // (e.g., by searching in the PDR flow rules).
-        if (pdr.ueAddress() != null) {
-            log.debug("Updating map with last seen F-SEID: {} -> {}", pdr.ueAddress(), pdr.sessionId());
-            fseids.put(pdr.ueAddress(), pdr.sessionId());
-        }
+        // TODO: which ID should we send on DDN?
+//        if (pdr.ueAddress() != null) {
+//            log.debug("Updating map with last seen F-SEID: {} -> {}", pdr.ueAddress(), pdr.sessionId());
+//            fseids.put(pdr.ueAddress(), pdr.sessionId());
+//        }
     }
 
 

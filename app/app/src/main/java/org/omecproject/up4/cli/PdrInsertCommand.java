@@ -20,27 +20,22 @@ import org.onosproject.net.behaviour.upf.PacketDetectionRule;
         description = "Insert a packet detection rule into the UP4 dataplane")
 public class PdrInsertCommand extends AbstractShellCommand {
 
-    @Argument(index = 0, name = "session-id",
-            description = "Session ID for this PDR",
-            required = true, multiValued = false)
-    long sessionId = 0;
-
-    @Argument(index = 1, name = "ue-ipv4-addr",
+    @Argument(index = 0, name = "ue-ipv4-addr",
             description = "Address of the UE for which this PDR applies",
             required = true, multiValued = false)
     String ueAddr = null;
 
-    @Argument(index = 2, name = "far-id",
-            description = "ID of the FAR that should apply if this PDR matches",
+    @Argument(index = 1, name = "far-id",
+            description = "Global ID of the FAR that should apply if this PDR matches",
             required = true, multiValued = false)
     int farId = 0;
 
-    @Argument(index = 3, name = "teid",
+    @Argument(index = 2, name = "teid",
             description = "Tunnel ID of the tunnel to/from the base station",
             required = false, multiValued = false)
     int teid = -1;
 
-    @Argument(index = 4, name = "s1u-ip",
+    @Argument(index = 3, name = "s1u-ip",
             description = "IP address of the S1U interface (endpoint of the tunnel to the base station)",
             required = false, multiValued = false)
     String s1uAddr = null;
@@ -52,9 +47,8 @@ public class PdrInsertCommand extends AbstractShellCommand {
         Ip4Address ueAddr = Ip4Address.valueOf(this.ueAddr);
 
         var pdrBuilder = PacketDetectionRule.builder()
-                .withSessionId(sessionId)
                 .withUeAddr(ueAddr)
-                .withLocalFarId(farId)
+                .withFarId(farId)
                 .withCounterId(1);
 
         if (teid != -1) {

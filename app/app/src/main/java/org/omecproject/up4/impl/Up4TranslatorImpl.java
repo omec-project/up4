@@ -69,26 +69,20 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiAction action = (PiAction) entry.action();
         PiActionId actionId = action.id();
         if (actionId.equals(Up4P4InfoConstants.LOAD_PDR) && !action.parameters().isEmpty()) {
-            ImmutableByteSequence sessionId = Up4TranslatorUtil.getParamValue(
-                    entry, Up4P4InfoConstants.SESSION_ID_PARAM);
-            int localFarId = Up4TranslatorUtil.getParamInt(
+            int globalFarId = Up4TranslatorUtil.getParamInt(
                     entry, Up4P4InfoConstants.FAR_ID_PARAM);
             int schedulingPriority = 0;
-            pdrBuilder.withSessionId(sessionId)
+            pdrBuilder.withFarId(globalFarId)
                     .withCounterId(Up4TranslatorUtil.getParamInt(
                             entry, Up4P4InfoConstants.CTR_ID))
-                    .withLocalFarId(localFarId)
                     .withSchedulingPriority(schedulingPriority);
         } else if (actionId.equals(Up4P4InfoConstants.LOAD_PDR_QOS) && !action.parameters().isEmpty()) {
-            ImmutableByteSequence sessionId = Up4TranslatorUtil.getParamValue(
-                    entry, Up4P4InfoConstants.SESSION_ID_PARAM);
-            int localFarId = Up4TranslatorUtil.getParamInt(entry, Up4P4InfoConstants.FAR_ID_PARAM);
+            int globalFarId = Up4TranslatorUtil.getParamInt(entry, Up4P4InfoConstants.FAR_ID_PARAM);
             int schedulingPriority = Up4TranslatorUtil.getParamInt(
                     entry, Up4P4InfoConstants.SCHEDULING_PRIORITY);
-            pdrBuilder.withSessionId(sessionId)
+            pdrBuilder.withFarId(globalFarId)
                     .withCounterId(Up4TranslatorUtil.getParamInt(
                             entry, Up4P4InfoConstants.CTR_ID))
-                    .withLocalFarId(localFarId)
                     .withSchedulingPriority(schedulingPriority);
         }
         return pdrBuilder.build();
@@ -98,12 +92,9 @@ public class Up4TranslatorImpl implements Up4Translator {
     public ForwardingActionRule up4EntryToFar(PiTableEntry entry)
             throws Up4TranslationException {
         // First get the match keys
-        ImmutableByteSequence sessionId = Up4TranslatorUtil.getFieldValue(
-                entry, Up4P4InfoConstants.SESSION_ID_KEY);
-        int localFarId = Up4TranslatorUtil.getFieldInt(entry, Up4P4InfoConstants.FAR_ID_KEY);
+        int globalFarId = Up4TranslatorUtil.getFieldInt(entry, Up4P4InfoConstants.FAR_ID_KEY);
         var farBuilder = ForwardingActionRule.builder()
-                .setFarId(localFarId)
-                .withSessionId(sessionId);
+                .setFarId(globalFarId);
 
         // Now get the action parameters, if they are present (entries from delete writes don't have parameters)
         PiAction action = (PiAction) entry.action();
@@ -188,7 +179,6 @@ public class Up4TranslatorImpl implements Up4Translator {
         matchKey = PiMatchKey.builder()
                 .addFieldMatch(new PiExactFieldMatch(Up4P4InfoConstants.FAR_ID_KEY,
                                                      ImmutableByteSequence.copyFrom(far.farId())))
-                .addFieldMatch(new PiExactFieldMatch(Up4P4InfoConstants.SESSION_ID_KEY, far.sessionId()))
                 .build();
 
         return PiTableEntry.builder()
@@ -229,7 +219,6 @@ public class Up4TranslatorImpl implements Up4Translator {
         // FIXME: pdr_id is not yet stored on writes so it cannot be read
         PiAction.Builder builder = PiAction.builder()
                 .withParameters(Arrays.asList(
-                        new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, pdr.sessionId()),
                         new PiActionParam(Up4P4InfoConstants.CTR_ID, pdr.counterId()),
                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, pdr.farId()),
                         new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, toImmutableByte(decapFlag))

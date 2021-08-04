@@ -19,13 +19,8 @@ import org.onosproject.net.behaviour.upf.ForwardingActionRule;
         description = "Delete a forwarding action rule from the UP4 dataplane")
 public class FarDeleteCommand extends AbstractShellCommand {
 
-    @Argument(index = 0, name = "session-id",
-            description = "Session ID for this PDR",
-            required = true)
-    long sessionId = 0;
-
-    @Argument(index = 1, name = "far-id",
-            description = "ID of the FAR",
+    @Argument(index = 0, name = "far-id",
+            description = "Global ID of the FAR",
             required = true)
     int farId = 0;
 
@@ -34,7 +29,6 @@ public class FarDeleteCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         ForwardingActionRule far = ForwardingActionRule.builder()
-                .withSessionId(sessionId)
                 .setFarId(farId)
                 .build();
         print("Deleting %s", far.toString());

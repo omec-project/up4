@@ -8,8 +8,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.grpc.Context;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.dbuf.client.DbufClient;
 import org.omecproject.dbuf.client.DefaultDbufClient;
 import org.omecproject.up4.Up4Event;
@@ -20,7 +18,6 @@ import org.omecproject.up4.config.Up4Config;
 import org.omecproject.up4.config.Up4DbufConfig;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
-import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
@@ -570,19 +567,18 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void addFar(ForwardingActionRule far) throws UpfProgrammableException {
-        var ruleId = ImmutablePair.of(far.sessionId(), far.farId());
         if (far.buffers()) {
             // If the far has the buffer flag, modify its tunnel so it directs to dbuf
             far = convertToDbufFar(far);
-            up4Store.learnBufferingFarId(ruleId);
+            up4Store.learnBufferingFarId(far.farId());
         }
         getLeaderUpfProgrammable().addFar(far);
         // TODO: Should we wait for rules to be installed on all devices before
         //   triggering drain?
-        if (!far.buffers() && up4Store.forgetBufferingFarId(ruleId)) {
+        if (!far.buffers() && up4Store.forgetBufferingFarId(far.farId())) {
             // If this FAR does not buffer but used to, then drain the buffer for the UE address
             // that hits this FAR. It is harmless to trigger drain if there are no buffers to be drained
-            Ip4Address ueAddr = up4Store.ueAddrOfFarId(ruleId);
+            Ip4Address ueAddr = up4Store.ueAddrOfFarId(far.farId());
             if (ueAddr != null) {
                 // Run the outbound rpc in a forked context so it doesn't cancel if it was called
                 // by an inbound rpc that completes faster than the drain call
@@ -617,7 +613,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         getLeaderUpfProgrammable().removeFar(far);
         // if it was used to be a buffer far - we need to clean it as we will not see
         // the drain trigger for this far
-        up4Store.forgetBufferingFarId(ImmutablePair.of(far.sessionId(), far.farId()));
+        up4Store.forgetBufferingFarId(far.farId());
     }
 
     @Override
@@ -736,11 +732,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         // A flow is made of a PDR and the FAR that should apply to packets that
         // hit the PDR. Multiple PDRs can map to the same FAR, so create a
         // one->many mapping of FAR Identifier to flow builder.
-        Map<Pair<ImmutableByteSequence, Integer>, List<UpfFlow.Builder>> globalFarToSessionBuilder = new HashMap<>();
+        Map<Integer, List<UpfFlow.Builder>> globalFarToSessionBuilder = new HashMap<>();
         Collection<ForwardingActionRule> fars = this.getFars();
         Collection<PacketDetectionRule> pdrs = this.getPdrs();
         pdrs.forEach(pdr -> globalFarToSessionBuilder.compute(
-                Pair.of(pdr.sessionId(), pdr.farId()),
+                pdr.farId(),
                 (k, existingVal) -> {
                     final var builder = UpfFlow.builder()
                             .setPdr(pdr)
@@ -753,7 +749,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     }
                 }));
         fars.forEach(far -> globalFarToSessionBuilder.compute(
-                Pair.of(far.sessionId(), far.farId()),
+                far.farId(),
                 (k, builderList) -> {
                     // If no PDRs use this FAR, then create a new flow with no PDR
                     if (builderList == null) {
@@ -829,7 +825,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         // a load_far_normal action with notify and drop flags set
         return ForwardingActionRule.builder()
                 .setFarId(far.farId())
-                .withSessionId(far.sessionId())
                 .setNotifyFlag(far.notifies())
                 .setBufferFlag(true)
                 .setTunnel(dbufTunnel)

@@ -4,14 +4,12 @@
  */
 package org.omecproject.up4.cli;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Option;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.impl.Up4Store;
 import org.onlab.packet.Ip4Address;
-import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cli.AbstractShellCommand;
 
 import java.util.Map;
@@ -44,32 +42,26 @@ public class ReadInternalUp4StoreCommand extends AbstractShellCommand {
             return;
         }
 
-        Set<ImmutablePair<ImmutableByteSequence, Integer>> bufferFarIds = upfStore.getBufferFarIds();
+        Set<Integer> bufferFarIds = upfStore.getBufferFarIds();
         print("bufferFarIds size: " + bufferFarIds.size());
         if (verbose) {
-            bufferFarIds.forEach(upfRuleIdentifier -> print("RuleIdentifier{" +
-                    "sessionlocalId=" + upfRuleIdentifier.getRight() +
-                    ", pfcpSessionId=" + upfRuleIdentifier.getLeft() +
-                    "}"));
+            bufferFarIds.forEach(farId -> print("RuleIdentifier{" +
+                    "globalFarId=" + farId + "}"));
         }
 
-        Map<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address> farIdsToUeAddrs = upfStore.getFarIdsToUeAddrs();
+        Map<Integer, Ip4Address> farIdsToUeAddrs = upfStore.getFarIdsToUeAddrs();
         print("farIdToUeAddrs size: " + farIdsToUeAddrs.size());
         if (verbose) {
             farIdsToUeAddrs.forEach((key, value) -> print("RuleIdentifier{" +
-                    "sessionlocalId=" + key.getRight() +
-                    ", pfcpSessionId=" + key.getLeft() +
-                    "}=" + value));
+                    "globalFarId=" + key + "}=" + value));
         }
 
-        Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> ueAddrsToFarIds =
+        Map<Ip4Address, Integer> ueAddrsToFarIds =
                 upfStore.getUeAddrsToFarIds();
         print("ueAddrsToFarIds size: " + ueAddrsToFarIds.size());
         if (verbose) {
             ueAddrsToFarIds.forEach((key, value) -> print(key + "=RuleIdentifier{" +
-                    "sessionlocalId=" + value.getRight() +
-                    ", pfcpSessionId=" + value.getLeft() +
-                    "}"));
+                    "globalFarId=" + value + "}"));
         }
     }
 }

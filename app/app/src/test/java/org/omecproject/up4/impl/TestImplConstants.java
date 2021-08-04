@@ -28,15 +28,11 @@ public final class TestImplConstants {
     public static final ApplicationId APP_ID = new DefaultApplicationId(5000, "up4");
     public static final int DEFAULT_PRIORITY = 10;
     public static final ImmutableByteSequence ALL_ONES_32 = ImmutableByteSequence.ofOnes(4);
-    public static final ImmutableByteSequence SESSION_ID =
-            ImmutableByteSequence.ofOnes(Up4P4InfoConstants.SESSION_ID_BITWIDTH / 8);
     public static final int UPLINK_COUNTER_CELL_ID = 1;
     public static final int DOWNLINK_COUNTER_CELL_ID = 2;
     public static final int PDR_ID = 0;  // TODO: PDR ID currently not stored on writes, so all reads are 0
     public static final int UPLINK_FAR_ID = 1;
-    public static final int UPLINK_PHYSICAL_FAR_ID = 4;
     public static final int DOWNLINK_FAR_ID = 2;
-    public static final int DOWNLINK_PHYSICAL_FAR_ID = 5;
 
     public static final int UPLINK_PRIORITY = 9;
     public static final int DOWNLINK_PRIORITY = 1;
@@ -65,16 +61,14 @@ public final class TestImplConstants {
     public static final PacketDetectionRule UPLINK_PDR = PacketDetectionRule.builder()
             .withTunnelDst(S1U_ADDR)
             .withTeid(TEID)
-            .withLocalFarId(UPLINK_FAR_ID)
-            .withSessionId(SESSION_ID)
+            .withFarId(UPLINK_FAR_ID)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
             .withSchedulingPriority(DEFAULT_SCHEDULING_PRIORITY)
             .build();
 
     public static final PacketDetectionRule DOWNLINK_PDR = PacketDetectionRule.builder()
             .withUeAddr(UE_ADDR)
-            .withLocalFarId(DOWNLINK_FAR_ID)
-            .withSessionId(SESSION_ID)
+            .withFarId(DOWNLINK_FAR_ID)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
             .withSchedulingPriority(DEFAULT_SCHEDULING_PRIORITY)
             .build();
@@ -82,27 +76,24 @@ public final class TestImplConstants {
     public static final PacketDetectionRule UPLINK_PRIORITY_PDR = PacketDetectionRule.builder()
             .withTunnelDst(S1U_ADDR)
             .withTeid(TEID)
-            .withLocalFarId(UPLINK_FAR_ID)
-            .withSessionId(SESSION_ID)
+            .withFarId(UPLINK_FAR_ID)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
             .withSchedulingPriority(UPLINK_PRIORITY)
             .build();
 
     public static final PacketDetectionRule DOWNLINK_PRIORITY_PDR = PacketDetectionRule.builder()
             .withUeAddr(UE_ADDR)
-            .withLocalFarId(DOWNLINK_FAR_ID)
-            .withSessionId(SESSION_ID)
+            .withFarId(DOWNLINK_FAR_ID)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
             .withSchedulingPriority(DOWNLINK_PRIORITY)
             .build();
 
     public static final ForwardingActionRule UPLINK_FAR = ForwardingActionRule.builder()
             .setFarId(UPLINK_FAR_ID)
-            .withSessionId(SESSION_ID).build();
+            .build();
 
     public static final ForwardingActionRule DOWNLINK_FAR = ForwardingActionRule.builder()
             .setFarId(DOWNLINK_FAR_ID)
-            .withSessionId(SESSION_ID)
             .setTunnel(S1U_ADDR, ENB_ADDR, TEID, TUNNEL_SPORT)
             .build();
 
@@ -125,7 +116,6 @@ public final class TestImplConstants {
             .withAction(PiAction.builder()
                                 .withId(Up4P4InfoConstants.LOAD_PDR_QOS)
                                 .withParameters(Arrays.asList(
-                                        new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, SESSION_ID),
                                         new PiActionParam(Up4P4InfoConstants.CTR_ID, UPLINK_COUNTER_CELL_ID),
                                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, UPLINK_FAR_ID),
                                         new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, TRUE_BYTE),
@@ -147,7 +137,6 @@ public final class TestImplConstants {
             .withAction(PiAction.builder()
                                 .withId(Up4P4InfoConstants.LOAD_PDR_QOS)
                                 .withParameters(Arrays.asList(
-                                        new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, SESSION_ID),
                                         new PiActionParam(Up4P4InfoConstants.CTR_ID, DOWNLINK_COUNTER_CELL_ID),
                                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, DOWNLINK_FAR_ID),
                                         new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, FALSE_BYTE),
@@ -171,7 +160,6 @@ public final class TestImplConstants {
             .withAction(PiAction.builder()
                                 .withId(Up4P4InfoConstants.LOAD_PDR)
                                 .withParameters(Arrays.asList(
-                                        new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, SESSION_ID),
                                         new PiActionParam(Up4P4InfoConstants.CTR_ID, UPLINK_COUNTER_CELL_ID),
                                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, UPLINK_FAR_ID),
                                         new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, TRUE_BYTE)
@@ -192,7 +180,6 @@ public final class TestImplConstants {
             .withAction(PiAction.builder()
                                 .withId(Up4P4InfoConstants.LOAD_PDR)
                                 .withParameters(Arrays.asList(
-                                        new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, SESSION_ID),
                                         new PiActionParam(Up4P4InfoConstants.CTR_ID, DOWNLINK_COUNTER_CELL_ID),
                                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, DOWNLINK_FAR_ID),
                                         new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, FALSE_BYTE)
@@ -206,8 +193,6 @@ public final class TestImplConstants {
                                   .addFieldMatch(new PiExactFieldMatch(
                                           Up4P4InfoConstants.FAR_ID_KEY,
                                           ImmutableByteSequence.copyFrom(UPLINK_FAR_ID)))
-                                  .addFieldMatch(new PiExactFieldMatch(
-                                          Up4P4InfoConstants.SESSION_ID_KEY, SESSION_ID))
                                   .build())
             .withAction(PiAction.builder()
                                 .withId(Up4P4InfoConstants.LOAD_FAR_NORMAL)
@@ -224,8 +209,6 @@ public final class TestImplConstants {
                                   .addFieldMatch(new PiExactFieldMatch(
                                           Up4P4InfoConstants.FAR_ID_KEY,
                                           ImmutableByteSequence.copyFrom(DOWNLINK_FAR_ID)))
-                                  .addFieldMatch(new PiExactFieldMatch(
-                                          Up4P4InfoConstants.SESSION_ID_KEY, SESSION_ID))
                                   .build())
             .withAction(PiAction.builder()
                                 .withId(Up4P4InfoConstants.LOAD_FAR_TUNNEL)
@@ -248,7 +231,6 @@ public final class TestImplConstants {
                                   .addFieldMatch(new PiExactFieldMatch(
                                           Up4P4InfoConstants.FAR_ID_KEY,
                                           ImmutableByteSequence.copyFrom(DOWNLINK_FAR_ID)))
-                                  .addFieldMatch(new PiExactFieldMatch(Up4P4InfoConstants.SESSION_ID_KEY, SESSION_ID))
                                   .build())
             .withAction(PiAction.builder()
                                 .withId(Up4P4InfoConstants.LOAD_FAR_NORMAL)
@@ -302,13 +284,5 @@ public final class TestImplConstants {
      * Hidden constructor for utility class.
      */
     private TestImplConstants() {
-    }
-
-    private static ImmutableByteSequence toSessionId(long value) {
-        try {
-            return ImmutableByteSequence.copyFrom(value).fit(Up4P4InfoConstants.SESSION_ID_BITWIDTH);
-        } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
-            return ImmutableByteSequence.ofZeros(Up4P4InfoConstants.SESSION_ID_BITWIDTH / 8);
-        }
     }
 }
