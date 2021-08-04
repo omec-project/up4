@@ -9,6 +9,7 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Option;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.impl.Up4NorthComponent;
 import org.omecproject.up4.impl.Up4Store;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
@@ -33,6 +34,7 @@ public class ReadInternalUp4StoreCommand extends AbstractShellCommand {
     protected void doExecute() {
         Up4Service up4Service = get(Up4Service.class);
         Up4Store upfStore = get(Up4Store.class);
+        Up4NorthComponent up4NorthComponent = get(Up4NorthComponent.class);
 
         if (up4Service == null) {
             print("Error: Up4Service is null");
@@ -70,6 +72,12 @@ public class ReadInternalUp4StoreCommand extends AbstractShellCommand {
                     "sessionlocalId=" + value.getRight() +
                     ", pfcpSessionId=" + value.getLeft() +
                     "}"));
+        }
+
+        Map<Ip4Address, ImmutableByteSequence> ueAddrsToFseids = up4NorthComponent.getUeAddrsToFseids();
+        print("ueAddrsToFseids size: " + ueAddrsToFseids.size());
+        if (verbose) {
+            ueAddrsToFseids.entrySet().forEach(entry -> print(entry.toString()));
         }
     }
 }
