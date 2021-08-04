@@ -174,24 +174,9 @@ public class Up4NorthComponent {
         log.info("Stopped.");
     }
 
-    private void translateMeterAndInsert(PiMeterCellConfig meterEntry) throws StatusException {
+    private void translateMeterAndModify(PiMeterCellConfig meterEntry) throws StatusException {
         try {
-            up4Service.addQer(up4Translator.up4MeterEntryToQer(meterEntry));
-        } catch (Up4Translator.Up4TranslationException e) {
-            log.warn("Failed to translate UP4 meter entry in insert request: {}", e.getMessage());
-            throw INVALID_ARGUMENT
-                    .withDescription("Failed to translate UP4 meter entry in insert request: " + e.getMessage())
-                    .asException();
-        } catch (UpfProgrammableException e) {
-            log.warn("Failed to complete insert request: {}", e.getMessage());
-            throw io.grpc.Status.UNAVAILABLE
-                    .withDescription(e.getMessage())
-                    .asException();
-        }
-    }
-    private void translateMeterAndDelete(PiMeterCellConfig meterEntry) throws StatusException {
-        try {
-            up4Service.removeQer(up4Translator.up4MeterEntryToQer(meterEntry));
+            up4Service.modifyQer(up4Translator.up4MeterEntryToQer(meterEntry));
         } catch (Up4Translator.Up4TranslationException e) {
             log.warn("Failed to translate UP4 meter entry in insert request: {}", e.getMessage());
             throw INVALID_ARGUMENT
@@ -852,12 +837,9 @@ public class Up4NorthComponent {
                         }
                         PiMeterCellConfig meterEntry = (PiMeterCellConfig) piEntity;
                         switch (update.getType()) {
-                            case INSERT:
                             case MODIFY:
-                                translateMeterAndInsert(meterEntry);
-                                break;
-                            case DELETE:
-                                translateMeterAndDelete(meterEntry);
+                                // P4Runtime meters support only MODIFY behaviour.
+                                translateMeterAndModify(meterEntry);
                                 break;
                             default:
                                 log.warn("Unsupported update type for a meter entry");

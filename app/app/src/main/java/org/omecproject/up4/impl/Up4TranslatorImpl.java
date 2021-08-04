@@ -99,7 +99,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                     .withCounterId(Up4TranslatorUtil.getParamInt(
                             entry, Up4P4InfoConstants.CTR_ID))
                     .withLocalFarId(localFarId)
-                    .withQerId(qerId);
+                    .withQerId(qerId)
                     .withSchedulingPriority(schedulingPriority);
         }
         return pdrBuilder.build();

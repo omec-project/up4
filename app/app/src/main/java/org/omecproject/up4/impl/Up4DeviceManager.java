@@ -575,7 +575,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
-    public void addQer(QosEnforcementRule qer) throws UpfProgrammableException {
+    public void modifyQer(QosEnforcementRule qer) throws UpfProgrammableException {
         log.debug("QER not supported yet. Storing QER: {}", qer);
         up4Store.storeQer(qer);
     }
