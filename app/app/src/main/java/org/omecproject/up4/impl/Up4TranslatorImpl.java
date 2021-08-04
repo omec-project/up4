@@ -9,6 +9,7 @@ import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
+import org.onosproject.net.behaviour.upf.QosEnforcementRule;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.pi.model.PiActionId;
 import org.onosproject.net.pi.runtime.PiAction;
@@ -16,12 +17,17 @@ import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiExactFieldMatch;
 import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
 import org.onosproject.net.pi.runtime.PiMatchKey;
+import org.onosproject.net.pi.runtime.PiMeterBand;
+import org.onosproject.net.pi.runtime.PiMeterCellConfig;
+import org.onosproject.net.pi.runtime.PiMeterCellId;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+
+import static org.omecproject.up4.impl.Up4P4InfoConstants.QER_METER;
 
 /**
  * Utility class for transforming PiTableEntries to classes more specific to the UPF pipelines,
@@ -73,15 +79,19 @@ public class Up4TranslatorImpl implements Up4Translator {
                     entry, Up4P4InfoConstants.SESSION_ID_PARAM);
             int localFarId = Up4TranslatorUtil.getParamInt(
                     entry, Up4P4InfoConstants.FAR_ID_PARAM);
+            int qerId = Up4TranslatorUtil.getParamInt(entry, Up4P4InfoConstants.QER_ID_PARAM);
             int schedulingPriority = 0;
             pdrBuilder.withSessionId(sessionId)
                     .withCounterId(Up4TranslatorUtil.getParamInt(
                             entry, Up4P4InfoConstants.CTR_ID))
+                    .withSchedulingPriority(schedulingPriority)
                     .withLocalFarId(localFarId)
+                    .withQerId(qerId)
                     .withSchedulingPriority(schedulingPriority);
         } else if (actionId.equals(Up4P4InfoConstants.LOAD_PDR_QOS) && !action.parameters().isEmpty()) {
             ImmutableByteSequence sessionId = Up4TranslatorUtil.getParamValue(
                     entry, Up4P4InfoConstants.SESSION_ID_PARAM);
+            int qerId = Up4TranslatorUtil.getParamInt(entry, Up4P4InfoConstants.QER_ID_PARAM);
             int localFarId = Up4TranslatorUtil.getParamInt(entry, Up4P4InfoConstants.FAR_ID_PARAM);
             int schedulingPriority = Up4TranslatorUtil.getParamInt(
                     entry, Up4P4InfoConstants.SCHEDULING_PRIORITY);
@@ -89,6 +99,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                     .withCounterId(Up4TranslatorUtil.getParamInt(
                             entry, Up4P4InfoConstants.CTR_ID))
                     .withLocalFarId(localFarId)
+                    .withQerId(qerId);
                     .withSchedulingPriority(schedulingPriority);
         }
         return pdrBuilder.build();
@@ -199,6 +210,47 @@ public class Up4TranslatorImpl implements Up4Translator {
     }
 
     @Override
+    public PiMeterCellConfig qerToUp4MeterEntry(QosEnforcementRule qer) throws Up4TranslationException {
+        PiMeterCellId meterCellId = PiMeterCellId.ofIndirect(QER_METER, qer.getQerId());
+        PiMeterBand commitedBand = new PiMeterBand(qer.getCir(), qer.getCburst());
+        PiMeterBand peakBand = new PiMeterBand(qer.getPir(), qer.getPburst());
+        return PiMeterCellConfig.builder()
+                .withMeterCellId(meterCellId)
+                .withMeterBand(commitedBand)
+                .withMeterBand(peakBand)
+                .build();
+    }
+
+    @Override
+    public QosEnforcementRule up4MeterEntryToQer(PiMeterCellConfig meterEntry) throws Up4TranslationException {
+        PiMeterBand committedBand;
+        PiMeterBand peakBand;
+        PiMeterBand[] bands = meterEntry.meterBands().toArray(new PiMeterBand[0]);
+        if (bands.length != 2) {
+            throw new Up4TranslationException("Meter must have 2 bands (committed and peak)!");
+        }
+        // Assume peak is the band with higher rate or equal rate but higher peak
+        //CHECKSTYLE:OFF
+        // from: https://github.com/opennetworkinglab/onos/blob/master/protocols/p4runtime/utils/src/main/java/org/onosproject/p4runtime/ctl/codec/MeterEntryCodec.java
+        //CHECKSTYLE:ON
+        if (bands[0].rate() > bands[1].rate() ||
+                (bands[0].rate() == bands[1].rate() && bands[0].burst() >= bands[1].burst())) {
+            committedBand = bands[1];
+            peakBand = bands[0];
+        } else {
+            committedBand = bands[0];
+            peakBand = bands[1];
+        }
+        return new QosEnforcementRule.Builder()
+                .withQerId((int) meterEntry.cellId().index())
+                .withCir(committedBand.rate())
+                .withCburst(committedBand.burst())
+                .withPir(peakBand.rate())
+                .withPburst(peakBand.burst())
+                .build();
+    }
+
+    @Override
     public PiTableEntry pdrToUp4Entry(PacketDetectionRule pdr) throws Up4TranslationException {
         PiMatchKey matchKey;
         PiAction action;
@@ -232,6 +284,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                         new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, pdr.sessionId()),
                         new PiActionParam(Up4P4InfoConstants.CTR_ID, pdr.counterId()),
                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, pdr.farId()),
+                        new PiActionParam(Up4P4InfoConstants.QER_ID_PARAM, pdr.qerId()),
                         new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, toImmutableByte(decapFlag))
                 ));
         if (pdr.hasSchedulingPriority()) {

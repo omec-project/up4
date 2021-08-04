@@ -6,7 +6,9 @@ package org.omecproject.up4;
 
 import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
+import org.onosproject.net.behaviour.upf.QosEnforcementRule;
 import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.pi.runtime.PiMeterCellConfig;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 
 /**
@@ -99,6 +101,12 @@ public interface Up4Translator {
      * @throws Up4TranslationException if the FAR cannot be translated
      */
     PiTableEntry farToUp4Entry(ForwardingActionRule far) throws Up4TranslationException;
+
+    // TODO
+    PiMeterCellConfig qerToUp4MeterEntry(QosEnforcementRule qer) throws Up4TranslationException;
+
+    // TODO
+    QosEnforcementRule up4MeterEntryToQer(PiMeterCellConfig meterEntry) throws Up4TranslationException;
 
 
     class Up4TranslationException extends Exception {

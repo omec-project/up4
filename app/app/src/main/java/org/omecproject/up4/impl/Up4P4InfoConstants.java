@@ -8,6 +8,7 @@ import org.onosproject.net.pi.model.PiActionId;
 import org.onosproject.net.pi.model.PiActionParamId;
 import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiMatchFieldId;
+import org.onosproject.net.pi.model.PiMeterId;
 import org.onosproject.net.pi.model.PiTableId;
 
 public final class Up4P4InfoConstants {
@@ -52,6 +53,7 @@ public final class Up4P4InfoConstants {
     public static final PiActionParamId CTR_ID = PiActionParamId.of("ctr_id");
     public static final PiActionParamId FAR_ID_PARAM = PiActionParamId.of("far_id");
     public static final PiActionParamId SESSION_ID_PARAM = PiActionParamId.of("fseid");
+    public static final PiActionParamId QER_ID_PARAM = PiActionParamId.of("qer_id");
     public static final PiActionParamId SCHEDULING_PRIORITY = PiActionParamId.of("scheduling_priority");
     //   far table
     public static final PiActionParamId TUNNEL_TYPE_PARAM = PiActionParamId.of("tunnel_type");
@@ -62,6 +64,9 @@ public final class Up4P4InfoConstants {
     public static final PiActionParamId DROP_FLAG = PiActionParamId.of("needs_dropping");
     public static final PiActionParamId NOTIFY_FLAG = PiActionParamId.of("notify_cp");
     public static final PiActionParamId BUFFER_FLAG = PiActionParamId.of("needs_buffering");
+    // Meter
+    //   qer meter
+    public static final PiMeterId QER_METER = PiMeterId.of("PreQosPipe.qer_meter");
     // digests
     // FIXME: replace with name after we add P4Info browser for digests in ONOS
     public static final int DDN_DIGEST_ID = 396224266;

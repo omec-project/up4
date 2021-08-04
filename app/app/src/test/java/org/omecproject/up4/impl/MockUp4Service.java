@@ -10,6 +10,7 @@ import org.omecproject.up4.UpfFlow;
 import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import org.onosproject.net.behaviour.upf.PdrStats;
+import org.onosproject.net.behaviour.upf.QosEnforcementRule;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 
 import java.nio.ByteBuffer;
@@ -22,6 +23,7 @@ public class MockUp4Service implements Up4Service {
     boolean configAvailable = true;
     final List<PacketDetectionRule> pdrs = new ArrayList<>();
     final List<ForwardingActionRule> fars = new ArrayList<>();
+    final List<QosEnforcementRule> qers = new ArrayList<>();
     final List<UpfInterface> ifaces = new ArrayList<>();
     final List<ByteBuffer> sentPacketOuts = new ArrayList<>();
 
@@ -116,6 +118,11 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
+    public Collection<QosEnforcementRule> getQers() {
+        return List.copyOf(qers);
+    }
+
+    @Override
     public Collection<UpfInterface> getInterfaces() {
         return List.copyOf(ifaces);
     }
@@ -130,6 +137,19 @@ public class MockUp4Service implements Up4Service {
         int index = pdrs.indexOf(pdr);
         if (index != -1) {
             pdrs.remove(index);
+        }
+    }
+
+    @Override
+    public void addQer(QosEnforcementRule qer) {
+        qers.add(qer);
+    }
+
+    @Override
+    public void removeQer(QosEnforcementRule qer) {
+        int index = qers.indexOf(qer);
+        if (index != -1) {
+            qers.remove(index);
         }
     }
 

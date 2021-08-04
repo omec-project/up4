@@ -12,6 +12,7 @@ import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 import org.onlab.util.KryoNamespace;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
+import org.onosproject.net.behaviour.upf.QosEnforcementRule;
 import org.onosproject.store.serializers.KryoNamespaces;
 import org.onosproject.store.service.EventuallyConsistentMap;
 import org.onosproject.store.service.EventuallyConsistentMapEvent;
@@ -26,6 +27,7 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -45,10 +47,12 @@ public class DistributedUp4Store implements Up4Store {
 
     protected static final String BUFFER_FAR_ID_MAP_NAME = "up4-buffer-far-id";
     protected static final String FAR_ID_UE_MAP_NAME = "up4-far-id-ue";
+    protected static final String QER_STORE_NAME = "qer-store";
 
     protected static final KryoNamespace.Builder SERIALIZER = KryoNamespace.newBuilder()
             .register(KryoNamespaces.API)
-            .register(ImmutablePair.class);
+            .register(ImmutablePair.class)
+            .register(QosEnforcementRule.class);
 
     // NOTE If we can afford to lose the buffer state, we can make this map a simple concurrent map.
     // This can happen in case of instance failure or change in the DNS resolution.
@@ -56,6 +60,7 @@ public class DistributedUp4Store implements Up4Store {
     protected EventuallyConsistentMap<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address> farIdToUeAddr;
     private EventuallyConsistentMapListener<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address>
             farIdToUeAddrListener;
+    protected EventuallyConsistentMap<QosEnforcementRule, Boolean> qerStore;
     // Local, reversed copy of farIdToUeAddrMapper for reverse lookup
     protected Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> ueAddrToFarId;
 
@@ -75,6 +80,12 @@ public class DistributedUp4Store implements Up4Store {
                             .withSerializer(SERIALIZER)
                             .withTimestampProvider((k, v) -> new WallClockTimestamp())
                             .build();
+            this.qerStore = storageService.
+                    <QosEnforcementRule, Boolean>eventuallyConsistentMapBuilder()
+                    .withName(QER_STORE_NAME)
+                    .withSerializer(SERIALIZER)
+                    .withTimestampProvider((k, v) -> new WallClockTimestamp())
+                    .build();
         }
         farIdToUeAddrListener = new FarIdToUeAddrMapListener();
         farIdToUeAddr.addListener(farIdToUeAddrListener);
@@ -94,6 +105,8 @@ public class DistributedUp4Store implements Up4Store {
         this.farIdToUeAddr = null;
         this.ueAddrToFarId.clear();
         this.ueAddrToFarId = null;
+        this.qerStore.clear();
+        this.qerStore = null;
 
         log.info("Stopped");
     }
@@ -103,6 +116,7 @@ public class DistributedUp4Store implements Up4Store {
         bufferFarIds.clear();
         farIdToUeAddr.clear();
         ueAddrToFarId.clear();
+        qerStore.clear();
     }
 
     @Override
@@ -159,6 +173,21 @@ public class DistributedUp4Store implements Up4Store {
     @Override
     public Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> getUeAddrsToFarIds() {
         return ImmutableMap.copyOf(ueAddrToFarId);
+    }
+
+    @Override
+    public void storeQer(QosEnforcementRule qer) {
+        qerStore.put(qer, true);
+    }
+
+    @Override
+    public Collection<QosEnforcementRule> getQers() {
+        return qerStore.keySet();
+    }
+
+    @Override
+    public void forgetQer(QosEnforcementRule qer) {
+        qerStore.remove(qer);
     }
 
     private class FarIdToUeAddrMapListener

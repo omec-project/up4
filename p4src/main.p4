@@ -368,6 +368,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     }
 
     // QER Meter: conveys information from QER MBR and GBR
+    // Index 0 (qer_id=0) is the default meter index.
     meter(QER_METER_SIZE, MeterType.bytes) qer_meter;
 
 
@@ -447,7 +448,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                 gtpu_decap();
             }
 
-            // Apply metering
+            // Apply metering after pre-qos counter.
             qer_meter.execute_meter(local_meta.pdr.qerid, local_meta.packet_color);
             if (local_meta.packet_color == V1MODEL_METER_COLOR_RED) {
                 // We allow both YELLOW and GREEN packet, and drop only RED

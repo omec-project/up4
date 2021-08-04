@@ -8,7 +8,9 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.onlab.packet.Ip4Address;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
+import org.onosproject.net.behaviour.upf.QosEnforcementRule;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
@@ -86,5 +88,11 @@ public interface Up4Store {
      * @return mapping ue to far id
      */
     Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> getUeAddrsToFarIds();
+
+    void storeQer(QosEnforcementRule qer);
+
+    Collection<QosEnforcementRule> getQers();
+
+    void forgetQer(QosEnforcementRule qer);
 
 }

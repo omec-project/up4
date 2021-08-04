@@ -32,6 +32,7 @@ import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.GtpTunnel;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import org.onosproject.net.behaviour.upf.PdrStats;
+import org.onosproject.net.behaviour.upf.QosEnforcementRule;
 import org.onosproject.net.behaviour.upf.UpfDevice;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfProgrammable;
@@ -543,6 +544,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
+    public Collection<QosEnforcementRule> getQers() throws UpfProgrammableException {
+        return up4Store.getQers();
+    }
+
+    @Override
     public Collection<UpfInterface> getInterfaces() throws UpfProgrammableException {
         return getLeaderUpfProgrammable().getInterfaces();
     }
@@ -566,6 +572,18 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         if (pdr.matchesUnencapped()) {
             up4Store.forgetUeAddr(pdr);
         }
+    }
+
+    @Override
+    public void addQer(QosEnforcementRule qer) throws UpfProgrammableException {
+        log.debug("QER not supported yet. Storing QER: {}", qer);
+        up4Store.storeQer(qer);
+    }
+
+    @Override
+    public void removeQer(QosEnforcementRule qer) throws UpfProgrammableException {
+        log.debug("QER not supported yet. Remove stored QER: {}", qer);
+        up4Store.forgetQer(qer);
     }
 
     @Override

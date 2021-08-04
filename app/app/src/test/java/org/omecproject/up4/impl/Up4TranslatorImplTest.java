@@ -8,7 +8,9 @@ import org.junit.Test;
 import org.omecproject.up4.Up4Translator;
 import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
+import org.onosproject.net.behaviour.upf.QosEnforcementRule;
 import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.pi.runtime.PiMeterCellConfig;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -242,5 +244,31 @@ public class Up4TranslatorImplTest {
             return;
         }
         assertThat("The translator should throw an exception", false);
+    }
+
+    @Test
+    public void qerToUp4EntryTest() {
+        PiMeterCellConfig translated;
+        PiMeterCellConfig expected = TestImplConstants.UP4_QER_1;
+        try {
+            translated = up4Translator.qerToUp4MeterEntry(TestImplConstants.QER_1);
+        } catch (Up4Translator.Up4TranslationException e) {
+            assertThat("QER should be correctly translated to UP4 meter without error", false);
+            return;
+        }
+        assertThat(translated, equalTo(expected));
+    }
+
+    @Test
+    public void up4EntryTestToQerTest() {
+        QosEnforcementRule translated;
+        QosEnforcementRule expected = TestImplConstants.QER_1;
+        try {
+            translated = up4Translator.up4MeterEntryToQer(TestImplConstants.UP4_QER_1);
+        } catch (Up4Translator.Up4TranslationException e) {
+            assertThat("UP4 meter should be correctly translated to QER without error", false);
+            return;
+        }
+        assertThat(translated, equalTo(expected));
     }
 }

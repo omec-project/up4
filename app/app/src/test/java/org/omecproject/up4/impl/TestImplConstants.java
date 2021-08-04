@@ -12,16 +12,22 @@ import org.onosproject.core.DefaultApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
+import org.onosproject.net.behaviour.upf.QosEnforcementRule;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.pi.runtime.PiAction;
 import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiExactFieldMatch;
 import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
 import org.onosproject.net.pi.runtime.PiMatchKey;
+import org.onosproject.net.pi.runtime.PiMeterBand;
+import org.onosproject.net.pi.runtime.PiMeterCellConfig;
+import org.onosproject.net.pi.runtime.PiMeterCellId;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 
 import java.util.Arrays;
+
+import static org.omecproject.up4.impl.Up4P4InfoConstants.QER_METER;
 
 public final class TestImplConstants {
     public static final DeviceId DEVICE_ID = DeviceId.deviceId("CoolSwitch91");
@@ -37,6 +43,12 @@ public final class TestImplConstants {
     public static final int UPLINK_PHYSICAL_FAR_ID = 4;
     public static final int DOWNLINK_FAR_ID = 2;
     public static final int DOWNLINK_PHYSICAL_FAR_ID = 5;
+
+    public static final int QER_ID = 1;
+    public static final int CIR_1 = 10;
+    public static final int CBURST_1 = 10;
+    public static final int PIR_1 = 20;
+    public static final int PBURST_1 = 20;
 
     public static final int UPLINK_PRIORITY = 9;
     public static final int DOWNLINK_PRIORITY = 1;
@@ -67,6 +79,7 @@ public final class TestImplConstants {
             .withTeid(TEID)
             .withLocalFarId(UPLINK_FAR_ID)
             .withSessionId(SESSION_ID)
+            .withQerId(QER_ID)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
             .withSchedulingPriority(DEFAULT_SCHEDULING_PRIORITY)
             .build();
@@ -75,6 +88,7 @@ public final class TestImplConstants {
             .withUeAddr(UE_ADDR)
             .withLocalFarId(DOWNLINK_FAR_ID)
             .withSessionId(SESSION_ID)
+            .withQerId(QER_ID)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
             .withSchedulingPriority(DEFAULT_SCHEDULING_PRIORITY)
             .build();
@@ -84,6 +98,7 @@ public final class TestImplConstants {
             .withTeid(TEID)
             .withLocalFarId(UPLINK_FAR_ID)
             .withSessionId(SESSION_ID)
+            .withQerId(QER_ID)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
             .withSchedulingPriority(UPLINK_PRIORITY)
             .build();
@@ -92,6 +107,7 @@ public final class TestImplConstants {
             .withUeAddr(UE_ADDR)
             .withLocalFarId(DOWNLINK_FAR_ID)
             .withSessionId(SESSION_ID)
+            .withQerId(QER_ID)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
             .withSchedulingPriority(DOWNLINK_PRIORITY)
             .build();
@@ -104,6 +120,20 @@ public final class TestImplConstants {
             .setFarId(DOWNLINK_FAR_ID)
             .withSessionId(SESSION_ID)
             .setTunnel(S1U_ADDR, ENB_ADDR, TEID, TUNNEL_SPORT)
+            .build();
+
+    public static final QosEnforcementRule QER_1 = QosEnforcementRule.builder()
+            .withQerId(QER_ID)
+            .withCir(CIR_1)
+            .withCburst(CBURST_1)
+            .withPir(PIR_1)
+            .withPburst(PBURST_1)
+            .build();
+
+    public static final PiMeterCellConfig UP4_QER_1 = PiMeterCellConfig.builder()
+            .withMeterCellId(PiMeterCellId.ofIndirect(QER_METER, QER_ID))
+            .withMeterBand(new PiMeterBand(CIR_1, CBURST_1))
+            .withMeterBand(new PiMeterBand(PIR_1, PBURST_1))
             .build();
 
     public static final UpfInterface UPLINK_INTERFACE = UpfInterface.createS1uFrom(S1U_ADDR);
@@ -128,6 +158,7 @@ public final class TestImplConstants {
                                         new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, SESSION_ID),
                                         new PiActionParam(Up4P4InfoConstants.CTR_ID, UPLINK_COUNTER_CELL_ID),
                                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, UPLINK_FAR_ID),
+                                        new PiActionParam(Up4P4InfoConstants.QER_ID_PARAM, QER_ID),
                                         new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, TRUE_BYTE),
                                         new PiActionParam(Up4P4InfoConstants.SCHEDULING_PRIORITY, UPLINK_PRIORITY)
                                 ))
@@ -150,6 +181,7 @@ public final class TestImplConstants {
                                         new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, SESSION_ID),
                                         new PiActionParam(Up4P4InfoConstants.CTR_ID, DOWNLINK_COUNTER_CELL_ID),
                                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, DOWNLINK_FAR_ID),
+                                        new PiActionParam(Up4P4InfoConstants.QER_ID_PARAM, QER_ID),
                                         new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, FALSE_BYTE),
                                         new PiActionParam(Up4P4InfoConstants.SCHEDULING_PRIORITY, DOWNLINK_PRIORITY)
                                 ))
@@ -174,6 +206,7 @@ public final class TestImplConstants {
                                         new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, SESSION_ID),
                                         new PiActionParam(Up4P4InfoConstants.CTR_ID, UPLINK_COUNTER_CELL_ID),
                                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, UPLINK_FAR_ID),
+                                        new PiActionParam(Up4P4InfoConstants.QER_ID_PARAM, QER_ID),
                                         new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, TRUE_BYTE)
                                 ))
                                 .build())
@@ -195,6 +228,7 @@ public final class TestImplConstants {
                                         new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, SESSION_ID),
                                         new PiActionParam(Up4P4InfoConstants.CTR_ID, DOWNLINK_COUNTER_CELL_ID),
                                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, DOWNLINK_FAR_ID),
+                                        new PiActionParam(Up4P4InfoConstants.QER_ID_PARAM, QER_ID),
                                         new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, FALSE_BYTE)
                                 ))
                                 .build())

@@ -26,6 +26,7 @@ import org.onlab.util.SharedExecutors;
 import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import org.onosproject.net.behaviour.upf.PdrStats;
+import org.onosproject.net.behaviour.upf.QosEnforcementRule;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 import org.onosproject.net.pi.model.DefaultPiPipeconf;
@@ -35,6 +36,7 @@ import org.onosproject.net.pi.model.PiPipelineModel;
 import org.onosproject.net.pi.runtime.PiCounterCell;
 import org.onosproject.net.pi.runtime.PiCounterCellId;
 import org.onosproject.net.pi.runtime.PiEntity;
+import org.onosproject.net.pi.runtime.PiMeterCellConfig;
 import org.onosproject.net.pi.runtime.PiTableAction;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.p4runtime.ctl.codec.CodecException;
@@ -170,6 +172,37 @@ public class Up4NorthComponent {
         fseids.destroy();
         fseids = null;
         log.info("Stopped.");
+    }
+
+    private void translateMeterAndInsert(PiMeterCellConfig meterEntry) throws StatusException {
+        try {
+            up4Service.addQer(up4Translator.up4MeterEntryToQer(meterEntry));
+        } catch (Up4Translator.Up4TranslationException e) {
+            log.warn("Failed to translate UP4 meter entry in insert request: {}", e.getMessage());
+            throw INVALID_ARGUMENT
+                    .withDescription("Failed to translate UP4 meter entry in insert request: " + e.getMessage())
+                    .asException();
+        } catch (UpfProgrammableException e) {
+            log.warn("Failed to complete insert request: {}", e.getMessage());
+            throw io.grpc.Status.UNAVAILABLE
+                    .withDescription(e.getMessage())
+                    .asException();
+        }
+    }
+    private void translateMeterAndDelete(PiMeterCellConfig meterEntry) throws StatusException {
+        try {
+            up4Service.removeQer(up4Translator.up4MeterEntryToQer(meterEntry));
+        } catch (Up4Translator.Up4TranslationException e) {
+            log.warn("Failed to translate UP4 meter entry in insert request: {}", e.getMessage());
+            throw INVALID_ARGUMENT
+                    .withDescription("Failed to translate UP4 meter entry in insert request: " + e.getMessage())
+                    .asException();
+        } catch (UpfProgrammableException e) {
+            log.warn("Failed to complete insert request: {}", e.getMessage());
+            throw io.grpc.Status.UNAVAILABLE
+                    .withDescription(e.getMessage())
+                    .asException();
+        }
     }
 
     /**
@@ -339,6 +372,28 @@ public class Up4NorthComponent {
         } catch (Up4Translator.Up4TranslationException | UpfProgrammableException | CodecException e) {
             log.warn("Unable to encode/translate a read entry to a UP4 read response: {}",
                     e.getMessage());
+            throw INVALID_ARGUMENT
+                    .withDescription("Unable to translate a read table entry to a p4runtime entity.")
+                    .asException();
+        }
+        return translatedEntries;
+    }
+
+    private List<P4RuntimeOuterClass.Entity> readMetersAndTranslate(PiMeterCellConfig meterEntry)
+            throws StatusException {
+        List<P4RuntimeOuterClass.Entity> translatedEntries = new ArrayList<>();
+        // Respond with all entries for the table of the requested entry, ignoring other requested properties
+        // TODO: return more specific responses
+        try {
+            for (QosEnforcementRule qer : up4Service.getQers()) {
+                log.debug("Translating a QER for a read request: {}", qer);
+                translatedEntries.add(
+                        Codecs.CODECS.entity().encode(
+                                up4Translator.qerToUp4MeterEntry(qer), null, pipeconf));
+            }
+        } catch (Up4Translator.Up4TranslationException | UpfProgrammableException | CodecException e) {
+            log.warn("Unable to encode/translate a read entry to a UP4 read response: {}",
+                     e.getMessage());
             throw INVALID_ARGUMENT
                     .withDescription("Unable to translate a read table entry to a p4runtime entity.")
                     .asException();
@@ -760,12 +815,12 @@ public class Up4NorthComponent {
                     continue;
                 }
                 P4RuntimeOuterClass.Entity requestEntity = update.getEntity();
+                PiEntity piEntity;
                 switch (requestEntity.getEntityCase()) {
                     case COUNTER_ENTRY:
                         // TODO: support counter cell writes, including wildcard writes
                         break;
                     case TABLE_ENTRY:
-                        PiEntity piEntity;
                         try {
                             piEntity = Codecs.CODECS.entity().decode(requestEntity, null, pipeconf);
                         } catch (CodecException e) {
@@ -788,6 +843,28 @@ public class Up4NorthComponent {
                                         .asException();
                         }
                         break;
+                    case METER_ENTRY:
+                        try {
+                            piEntity = Codecs.CODECS.entity().decode(requestEntity, null, pipeconf);
+                        } catch (CodecException e) {
+                            log.warn("Unable to decode p4runtime entity update message", e);
+                            throw INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
+                        }
+                        PiMeterCellConfig meterEntry = (PiMeterCellConfig) piEntity;
+                        switch (update.getType()) {
+                            case INSERT:
+                            case MODIFY:
+                                translateMeterAndInsert(meterEntry);
+                                break;
+                            case DELETE:
+                                translateMeterAndDelete(meterEntry);
+                                break;
+                            default:
+                                log.warn("Unsupported update type for a meter entry");
+                                throw INVALID_ARGUMENT
+                                        .withDescription("Unsupported update type")
+                                        .asException();
+                        }
                     default:
                         log.warn("Received write request for unsupported entity type {}",
                                 requestEntity.getEntityCase());
@@ -842,6 +919,19 @@ public class Up4NorthComponent {
                         }
                         responseObserver.onNext(P4RuntimeOuterClass.ReadResponse.newBuilder()
                                 .addAllEntities(readEntriesAndTranslate(requestEntry))
+                                .build());
+                        break;
+                    case METER_ENTRY:
+                        PiMeterCellConfig meterEntryRequest;
+                        try {
+                            meterEntryRequest = (PiMeterCellConfig) Codecs.CODECS.entity().decode(
+                                    requestEntity, null, pipeconf);
+                        } catch (CodecException e) {
+                            log.warn("Unable to decode p4runtime read meter entity", e);
+                            throw INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
+                        }
+                        responseObserver.onNext(P4RuntimeOuterClass.ReadResponse.newBuilder()
+                                .addAllEntities(readMetersAndTranslate(meterEntryRequest))
                                 .build());
                         break;
                     default:
