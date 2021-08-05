@@ -99,7 +99,6 @@ parser ParserImpl (packet_in packet,
 
     state parse_gtpu_ext_psc {
         packet.extract(hdr.gtpu_ext_psc);
-        //fabric_md.bridged.base.encap_presence = EncapPresence.GTPU_WITH_PSC;
         transition select(hdr.gtpu_ext_psc.next_ext) {
             GTPU_NEXT_EXT_NONE: parse_inner_ipv4;
             default: accept;

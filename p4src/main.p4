@@ -326,11 +326,11 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                     bit<1>            needs_gtpu_decap
                     )
     {
-        local_meta.pdr.id       = id;
-        local_meta.fseid        = fseid;
-        local_meta.pdr.ctr_idx  = ctr_id;
-        local_meta.far.id       = far_id;
-        local_meta.needs_gtpu_decap     = (bool)needs_gtpu_decap;
+        local_meta.pdr.id           = id;
+        local_meta.fseid            = fseid;
+        local_meta.pdr.ctr_idx      = ctr_id;
+        local_meta.far.id           = far_id;
+        local_meta.needs_gtpu_decap = (bool)needs_gtpu_decap;
     }
 
     action set_pdr_attributes(pdr_id_t          id,

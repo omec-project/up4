@@ -1496,7 +1496,7 @@
       "id" : 0,
       "source_info" : {
         "filename" : "p4src/include/parser.p4",
-        "line" : 146,
+        "line" : 145,
         "column" : 8,
         "source_fragment" : "DeparserImpl"
       },
