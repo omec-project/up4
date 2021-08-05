@@ -60,7 +60,7 @@ public class DistributedUp4Store implements Up4Store {
     protected EventuallyConsistentMap<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address> farIdToUeAddr;
     private EventuallyConsistentMapListener<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address>
             farIdToUeAddrListener;
-    protected EventuallyConsistentMap<QosEnforcementRule, Boolean> qerStore;
+    protected EventuallyConsistentMap<Integer, QosEnforcementRule> qerStore;
     // Local, reversed copy of farIdToUeAddrMapper for reverse lookup
     protected Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> ueAddrToFarId;
 
@@ -81,7 +81,7 @@ public class DistributedUp4Store implements Up4Store {
                             .withTimestampProvider((k, v) -> new WallClockTimestamp())
                             .build();
             this.qerStore = storageService.
-                    <QosEnforcementRule, Boolean>eventuallyConsistentMapBuilder()
+                    <Integer, QosEnforcementRule>eventuallyConsistentMapBuilder()
                     .withName(QER_STORE_NAME)
                     .withSerializer(SERIALIZER)
                     .withTimestampProvider((k, v) -> new WallClockTimestamp())
@@ -177,17 +177,17 @@ public class DistributedUp4Store implements Up4Store {
 
     @Override
     public void storeQer(QosEnforcementRule qer) {
-        qerStore.put(qer, true);
+        qerStore.put(qer.getQerId(), qer);
     }
 
     @Override
     public Collection<QosEnforcementRule> getQers() {
-        return qerStore.keySet();
+        return qerStore.values();
     }
 
     @Override
-    public void forgetQer(QosEnforcementRule qer) {
-        qerStore.remove(qer);
+    public void forgetQer(int qerId) {
+        qerStore.remove(qerId);
     }
 
     private class FarIdToUeAddrMapListener

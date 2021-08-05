@@ -89,6 +89,7 @@ def int2ip(addr: int):
 
 
 entries = []
+meters = []
 
 
 def add_entry(entry, action):
@@ -109,6 +110,35 @@ def clear_entries():
     for i, entry in enumerate(entries):
         entry.delete()
         print("*** Entry %d of %d deleted." % (i + 1, len(entries)))
+
+
+def add_meter(meter_entry, action):
+    if action == "program":
+        try:
+            meter_entry.modify()
+            print("*** Meter modified.")
+        except Exception as e:
+            print("Except during meter modification:", e)
+            print("Entry was:", meter_entry)
+            print("%d entries were successfully added before failure" % len(meters))
+            clear_meters()
+            sys.exit(1)
+    meters.append(meter_entry)
+
+
+def clear_meters():
+    for i, meter in enumerate(meters):
+        # To clear meter in P4Runtime we have to issue a modify with the default meter values
+        # Default values in UP4 are the java Long.MAX_VALUE = (2^63)-1
+        max_long = (1 << 63) - 1
+        new_meter = sh.MeterEntry("PreQosPipe.qer_meter")
+        new_meter.index = meter.index
+        new_meter.cir = max_long
+        new_meter.cburst = max_long
+        new_meter.pir = max_long
+        new_meter.pburst = max_long
+        new_meter.modify()
+        print("*** Meter %d of %d reset." % (i + 1, len(meters)))
 
 
 def main():
@@ -206,7 +236,7 @@ def main():
             entry.action['fseid'] = str(args.session_id)
             entry.action['ctr_id'] = str(pdr_ctr_downlink)
             entry.action['far_id'] = str(far_downlink)
-            entry.action['qer_id'] = str(qer_uplink)
+            entry.action['qer_id'] = str(qer_downlink)
             add_entry(entry, args.action)
 
         else:
@@ -219,7 +249,7 @@ def main():
             entry.action['fseid'] = str(args.session_id)
             entry.action['ctr_id'] = str(pdr_ctr_downlink)
             entry.action['far_id'] = str(far_downlink)
-            entry.action['qer_id'] = str(qer_uplink)
+            entry.action['qer_id'] = str(qer_downlink)
             entry.action['scheduling_priority'] = str(args.qos)
             add_entry(entry, args.action)
 
@@ -258,19 +288,21 @@ def main():
         # ========================#
         # QER Meter Entries
         # ========================#
-        meter_entry = sh.MeterEntry("PreQosPipe.meter_qer")
+        meter_entry = sh.MeterEntry("PreQosPipe.qer_meter")
         meter_entry.index = qer_uplink
+        # TODO: make these parameters configurable for further tests
         meter_entry.cir = 10
         meter_entry.cburst = 10
         meter_entry.pir = 20
         meter_entry.pburst = 10
-        add_entry()
+        add_meter(meter_entry, args.action)
 
     if args.action == "program":
         print("All entries added sucessfully.")
 
     elif args.action == "clear":
         clear_entries()
+        clear_meters()
 
     elif args.action == "dry":
         for entry in entries:

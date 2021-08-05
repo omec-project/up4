@@ -12,6 +12,7 @@ import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import org.onosproject.net.behaviour.upf.PdrStats;
 import org.onosproject.net.behaviour.upf.QosEnforcementRule;
 import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -141,12 +142,18 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public void addQer(QosEnforcementRule qer) {
-        qers.add(qer);
+    public void modifyQer(QosEnforcementRule qer) throws UpfProgrammableException {
+        if (qer.isDefault()) {
+            delQer(qer);
+        } else {
+            if (qers.contains(qer)) {
+                delQer(qer);
+            }
+            qers.add(qer);
+        }
     }
 
-    @Override
-    public void removeQer(QosEnforcementRule qer) {
+    private void delQer(QosEnforcementRule qer) {
         int index = qers.indexOf(qer);
         if (index != -1) {
             qers.remove(index);

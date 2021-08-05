@@ -36,7 +36,7 @@ public final class TestDistributedUp4Store {
                 .withTimestampProvider((k, v) -> new WallClockTimestamp())
                 .withSerializer(SERIALIZER.build());
 
-        TestEventuallyConsistentMap.Builder<QosEnforcementRule, Boolean>
+        TestEventuallyConsistentMap.Builder<Integer, QosEnforcementRule>
                 qerStoreBuilder = TestEventuallyConsistentMap.builder();
         qerStoreBuilder.withName(QER_STORE_NAME)
                 .withTimestampProvider((k, v) -> new WallClockTimestamp())

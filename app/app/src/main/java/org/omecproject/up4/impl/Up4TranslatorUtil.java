@@ -103,6 +103,11 @@ final class Up4TranslatorUtil {
         return Ip4Address.valueOf(getFieldValue(entry, fieldId).asArray());
     }
 
+    static boolean paramIsPresent(PiTableEntry entry, PiActionParamId paramId) {
+        return ((PiAction) entry.action()).parameters().stream()
+                .anyMatch(piActionParam -> piActionParam.id().equals(paramId));
+    }
+
     static int byteSeqToInt(ImmutableByteSequence sequence) {
         try {
             return sequence.fit(32).asReadOnlyBuffer().getInt();

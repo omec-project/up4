@@ -576,14 +576,14 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void modifyQer(QosEnforcementRule qer) throws UpfProgrammableException {
-        log.debug("QER not supported yet. Storing QER: {}", qer);
-        up4Store.storeQer(qer);
-    }
-
-    @Override
-    public void removeQer(QosEnforcementRule qer) throws UpfProgrammableException {
-        log.debug("QER not supported yet. Remove stored QER: {}", qer);
-        up4Store.forgetQer(qer);
+        log.debug("QER not supported yet on the data plane!");
+        if (qer.isDefault()) {
+            log.debug("Removing QER: {}", qer);
+            up4Store.forgetQer(qer.getQerId());
+        } else {
+            log.debug("Storing QER: {}", qer);
+            up4Store.storeQer(qer);
+        }
     }
 
     @Override
@@ -757,12 +757,18 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         Map<Pair<ImmutableByteSequence, Integer>, List<UpfFlow.Builder>> globalFarToSessionBuilder = new HashMap<>();
         Collection<ForwardingActionRule> fars = this.getFars();
         Collection<PacketDetectionRule> pdrs = this.getPdrs();
+        Collection<QosEnforcementRule> qers = this.getQers();
         pdrs.forEach(pdr -> globalFarToSessionBuilder.compute(
                 Pair.of(pdr.sessionId(), pdr.farId()),
                 (k, existingVal) -> {
                     final var builder = UpfFlow.builder()
                             .setPdr(pdr)
                             .addStats(counterStats.get(pdr.counterId()));
+                    if (pdr.hasQerId()) {
+                        // Add QER only if the QER ID is set
+                        qers.stream().filter(qer -> qer.getQerId() == pdr.qerId())
+                                .findFirst().ifPresent(builder::setQer);
+                    }
                     if (existingVal == null) {
                         return Lists.newArrayList(builder);
                     } else {

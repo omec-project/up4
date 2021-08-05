@@ -8,6 +8,7 @@ import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import org.onosproject.net.behaviour.upf.PdrStats;
+import org.onosproject.net.behaviour.upf.QosEnforcementRule;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -18,6 +19,7 @@ public final class UpfFlow {
     private final ImmutableByteSequence pfcpSessionId;
     private final PacketDetectionRule pdr;
     private final ForwardingActionRule far;
+    private final QosEnforcementRule qer;
     private final PdrStats flowStats;
     private final Type type;
 
@@ -37,10 +39,12 @@ public final class UpfFlow {
     }
 
     private UpfFlow(Type type, ImmutableByteSequence pfcpSessionId,
-                    PacketDetectionRule pdr, ForwardingActionRule far, PdrStats flowStats) {
+                    PacketDetectionRule pdr, ForwardingActionRule far,
+                    QosEnforcementRule qer, PdrStats flowStats) {
         this.pfcpSessionId = pfcpSessionId;
         this.pdr = pdr;
         this.far = far;
+        this.qer = qer;
         this.flowStats = flowStats;
         this.type = type;
     }
@@ -91,13 +95,17 @@ public final class UpfFlow {
         if (pdr != null) {
             pdrString = pdr.matchString();
         }
+        String qerString = "NO QER";
+        if (qer != null) {
+            qerString = qer.toString();
+        }
         String statString = "NO STATISTICS!";
         if (flowStats != null) {
             statString = String.format("%5d Ingress pkts -> %5d Egress pkts",
                     flowStats.getIngressPkts(), flowStats.getEgressPkts());
         }
-        return String.format("SEID:%s - %s  -->  %s;\n    >> %s",
-                pfcpSessionId, pdrString, farString, statString);
+        return String.format("SEID:%s - %s %s -->  %s;\n    >> %s",
+                pfcpSessionId, pdrString, qerString, farString, statString);
     }
 
     public static Builder builder() {
@@ -107,6 +115,7 @@ public final class UpfFlow {
     public static class Builder {
         private PacketDetectionRule pdr;
         private ForwardingActionRule far;
+        private QosEnforcementRule qer;
         private PdrStats flowStats;
 
         public Builder() {
@@ -137,6 +146,18 @@ public final class UpfFlow {
         }
 
         /**
+         * Add a QER to the session. The QER ID of this QER should match whatever
+         * in the PDR. If this condition is violated, the call to build() will fail.
+         *
+         * @param qer the QosEnforcementRule to add
+         * @return this builder object
+         */
+        public Builder setQer(QosEnforcementRule qer) {
+            this.qer = qer;
+            return this;
+        }
+
+        /**
          * Add a PDR counter statistics instance to this session. The cell id of the provided counter statistics
          * should match the cell id set by the PDR added by setPdr(). If this condition is violated,
          * the call to build() will fail.
@@ -157,6 +178,10 @@ public final class UpfFlow {
                         "PFCP session ID of PDR and FAR must match!");
                 checkArgument(pdr.farId() == far.farId(),
                         "FAR ID set by PDR and read by FAR must match!");
+                if (qer != null) {
+                    checkArgument(pdr.qerId() == qer.getQerId(),
+                                  "QER ID of QER and PDR must match!");
+                }
             }
             if (pdr != null) {
                 if (flowStats != null) {
@@ -174,7 +199,7 @@ public final class UpfFlow {
                 }
             }
 
-            return new UpfFlow(type, sessionId, pdr, far, flowStats);
+            return new UpfFlow(type, sessionId, pdr, far, qer, flowStats);
         }
     }
 }

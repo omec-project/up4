@@ -847,6 +847,7 @@ public class Up4NorthComponent {
                                         .withDescription("Unsupported update type")
                                         .asException();
                         }
+                        break;
                     default:
                         log.warn("Received write request for unsupported entity type {}",
                                 requestEntity.getEntityCase());

@@ -93,6 +93,6 @@ public interface Up4Store {
 
     Collection<QosEnforcementRule> getQers();
 
-    void forgetQer(QosEnforcementRule qer);
+    void forgetQer(int qerId);
 
 }

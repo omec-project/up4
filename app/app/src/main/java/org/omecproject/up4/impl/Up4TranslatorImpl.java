@@ -74,24 +74,26 @@ public class Up4TranslatorImpl implements Up4Translator {
         // Now get the action parameters, if they are present (entries from delete writes don't have parameters)
         PiAction action = (PiAction) entry.action();
         PiActionId actionId = action.id();
+        // QER_ID might not be present, for example if we don't have a QER
+        // associated to the PDR
+        if (Up4TranslatorUtil.paramIsPresent(entry, Up4P4InfoConstants.QER_ID_PARAM)) {
+            pdrBuilder.withQerId(Up4TranslatorUtil.getParamInt(entry, Up4P4InfoConstants.QER_ID_PARAM));
+        }
         if (actionId.equals(Up4P4InfoConstants.LOAD_PDR) && !action.parameters().isEmpty()) {
             ImmutableByteSequence sessionId = Up4TranslatorUtil.getParamValue(
                     entry, Up4P4InfoConstants.SESSION_ID_PARAM);
             int localFarId = Up4TranslatorUtil.getParamInt(
                     entry, Up4P4InfoConstants.FAR_ID_PARAM);
-            int qerId = Up4TranslatorUtil.getParamInt(entry, Up4P4InfoConstants.QER_ID_PARAM);
             int schedulingPriority = 0;
             pdrBuilder.withSessionId(sessionId)
                     .withCounterId(Up4TranslatorUtil.getParamInt(
                             entry, Up4P4InfoConstants.CTR_ID))
                     .withSchedulingPriority(schedulingPriority)
                     .withLocalFarId(localFarId)
-                    .withQerId(qerId)
                     .withSchedulingPriority(schedulingPriority);
         } else if (actionId.equals(Up4P4InfoConstants.LOAD_PDR_QOS) && !action.parameters().isEmpty()) {
             ImmutableByteSequence sessionId = Up4TranslatorUtil.getParamValue(
                     entry, Up4P4InfoConstants.SESSION_ID_PARAM);
-            int qerId = Up4TranslatorUtil.getParamInt(entry, Up4P4InfoConstants.QER_ID_PARAM);
             int localFarId = Up4TranslatorUtil.getParamInt(entry, Up4P4InfoConstants.FAR_ID_PARAM);
             int schedulingPriority = Up4TranslatorUtil.getParamInt(
                     entry, Up4P4InfoConstants.SCHEDULING_PRIORITY);
@@ -99,7 +101,6 @@ public class Up4TranslatorImpl implements Up4Translator {
                     .withCounterId(Up4TranslatorUtil.getParamInt(
                             entry, Up4P4InfoConstants.CTR_ID))
                     .withLocalFarId(localFarId)
-                    .withQerId(qerId)
                     .withSchedulingPriority(schedulingPriority);
         }
         return pdrBuilder.build();
@@ -284,9 +285,11 @@ public class Up4TranslatorImpl implements Up4Translator {
                         new PiActionParam(Up4P4InfoConstants.SESSION_ID_PARAM, pdr.sessionId()),
                         new PiActionParam(Up4P4InfoConstants.CTR_ID, pdr.counterId()),
                         new PiActionParam(Up4P4InfoConstants.FAR_ID_PARAM, pdr.farId()),
-                        new PiActionParam(Up4P4InfoConstants.QER_ID_PARAM, pdr.qerId()),
                         new PiActionParam(Up4P4InfoConstants.DECAP_FLAG_PARAM, toImmutableByte(decapFlag))
                 ));
+        if (pdr.hasQerId()) {
+            builder.withParameter(new PiActionParam(Up4P4InfoConstants.QER_ID_PARAM, pdr.qerId()));
+        }
         if (pdr.hasSchedulingPriority()) {
             action = builder
                     .withId(Up4P4InfoConstants.LOAD_PDR_QOS)
