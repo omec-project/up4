@@ -312,6 +312,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             UpfProgrammable upfProgrammable = upfProgrammables.get(deviceId);
             if (upfInitialized.get()) {
                 log.info("UPF {} already initialized, skipping setup.", deviceId);
+                // FIXME: this is merely a hotfix for interface entries disappearing when a device becomes available
+                // Moreover, if the initialization is done at the very beginning, mastership could change. There could
+                // be small intervals without a master and interfaces pushed could be lost. Having this call here should
+                // provide more guarantee as this is also called when the pipeline is ready
+                ensureInterfacesInstalled();
             } else if (!upfDevices.contains(deviceId)) {
                 log.warn("UPF {} is not in the configuration!", deviceId);
             } else if (deviceService.getDevice(deviceId) == null) {
@@ -351,6 +356,31 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
                             new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
                     log.info("UPF data plane setup successful!");
+                }
+            }
+        }
+    }
+
+    /**
+     * Ensure that all interfaces present in the UP4 config file are installed in the UPF leader device.
+     */
+    private void ensureInterfacesInstalled() {
+        log.info("Ensuring all interfaces present in app config are present on the leader device.");
+        Set<UpfInterface> installedInterfaces;
+        UpfProgrammable leader = getLeaderUpfProgrammable();
+        try {
+            installedInterfaces = new HashSet<>(leader.getInterfaces());
+        } catch (UpfProgrammableException e) {
+            log.warn("Failed to read interface: {}", e.getMessage());
+            return;
+        }
+        for (UpfInterface iface : configFileInterfaces()) {
+            if (!installedInterfaces.contains(iface)) {
+                log.warn("{} is missing from leader device! Installing", iface);
+                try {
+                    leader.addInterface(iface);
+                } catch (UpfProgrammableException e) {
+                    log.warn("Failed to insert interface: {}", e.getMessage());
                 }
             }
         }
