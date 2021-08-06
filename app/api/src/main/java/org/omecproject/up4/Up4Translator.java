@@ -102,12 +102,24 @@ public interface Up4Translator {
      */
     PiTableEntry farToUp4Entry(ForwardingActionRule far) throws Up4TranslationException;
 
-    // TODO
+    /**
+     * Translate a QoS Enforcement Rule to a PiMeterCellConfig for respoding to
+     * UP4 logical switch read request.
+     *
+     * @param qer the QoS enforcement rule to be translated
+     * @return the QER translated to a PiMeterCellConfig
+     * @throws Up4TranslationException if the QER cannot be translated
+     */
     PiMeterCellConfig qerToUp4MeterEntry(QosEnforcementRule qer) throws Up4TranslationException;
 
-    // TODO
+    /**
+     * Translate a UP4 QER Meter cell into a QoS Enforcement Rule for easier handling.
+     *
+     * @param meterEntry the UP4 meter to translate
+     * @return the corresponding QoSEnforcementRule
+     * @throws Up4TranslationException if the meter cannot be translated
+     */
     QosEnforcementRule up4MeterEntryToQer(PiMeterCellConfig meterEntry) throws Up4TranslationException;
-
 
     class Up4TranslationException extends Exception {
         /**

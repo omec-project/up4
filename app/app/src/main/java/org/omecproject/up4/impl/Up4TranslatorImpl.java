@@ -230,7 +230,7 @@ public class Up4TranslatorImpl implements Up4Translator {
         if (bands.length != 2) {
             throw new Up4TranslationException("Meter must have 2 bands (committed and peak)!");
         }
-        // Assume peak is the band with higher rate or equal rate but higher peak
+        // Assume peak is the band with higher rate or equal rate but higher burst
         //CHECKSTYLE:OFF
         // from: https://github.com/opennetworkinglab/onos/blob/master/protocols/p4runtime/utils/src/main/java/org/onosproject/p4runtime/ctl/codec/MeterEntryCodec.java
         //CHECKSTYLE:ON

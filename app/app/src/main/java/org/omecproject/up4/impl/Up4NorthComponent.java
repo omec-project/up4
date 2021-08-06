@@ -79,6 +79,7 @@ import static io.grpc.Status.UNIMPLEMENTED;
 import static java.lang.String.format;
 import static org.omecproject.up4.impl.AppConstants.PIPECONF_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DDN_DIGEST_ID;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.QER_METER;
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
 
 
@@ -367,7 +368,7 @@ public class Up4NorthComponent {
     private List<P4RuntimeOuterClass.Entity> readMetersAndTranslate(PiMeterCellConfig meterEntry)
             throws StatusException {
         List<P4RuntimeOuterClass.Entity> translatedEntries = new ArrayList<>();
-        // Respond with all entries for the table of the requested entry, ignoring other requested properties
+        // Respond with all entries for the meter of the requested entry, ignoring other requested properties
         // TODO: return more specific responses
         try {
             for (QosEnforcementRule qer : up4Service.getQers()) {
@@ -396,14 +397,17 @@ public class Up4NorthComponent {
     P4InfoOuterClass.P4Info setPhysicalSizes(P4InfoOuterClass.P4Info p4Info) {
         var newP4InfoBuilder = P4InfoOuterClass.P4Info.newBuilder(p4Info)
                 .clearCounters()
-                .clearTables();
+                .clearTables()
+                .clearMeters();
         long physicalCounterSize = up4Service.pdrCounterSize();
         long physicalFarTableSize = up4Service.farTableSize();
         long physicalPdrTableSize = up4Service.pdrTableSize();
+        long physicalQerSize = up4Service.qerMeterSize();
         int ingressPdrCounterId;
         int egressPdrCounterId;
         int pdrTableId;
         int farTableId;
+        int qerMeterId;
         try {
             P4InfoBrowser browser = PipeconfHelper.getP4InfoBrowser(pipeconf);
             ingressPdrCounterId = browser.counters()
@@ -414,6 +418,7 @@ public class Up4NorthComponent {
                     .getByName(Up4P4InfoConstants.PDR_TBL.id()).getPreamble().getId();
             farTableId = browser.tables()
                     .getByName(Up4P4InfoConstants.FAR_TBL.id()).getPreamble().getId();
+            qerMeterId = browser.meters().getByName(QER_METER.id()).getPreamble().getId();
         } catch (P4InfoBrowser.NotFoundException e) {
             throw new NoSuchElementException("A UP4 counter that should always exist does not exist.");
         }
@@ -441,6 +446,16 @@ public class Up4NorthComponent {
             } else {
                 // Any tables aside from the PDR and FAR tables go unchanged
                 newP4InfoBuilder.addTables(table);
+            }
+        });
+        p4Info.getMetersList().forEach(meter -> {
+            if (meter.getPreamble().getId() == qerMeterId) {
+                newP4InfoBuilder.addMeters(
+                        P4InfoOuterClass.Meter.newBuilder(meter)
+                        .setSize(physicalQerSize).build());
+            } else {
+                // Any meters aside from the QER meter go unchanged
+                newP4InfoBuilder.addMeters(meter);
             }
         });
         return newP4InfoBuilder.build();

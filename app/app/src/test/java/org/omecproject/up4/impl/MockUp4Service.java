@@ -73,6 +73,11 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
+    public long qerMeterSize() {
+        return TestImplConstants.PHYSICAL_MAX_QERS;
+    }
+
+    @Override
     public long pdrCounterSize() {
         return TestImplConstants.PHYSICAL_COUNTER_SIZE;
     }

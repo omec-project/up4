@@ -89,10 +89,24 @@ public interface Up4Store {
      */
     Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> getUeAddrsToFarIds();
 
+    /**
+     * Stores the given QER.
+     *
+     * @param qer QoS Enforcement Rule to store
+     */
     void storeQer(QosEnforcementRule qer);
 
+    /**
+     * Returns the stored QERs.
+     *
+     * @return the store QoS Enforcement Rules
+     */
     Collection<QosEnforcementRule> getQers();
 
+    /**
+     * Removes the QER associated to the given QER ID from the store.
+     *
+     * @param qerId the QoS Enforcement Rule identifier
+     */
     void forgetQer(int qerId);
-
 }

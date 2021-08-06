@@ -545,6 +545,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public Collection<QosEnforcementRule> getQers() throws UpfProgrammableException {
+        // Ideally we should call getLeaderUpfProgrammable().getQers();
         return up4Store.getQers();
     }
 
@@ -576,6 +577,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void modifyQer(QosEnforcementRule qer) throws UpfProgrammableException {
+        // Ideally we should call getLeaderUpfProgrammable().modifyQer(qer);
         log.debug("QER not supported yet on the data plane!");
         if (qer.isDefault()) {
             log.debug("Removing QER: {}", qer);
@@ -699,6 +701,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             return Math.min(config.maxUes() * 2, pdrTableSize);
         }
         return pdrTableSize;
+    }
+
+    @Override
+    public long qerMeterSize() {
+        // Ideally: getLeaderUpfProgrammable().qerMeterSize();
+        // For testing purposes we return a fake number.
+        return 100;
     }
 
     @Override
@@ -964,6 +973,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
     }
 
+    // TODO: we should listen for Meter Events as well
     private class InternalFlowRuleListener implements FlowRuleListener {
 
         @Override
@@ -1029,6 +1039,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
 
         private void checkStateAndReconcile() throws UpfProgrammableException {
+            // TODO: reconcile state for the QERs
             log.trace("Running reconciliation task...");
             assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
             Collection<PacketDetectionRule> leaderPdrs = getLeaderUpfProgrammable().getPdrs();
