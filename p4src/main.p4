@@ -326,11 +326,11 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                     bit<1>            needs_gtpu_decap
                     )
     {
-        local_meta.pdr.id       = id;
-        local_meta.fseid        = fseid;
-        local_meta.pdr.ctr_idx  = ctr_id;
-        local_meta.far.id       = far_id;
-        local_meta.needs_gtpu_decap     = (bool)needs_gtpu_decap;
+        local_meta.pdr.id           = id;
+        local_meta.fseid            = fseid;
+        local_meta.pdr.ctr_idx      = ctr_id;
+        local_meta.far.id           = far_id;
+        local_meta.needs_gtpu_decap = (bool)needs_gtpu_decap;
     }
 
     action set_pdr_attributes(pdr_id_t          id,
@@ -363,7 +363,9 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     // One PDR's match conditions are made of PDI and a set of 5-tuple filters (SDFs).
     // The PDR matches if the PDI and any of the SDFs match, but 'filter1 or filter2' cannot be
     // expressed as one table entry in P4, so this table will contain the cross product of every
-    // PDR's PDI and its SDFs
+    // PDR's PDI and its SDFs.
+    // Matching on QFI is allowed only for uplink PDRs, while setting a QFI attribute is allowed
+    // only for downlink ones.
     table pdrs {
         key = {
             // PDI

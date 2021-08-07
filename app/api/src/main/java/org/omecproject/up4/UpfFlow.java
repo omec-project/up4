@@ -90,7 +90,7 @@ public final class UpfFlow {
         String pdrString = "NO PDR!";
         if (pdr != null) {
             pdrString = pdr.matchString();
-            if (pdr.hasQfi() && pdr.matchesUnencapped()) {
+            if (pdr.hasQfi() && pdr.pushQfi()) {
                 // Push QFI
                 pdrString = String.format("%s, Push_qfi(%s)", pdrString, pdr.qfi());
             }
