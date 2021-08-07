@@ -363,7 +363,9 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     // One PDR's match conditions are made of PDI and a set of 5-tuple filters (SDFs).
     // The PDR matches if the PDI and any of the SDFs match, but 'filter1 or filter2' cannot be
     // expressed as one table entry in P4, so this table will contain the cross product of every
-    // PDR's PDI and its SDFs
+    // PDR's PDI and its SDFs.
+    // Matching on QFI is allowed only for uplink PDRs, while setting a QFI attribute is allowed
+    // only for downlink ones.
     table pdrs {
         key = {
             // PDI
