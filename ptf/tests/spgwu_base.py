@@ -327,6 +327,7 @@ class GtpuBaseTest(P4RuntimeTest):
         # with_qfi_push and with_qfi_match make sense only if qfi != None
         ALL_ONES_32 = (1 << 32) - 1
         ALL_ONES_8 = (1 << 8) - 1
+        ALL_ONES_6 = (1 << 6) - 1
 
         _src_iface = self.helper.get_enum_member_val("InterfaceType", src_iface)
         action_params = {
@@ -354,8 +355,8 @@ class GtpuBaseTest(P4RuntimeTest):
             match_fields["tunnel_ipv4_dst"] = (tunnel_dst_ip, ALL_ONES_32)
         if qfi is not None:
             if with_qfi_match:
-                match_fields["has_qfi"] = True
-                match_fields["qfi"] = qfi
+                match_fields["has_qfi"] = (1, 1)
+                match_fields["qfi"] = (qfi, ALL_ONES_6)
             else:
                 action_name = "PreQosPipe.set_pdr_attributes_qos"
                 action_params["qfi"] = qfi
@@ -412,7 +413,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 }, action_name=action_name, action_params=action_params))
 
     def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                   session_id=None, pdr_id=None, far_id=None, qfi=None, match_qfi=True):
+                                   session_id=None, pdr_id=None, far_id=None, match_qfi=True):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -431,6 +432,10 @@ class GtpuBaseTest(P4RuntimeTest):
         if (UDP in inner_pkt) or (TCP in inner_pkt):
             ue_l4_port = inner_pkt.sport
             net_l4_port = inner_pkt.dport
+
+        qfi = None
+        if gtp.GTPPDUSessionContainer in pkt:
+            qfi = pkt[gtp.GTPPDUSessionContainer].QFI
 
         self.add_device_mac(pkt[Ether].dst)
 
@@ -457,7 +462,7 @@ class GtpuBaseTest(P4RuntimeTest):
         self.add_far(far_id=far_id, session_id=session_id, drop=drop)
         if not drop:
             self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', src_mac=exp_pkt[Ether].src,
-                                   dst_mac=exp_padd_entries_for_downlink_pktkt[Ether].dst, egress_port=outport)
+                                   dst_mac=exp_pkt[Ether].dst, egress_port=outport)
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
                                      buffer=False, session_id=None, pdr_id=None, far_id=None,
