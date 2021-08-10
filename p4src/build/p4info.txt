@@ -198,6 +198,18 @@ tables {
     bitwidth: 8
     match_type: TERNARY
   }
+  match_fields {
+    id: 9
+    name: "has_qfi"
+    bitwidth: 1
+    match_type: TERNARY
+  }
+  match_fields {
+    id: 10
+    name: "qfi"
+    bitwidth: 6
+    match_type: TERNARY
+  }
   action_refs {
     id: 31939583
   }
@@ -255,6 +267,13 @@ actions {
     id: 23646333
     name: "PreQosPipe.ExecuteFar.do_gtpu_tunnel"
     alias: "do_gtpu_tunnel"
+  }
+}
+actions {
+  preamble {
+    id: 20593371
+    name: "PreQosPipe.ExecuteFar.do_gtpu_tunnel_with_psc"
+    alias: "do_gtpu_tunnel_with_psc"
   }
 }
 actions {
@@ -424,13 +443,18 @@ actions {
   }
   params {
     id: 5
-    name: "scheduling_priority"
-    bitwidth: 32
+    name: "needs_gtpu_decap"
+    bitwidth: 1
   }
   params {
     id: 6
-    name: "needs_gtpu_decap"
+    name: "needs_qfi_push"
     bitwidth: 1
+  }
+  params {
+    id: 7
+    name: "qfi"
+    bitwidth: 6
   }
 }
 actions {

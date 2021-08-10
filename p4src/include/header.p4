@@ -72,6 +72,24 @@ header gtpu_t {
     teid_t          teid;       /* tunnel endpoint id */
 }
 
+// Follows gtpu_t if any of ex_flag, seq_flag, or npdu_flag is 1.
+header gtpu_options_t {
+    bit<16> seq_num;   /* Sequence number */
+    bit<8>  n_pdu_num; /* N-PDU number */
+    bit<8>  next_ext;  /* Next extension header */
+}
+
+// GTPU extension: PDU Session Container (PSC) -- 3GPP TS 38.415 version 15.2.0
+// https://www.etsi.org/deliver/etsi_ts/138400_138499/138415/15.02.00_60/ts_138415v150200p.pdf
+header gtpu_ext_psc_t {
+    bit<8> len;      /* Length in 4-octet units (common to all extensions) */
+    bit<4> type;     /* Uplink or downlink */
+    bit<4> spare0;   /* Reserved */
+    bit<1> ppp;      /* Paging Policy Presence (UL only, not supported) */
+    bit<1> rqi;      /* Reflective QoS Indicator (UL only) */
+    bit<6> qfi;      /* QoS Flow Identifier */
+    bit<8> next_ext;
+}
 
 @controller_header("packet_out")
 header packet_out_t {
@@ -93,6 +111,8 @@ struct parsed_headers_t {
     ipv4_t outer_ipv4;
     udp_t outer_udp;
     gtpu_t gtpu;
+    gtpu_options_t gtpu_options;
+    gtpu_ext_psc_t gtpu_ext_psc;
     ipv4_t ipv4;
     udp_t udp;
     tcp_t tcp;
@@ -111,6 +131,7 @@ struct parsed_headers_t {
 struct pdr_metadata_t {
     pdr_id_t id;
     counter_index_t ctr_idx;
+    bit<6> tunnel_out_qfi;
 }
 
 // Data associated with Buffering and BARs
@@ -155,13 +176,13 @@ struct local_metadata_t {
 
     // fteid_t fteid;
     fseid_t fseid;
-    scheduling_priority_t scheduling_priority;
 
     ipv4_addr_t next_hop_ip;
 
     bool needs_gtpu_decap;
     bool needs_udp_decap; // unused
     bool needs_vlan_removal; // unused
+    bool needs_ext_psc; // used to signal gtpu encap with PSC extension
 
     InterfaceType src_iface;
     InterfaceType dst_iface; // unused

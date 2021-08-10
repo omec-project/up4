@@ -82,9 +82,27 @@ parser ParserImpl (packet_in packet,
     state parse_gtpu {
         packet.extract(hdr.gtpu);
         local_meta.teid = hdr.gtpu.teid;
-        // Eventually need to add conditional parsing, in the case of non-ip payloads.
-        // Also need to add conditional GTP-U extension headers. They are variable length, so will be tricky.
-        transition parse_inner_ipv4;
+        transition select(hdr.gtpu.ex_flag, hdr.gtpu.seq_flag, hdr.gtpu.npdu_flag) {
+            (0, 0, 0): parse_inner_ipv4;
+            default: parse_gtpu_options;
+        }
+    }
+
+    state parse_gtpu_options {
+        packet.extract(hdr.gtpu_options);
+        bit<8> gtpu_ext_len = packet.lookahead<bit<8>>();
+        transition select(hdr.gtpu_options.next_ext, gtpu_ext_len) {
+            (GTPU_NEXT_EXT_PSC, GTPU_EXT_PSC_LEN): parse_gtpu_ext_psc;
+            default: accept;
+        }
+    }
+
+    state parse_gtpu_ext_psc {
+        packet.extract(hdr.gtpu_ext_psc);
+        transition select(hdr.gtpu_ext_psc.next_ext) {
+            GTPU_NEXT_EXT_NONE: parse_inner_ipv4;
+            default: accept;
+        }
     }
 
     //-----------------
@@ -131,6 +149,8 @@ control DeparserImpl(packet_out packet, in parsed_headers_t hdr) {
         packet.emit(hdr.outer_ipv4);
         packet.emit(hdr.outer_udp);
         packet.emit(hdr.gtpu);
+        packet.emit(hdr.gtpu_options);
+        packet.emit(hdr.gtpu_ext_psc);
         packet.emit(hdr.ipv4);
         packet.emit(hdr.udp);
         packet.emit(hdr.tcp);

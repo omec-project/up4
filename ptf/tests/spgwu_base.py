@@ -24,6 +24,9 @@ UDP_GTP_PORT = 2152
 DHCP_SERVER_PORT = 67
 DHCP_CLIENT_PORT = 68
 
+GTPU_EXT_PSC_TYPE_DL = 0
+GTPU_EXT_PSC_TYPE_UL = 1
+
 
 class GtpuBaseTest(P4RuntimeTest):
 
@@ -57,11 +60,21 @@ class GtpuBaseTest(P4RuntimeTest):
         """
         return random.randint(0, limit - 1)
 
-    def gtpu_encap(self, pkt, ip_ver=4, ip_src=None, ip_dst=None, teid=None):
+    def gtpu_encap(
+        self,
+        pkt,
+        ip_ver=4,
+        ip_src=None,
+        ip_dst=None,
+        teid=None,
+        ext_psc_type=None,
+        ext_psc_qfi=None,
+    ):
         """ Adds IP, UDP, and GTP-U headers to the packet situated after the ethernet header.
             Tunnel IP header is v4 if ip_ver==4, else it is v6.
             Params ip_src and ip_dst are the tunnel endpoints, and teid is the tunnel ID.
             If a source, dest, or teid is not provided, they will be randomized.
+            If ext_psc_type is add the PSC ext header with given QFI.
         """
         ether_payload = pkt[Ether].payload
 
@@ -74,21 +87,27 @@ class GtpuBaseTest(P4RuntimeTest):
         if ip_dst is None:
             ip_dst = self.random_ip_addr()
 
-        return Ether(src=pkt[Ether].src, dst=pkt[Ether].dst) / \
-               IPHeader(src=ip_src, dst=ip_dst, id=5395) / \
-               UDP(sport=UDP_GTP_PORT, dport=UDP_GTP_PORT, chksum=0) / \
-               gtp.GTP_U_Header(gtp_type=255, teid=teid) / \
-               ether_payload
+        gtp_pkt = Ether(src=pkt[Ether].src, dst=pkt[Ether].dst) / \
+                    IPHeader(src=ip_src, dst=ip_dst, id=5395) / \
+                    UDP(sport=UDP_GTP_PORT, dport=UDP_GTP_PORT, chksum=0) / \
+                    gtp.GTP_U_Header(gtp_type=255, teid=teid)
+        if ext_psc_type is not None:
+            gtp_pkt = gtp_pkt / gtp.GTPPDUSessionContainer(type=ext_psc_type, QFI=ext_psc_qfi)
+        return gtp_pkt / ether_payload
 
     def gtpu_decap(self, pkt):
-        """ Strips out the outer IP, UDP, and GTP-U headers from the given packet.
+        """ Strips out the outer IP, UDP, GTP-U and GTP-U ext headers from the
+            given packet.
         """
         # isolate the ethernet header
         ether_header = pkt.copy()
         ether_header[Ether].remove_payload()
-
+        if gtp.GTPPDUSessionContainer in pkt:
+            payload = pkt[gtp.GTPPDUSessionContainer].payload
+        elif gtp.GTP_U_Header in pkt:
+            payload = pkt[gtp.GTP_U_Header].payload
         # discard the tunnel layers
-        return ether_header / pkt[gtp.GTP_U_Header].payload
+        return ether_header / payload
 
     _last_read_counter_values = {}
 
@@ -184,6 +203,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 },
             ))
 
+    # TODO: never used, we should remove
     def add_global_session(self, global_session_id=1025, n4_teid=1025, default_pdr_id=0,
                            default_far_id=0, default_ctr_id=0, n4_ip=None, smf_ip="192.168.1.52",
                            smf_mac="0a:0b:0c:0d:0e:0f", smf_port=None, miss_pdr_ctr_id=None,
@@ -302,12 +322,22 @@ class GtpuBaseTest(P4RuntimeTest):
     def add_pdr(self, pdr_id, far_id, session_id, src_iface, ctr_id, ue_addr=None, ue_mask=None,
                 teid=None, tunnel_dst_ip=None, inet_addr=None, inet_mask=None, ue_l4_port=None,
                 ue_l4_port_hi=None, inet_l4_port=None, inet_l4_port_hi=None, ip_proto=None,
-                ip_proto_mask=None, needs_gtpu_decap=False, priority=10):
-
+                qfi=None, ip_proto_mask=None, needs_gtpu_decap=False, priority=10,
+                with_qfi_push=False, with_qfi_match=False):
+        # with_qfi_push and with_qfi_match make sense only if qfi != None
         ALL_ONES_32 = (1 << 32) - 1
         ALL_ONES_8 = (1 << 8) - 1
+        ALL_ONES_6 = (1 << 6) - 1
 
         _src_iface = self.helper.get_enum_member_val("InterfaceType", src_iface)
+        action_params = {
+            "id": pdr_id,
+            "fseid": session_id,
+            "far_id": far_id,
+            "needs_gtpu_decap": needs_gtpu_decap,
+            "ctr_id": ctr_id,
+        }
+        action_name = "PreQosPipe.set_pdr_attributes"
         match_fields = {"src_iface": _src_iface}
         if ue_addr is not None:
             match_fields["ue_addr"] = (ue_addr, ue_mask or ALL_ONES_32)
@@ -323,19 +353,21 @@ class GtpuBaseTest(P4RuntimeTest):
             match_fields["teid"] = (teid, ALL_ONES_32)
         if tunnel_dst_ip is not None:
             match_fields["tunnel_ipv4_dst"] = (tunnel_dst_ip, ALL_ONES_32)
+        if qfi is not None:
+            if with_qfi_match:
+                match_fields["has_qfi"] = (1, 1)
+                match_fields["qfi"] = (qfi, ALL_ONES_6)
+            else:
+                action_name = "PreQosPipe.set_pdr_attributes_qos"
+                action_params["qfi"] = qfi
+                action_params["needs_qfi_push"] = with_qfi_push
 
         self.insert(
             self.helper.build_table_entry(
                 table_name="PreQosPipe.pdrs",
                 match_fields=match_fields,
-                action_name="PreQosPipe.set_pdr_attributes",
-                action_params={
-                    "id": pdr_id,
-                    "fseid": session_id,
-                    "far_id": far_id,
-                    "needs_gtpu_decap": needs_gtpu_decap,
-                    "ctr_id": ctr_id,
-                },
+                action_name=action_name,
+                action_params=action_params,
                 priority=priority,
             ))
 
@@ -366,7 +398,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 "src_addr": src_addr,
                 "dst_addr": dst_addr,
                 "teid": teid,
-                "sport": sport
+                "sport": sport,
             }
             action_name = "PreQosPipe.load_tunnel_far_attributes"
         else:
@@ -381,7 +413,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 }, action_name=action_name, action_params=action_params))
 
     def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                   session_id=None, pdr_id=None, far_id=None):
+                                   session_id=None, pdr_id=None, far_id=None, match_qfi=True):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -401,6 +433,10 @@ class GtpuBaseTest(P4RuntimeTest):
             ue_l4_port = inner_pkt.sport
             net_l4_port = inner_pkt.dport
 
+        qfi = None
+        if gtp.GTPPDUSessionContainer in pkt:
+            qfi = pkt[gtp.GTPPDUSessionContainer].QFI
+
         self.add_device_mac(pkt[Ether].dst)
 
         self.add_interface(ip_prefix=pkt[IP].dst + '/32', iface_type="ACCESS", direction="UPLINK")
@@ -418,7 +454,9 @@ class GtpuBaseTest(P4RuntimeTest):
             ue_l4_port=ue_l4_port,
             inet_l4_port=inet_l4_port,
             ip_proto=inner_pkt[IP].proto,
+            qfi=qfi,
             needs_gtpu_decap=True,
+            with_qfi_match=match_qfi
         )
 
         self.add_far(far_id=far_id, session_id=session_id, drop=drop)
@@ -427,7 +465,8 @@ class GtpuBaseTest(P4RuntimeTest):
                                    dst_mac=exp_pkt[Ether].dst, egress_port=outport)
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                     buffer=False, session_id=None, pdr_id=None, far_id=None):
+                                     buffer=False, session_id=None, pdr_id=None, far_id=None,
+                                     qfi=None, push_qfi=True):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -470,6 +509,8 @@ class GtpuBaseTest(P4RuntimeTest):
             inet_l4_port=inet_l4_port,
             ip_proto=pkt[IP].proto,
             needs_gtpu_decap=False,
+            qfi=qfi,
+            with_qfi_push=push_qfi,
         )
 
         self.add_far(far_id=far_id, session_id=session_id, drop=drop, buffer=buffer, tunnel=True,

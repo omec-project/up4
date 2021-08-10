@@ -320,9 +320,9 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkPriorityPdrReadTest() throws Exception {
-        mockUp4Service.addPdr(TestImplConstants.DOWNLINK_PRIORITY_PDR);
-        readTest(TestImplConstants.UP4_DOWNLINK_PRIORITY_PDR);
+    public void downlinkQosPdrReadTest() throws Exception {
+        mockUp4Service.addPdr(TestImplConstants.DOWNLINK_QOS_PDR);
+        readTest(TestImplConstants.UP4_DOWNLINK_QOS_PDR);
     }
 
     @Test
@@ -332,9 +332,9 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkPriorityPdrReadTest() throws Exception {
-        mockUp4Service.addPdr(TestImplConstants.UPLINK_PRIORITY_PDR);
-        readTest(TestImplConstants.UP4_UPLINK_PRIORITY_PDR);
+    public void uplinkQosPdrReadTest() throws Exception {
+        mockUp4Service.addPdr(TestImplConstants.UPLINK_QOS_PDR);
+        readTest(TestImplConstants.UP4_UPLINK_QOS_PDR);
     }
 
     @Test
@@ -383,8 +383,8 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkPriorityPdrInsertionTest() throws Exception {
-        insertionTest(TestImplConstants.UP4_DOWNLINK_PRIORITY_PDR);
+    public void downlinkQosPdrInsertionTest() throws Exception {
+        insertionTest(TestImplConstants.UP4_DOWNLINK_QOS_PDR);
         assertThat(mockUp4Service.getPdrs().size(), equalTo(1));
     }
 
@@ -402,8 +402,8 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkPriorityPdrInsertionTest() throws Exception {
-        insertionTest(TestImplConstants.UP4_UPLINK_PRIORITY_PDR);
+    public void uplinkQosPdrInsertionTest() throws Exception {
+        insertionTest(TestImplConstants.UP4_UPLINK_QOS_PDR);
         assertThat(mockUp4Service.getPdrs().size(), equalTo(1));
     }
 
@@ -415,9 +415,9 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void uplinkPriorityPdrDeletionTest() throws Exception {
-        mockUp4Service.addPdr(TestImplConstants.UPLINK_PRIORITY_PDR);
-        deletionTest(TestImplConstants.UP4_UPLINK_PRIORITY_PDR);
+    public void uplinkQosPdrDeletionTest() throws Exception {
+        mockUp4Service.addPdr(TestImplConstants.UPLINK_QOS_PDR);
+        deletionTest(TestImplConstants.UP4_UPLINK_QOS_PDR);
         assertTrue(mockUp4Service.getPdrs().isEmpty());
     }
 
