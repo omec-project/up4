@@ -312,6 +312,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             UpfProgrammable upfProgrammable = upfProgrammables.get(deviceId);
             if (upfInitialized.get()) {
                 log.info("UPF {} already initialized, skipping setup.", deviceId);
+                // FIXME: this is merely a hotfix for interface entries disappearing when a device becomes available
+                // Moreover, if the initialization is done at the very beginning, mastership could change. There could
+                // be small intervals without a master and interfaces pushed could be lost. Having this call here should
+                // provide more guarantee as this is also called when the pipeline is ready
+                ensureInterfacesInstalled();
             } else if (!upfDevices.contains(deviceId)) {
                 log.warn("UPF {} is not in the configuration!", deviceId);
             } else if (deviceService.getDevice(deviceId) == null) {
@@ -351,6 +356,31 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
                             new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
                     log.info("UPF data plane setup successful!");
+                }
+            }
+        }
+    }
+
+    /**
+     * Ensure that all interfaces present in the UP4 config file are installed in the UPF leader device.
+     */
+    private void ensureInterfacesInstalled() {
+        log.info("Ensuring all interfaces present in app config are present on the leader device.");
+        Set<UpfInterface> installedInterfaces;
+        UpfProgrammable leader = getLeaderUpfProgrammable();
+        try {
+            installedInterfaces = new HashSet<>(leader.getInterfaces());
+        } catch (UpfProgrammableException e) {
+            log.warn("Failed to read interface: {}", e.getMessage());
+            return;
+        }
+        for (UpfInterface iface : configFileInterfaces()) {
+            if (!installedInterfaces.contains(iface)) {
+                log.warn("{} is missing from leader device! Installing", iface);
+                try {
+                    leader.addInterface(iface);
+                } catch (UpfProgrammableException e) {
+                    log.warn("Failed to insert interface: {}", e.getMessage());
                 }
             }
         }
@@ -556,7 +586,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
         getLeaderUpfProgrammable().addPdr(pdr);
         if (pdr.matchesUnencapped()) {
-            up4Store.learnFarIdToUeAddrs(pdr);
+            up4Store.learnFarIdToUeAddr(pdr);
         }
     }
 
@@ -564,8 +594,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     public void removePdr(PacketDetectionRule pdr) throws UpfProgrammableException {
         getLeaderUpfProgrammable().removePdr(pdr);
         if (pdr.matchesUnencapped()) {
-            // Should we remove just from the map entry with key == far ID?
-            up4Store.forgetUeAddr(pdr.ueAddress());
+            up4Store.forgetUeAddr(pdr);
         }
     }
 
@@ -580,11 +609,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         getLeaderUpfProgrammable().addFar(far);
         // TODO: Should we wait for rules to be installed on all devices before
         //   triggering drain?
-        if (!far.buffers() && up4Store.isFarIdBuffering(ruleId)) {
-            // If this FAR does not buffer but used to, then drain the buffer for every UE address
-            // that hits this FAR.
-            up4Store.forgetBufferingFarId(ruleId);
-            for (var ueAddr : up4Store.ueAddrsOfFarId(ruleId)) {
+        if (!far.buffers() && up4Store.forgetBufferingFarId(ruleId)) {
+            // If this FAR does not buffer but used to, then drain the buffer for the UE address
+            // that hits this FAR. It is harmless to trigger drain if there are no buffers to be drained
+            Ip4Address ueAddr = up4Store.ueAddrOfFarId(ruleId);
+            if (ueAddr != null) {
                 // Run the outbound rpc in a forked context so it doesn't cancel if it was called
                 // by an inbound rpc that completes faster than the drain call
                 Context ctx = Context.current().fork();
@@ -616,6 +645,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Override
     public void removeFar(ForwardingActionRule far) throws UpfProgrammableException {
         getLeaderUpfProgrammable().removeFar(far);
+        // if it was used to be a buffer far - we need to clean it as we will not see
+        // the drain trigger for this far
+        up4Store.forgetBufferingFarId(ImmutablePair.of(far.sessionId(), far.farId()));
     }
 
     @Override

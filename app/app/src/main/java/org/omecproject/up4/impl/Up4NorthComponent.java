@@ -65,9 +65,11 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static io.grpc.Status.INVALID_ARGUMENT;
 import static io.grpc.Status.PERMISSION_DENIED;
@@ -82,7 +84,7 @@ import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT
          restart the grpc server on the new port.
  */
 
-@Component(immediate = true)
+@Component(immediate = true, service = Up4NorthComponent.class)
 public class Up4NorthComponent {
     private static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
     private static final int DEFAULT_DEVICE_ID = 1;
@@ -186,6 +188,7 @@ public class Up4NorthComponent {
             } else if (up4Translator.isUp4Pdr(entry)) {
                 PacketDetectionRule pdr = up4Translator.up4EntryToPdr(entry);
                 log.debug("Translated UP4 PDR successfully. Deleting.");
+                removeFromFseidMap(pdr);
                 up4Service.removePdr(pdr);
 
             } else if (up4Translator.isUp4Far(entry)) {
@@ -232,7 +235,7 @@ public class Up4NorthComponent {
                 up4Service.addInterface(iface);
             } else if (up4Translator.isUp4Pdr(entry)) {
                 PacketDetectionRule pdr = up4Translator.up4EntryToPdr(entry);
-                updateFseidMap(pdr);
+                addToFseidMap(pdr);
                 up4Service.addPdr(pdr);
             } else if (up4Translator.isUp4Far(entry)) {
                 ForwardingActionRule far = up4Translator.up4EntryToFar(entry);
@@ -268,7 +271,7 @@ public class Up4NorthComponent {
         }
     }
 
-    private void updateFseidMap(PacketDetectionRule pdr) {
+    private void addToFseidMap(PacketDetectionRule pdr) {
         // We know from the PFCP spec that when installing PDRs for the same UE, the F-SEID will be
         // the same for all PDRs, both downlink and uplink. The F-SEID for a given UE will only
         // change after a detach. For simplicity, we never remove values. The map provides the
@@ -281,6 +284,12 @@ public class Up4NorthComponent {
         }
     }
 
+    private void removeFromFseidMap(PacketDetectionRule pdr) {
+        if (pdr.ueAddress() != null) {
+            log.debug("Removing from map last seen F-SEID: {}", pdr.ueAddress());
+            fseids.remove(pdr.ueAddress());
+        }
+    }
 
     /**
      * Find all table entries that match the requested entry, and translate them to p4runtime
@@ -894,6 +903,16 @@ public class Up4NorthComponent {
                 responseObserver.onNext(msg);
             });
         }
+    }
+
+    /**
+     * Returns the mapping ue address to fseid.
+     *
+     * @return the map ue addr to fseid
+     */
+    public Map<Ip4Address, ImmutableByteSequence> getUeAddrsToFseids() {
+        return fseids.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     class InternalUp4EventListener implements Up4EventListener {
