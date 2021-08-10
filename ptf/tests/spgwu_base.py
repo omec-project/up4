@@ -451,7 +451,7 @@ class GtpuBaseTest(P4RuntimeTest):
         self.add_far(far_id=far_id, session_id=session_id, drop=drop)
         if not drop:
             self.add_routing_entry(ip_prefix=exp_pkt[IP].dst + '/32', src_mac=exp_pkt[Ether].src,
-                                   dst_mac=exp_padd_entries_for_downlink_pktkt[Ether].dst, egress_port=outport)
+                                   dst_mac=exp_pkt[Ether].dst, egress_port=outport)
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
                                      buffer=False, session_id=None, pdr_id=None, far_id=None,
