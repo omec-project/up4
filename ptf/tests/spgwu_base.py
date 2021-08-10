@@ -443,21 +443,10 @@ class GtpuBaseTest(P4RuntimeTest):
 
         #self.add_session(session_id=session_id, ue_addr=inner_pkt[IP].src)
 
-        self.add_pdr(
-            pdr_id=pdr_id,
-            far_id=far_id,
-            session_id=session_id,
-            src_iface="ACCESS",
-            ctr_id=ctr_id,
-            ue_addr=inner_pkt[IP].src,
-            inet_addr=inner_pkt[IP].dst,
-            ue_l4_port=ue_l4_port,
-            inet_l4_port=inet_l4_port,
-            ip_proto=inner_pkt[IP].proto,
-            qfi=qfi,
-            needs_gtpu_decap=True,
-            with_qfi_match=match_qfi
-        )
+        self.add_pdr(pdr_id=pdr_id, far_id=far_id, session_id=session_id, src_iface="ACCESS",
+                     ctr_id=ctr_id, ue_addr=inner_pkt[IP].src, inet_addr=inner_pkt[IP].dst,
+                     ue_l4_port=ue_l4_port, inet_l4_port=inet_l4_port, ip_proto=inner_pkt[IP].proto,
+                     qfi=qfi, needs_gtpu_decap=True, with_qfi_match=match_qfi)
 
         self.add_far(far_id=far_id, session_id=session_id, drop=drop)
         if not drop:
