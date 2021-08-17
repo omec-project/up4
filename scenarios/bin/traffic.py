@@ -15,7 +15,7 @@ PDN_PORT = 80
 GPDU_PORT = 2152
 
 GTPU_EXT_PSC_TYPE_UL = 1
-GTPU_EXT_PSC_TYPE_DL = 0 # Unused
+GTPU_EXT_PSC_TYPE_DL = 0  # Unused
 
 pkt_count = 0
 
@@ -114,7 +114,8 @@ def handle_pkt(pkt: Packet, kind: str, exit_on_success: bool, qfi: int):
             exit(1)
         if exp_psc:
             if has_psc:
-                print("Received expected packet with PSC QFI: %s" % pkt[gtp.GTPPDUSessionContainer].QFI)
+                print("Received expected packet with PSC QFI: %s" %
+                      pkt[gtp.GTPPDUSessionContainer].QFI)
                 if pkt[gtp.GTPPDUSessionContainer].QFI != qfi:
                     exit(1)
             else:
