@@ -57,7 +57,7 @@ public class DistributedUp4Store implements Up4Store {
     private EventuallyConsistentMapListener<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address>
             farIdToUeAddrListener;
     // Local, reversed copy of farIdToUeAddrMapper for reverse lookup
-    protected Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> ueAddrToFarId;
+    protected Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> ueAddrToFarId = Maps.newConcurrentMap();
 
     @Activate
     protected void activate() {
@@ -79,7 +79,6 @@ public class DistributedUp4Store implements Up4Store {
         farIdToUeAddrListener = new FarIdToUeAddrMapListener();
         farIdToUeAddr.addListener(farIdToUeAddrListener);
 
-        ueAddrToFarId = Maps.newConcurrentMap();
         farIdToUeAddr.entrySet().forEach(entry -> ueAddrToFarId.put(entry.getValue(), entry.getKey()));
 
         log.info("Started");
