@@ -77,7 +77,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static java.lang.String.format;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL_DEFAULT;
@@ -250,41 +249,46 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     /**
-     * Asserts that UPF data plane is ready
+     * Asserts that UPF data plane is ready and try a lazy setup if possible.
      * This doesn't mean that all UPF physical devices are available, but only
      * that we called the init() method on all UPF programmable.
      *
      * @return True if UPF data plane can be programmed, False otherwise
      */
     private boolean assertUpfIsReady() {
-        if (!isReady()) {
+        if (!upfInitialized.get()) {
             if (this.config == null) {
                 throw new IllegalStateException(
                         "No UpfProgrammable set because no app config is available!");
-            } else {
-                if (leaderUpfDevice == null) {
+            }
+            if (leaderUpfDevice == null) {
+                throw new IllegalStateException(
+                        "Leader UpfProgrammable is not set!");
+            }
+            if (upfDevices.isEmpty()) {
+                throw new IllegalStateException("UPF Devices are not set");
+            }
+            upfDevices.forEach(deviceId -> {
+                if (deviceService.getDevice(deviceId) == null) {
                     throw new IllegalStateException(
-                            "Leader UpfProgrammable not set!");
+                            "No UpfProgrammable set because deviceId is not present in the device store!");
                 }
-                this.upfProgrammables.forEach((deviceId, upfProg) -> {
-                    if (deviceService.getDevice(deviceId) == null) {
-                        throw new IllegalStateException(
-                                "No UpfProgrammable set because deviceId is not present in the device store!");
-                    }
-                });
-                this.upfProgrammables.forEach((deviceId, upfProg) -> {
-                    if (!isUpfProgrammable(deviceId)) {
-                        throw new IllegalStateException(
-                                "No UpfProgrammable set because deviceId present in config is not a valid UPF!");
-                    }
-                });
-                if (!upfInitialized.get()) {
-                    throw new IllegalStateException("UPF data plane not initialized!");
-                } else {
+            });
+            upfDevices.forEach(deviceId -> {
+                if (!isUpfProgrammable(deviceId)) {
                     throw new IllegalStateException(
-                            format("No UpfProgrammable is set for an unknown reason. Are devices %s available?",
-                                   upfProgrammables.keySet().toString()));
+                            "No UpfProgrammable set because deviceId present in config is not a valid UPF!");
                 }
+            });
+            // setUpfDevice is called during events (Device/Netcfg/Pipeconf)
+            // however those events might not be enough to setup the UPF
+            // physical devices, especially during ONOS Reboot (i.e.,
+            // when the P4RT client is not created before calling setUpfDevice).
+            // FIXME: always do lazy setup, instead of relying on events.
+            log.info("UPF data plane not initialized, try lazy setup");
+            upfDevices.forEach(this::setUpfDevice);
+            if (!upfInitialized.get()) {
+                throw new IllegalStateException("UPF data plane not initialized after lazy setup!");
             }
         }
         return true;
@@ -292,9 +296,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public boolean isReady() {
-        return !(leaderUpfDevice == null ||
-                this.upfProgrammables.isEmpty() ||
-                !this.upfProgrammables.keySet().containsAll(upfDevices));
+        try {
+            assertUpfIsReady();
+        } catch (IllegalStateException e) {
+            log.info(e.getMessage());
+            return false;
+        }
+        return true;
     }
 
     private boolean isUpfProgrammable(DeviceId deviceId) {
@@ -324,7 +332,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             } else if (!isUpfProgrammable(deviceId)) {
                 log.warn("{} is not UPF physical device!", deviceId);
             } else if (upfProgrammable != null && !upfProgrammable.data().deviceId().equals(deviceId)) {
-                    log.warn("Change of the UPF while UPF data plane is available is not supported!");
+                log.warn("Change of the UPF while UPF data plane is available is not supported!");
             } else if (upfProgrammable == null) {
                 log.info("Setup UPF physical device: {}", deviceId);
                 upfProgrammable = deviceService.getDevice(deviceId).as(UpfProgrammable.class);
