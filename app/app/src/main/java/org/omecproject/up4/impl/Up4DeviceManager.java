@@ -252,10 +252,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
      * Asserts that UPF data plane is ready and try a lazy setup if possible.
      * This doesn't mean that all UPF physical devices are available, but only
      * that we called the init() method on all UPF programmable.
-     *
-     * @return True if UPF data plane can be programmed, False otherwise
      */
-    private boolean assertUpfIsReady() {
+    private void assertUpfIsReady() {
         if (!upfInitialized.get()) {
             if (this.config == null) {
                 throw new IllegalStateException(
@@ -291,7 +289,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 throw new IllegalStateException("UPF data plane not initialized after lazy setup!");
             }
         }
-        return true;
     }
 
     @Override
