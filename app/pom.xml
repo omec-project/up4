@@ -11,12 +11,12 @@
     <parent>
         <groupId>org.onosproject</groupId>
         <artifactId>onos-dependencies</artifactId>
-        <version>2.5.3-SNAPSHOT</version>
+        <version>2.5.5-rc1</version>
     </parent>
 
     <groupId>org.omecproject</groupId>
     <artifactId>up4</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0-rc1</version>
     <packaging>pom</packaging>
 
     <description>UP4 Control app</description>
@@ -63,5 +63,5 @@
             </snapshots>
         </pluginRepository>
     </pluginRepositories>
- 
+
 </project>
