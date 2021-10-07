@@ -16,7 +16,7 @@ From <https://wiki.onosproject.org/x/oYe9>
 > cluster. Larger scenarios can be built up from smaller scenarios allowing reuse of tests.
 
 We use STC to test the UP4 ONOS app in a Mininet-based emulated environment including:
-* 2x2 fabric of `stratum_bmv2` switches
+* 2x2 fabric and paired leaves of `stratum_bmv2` switches
 * Emulated eNodeB and Packet Data Network (PDN) hosts (regular Mininet hosts)
 * DBUF service (running in a Mininet host)
 * 3 ONOS instances
@@ -125,13 +125,17 @@ and thus can be run repeatedly and consecutively.
 
 **p4rt-forwarding-qos.xml**
 * Requires `setup.xml`, `net-setup.xml`
-* Use UP4 northbound APIs to set up GTP termination and forwarding
-* Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts
-* Check the changes for translating PDRs with QoS attributes
+* Use UP4 northbound APIs to set up GTP termination and forwarding with QFI
+* Check forwarding by sending and receiving traffic using the eNodeB and PDN Mininet hosts with QFI
 
 **p4rt-buffering.xml**
 * Requires `setup.xml`, `net-setup.xml`
 * Same as p4rt-forwarding.xml but checks the case where downlink buffering is enabled
+
+**p4rt-end-marker.xml**
+* Requires `setup.xml`, `net-setup.xml`
+* Use UP4 packet-out API to send an End Marker packet
+* Check eNodeB correctly receives the packet
 
 **pfcp-forwarding.xml**
 * Requires `setup.xml`, `net-setup.xml`, `smf-setup.xml`
@@ -163,9 +167,9 @@ These scenarios combine setup, single tests, and teardown all in one. Useful for
 scenarios in one test
 
 **smoke.xml**
-* Combines the `setup.xml`, `net-setup.xml`, `smf-setup`, `p4rt-forwarding-qos.xml`, `pfcp-forwarding`, `pfcp-buffering`,
- `smf-failure.xml`, `pfcp-agent-failure`,
- `smf-teardown.xml`, and`teardown.xml` scenarios in one test
+* Combines the `setup.xml`, `net-setup.xml`, `smf-setup`, `p4rt-forwarding-qos.xml`, 
+  `p4rt-end-marker.xml`, `pfcp-forwarding`, `pfcp-buffering`, `pfcp-agent-failure`, 
+  `smf-failure.xml`, `smf-teardown.xml`, and`teardown.xml` scenarios in one test
 
 ## Reusing ONOS STC commands with Docker
 
