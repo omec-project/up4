@@ -6,7 +6,7 @@ MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 
 UP4_ROOT           := $(abspath $(CURRENT_DIR)/..)
-ONOS_ROOT          := $(CURRENT_DIR)/onos
+ONOS_TEST          := $(CURRENT_DIR)/onos-test
 SCENARIOS          := *.xml
 DOCKER_COMPOSE_CMD := docker-compose --env-file ./tmp/.env.docker
 CURRENT_USER       := $(shell id -u):$(shell id -g)
@@ -49,12 +49,12 @@ endif
 	@echo "MN_SCRIPT=/topo/topo-gtp-${TOPO}.py" >> ./tmp/.env.docker
 	@echo "STC_ENV_FILE=${STC_ENV}" >> ./tmp/.env.docker
 
-$(SCENARIOS): ./tmp /tmp/stc ./tmp/.env.docker
+$(SCENARIOS): onos-test ./tmp /tmp/stc ./tmp/.env.docker
 	$(info *** Running STC scenario: $@)
 	@export $(shell cat "${CURRENT_DIR}"/"${STC_ENV}" | grep -v '#' | xargs) && \
-		export PATH="${CURRENT_DIR}/bin:${ONOS_ROOT}/tools/test/bin:${ONOS_ROOT}/tools/test/scenarios/bin:${ONOS_ROOT}/tools/package/runtime/bin:${PATH}" && \
+		export PATH="${CURRENT_DIR}/bin:${ONOS_TEST}/tools/test/bin:${ONOS_TEST}/tools/test/scenarios/bin:${ONOS_TEST}/tools/package/runtime/bin:${PATH}" && \
 		export WORKSPACE=${CURRENT_DIR} && \
-		export ONOS_ROOT=${ONOS_ROOT} && \
+		export ONOS_ROOT=${ONOS_TEST} && \
 		export UP4_ROOT=${UP4_ROOT} && \
 		export STC_VERSION=${STC_VERSION} && \
 		export DOCKER_COMPOSE_CMD="${DOCKER_COMPOSE_CMD}" && \
@@ -62,8 +62,13 @@ $(SCENARIOS): ./tmp /tmp/stc ./tmp/.env.docker
 		export TOPO_NETCFG=${TOPO_NETCFG} && \
 		stc $@
 
-deps: pull build stc-dev-build
-	git submodule update --init --depth 1 onos
+deps: pull build stc-dev-build onos-test
+
+onos-test:
+	curl -sS --fail https://repo1.maven.org/maven2/org/onosproject/onos-releases/2.5.4/onos-test-2.5.4.tar.gz --output onos-test.tar.gz
+	tar xf onos-test.tar.gz
+	rm onos-test.tar.gz
+	mv onos-test-2.5.4 onos-test
 
 #FIXME: remove once 'quotes' branch is merged and 2.6 released:
 stc-dev-build:
