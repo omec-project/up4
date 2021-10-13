@@ -80,7 +80,7 @@ p4rt-bash:
 	cd ../scenarios && docker-compose exec p4rt /bin/bash
 
 app-load:
-	${onos_tools_dir}/onos-app localhost install! app/target/up4-app-1.0.0-rc1.oar
+	${onos_tools_dir}/onos-app localhost install! app/target/up4-app-1.0.0.oar
 
 app-reload:
-	${onos_tools_dir}/onos-app localhost reinstall! app/target/up4-app-1.0.0-rc1.oar
+	${onos_tools_dir}/onos-app localhost reinstall! app/target/up4-app-1.0.0.oar
