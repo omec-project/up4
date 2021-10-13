@@ -47,9 +47,9 @@
         <step name="Up4-App-Wait-For-Uninstalled" requires="^"
               exec="docker-log-grep ${ODI} 'Application org.omecproject.up4 has been uninstalled'"/>
         <step name="Up4-Oar-Exists" requires="^"
-              exec="test -f ${UP4_ROOT}/app/app/target/up4-app-1.1.0-SNAPSHOT"/>
+              exec="test -f ${UP4_ROOT}/app/app/target/up4-app-1.1.0-SNAPSHOT.oar"/>
         <step name="Up4-App-Install-Local-Build" requires="^" delay="5"
-              exec="onos-app ${OCI} reinstall! ${UP4_ROOT}/app/app/target/up4-app-1.1.0-SNAPSHOT"/>
+              exec="onos-app ${OCI} reinstall! ${UP4_ROOT}/app/app/target/up4-app-1.1.0-SNAPSHOT.oar"/>
 
         <parallel var="${OD#}">
             <!-- FIXME: ${OC#} pointing to the same instance localhost, should we use a container that can resolve onos1/2/3 hostnames? -->
