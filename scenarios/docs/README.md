@@ -182,10 +182,13 @@ commands are:
 * `onos-check-summary`: to verify that devices, links, and hosts have been discovered
 * and many more
 
-To be able to reuse such commands, we clone the ONOS repository in `scenarios/onos` and add the
-following directories to `PATH` when running `stc` (see `$(SCENARIOS):` target in `Makefile`):
-* ./onos/tools/test/bin
-* ./onos/tools/test/scenarios/bin
+To be able to reuse such commands, we do not need to clone the entire ONOS repository.
+The onos-test package published in Maven contains all required commands. We download this package 
+in `scenario/onos-test` and add the following directories to `PATH` when  running `stc` 
+(see `$(SCENARIOS):` target in `Makefile`):
+* ./onos-test/tools/test/bin
+* ./onos-test/tools/test/scenarios/bin
+* ./onos-test/tools/package/runtime/bin
 
 However, `onos-check-*` commands were originally developed to be used with "cells", an environment
 for running multiple ONOS instances in VMs. Instead, here we use STC to coordinate execution of
