@@ -17,6 +17,7 @@
 /ptf/*.log
 /ptf/*.pcap
 /scenarios/tmp
+/scenarios/onos-test
 
 # FIXME: .bin format of P4info changes accross builds
 #  Ignore for now to avoid breaking CI (which makes sure
