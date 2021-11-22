@@ -868,6 +868,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 .setNotifyFlag(far.notifies())
                 .setBufferFlag(true)
                 .setTunnel(dbufTunnel)
+                .setDropFlag(dbufTunnel == null)
                 .build();
     }
 
