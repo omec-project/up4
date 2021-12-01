@@ -146,15 +146,17 @@ control DeparserImpl(packet_out packet, in parsed_headers_t hdr) {
     apply {
         packet.emit(hdr.packet_in);
         packet.emit(hdr.ethernet);
-        packet.emit(hdr.outer_ipv4);
-        packet.emit(hdr.outer_udp);
-        packet.emit(hdr.gtpu);
-        packet.emit(hdr.gtpu_options);
-        packet.emit(hdr.gtpu_ext_psc);
         packet.emit(hdr.ipv4);
         packet.emit(hdr.udp);
         packet.emit(hdr.tcp);
         packet.emit(hdr.icmp);
+        packet.emit(hdr.gtpu);
+        packet.emit(hdr.gtpu_options);
+        packet.emit(hdr.gtpu_ext_psc);
+        packet.emit(hdr.inner_ipv4);
+        packet.emit(hdr.inner_udp);
+        packet.emit(hdr.inner_tcp);
+        packet.emit(hdr.inner_icmp);
     }
 }
 

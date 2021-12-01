@@ -28,6 +28,8 @@
 #define GTP_HDR_MIN_SIZE 8
 #define GTPU_OPTIONS_HDR_BYTES 4
 #define GTPU_EXT_PSC_HDR_BYTES 4
+#define SLICE_ID_WIDTH 4
+#define TC_WIDTH 2
 // Some field values that would be excessive as enums
 const bit<4> IP_VERSION_4 = 4;
 const bit<8> DEFAULT_IPV4_TTL = 64;
@@ -35,7 +37,6 @@ const bit<8> DEFAULT_IPV4_TTL = 64;
 typedef bit<9>   port_num_t;
 typedef bit<48>  mac_addr_t;
 typedef bit<32>  ipv4_addr_t;
-
 
 const bit<16> UDP_PORT_GTPU = 2152;
 const bit<3> GTP_V1 = 0x1;
@@ -47,32 +48,15 @@ const bit<4> GTPU_EXT_PSC_TYPE_DL = 4w0; // Downlink
 const bit<4> GTPU_EXT_PSC_TYPE_UL = 4w1; // Uplink
 const bit<8> GTPU_EXT_PSC_LEN = 8w1; // 1*4-octets
 
-typedef bit<32> far_info_id_t;
-typedef bit<32> pdr_id_t;
-typedef bit<32> far_id_t;
-typedef bit<32> qer_id_t;
-typedef bit<32> bar_id_t;
-typedef bit<32> qfi_t;
-typedef bit<32> net_instance_t;
-typedef bit<32> counter_index_t;
-typedef bit<32>  scheduling_priority_t;
-
-
 typedef bit<32> teid_t;
-typedef bit<64> seid_t;
-// F-TEID = (4-byte)TEID + GTP endpoint (gnodeb OR UPF) address
-typedef bit<64> fteid_t;
-// F-SEID = 8-byte SEID + UPF IP(v4/v6) address
-typedef bit<96> fseid_t;
-// In hardware the full F-TEID and F-SEIDs should be replaced by shorter
-// unique identifiers to reduce memory. The slow path can maintain the
-// short ID <--> F-TEID/F-SEID mapping.
+typedef bit<6> qfi_t;
+typedef bit<32> counter_index_t;
+typedef bit<8> tunnel_peer_id_t;
 
-const pdr_id_t DEFAULT_PDR_ID = 0;
-const far_id_t DEFAULT_FAR_ID = 0;
-const qer_id_t DEFAULT_QER_ID = 0;
+typedef bit<SLICE_ID_WIDTH> slice_id_t;
+typedef bit<TC_WIDTH> tc_t; // Traffic Class (for QoS) within a slice
+
 const qfi_t    DEFAULT_QFI    = 0;
-const fseid_t  DEFAULT_FSEID  = 0;
 
 //------------------------------------------------------------------------------
 // ENUMS
@@ -111,17 +95,11 @@ enum bit<8> Direction {
 enum bit<8> InterfaceType {
     UNKNOWN       = 0x0,
     ACCESS        = 0x1,
-    CORE          = 0x2,
-    N6_LAN        = 0x3, // unused
-    VN_INTERNAL   = 0x4, // unused
-    CONTROL_PLANE = 0x5 // N4 and N4-u
+    CORE          = 0x2
 }
 
-enum bit<8> TunnelType {
-    UNKNOWN = 0x0,
-    IP      = 0x1, // unused
-    UDP     = 0x2, // unused
-    GTPU    = 0x3
+enum bit<4> Slice {
+    DEFAULT = 0x0
 }
 
 #endif

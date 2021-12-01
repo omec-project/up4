@@ -108,15 +108,13 @@ struct parsed_headers_t {
     packet_out_t  packet_out;
     packet_in_t   packet_in;
     ethernet_t ethernet;
-    ipv4_t outer_ipv4;
-    udp_t outer_udp;
-    gtpu_t gtpu;
-    gtpu_options_t gtpu_options;
-    gtpu_ext_psc_t gtpu_ext_psc;
     ipv4_t ipv4;
     udp_t udp;
     tcp_t tcp;
     icmp_t icmp;
+    gtpu_t gtpu;
+    gtpu_options_t gtpu_options;
+    gtpu_ext_psc_t gtpu_ext_psc;
     ipv4_t inner_ipv4;
     udp_t inner_udp;
     tcp_t inner_tcp;
@@ -127,65 +125,20 @@ struct parsed_headers_t {
 // METADATA DEFINITIONS
 //------------------------------------------------------------------------------
 
-// Data associated with a PDR entry
-struct pdr_metadata_t {
-    pdr_id_t id;
-    counter_index_t ctr_idx;
-    bit<6> tunnel_out_qfi;
-}
-
-// Data associated with Buffering and BARs
-struct bar_metadata_t {
-    bool needs_buffering;
-    bar_id_t bar_id;
-    bit<32> ddn_delay_ms; // unused so far
-    bit<32> suggest_pkt_count; // unused so far
-}
-
 struct ddn_digest_t {
-    fseid_t  fseid;
-}
-
-
-// Data associated with a FAR entry. Loaded by a FAR (except ID which is loaded by a PDR)
-struct far_metadata_t {
-    far_id_t    id;
-
-    // Buffering, dropping, tunneling etc. are not mutually exclusive.
-    // Hence, they should be flags and not different action types.
-    bool needs_dropping;
-    bool needs_tunneling;
-    bool notify_cp;
-
-    TunnelType  tunnel_out_type;
-    ipv4_addr_t tunnel_out_src_ipv4_addr;
-    ipv4_addr_t tunnel_out_dst_ipv4_addr;
-    L4Port      tunnel_out_udp_sport;
-    teid_t      tunnel_out_teid;
-
-    ipv4_addr_t next_hop_ip;
+    ipv4_addr_t  ue_address;
 }
 
 // The primary metadata structure.
 struct local_metadata_t {
     Direction direction;
 
-    // SEID and F-TEID currently have no use in fast path
-    teid_t teid;    // local Tunnel ID.  F-TEID = TEID + GTP endpoint address
-    // seid_t seid; // local Session ID. F-SEID = SEID + GTP endpoint address
+    teid_t teid;
 
-    // fteid_t fteid;
-    fseid_t fseid;
+    slice_id_t slice_id;
+    tc_t tc;
 
     ipv4_addr_t next_hop_ip;
-
-    bool needs_gtpu_decap;
-    bool needs_udp_decap; // unused
-    bool needs_vlan_removal; // unused
-    bool needs_ext_psc; // used to signal gtpu encap with PSC extension
-
-    InterfaceType src_iface;
-    InterfaceType dst_iface; // unused
 
     ipv4_addr_t ue_addr;
     ipv4_addr_t inet_addr;
@@ -195,12 +148,23 @@ struct local_metadata_t {
     L4Port      l4_sport;
     L4Port      l4_dport;
 
-    net_instance_t net_instance;
+    InterfaceType src_iface;
+    bool needs_gtpu_decap;
+    bool needs_tunneling;
+    bool needs_buffering;
+    bool needs_dropping;
+    bool notify_cp;
 
-    pdr_metadata_t pdr;
-    far_metadata_t far;
-    bar_metadata_t bar;
+    counter_index_t ctr_idx;
+
+    tunnel_peer_id_t tunnel_peer_id;
+
+    // GTP tunnel out parameters
+    ipv4_addr_t tunnel_out_src_ipv4_addr;
+    ipv4_addr_t tunnel_out_dst_ipv4_addr;
+    L4Port      tunnel_out_udp_sport;
+    teid_t      tunnel_out_teid;
+    qfi_t       tunnel_out_qfi;
 }
-
 
 #endif
