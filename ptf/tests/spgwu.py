@@ -25,12 +25,10 @@ from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
 from convert import encode
 from spgwu_base import GtpuBaseTest, UDP_GTP_PORT, GTPU_EXT_PSC_TYPE_DL, \
     GTPU_EXT_PSC_TYPE_UL
-from unittest import skip
 
-from extra_headers import CpuHeader
 
 CPU_CLONE_SESSION_ID = 99
-FSEID_BITWIDTH = 96
+UE_ADDR_BITWIDTH = 32
 UE_IPV4 = "17.0.0.1"
 ENODEB_IPV4 = "140.0.100.1"
 S1U_IPV4 = "140.0.100.2"
@@ -182,7 +180,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
 
 @group("gtpu")
 class GtpuDropDownlinkTest(GtpuBaseTest):
-    """ Tests that a packet received from the internet/core gets dropped because of FAR rule.
+    """ Tests that a packet received from the internet/core gets dropped because of terminations rule.
     """
 
     def runTest(self):
@@ -258,9 +256,7 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # Program all the tables.
-        fseid = 0xBEEF
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, buffer=True,
-                                          session_id=fseid)
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, buffer=True)
 
         # Read pre and post-QoS packet and byte counters.
         self.read_pdr_counters(ctr_id)
@@ -271,7 +267,7 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
         # Verify that we have received the DDN digest
         exp_digest_data = self.helper.build_p4data_struct(
-            [self.helper.build_p4data_bitstring(encode(fseid, FSEID_BITWIDTH))])
+            [self.helper.build_p4data_bitstring(encode(pkt[IP].dst, UE_ADDR_BITWIDTH))])
         self.verify_digest_list("ddn_digest_t", exp_digest_data)
 
         # Send 2nd packet immediately, verify counter increase but NO digest should be generated.
@@ -436,8 +432,7 @@ class GtpuDecapPscUplinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False,
-                                        match_qfi=True)
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False)
 
         # read pre and post-QoS packet and byte counters
         self.read_pdr_counters(ctr_id)
