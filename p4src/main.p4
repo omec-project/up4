@@ -124,7 +124,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                     inout standard_metadata_t std_meta) {
 
 
-    counter(MAX_PDRS, CounterType.packets_and_bytes) pre_qos_upf_counter;
+    counter(MAX_PDRS, CounterType.packets_and_bytes) pre_qos_counter;
 
     table my_station {
         key = {
@@ -145,7 +145,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     table interfaces {
         key = {
             hdr.ipv4.dst_addr : lpm @name("ipv4_dst_prefix");
-            // Eventually should also check VLAN ID here
         }
         actions = {
             set_source_iface;
@@ -169,15 +168,10 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     }
 
     @hidden
-    action do_notify_cp() {
-        clone3(CloneType.I2E, CPU_CLONE_SESSION_ID, { std_meta.ingress_port });
-    }
-
-    @hidden
     action do_buffer() {
         // Send digest. This is equivalent to a PFCP Downlink Data Notification (DDN), used to
         // notify control plane to initiate the paging procedure to locate and wake-up the UE.
-        // FIXME: what is the first argument 1 used for?
+        // The first argument is unused on BMv2.
         digest<ddn_digest_t>(1, { local_meta.ue_addr });
         // The actual buffering cannot be expressed in the logical pipeline.
         mark_to_drop(std_meta);
@@ -195,16 +189,15 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     }
 
     action set_params_downlink(tunnel_peer_id_t tunnel_peer_id,
-                               bit<1> needs_buffering,
-                               bit<1> notify_cp) {
+                               bit<1> needs_buffering) {
         local_meta.needs_buffering = (bool)needs_buffering;
-        local_meta.notify_cp = (bool)notify_cp;
         local_meta.tunnel_peer_id = tunnel_peer_id;
     }
 
     table sessions {
         key = {
             local_meta.src_iface    : exact     @name("src_iface");
+            // Outermost IPv4 header. Should be UE or N3 address.
             hdr.ipv4.dst_addr       : exact     @name("ipv4_dst");
             local_meta.teid         : ternary   @name("teid"); // don't care for downlink
         }
@@ -214,13 +207,13 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         }
     }
 
-    action fwd_uplink(counter_index_t ctr_idx, tc_t tc) {
+    action term_uplink(counter_index_t ctr_idx, tc_t tc) {
         local_meta.ctr_idx = ctr_idx;
         local_meta.tc = tc;
     }
 
     // QFI = 0 for 4G traffic
-    action fwd_downlink(teid_t teid, counter_index_t ctr_idx, qfi_t qfi, tc_t tc) {
+    action term_downlink(teid_t teid, counter_index_t ctr_idx, qfi_t qfi, tc_t tc) {
         local_meta.tunnel_out_teid = teid;
         local_meta.ctr_idx = ctr_idx;
         local_meta.tc = tc;
@@ -238,15 +231,15 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             local_meta.ue_addr      : exact @name("ue_address"); // Session ID
         }
         actions = {
-            fwd_uplink;
-            fwd_downlink;
+            term_uplink;
+            term_downlink;
             term_drop;
         }
     }
 
     action load_tunnel_param(ipv4_addr_t    src_addr,
                              ipv4_addr_t    dst_addr,
-                             L4Port         sport
+                             l4_port_t      sport
                              ) {
         local_meta.tunnel_out_src_ipv4_addr = src_addr;
         local_meta.tunnel_out_dst_ipv4_addr = dst_addr;
@@ -265,7 +258,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
 
     @hidden
     action _udp_encap(ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
-                      L4Port udp_sport, L4Port udp_dport,
+                      l4_port_t udp_sport, l4_port_t udp_dport,
                       bit<16> ipv4_total_len,
                       bit<16> udp_len) {
         hdr.inner_udp = hdr.udp;
@@ -377,32 +370,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             // N3 (from base station) - GTPU - match on outer IP dst
             // N6 (from internet) - no GTPU - match on IP header dst
             interfaces.apply();
-            // Interface lookup happens before normalization of headers,
-            // because the lookup uses the outermost IP header in all cases
-
-            // Normalize the headers so that the UE's IPv4 header is always hdr.ipv4
-            // regardless of if there is encapsulation or not.
-            /*if (hdr.inner_ipv4.isValid()) {
-                hdr.outer_ipv4 = hdr.ipv4;
-                hdr.ipv4 = hdr.inner_ipv4;
-                hdr.inner_ipv4.setInvalid();
-                hdr.outer_udp = hdr.udp;
-                if (hdr.inner_udp.isValid()) {
-                    hdr.udp = hdr.inner_udp;
-                    hdr.inner_udp.setInvalid();
-                }
-                else {
-                    hdr.udp.setInvalid();
-                    if (hdr.inner_tcp.isValid()) {
-                        hdr.tcp = hdr.inner_tcp;
-                        hdr.inner_tcp.setInvalid();
-                    }
-                    else if (hdr.inner_icmp.isValid()) {
-                        hdr.icmp = hdr.inner_icmp;
-                        hdr.inner_icmp.setInvalid();
-                    }
-                }
-            }*/
 
             // Normalize so the UE address/port appear as the same field regardless of direction
             if (local_meta.direction == Direction.UPLINK) {
@@ -422,15 +389,11 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             tunnel_peers.apply();
             terminations.apply();
             // Count packets at a counter index unique to whichever termination matched.
-            pre_qos_upf_counter.count(local_meta.ctr_idx);
+            pre_qos_counter.count(local_meta.ctr_idx);
 
             // Perform whatever header removal the matching PDR required.
             if (local_meta.needs_gtpu_decap) {
                 gtpu_decap();
-            }
-            if (local_meta.notify_cp) {
-                // FIXME: WHY notifying with a packet in, if we already have the digest??
-                do_notify_cp();
             }
             if (local_meta.needs_buffering) {
                 do_buffer();
@@ -466,12 +429,12 @@ control PostQosPipe (inout parsed_headers_t hdr,
                      inout standard_metadata_t std_meta) {
 
 
-    counter(MAX_PDRS, CounterType.packets_and_bytes) post_qos_upf_counter;
+    counter(MAX_PDRS, CounterType.packets_and_bytes) post_qos_counter;
 
     apply {
         // Count packets that made it through QoS and were not dropped,
         // using the counter index assigned by the terminations table in ingress.
-        post_qos_upf_counter.count(local_meta.ctr_idx);
+        post_qos_counter.count(local_meta.ctr_idx);
 
         // If this is a packet-in to the controller, e.g., if in ingress we
         // matched on the ACL table with action send/clone_to_cpu...

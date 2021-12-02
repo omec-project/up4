@@ -206,10 +206,10 @@ tables {
     match_type: EXACT
   }
   action_refs {
-    id: 23917006
+    id: 33361772
   }
   action_refs {
-    id: 24574640
+    id: 31666072
   }
   action_refs {
     id: 18415550
@@ -358,17 +358,12 @@ actions {
     name: "needs_buffering"
     bitwidth: 1
   }
-  params {
-    id: 3
-    name: "notify_cp"
-    bitwidth: 1
-  }
 }
 actions {
   preamble {
-    id: 23917006
-    name: "PreQosPipe.fwd_uplink"
-    alias: "fwd_uplink"
+    id: 33361772
+    name: "PreQosPipe.term_uplink"
+    alias: "term_uplink"
   }
   params {
     id: 1
@@ -383,9 +378,9 @@ actions {
 }
 actions {
   preamble {
-    id: 24574640
-    name: "PreQosPipe.fwd_downlink"
-    alias: "fwd_downlink"
+    id: 31666072
+    name: "PreQosPipe.term_downlink"
+    alias: "term_downlink"
   }
   params {
     id: 1
@@ -468,9 +463,9 @@ action_profiles {
 }
 counters {
   preamble {
-    id: 318426880
-    name: "PreQosPipe.pre_qos_upf_counter"
-    alias: "pre_qos_upf_counter"
+    id: 315693181
+    name: "PreQosPipe.pre_qos_counter"
+    alias: "pre_qos_counter"
   }
   spec {
     unit: BOTH
@@ -479,9 +474,9 @@ counters {
 }
 counters {
   preamble {
-    id: 306869919
-    name: "PostQosPipe.post_qos_upf_counter"
-    alias: "post_qos_upf_counter"
+    id: 302958180
+    name: "PostQosPipe.post_qos_counter"
+    alias: "post_qos_counter"
   }
   spec {
     unit: BOTH
@@ -583,22 +578,6 @@ type_info {
     }
   }
   serializable_enums {
-    key: "EtherType"
-    value {
-      underlying_type {
-        bitwidth: 16
-      }
-      members {
-        name: "IPV4"
-        value: "\010\000"
-      }
-      members {
-        name: "IPV6"
-        value: "\206\335"
-      }
-    }
-  }
-  serializable_enums {
     key: "InterfaceType"
     value {
       underlying_type {
@@ -615,50 +594,6 @@ type_info {
       members {
         name: "CORE"
         value: "\002"
-      }
-    }
-  }
-  serializable_enums {
-    key: "IpProtocol"
-    value {
-      underlying_type {
-        bitwidth: 8
-      }
-      members {
-        name: "ICMP"
-        value: "\001"
-      }
-      members {
-        name: "TCP"
-        value: "\006"
-      }
-      members {
-        name: "UDP"
-        value: "\021"
-      }
-    }
-  }
-  serializable_enums {
-    key: "L4Port"
-    value {
-      underlying_type {
-        bitwidth: 16
-      }
-      members {
-        name: "DHCP_SERV"
-        value: "\000C"
-      }
-      members {
-        name: "DHCP_CLIENT"
-        value: "\000D"
-      }
-      members {
-        name: "GTP_GPDU"
-        value: "\010h"
-      }
-      members {
-        name: "IPV4_IN_UDP"
-        value: "&\223"
       }
     }
   }

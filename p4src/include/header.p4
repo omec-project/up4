@@ -11,7 +11,7 @@
 header ethernet_t {
     mac_addr_t  dst_addr;
     mac_addr_t  src_addr;
-    EtherType   ether_type;
+    eth_type_t  ether_type;
 }
 
 header ipv4_t {
@@ -24,31 +24,31 @@ header ipv4_t {
     bit<3>          flags;
     bit<13>         frag_offset;
     bit<8>          ttl;
-    IpProtocol      proto;
+    ip_proto_t      proto;
     bit<16>         checksum;
     ipv4_addr_t     src_addr;
     ipv4_addr_t     dst_addr;
 }
 
 header tcp_t {
-    L4Port  sport;
-    L4Port  dport;
-    bit<32> seq_no;
-    bit<32> ack_no;
-    bit<4>  data_offset;
-    bit<3>  res;
-    bit<3>  ecn;
-    bit<6>  ctrl;
-    bit<16> window;
-    bit<16> checksum;
-    bit<16> urgent_ptr;
+    l4_port_t   sport;
+    l4_port_t   dport;
+    bit<32>     seq_no;
+    bit<32>     ack_no;
+    bit<4>      data_offset;
+    bit<3>      res;
+    bit<3>      ecn;
+    bit<6>      ctrl;
+    bit<16>     window;
+    bit<16>     checksum;
+    bit<16>     urgent_ptr;
 }
 
 header udp_t {
-    L4Port  sport;
-    L4Port  dport;
-    bit<16> len;
-    bit<16> checksum;
+    l4_port_t   sport;
+    l4_port_t   dport;
+    bit<16>     len;
+    bit<16>     checksum;
 }
 
 header icmp_t {
@@ -61,15 +61,15 @@ header icmp_t {
 }
 
 header gtpu_t {
-    bit<3>          version;    /* version */
-    bit<1>          pt;         /* protocol type */
-    bit<1>          spare;      /* reserved */
-    bit<1>          ex_flag;    /* next extension hdr present? */
-    bit<1>          seq_flag;   /* sequence no. */
-    bit<1>          npdu_flag;  /* n-pdn number present ? */
-    GTPUMessageType msgtype;    /* message type */
-    bit<16>         msglen;     /* message length */
-    teid_t          teid;       /* tunnel endpoint id */
+    bit<3>  version;    /* version */
+    bit<1>  pt;         /* protocol type */
+    bit<1>  spare;      /* reserved */
+    bit<1>  ex_flag;    /* next extension hdr present? */
+    bit<1>  seq_flag;   /* sequence no. */
+    bit<1>  npdu_flag;  /* n-pdn number present ? */
+    bit<8>  msgtype;    /* message type */
+    bit<16> msglen;     /* message length */
+    teid_t  teid;       /* tunnel endpoint id */
 }
 
 // Follows gtpu_t if any of ex_flag, seq_flag, or npdu_flag is 1.
@@ -101,7 +101,6 @@ header packet_in_t {
     port_num_t  ingress_port;
     bit<7>      _pad;
 }
-
 
 
 struct parsed_headers_t {
@@ -142,18 +141,17 @@ struct local_metadata_t {
 
     ipv4_addr_t ue_addr;
     ipv4_addr_t inet_addr;
-    L4Port      ue_l4_port;
-    L4Port      inet_l4_port;
+    l4_port_t   ue_l4_port;
+    l4_port_t   inet_l4_port;
 
-    L4Port      l4_sport;
-    L4Port      l4_dport;
+    l4_port_t   l4_sport;
+    l4_port_t   l4_dport;
 
-    InterfaceType src_iface;
+    bit<8> src_iface;
     bool needs_gtpu_decap;
     bool needs_tunneling;
     bool needs_buffering;
     bool needs_dropping;
-    bool notify_cp;
 
     counter_index_t ctr_idx;
 
@@ -162,7 +160,7 @@ struct local_metadata_t {
     // GTP tunnel out parameters
     ipv4_addr_t tunnel_out_src_ipv4_addr;
     ipv4_addr_t tunnel_out_dst_ipv4_addr;
-    L4Port      tunnel_out_udp_sport;
+    l4_port_t   tunnel_out_udp_sport;
     teid_t      tunnel_out_teid;
     qfi_t       tunnel_out_qfi;
 }

@@ -37,6 +37,9 @@ const bit<8> DEFAULT_IPV4_TTL = 64;
 typedef bit<9>   port_num_t;
 typedef bit<48>  mac_addr_t;
 typedef bit<32>  ipv4_addr_t;
+typedef bit<16>  l4_port_t;
+typedef bit<8>   ip_proto_t;
+typedef bit<16>  eth_type_t;
 
 const bit<16> UDP_PORT_GTPU = 2152;
 const bit<3> GTP_V1 = 0x1;
