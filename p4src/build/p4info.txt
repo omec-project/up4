@@ -175,10 +175,11 @@ tables {
     id: 20045386
   }
   action_refs {
-    id: 21257015
+    id: 28401267
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
   }
+  const_default_action_id: 28401267
   size: 1024
 }
 tables {

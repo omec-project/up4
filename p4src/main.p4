@@ -204,7 +204,9 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         actions = {
             set_params_uplink;
             set_params_downlink;
+            @defaultonly do_drop;
         }
+        const default_action = do_drop;
     }
 
     action term_uplink(counter_index_t ctr_idx, tc_t tc) {
