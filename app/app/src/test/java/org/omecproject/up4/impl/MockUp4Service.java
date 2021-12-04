@@ -10,6 +10,7 @@ import org.omecproject.up4.UpfFlow;
 import org.onosproject.net.behaviour.upf.ForwardingActionRule;
 import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 import org.onosproject.net.behaviour.upf.PdrStats;
+import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 
 import java.nio.ByteBuffer;
@@ -72,11 +73,6 @@ public class MockUp4Service implements Up4Service {
     @Override
     public long pdrCounterSize() {
         return TestImplConstants.PHYSICAL_COUNTER_SIZE;
-    }
-
-    @Override
-    public void enablePscEncap(int defaultQfi) {
-
     }
 
     @Override
@@ -160,8 +156,8 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public PdrStats readCounter(int cellId) {
-        return PdrStats.builder()
+    public UpfCounter readCounter(int cellId) {
+        return UpfCounter.builder()
                 .withCellId(cellId)
                 .setEgress(NorthTestConstants.EGRESS_COUNTER_PKTS, NorthTestConstants.EGRESS_COUNTER_BYTES)
                 .setIngress(NorthTestConstants.INGRESS_COUNTER_PKTS, NorthTestConstants.INGRESS_COUNTER_BYTES)
@@ -169,10 +165,10 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public Collection<PdrStats> readAllCounters(long maxCounterId) {
-        List<PdrStats> stats = new ArrayList<>();
+    public Collection<UpfCounter> readCounters(long maxCounterId) {
+        List<UpfCounter> stats = new ArrayList<>();
         for (int i = 0; i < TestImplConstants.PHYSICAL_COUNTER_SIZE; i++) {
-            stats.add(PdrStats.builder()
+            stats.add(UpfCounter.builder()
                               .withCellId(i)
                               .setEgress(NorthTestConstants.EGRESS_COUNTER_PKTS,
                                          NorthTestConstants.EGRESS_COUNTER_BYTES)

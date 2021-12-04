@@ -4,10 +4,15 @@
  */
 package org.omecproject.up4;
 
+import org.onlab.packet.IPv4;
+import org.onlab.packet.IpAddress;
 import org.onlab.util.ImmutableByteSequence;
-import org.onosproject.net.behaviour.upf.ForwardingActionRule;
-import org.onosproject.net.behaviour.upf.PacketDetectionRule;
-import org.onosproject.net.behaviour.upf.PdrStats;
+import org.onosproject.net.behaviour.TunnelEndPoint;
+import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
+import org.onosproject.net.behaviour.upf.UeSession;
+import org.onosproject.net.behaviour.upf.UpfCounter;
+import org.onosproject.net.behaviour.upf.UpfDevice;
+import org.onosproject.net.behaviour.upf.UpfTermination;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -15,10 +20,11 @@ import static com.google.common.base.Preconditions.checkArgument;
  * Helper class primarily intended for organizing and printing PDRs and FARs, grouped by UE.
  */
 public final class UpfFlow {
-    private final ImmutableByteSequence pfcpSessionId;
-    private final PacketDetectionRule pdr;
-    private final ForwardingActionRule far;
-    private final PdrStats flowStats;
+    private final IpAddress ueAddress;
+    private final UeSession session;
+    private final UpfTermination termination;
+    private final GtpTunnelPeer tunnelEndPoint;
+    private final UpfCounter counters;
     private final Type type;
 
     public enum Type {
@@ -36,31 +42,42 @@ public final class UpfFlow {
         DOWNLINK
     }
 
-    private UpfFlow(Type type, ImmutableByteSequence pfcpSessionId,
-                    PacketDetectionRule pdr, ForwardingActionRule far, PdrStats flowStats) {
-        this.pfcpSessionId = pfcpSessionId;
-        this.pdr = pdr;
-        this.far = far;
-        this.flowStats = flowStats;
+    private UpfFlow(Type type, IpAddress ueAddress, UeSession session,
+                    UpfTermination termination, GtpTunnelPeer tunnelEndPoint,
+                    UpfCounter counters) {
+        this.ueAddress = ueAddress;
+        this.session = session;
+        this.termination = termination;
+        this.tunnelEndPoint = tunnelEndPoint;
+        this.counters = counters;
         this.type = type;
     }
 
     /**
-     * Get the Packet Detection Rule of this UE data flow.
+     * Get the UE session of this UE data flow.
      *
-     * @return the PDR of this data flow
+     * @return the UE session of this data flow
      */
-    public PacketDetectionRule getPdr() {
-        return pdr;
+    public UeSession getUeSession() {
+        return session;
     }
 
     /**
-     * Get the Forward Action Rule of this UE data flow.
+     * Get the termination rule of this UE data flow.
      *
-     * @return the FAR of this data flow
+     * @return the termination rule of this data flow
      */
-    public ForwardingActionRule getFar() {
-        return far;
+    public UpfTermination getTermination() {
+        return termination;
+    }
+
+    /**
+     * Get the GTP Tunnel peer endpoint of this UE data flow if the flow is Downlink.
+     *
+     * @return the GTP tunnel peer, or null if {@link #isUplink()} returns true.
+     */
+    public GtpTunnelPeer getTunnelEndPoint() {
+        return tunnelEndPoint;
     }
 
     /**
@@ -83,25 +100,26 @@ public final class UpfFlow {
 
     @Override
     public String toString() {
-        String farString = "NO FAR!";
-        if (far != null) {
-            farString = String.format("FarID %d  -->  %s", far.farId(), far.actionString());
-        }
-        String pdrString = "NO PDR!";
-        if (pdr != null) {
-            pdrString = pdr.matchString();
-            if (pdr.hasQfi() && pdr.pushQfi()) {
-                // Push QFI
-                pdrString = String.format("%s, Push_qfi(%s)", pdrString, pdr.qfi());
-            }
-        }
-        String statString = "NO STATISTICS!";
-        if (flowStats != null) {
-            statString = String.format("%5d Ingress pkts -> %5d Egress pkts",
-                    flowStats.getIngressPkts(), flowStats.getEgressPkts());
-        }
-        return String.format("SEID:%s - %s  -->  %s;\n    >> %s",
-                pfcpSessionId, pdrString, farString, statString);
+
+//        String farString = "NO FAR!";
+//        if (far != null) {
+//            farString = String.format("FarID %d  -->  %s", far.farId(), far.actionString());
+//        }
+//        String pdrString = "NO PDR!";
+//        if (pdr != null) {
+//            pdrString = pdr.matchString();
+//            if (pdr.hasQfi() && pdr.pushQfi()) {
+//                // Push QFI
+//                pdrString = String.format("%s, Push_qfi(%s)", pdrString, pdr.qfi());
+//            }
+//        }
+//        String statString = "NO STATISTICS!";
+//        if (flowStats != null) {
+//            statString = String.format("%5d Ingress pkts -> %5d Egress pkts",
+//                    flowStats.getIngressPkts(), flowStats.getEgressPkts());
+//        }
+//        return String.format("SEID:%s - %s  -->  %s;\n    >> %s",
+//                pfcpSessionId, pdrString, farString, statString);
     }
 
     public static Builder builder() {
@@ -109,9 +127,10 @@ public final class UpfFlow {
     }
 
     public static class Builder {
-        private PacketDetectionRule pdr;
-        private ForwardingActionRule far;
-        private PdrStats flowStats;
+        private UeSession session;
+        private UpfTermination termination;
+        private UpfCounter counters;
+        private GtpTunnelPeer tunnelPeer;
 
         public Builder() {
         }
@@ -123,8 +142,8 @@ public final class UpfFlow {
          * @param pdr the PacketDetectionRule to add
          * @return this builder object
          */
-        public Builder setPdr(PacketDetectionRule pdr) {
-            this.pdr = pdr;
+        public Builder setUeSession(UeSession session) {
+            this.session = session;
             return this;
         }
 
@@ -135,8 +154,17 @@ public final class UpfFlow {
          * @param far the ForwardingActionRule to add
          * @return this builder object
          */
-        public Builder setFar(ForwardingActionRule far) {
-            this.far = far;
+        public Builder setTermination(UpfTermination termination) {
+            this.termination = termination;
+            return this;
+        }
+
+        public UpfTermination getTermination() {
+            return this.termination;
+        }
+
+        public Builder setGtpTunnelPeer(GtpTunnelPeer tunnelPeer) {
+            this.tunnelPeer = tunnelPeer;
             return this;
         }
 
@@ -148,37 +176,34 @@ public final class UpfFlow {
          * @param flowStats the PDR counter statistics instance to add
          * @return this builder object
          */
-        public Builder addStats(PdrStats flowStats) {
-            this.flowStats = flowStats;
+        public Builder addUpfCounter(UpfCounter counters) {
+            this.counters = counters;
             return this;
         }
 
         public UpfFlow build() {
-            Type type = Type.UNKNOWN;
-            ImmutableByteSequence sessionId = null;
-            if (pdr != null && far != null) {
-                checkArgument(pdr.sessionId().equals(far.sessionId()),
-                        "PFCP session ID of PDR and FAR must match!");
-                checkArgument(pdr.farId() == far.farId(),
-                        "FAR ID set by PDR and read by FAR must match!");
+            checkArgument(this.session != null,
+                          "UE Session cannot be null");
+            checkArgument(this.termination != null,
+                          "UPF Termination rule cannot be null");
+            checkArgument(session.isUplink() == termination.isUplink(),
+                          "Session and termination with different direction");
+            checkArgument(session.isUplink() || tunnelPeer != null,
+                          "Downlink flows must have a GTP tunnel peer");
+            Type type;
+            IpAddress ueAddress = termination.ueSessionId();
+            if (session.isUplink()) {
+                type = Type.UPLINK;
+            } else {
+                type = Type.DOWNLINK;
+                checkArgument(session.tunPeerId() == tunnelPeer.tunPeerId(),
+                              "UE Session pointing to different GTP tunnel peer");
             }
-            if (pdr != null) {
-                if (flowStats != null) {
-                    checkArgument(pdr.counterId() == flowStats.getCellId(),
-                            "Counter statistics provided do not use counter index set by provided PDR!");
-                }
-                sessionId = pdr.sessionId();
-                type = pdr.matchesEncapped() ? Type.UPLINK : Type.DOWNLINK;
-            } else if (far != null) {
-                sessionId = far.sessionId();
-                if (far.forwards()) {
-                    type = Type.UPLINK;
-                } else if (far.encaps()) {
-                    type = Type.DOWNLINK;
-                }
+            if (counters != null) {
+                checkArgument(termination.counterId() == counters.getCellId(),
+                              "Counter statistics provided do not use counter index set by the termination rule");
             }
-
-            return new UpfFlow(type, sessionId, pdr, far, flowStats);
+            return new UpfFlow(type, ueAddress, session, termination, tunnelPeer, counters);
         }
     }
 }

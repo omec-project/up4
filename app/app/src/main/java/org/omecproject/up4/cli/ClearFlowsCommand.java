@@ -8,6 +8,8 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.onosproject.cli.AbstractShellCommand;
+import org.onosproject.net.behaviour.upf.UpfEntityType;
+import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 
 /**
  * UP4 clear sessions command.
@@ -18,11 +20,13 @@ import org.onosproject.cli.AbstractShellCommand;
 public class ClearFlowsCommand extends AbstractShellCommand {
 
     @Override
-    protected void doExecute() {
+    protected void doExecute() throws UpfProgrammableException {
         Up4Service app = get(Up4Service.class);
 
         print("Clearing all currently installed UE sessions.");
-        app.clearFlows();
+        app.deleteUpfEntities(UpfEntityType.SESSION);
+        app.deleteUpfEntities(UpfEntityType.TERMINATION);
+        app.deleteUpfEntities(UpfEntityType.TUNNEL_PEER);
     }
 }
 

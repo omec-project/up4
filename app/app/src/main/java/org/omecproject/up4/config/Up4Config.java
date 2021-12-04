@@ -33,16 +33,13 @@ public class Up4Config extends Config<ApplicationId> {
     public static final String S1U_PREFIX = "s1uPrefix";  // TODO: remove this field after all configs updated
     public static final String S1U_ADDR = "s1uAddr";
     public static final String DBUF_DRAIN_ADDR = "dbufDrainAddr";
-    // FIXME: remove defaultQfi and pscEncapEnabled once we expose QFI in logical pipeline
-    //  QFI should be set by the SMF using PFCP
-    public static final String DEFAULT_QFI = "defaultQfi";
     public static final String PSC_ENCAP_ENABLED = "pscEncapEnabled";
 
 
     @Override
     public boolean isValid() {
         return hasOnlyFields(DEVICE_ID, DEVICES, UE_POOLS, S1U_ADDR, S1U_PREFIX,
-                             DBUF_DRAIN_ADDR, MAX_UES, PSC_ENCAP_ENABLED, DEFAULT_QFI) &&
+                             DBUF_DRAIN_ADDR, MAX_UES, PSC_ENCAP_ENABLED) &&
                 // Mandatory fields.
                 (hasField(DEVICE_ID) || hasField(DEVICES)) &&
                 hasField(UE_POOLS) &&
@@ -165,15 +162,6 @@ public class Up4Config extends Config<ApplicationId> {
      */
     public boolean pscEncapEnabled() {
         return get(PSC_ENCAP_ENABLED, false);
-    }
-
-    /**
-     * Returns the default QoS Flow Identifier to use when PSC encap is enabled.
-     *
-     * @return whether PSC encap is enabled
-     */
-    public int defaultQfi() {
-        return get(DEFAULT_QFI, 0);
     }
 }
 

@@ -10,7 +10,6 @@ import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
-import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 
 /**
  * UP4 PDR insertion command.
@@ -18,7 +17,7 @@ import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 @Service
 @Command(scope = "up4", name = "pdr-insert",
         description = "Insert a packet detection rule into the UP4 dataplane")
-public class PdrInsertCommand extends AbstractShellCommand {
+public class SessionInsertCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "session-id",
             description = "Session ID for this PDR",
@@ -50,22 +49,6 @@ public class PdrInsertCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         Ip4Address ueAddr = Ip4Address.valueOf(this.ueAddr);
-
-        var pdrBuilder = PacketDetectionRule.builder()
-                .withSessionId(sessionId)
-                .withUeAddr(ueAddr)
-                .withLocalFarId(farId)
-                .withCounterId(1);
-
-        if (teid != -1) {
-            pdrBuilder.withTeid(teid);
-        }
-        if (s1uAddr != null) {
-            pdrBuilder.withTunnelDst(Ip4Address.valueOf(s1uAddr));
-        }
-
-        PacketDetectionRule pdr = pdrBuilder.build();
-        print("Installing %s on UPF", pdr.toString());
-        app.addPdr(pdrBuilder.build());
+        //TODO
     }
 }

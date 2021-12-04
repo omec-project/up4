@@ -4,6 +4,7 @@
 
 MKFILE_PATH              := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
+UID                      := $(shell id -u)
 
 main_file := p4src/main.p4
 
@@ -91,3 +92,9 @@ build-ptf:
 push-ptf:
 	# Remember to update Makefile.vars with the new image sha
 	docker push opennetworking/up4-ptf
+
+constants:
+	docker run -v $(CURRENT_DIR):$(CURRENT_DIR) -w $(CURRENT_DIR) --rm --user $(UID)\
+		--entrypoint python $(PTF_BMV2_IMAGE) ./util/gen-p4-constants.py Up4P4Info \
+		-o $(CURRENT_DIR)/app/app/src/main/java/org/omecproject/up4/impl/Up4P4InfoConstants.java \
+		 $(CURRENT_DIR)/p4src/build/p4info.txt

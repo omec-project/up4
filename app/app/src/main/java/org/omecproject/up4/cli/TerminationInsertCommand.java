@@ -8,10 +8,7 @@ import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
-import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
-import org.onosproject.net.behaviour.upf.ForwardingActionRule;
-import org.onosproject.net.behaviour.upf.GtpTunnel;
 
 /**
  * UP4 Far insertion command.
@@ -19,7 +16,7 @@ import org.onosproject.net.behaviour.upf.GtpTunnel;
 @Service
 @Command(scope = "up4", name = "far-insert",
         description = "Insert a forwarding action rule into the UP4 dataplane")
-public class FarInsertCommand extends AbstractShellCommand {
+public class TerminationInsertCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "session-id",
             description = "Session ID for this PDR",
@@ -49,21 +46,6 @@ public class FarInsertCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
-
-        var farBuilder = ForwardingActionRule.builder()
-                .setFarId(farId)
-                .withSessionId(sessionId);
-
-        if (teid != -1) {
-            farBuilder.setTunnel(GtpTunnel.builder()
-                                         .setSrc(Ip4Address.valueOf(tunnelSrc))
-                                         .setDst(Ip4Address.valueOf(tunnelDst))
-                                         .setTeid(teid)
-                                         .build());
-        }
-        ForwardingActionRule far = farBuilder.build();
-
-        print("Installing %s", far.toString());
-        app.addFar(far);
+        //TOdo
     }
 }
