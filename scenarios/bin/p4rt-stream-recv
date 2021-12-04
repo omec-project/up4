@@ -33,19 +33,10 @@ def main():
     timeout = args.t
     start = time.time()
     count = 0
-    try:
-        while True:
-            remaining = timeout - (time.time() - start)
-            if remaining < 0:
-                break
-            msg = sh.client.stream_in_q.get(timeout=remaining)
-            if msg != "any":
-                if args.type and not msg.HasField(args.type):
-                    continue
-                count = count + 1
-                print(text_format.MessageToString(msg, as_one_line=True))
-    except queue.Empty:  # timeout expired
-        pass
+    msg = sh.client.get_stream_packet(type_=args.type, timeout=timeout)
+    if msg is not None:
+        count = count + 1
+        print(text_format.MessageToString(msg, as_one_line=True))
 
     sh.teardown()
 
