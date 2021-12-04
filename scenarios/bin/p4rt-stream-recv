@@ -2,8 +2,8 @@
 # SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 import argparse
-import time
 import queue
+import time
 
 import p4runtime_sh.shell as sh
 from google.protobuf import text_format
@@ -46,9 +46,8 @@ def main():
             break
 
     if len(msgs) > 0:
-        for m in msgs:
-            count += 1
-            print(text_format.MessageToString(m, as_one_line=True))
+        count += len(msgs)
+        [print(text_format.MessageToString(m, as_one_line=True)) for m in msgs]
 
     sh.teardown()
 
