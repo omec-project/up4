@@ -2,8 +2,8 @@
 # SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
 # SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 import argparse
-import queue
 import time
+import queue
 
 import p4runtime_sh.shell as sh
 from google.protobuf import text_format
@@ -30,13 +30,25 @@ def main():
     # Connect to gRPC server
     sh.setup(device_id=1, grpc_addr=args.server, election_id=(0, args.election_id))
 
-    timeout = args.t
-    start = time.time()
     count = 0
-    msg = sh.client.get_stream_packet(type_=args.type, timeout=timeout)
-    if msg is not None:
-        count = count + 1
-        print(text_format.MessageToString(msg, as_one_line=True))
+    type=args.type
+    timeout=args.t
+    msgs = []
+
+    deadline = time.time() + timeout
+    remaining_time = timeout
+    while remaining_time > 0:
+        try:
+            msgs.append(sh.client.stream_in_q[type].get(block=True, timeout=remaining_time))
+            remaining_time = deadline - time.time()
+        except queue.Empty:
+            # No item available on timeout. Exiting
+            break
+
+    if len(msgs) > 0:
+        for m in msgs:
+            count += 1
+            print(text_format.MessageToString(m, as_one_line=True))
 
     sh.teardown()
 
