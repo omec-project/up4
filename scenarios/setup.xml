@@ -41,6 +41,13 @@
             </parallel>
         </group>
 
+        <step name="Fabric-TNA-Check-Pipeconf-Simple"
+              requires="Onos-Wait-For-Ready"
+              exec="docker-log-grep ${ODI} 'New pipeconf registered: org.stratumproject.fabric.bmv2'"/>
+        <step name="Fabric-TNA-Check-Pipeconf-SPGW"
+              requires="Onos-Wait-For-Ready"
+              exec="docker-log-grep ${ODI} 'New pipeconf registered: org.stratumproject.fabric-spgw.bmv2'"/>
+
         <!-- remove pre-installed up4, install local build -->
         <step name="Up4-App-Uninstall" requires="Onos-Wait-For-Ready"
               exec="onos-app ${OCI} uninstall org.omecproject.up4"/>
@@ -50,9 +57,6 @@
               exec="test -f ${UP4_ROOT}/app/app/target/up4-app-1.1.0-SNAPSHOT.oar"/>
         <step name="Up4-App-Install-Local-Build" requires="^" delay="5"
               exec="onos-app ${OCI} reinstall! ${UP4_ROOT}/app/app/target/up4-app-1.1.0-SNAPSHOT.oar"/>
-        <step name="Fabric-TNA-App-Wait-For-Activation"
-              requires="Onos-Wait-For-Ready"
-              exec="docker-log-grep ${ODI} 'Application org.stratumproject.fabric-tna has been activated'"/>
 
         <parallel var="${OD#}">
             <!-- FIXME: ${OC#} pointing to the same instance localhost, should we use a container that can resolve onos1/2/3 hostnames? -->
