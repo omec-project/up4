@@ -15,7 +15,7 @@ def get_args():
                         help="Address and port of the p4runtime server")
     parser.add_argument("--election-id", type=int, default=10, help="Election ID")
     parser.add_argument("--type", type=str, default="any",
-                        help="Type of stream message to listen for")
+                        help="Type of stream message to listen for (e.g: digest, packet)")
     parser.add_argument(
         "--count", type=int, default=-1, help="Receive exactly the given number of messages"
         "(-1 means don't check)")
