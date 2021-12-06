@@ -335,15 +335,17 @@ class GtpuBaseTest(P4RuntimeTest):
         if teid:
             match_fields["teid"] = (teid, ALL_ONES_32)
 
+        action_params = {}
         if src_iface == "ACCESS":
             action_name = "PreQosPipe.set_params_uplink"
-            action_params = {}
         else:
-            action_name = "PreQosPipe.set_params_downlink"
-            action_params = {
-                "tunnel_peer_id": tunnel_peer_id,
-                "needs_buffering": buffer,
-            }
+            if not buffer:
+                action_name = "PreQosPipe.set_params_downlink"
+                action_params = {
+                    "tunnel_peer_id": tunnel_peer_id
+                }
+            else:
+                action_name = "PreQosPipe.set_params_buffering"
 
         self.insert(
             self.helper.build_table_entry(

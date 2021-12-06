@@ -33,7 +33,6 @@ public class Up4DeviceManagerTest {
         component.piPipeconfService = new PiPipeconfServiceAdapter();
         component.netCfgService = new NetworkConfigRegistryAdapter();
         component.componentConfigService = new ComponentConfigAdapter();
-        component.up4Store = TestDistributedUp4Store.build();
         injectEventDispatcher(component, new TestEventDispatcher());
         component.activate();
     }

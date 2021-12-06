@@ -4,20 +4,16 @@
  */
 package org.omecproject.up4;
 
-import org.onlab.packet.IPv4;
 import org.onlab.packet.IpAddress;
-import org.onlab.util.ImmutableByteSequence;
-import org.onosproject.net.behaviour.TunnelEndPoint;
 import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.UeSession;
 import org.onosproject.net.behaviour.upf.UpfCounter;
-import org.onosproject.net.behaviour.upf.UpfDevice;
 import org.onosproject.net.behaviour.upf.UpfTermination;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 /**
- * Helper class primarily intended for organizing and printing PDRs and FARs, grouped by UE.
+ * Helper class primarily intended for organizing and printing UPF information, grouped by UE.
  */
 public final class UpfFlow {
     private final IpAddress ueAddress;
@@ -33,11 +29,11 @@ public final class UpfFlow {
          */
         UNKNOWN,
         /**
-         * If the flow consists of an uplink PDR and FAR.
+         * If the flow is for uplink traffic.
          */
         UPLINK,
         /**
-         * If the flow consists of a downlink PDR and FAR.
+         * If the flow is for downlink traffic.
          */
         DOWNLINK
     }
@@ -100,6 +96,8 @@ public final class UpfFlow {
 
     @Override
     public String toString() {
+        //TODO
+        return "";
 
 //        String farString = "NO FAR!";
 //        if (far != null) {
@@ -136,10 +134,9 @@ public final class UpfFlow {
         }
 
         /**
-         * Add a PDR to the session. The PFCP session ID and the FAR ID set by this PDR should match whatever FAR
-         * is added (if a FAR is added). If this condition is violated, the call to build() will fail.
+         * Sets the UE session.
          *
-         * @param pdr the PacketDetectionRule to add
+         * @param session the UE session to set
          * @return this builder object
          */
         public Builder setUeSession(UeSession session) {
@@ -148,10 +145,9 @@ public final class UpfFlow {
         }
 
         /**
-         * Add a FAR to the session. The PFCP session ID and the FAR ID read by this FAR should match whatever PDR
-         * is added (if a PDR is added). If this condition is violated, the call to build() will fail.
+         * Sets the termination rule.
          *
-         * @param far the ForwardingActionRule to add
+         * @param termination the termination rule to set
          * @return this builder object
          */
         public Builder setTermination(UpfTermination termination) {
@@ -159,26 +155,40 @@ public final class UpfFlow {
             return this;
         }
 
-        public UpfTermination getTermination() {
-            return this.termination;
-        }
-
+        /**
+         * Sets the tunnel peer. This can be set only for uplink flows. The
+         * tunnel peer of the given tunnel should match the tunnel peer id set
+         * by the UE session.
+         *
+         * @param tunnelPeer the tunnel peer to set.
+         * @return this builder object
+         */
         public Builder setGtpTunnelPeer(GtpTunnelPeer tunnelPeer) {
             this.tunnelPeer = tunnelPeer;
             return this;
         }
 
         /**
-         * Add a PDR counter statistics instance to this session. The cell id of the provided counter statistics
-         * should match the cell id set by the PDR added by setPdr(). If this condition is violated,
-         * the call to build() will fail.
+         * Set a UPF counter statistics instance to this session. The cell id of
+         * the provided counter statistics should match the cell id set by the
+         * termination rule. If this condition is violated, the call to build()
+         * will fail.
          *
-         * @param flowStats the PDR counter statistics instance to add
+         * @param counters the UPF counter statistics instance to set
          * @return this builder object
          */
-        public Builder addUpfCounter(UpfCounter counters) {
+        public Builder setUpfCounter(UpfCounter counters) {
             this.counters = counters;
             return this;
+        }
+
+        /**
+         * Get the current set termination rule.
+         *
+         * @return the current termination rule.
+         */
+        public UpfTermination getTermination() {
+            return this.termination;
         }
 
         public UpfFlow build() {

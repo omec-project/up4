@@ -148,7 +148,7 @@ final class Up4TranslatorUtil {
 
     static short byteSeqToShort(ImmutableByteSequence sequence) {
         try {
-            return sequence.fit(16).asReadOnlyBuffer().get();
+            return sequence.fit(16).asReadOnlyBuffer().getShort();
         } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
             throw new IllegalArgumentException("Attempted to convert a >1 byte wide sequence to an byte!");
         }

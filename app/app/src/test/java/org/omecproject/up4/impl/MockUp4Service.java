@@ -7,11 +7,10 @@ package org.omecproject.up4.impl;
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfFlow;
-import org.onosproject.net.behaviour.upf.ForwardingActionRule;
-import org.onosproject.net.behaviour.upf.PacketDetectionRule;
-import org.onosproject.net.behaviour.upf.PdrStats;
 import org.onosproject.net.behaviour.upf.UpfCounter;
-import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfEntity;
+import org.onosproject.net.behaviour.upf.UpfEntityType;
+import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -21,9 +20,10 @@ import java.util.List;
 public class MockUp4Service implements Up4Service {
     boolean upfProgrammableAvailable = true;
     boolean configAvailable = true;
-    final List<PacketDetectionRule> pdrs = new ArrayList<>();
-    final List<ForwardingActionRule> fars = new ArrayList<>();
-    final List<UpfInterface> ifaces = new ArrayList<>();
+    final List<UpfEntity> sessions = new ArrayList<>();
+    final List<UpfEntity> terminations = new ArrayList<>();
+    final List<UpfEntity> tunnelPeers = new ArrayList<>();
+    final List<UpfEntity> ifaces = new ArrayList<>();
     final List<ByteBuffer> sentPacketOuts = new ArrayList<>();
 
     public void hideState(boolean hideUpfProgrammable, boolean hideConfig) {
@@ -37,7 +37,28 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public void installInterfaces() {
+    public void installInternalUpfEntities() {
+    }
+
+    @Override
+    public void internalApplyUpfEntity(UpfEntity entity) throws UpfProgrammableException {
+
+    }
+
+    @Override
+    public Collection<? extends UpfEntity> internalReadUpfEntities(UpfEntityType entityType)
+            throws UpfProgrammableException {
+        return null;
+    }
+
+    @Override
+    public void internalDeleteUpfEntity(UpfEntity entity) throws UpfProgrammableException {
+
+    }
+
+    @Override
+    public void internalDeleteUpfEntities(UpfEntityType entityType) throws UpfProgrammableException {
+
     }
 
     @Override
@@ -61,18 +82,41 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public long farTableSize() {
-        return TestImplConstants.PHYSICAL_MAX_FARS;
+    public void applyUpfEntity(UpfEntity entity) throws UpfProgrammableException {
+        switch (entity.upfEntityType()) {
+            case INTERFACE:
+                ifaces.add(entity);
+                break;
+            case TERMINATION:
+                terminations.add(entity);
+                break;
+            case SESSION:
+                sessions.add(entity);
+                break;
+            case TUNNEL_PEER:
+                tunnelPeers.add(entity);
+                break;
+            default:
+                break;
+        }
     }
 
     @Override
-    public long pdrTableSize() {
-        return TestImplConstants.PHYSICAL_MAX_PDRS;
-    }
-
-    @Override
-    public long pdrCounterSize() {
-        return TestImplConstants.PHYSICAL_COUNTER_SIZE;
+    public Collection<? extends UpfEntity> readUpfEntities(UpfEntityType entityType)
+            throws UpfProgrammableException {
+        switch (entityType) {
+            case INTERFACE:
+                return ifaces;
+            case TERMINATION:
+                return terminations;
+            case SESSION:
+                return sessions;
+            case TUNNEL_PEER:
+                return tunnelPeers;
+            default:
+                break;
+        }
+        return null;
     }
 
     @Override
@@ -88,71 +132,6 @@ public class MockUp4Service implements Up4Service {
     @Override
     public Collection<UpfFlow> getFlows() {
         return null;
-    }
-
-    @Override
-    public void clearInterfaces() {
-        ifaces.clear();
-    }
-
-    @Override
-    public void clearFlows() {
-        pdrs.clear();
-        fars.clear();
-    }
-
-    @Override
-    public Collection<ForwardingActionRule> getFars() {
-        return List.copyOf(fars);
-    }
-
-    @Override
-    public Collection<PacketDetectionRule> getPdrs() {
-        return List.copyOf(pdrs);
-    }
-
-    @Override
-    public Collection<UpfInterface> getInterfaces() {
-        return List.copyOf(ifaces);
-    }
-
-    @Override
-    public void addPdr(PacketDetectionRule pdr) {
-        pdrs.add(pdr);
-    }
-
-    @Override
-    public void removePdr(PacketDetectionRule pdr) {
-        int index = pdrs.indexOf(pdr);
-        if (index != -1) {
-            pdrs.remove(index);
-        }
-    }
-
-    @Override
-    public void addFar(ForwardingActionRule far) {
-        fars.add(far);
-    }
-
-    @Override
-    public void removeFar(ForwardingActionRule far) {
-        int index = fars.indexOf(far);
-        if (index != -1) {
-            fars.remove(index);
-        }
-    }
-
-    @Override
-    public void addInterface(UpfInterface upfInterface) {
-        ifaces.add(upfInterface);
-    }
-
-    @Override
-    public void removeInterface(UpfInterface upfInterface) {
-        int index = ifaces.indexOf(upfInterface);
-        if (index != -1) {
-            ifaces.remove(index);
-        }
     }
 
     @Override
@@ -177,5 +156,74 @@ public class MockUp4Service implements Up4Service {
                               .build());
         }
         return stats;
+    }
+
+    @Override
+    public void deleteUpfEntity(UpfEntity entity) throws UpfProgrammableException {
+        List<UpfEntity> entities;
+        switch (entity.upfEntityType()) {
+            case INTERFACE:
+                entities = ifaces;
+                break;
+            case TERMINATION:
+                entities = terminations;
+                break;
+            case SESSION:
+                entities = sessions;
+                break;
+            case TUNNEL_PEER:
+                entities = tunnelPeers;
+                break;
+            default:
+                return;
+        }
+        int index = entities.indexOf(entity);
+        if (index != -1) {
+            entities.remove(index);
+        }
+    }
+
+    @Override
+    public void deleteUpfEntities(UpfEntityType entityType) throws UpfProgrammableException {
+        switch (entityType) {
+            case INTERFACE:
+                ifaces.clear();
+                break;
+            case TERMINATION:
+                terminations.clear();
+                break;
+            case SESSION:
+                sessions.clear();
+                break;
+            case TUNNEL_PEER:
+                tunnelPeers.clear();
+                break;
+            default:
+                break;
+        }
+    }
+
+    @Override
+    public long getEntitySize(UpfEntityType entityType) throws UpfProgrammableException {
+        switch (entityType) {
+            case INTERFACE:
+                return TestImplConstants.PHYSICAL_MAX_INTERFACES;
+            case TERMINATION:
+                return TestImplConstants.PHYSICAL_MAX_TERMINATIONS;
+            case SESSION:
+                return TestImplConstants.PHYSICAL_MAX_SESSIONS;
+            case TUNNEL_PEER:
+                return TestImplConstants.PHYSICAL_MAX_TUNNEL_PEERS;
+            case COUNTER:
+                return TestImplConstants.PHYSICAL_COUNTER_SIZE;
+            default:
+                break;
+        }
+        return 0;
+    }
+
+    @Override
+    public void enablePscEncap() throws UpfProgrammableException {
+
     }
 }

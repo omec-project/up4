@@ -258,7 +258,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
                 <configuration>
-                    <excludes>org/omecproject/dbuf/grpc/*</excludes>
+                    <excludes>org/omecproject/dbuf/grpc/*,org/omecproject/up4/impl/Up4P4InfoConstants.java</excludes>
                 </configuration>
             </plugin>
             <plugin>

@@ -178,7 +178,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         exit;
     }
 
-    @hidden
     action do_drop() {
         mark_to_drop(std_meta);
         exit;
@@ -188,10 +187,13 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.needs_gtpu_decap = true;
     }
 
-    action set_params_downlink(tunnel_peer_id_t tunnel_peer_id,
-                               bit<1> needs_buffering) {
-        local_meta.needs_buffering = (bool)needs_buffering;
+    action set_params_downlink(tunnel_peer_id_t tunnel_peer_id) {
+
         local_meta.tunnel_peer_id = tunnel_peer_id;
+    }
+
+    action set_params_buffering() {
+        local_meta.needs_buffering = true;
     }
 
     table sessions {
@@ -204,6 +206,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         actions = {
             set_params_uplink;
             set_params_downlink;
+            set_params_buffering;
             @defaultonly do_drop;
         }
         const default_action = do_drop;
@@ -371,46 +374,47 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             // Interfaces we care about:
             // N3 (from base station) - GTPU - match on outer IP dst
             // N6 (from internet) - no GTPU - match on IP header dst
-            interfaces.apply();
+            if (interfaces.apply().hit) {
 
-            // Normalize so the UE address/port appear as the same field regardless of direction
-            if (local_meta.direction == Direction.UPLINK) {
-                local_meta.ue_addr = hdr.inner_ipv4.src_addr;
-                local_meta.inet_addr = hdr.inner_ipv4.dst_addr;
-                local_meta.ue_l4_port = local_meta.l4_sport;
-                local_meta.inet_l4_port = local_meta.l4_dport;
-            }
-            else if (local_meta.direction == Direction.DOWNLINK) {
-                local_meta.ue_addr = hdr.ipv4.dst_addr;
-                local_meta.inet_addr = hdr.ipv4.src_addr;
-                local_meta.ue_l4_port = local_meta.l4_dport;
-                local_meta.inet_l4_port = local_meta.l4_sport;
-            }
-
-            sessions.apply();
-            tunnel_peers.apply();
-            terminations.apply();
-            // Count packets at a counter index unique to whichever termination matched.
-            pre_qos_counter.count(local_meta.ctr_idx);
-
-            // Perform whatever header removal the matching PDR required.
-            if (local_meta.needs_gtpu_decap) {
-                gtpu_decap();
-            }
-            if (local_meta.needs_buffering) {
-                do_buffer();
-            }
-            if (local_meta.needs_tunneling) {
-                if (local_meta.tunnel_out_qfi == 0) {
-                    // 4G
-                    do_gtpu_tunnel();
-                } else {
-                    // 5G
-                    do_gtpu_tunnel_with_psc();
+                // Normalize so the UE address/port appear as the same field regardless of direction
+                if (local_meta.direction == Direction.UPLINK) {
+                    local_meta.ue_addr = hdr.inner_ipv4.src_addr;
+                    local_meta.inet_addr = hdr.inner_ipv4.dst_addr;
+                    local_meta.ue_l4_port = local_meta.l4_sport;
+                    local_meta.inet_l4_port = local_meta.l4_dport;
                 }
-            }
-            if (local_meta.needs_dropping) {
-                do_drop();
+                else if (local_meta.direction == Direction.DOWNLINK) {
+                    local_meta.ue_addr = hdr.ipv4.dst_addr;
+                    local_meta.inet_addr = hdr.ipv4.src_addr;
+                    local_meta.ue_l4_port = local_meta.l4_dport;
+                    local_meta.inet_l4_port = local_meta.l4_sport;
+                }
+
+                sessions.apply();
+                tunnel_peers.apply();
+                terminations.apply();
+                // Count packets at a counter index unique to whichever termination matched.
+                pre_qos_counter.count(local_meta.ctr_idx);
+
+                // Perform whatever header removal the matching PDR required.
+                if (local_meta.needs_gtpu_decap) {
+                    gtpu_decap();
+                }
+                if (local_meta.needs_buffering) {
+                    do_buffer();
+                }
+                if (local_meta.needs_tunneling) {
+                    if (local_meta.tunnel_out_qfi == 0) {
+                        // 4G
+                        do_gtpu_tunnel();
+                    } else {
+                        // 5G
+                        do_gtpu_tunnel_with_psc();
+                    }
+                }
+                if (local_meta.needs_dropping) {
+                    do_drop();
+                }
             }
         }
 

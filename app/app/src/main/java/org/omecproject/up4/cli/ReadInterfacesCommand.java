@@ -10,7 +10,6 @@ import org.omecproject.up4.Up4Service;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
-import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 
 /**
@@ -26,7 +25,7 @@ public class ReadInterfacesCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         try {
-            for (UpfEntity iface : app.readUpfEntities(UpfEntityType.INTERFACE)) {
+            for (UpfEntity iface : app.internalReadUpfEntities(UpfEntityType.INTERFACE)) {
                 print(iface.toString());
             }
         } catch (UpfProgrammableException e) {

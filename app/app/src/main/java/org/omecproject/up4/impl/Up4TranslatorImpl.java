@@ -30,7 +30,6 @@ import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_DOWNLINK;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_UPLINK;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.IFACE_ACCESS;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.IFACE_CORE;
-import static org.omecproject.up4.impl.Up4DeviceManager.DBUF_TUNNEL_ID;
 import static org.omecproject.up4.impl.Up4DeviceManager.SLICE_MOBILE;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.CTR_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
@@ -42,12 +41,12 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_SRC_IFACE;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TEID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.NEEDS_BUFFERING;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.POST_QOS_PIPE_POST_QOS_COUNTER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_INTERFACES;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_LOAD_TUNNEL_PARAM;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_PRE_QOS_COUNTER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_PARAMS_BUFFERING;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_PARAMS_DOWNLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_PARAMS_UPLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SOURCE_IFACE;
@@ -100,6 +99,8 @@ public class Up4TranslatorImpl implements Up4Translator {
                     return UpfEntityType.COUNTER;
                 }
                 break;
+            default:
+                break;
         }
         return null;
     }
@@ -116,8 +117,8 @@ public class Up4TranslatorImpl implements Up4Translator {
                 } else if (srcIfaceTypeInt == ExtraP4InfoConstants.IFACE_CORE) {
                     builder.setCore();
                 } else {
-                    throw new Up4TranslationException("Attempting to translate an unsupported UP4 interface type! " +
-                                                              srcIfaceTypeInt);
+                    throw new Up4TranslationException(
+                            "Attempting to translate an unsupported UP4 interface type! " + srcIfaceTypeInt);
                 }
                 Ip4Prefix prefix = Up4TranslatorUtil.getFieldPrefix(entry, HDR_IPV4_DST_PREFIX);
                 builder.setPrefix(prefix);
@@ -128,21 +129,25 @@ public class Up4TranslatorImpl implements Up4Translator {
                 if (entry.matchKey().fieldMatch(HDR_TEID).isPresent()) {
                     builder.withTeid(Up4TranslatorUtil.getFieldInt(entry, HDR_TEID));
                 }
-                builder.withIpv4Address(Ip4Address.valueOf(Up4TranslatorUtil.getFieldValue(entry, HDR_IPV4_DST).asArray()));
-                if (entry.action().equals(PRE_QOS_PIPE_SET_PARAMS_DOWNLINK)) {
-                    builder.withBuffering(Up4TranslatorUtil.getParamByte(entry, NEEDS_BUFFERING) == TRUE)
-                            .withGtpTunnelPeerId(Up4TranslatorUtil.getParamInt(entry, TUNNEL_PEER_ID));
+                builder.withIpv4Address(Ip4Address.valueOf(
+                        Up4TranslatorUtil.getFieldValue(entry, HDR_IPV4_DST).asArray()));
+                PiAction action = (PiAction) entry.action();
+                if (action.id().equals(PRE_QOS_PIPE_SET_PARAMS_DOWNLINK)) {
+                    builder.withGtpTunnelPeerId(Up4TranslatorUtil.getParamByte(entry, TUNNEL_PEER_ID));
                     // Matching on QFI currently not supported in UP4 logical pipeline
+                } else if (action.id().equals(PRE_QOS_PIPE_SET_PARAMS_BUFFERING)) {
+                    builder.withBuffering(true);
                 }
                 return builder.build();
             }
             case TERMINATION: {
                 UpfTermination.Builder builder = UpfTermination.builder();
-                builder.withSliceId(Up4TranslatorUtil.getFieldShort(entry, HDR_SRC_IFACE));
+                builder.withSliceId(Up4TranslatorUtil.getFieldByte(entry, HDR_SLICE_ID));
                 builder.withUeSessionId(Up4TranslatorUtil.getFieldAddress(entry, HDR_UE_ADDRESS));
                 builder.withCounterId(Up4TranslatorUtil.getParamInt(entry, CTR_IDX));
-                builder.withTrafficClass(Up4TranslatorUtil.getParamInt(entry, TC));
-                if (entry.action().equals(PRE_QOS_PIPE_TERM_DOWNLINK)) {
+                builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
+                PiAction action = (PiAction) entry.action();
+                if (action.id().equals(PRE_QOS_PIPE_TERM_DOWNLINK)) {
                     builder.withTeid(Up4TranslatorUtil.getParamInt(entry, TEID));
                     builder.withQfi(Up4TranslatorUtil.getParamByte(entry, QFI));
                 }
@@ -150,7 +155,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             }
             case TUNNEL_PEER: {
                 GtpTunnelPeer.Builder builder = GtpTunnelPeer.builder();
-                builder.withTunnelPeerId(Up4TranslatorUtil.getFieldInt(entry, HDR_TUNNEL_PEER_ID));
+                builder.withTunnelPeerId(Up4TranslatorUtil.getFieldByte(entry, HDR_TUNNEL_PEER_ID));
                 builder.withSrcAddr(Up4TranslatorUtil.getParamAddress(entry, SRC_ADDR));
                 builder.withDstAddr(Up4TranslatorUtil.getParamAddress(entry, DST_ADDR));
                 builder.withSrcPort(Up4TranslatorUtil.getParamShort(entry, SPORT));
@@ -169,6 +174,7 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiMatchKey.Builder matchBuilder = PiMatchKey.builder();
         switch (entity.upfEntityType()) {
             case INTERFACE:
+                tableEntryBuilder.forTable(PRE_QOS_PIPE_INTERFACES);
                 UpfInterface upfIntf = (UpfInterface) entity;
                 byte direction;
                 byte srcIface;
@@ -193,40 +199,38 @@ public class Up4TranslatorImpl implements Up4Translator {
                 );
                 break;
             case SESSION:
+                tableEntryBuilder.forTable(PRE_QOS_PIPE_SESSIONS);
                 UeSession ueSession = (UeSession) entity;
                 matchBuilder.addFieldMatch(new PiExactFieldMatch(
                         HDR_SRC_IFACE,
                         ueSession.isUplink() ? ImmutableByteSequence.copyFrom(IFACE_ACCESS) :
                                 ImmutableByteSequence.copyFrom(IFACE_CORE)))
-                        .addFieldMatch(new PiExactFieldMatch(
+                        .addFieldMatch(new PiTernaryFieldMatch(
                                 HDR_IPV4_DST,
-                                ImmutableByteSequence.copyFrom(ueSession.ipv4Address().toOctets()))
+                                ImmutableByteSequence.copyFrom(ueSession.ipv4Address().toOctets()),
+                                allOnes32)
                         );
-                if(ueSession.isUplink()) {
+                if (ueSession.isUplink()) {
                     matchBuilder.addFieldMatch(new PiTernaryFieldMatch(
                             HDR_TEID, ImmutableByteSequence.copyFrom(ueSession.teid()), allOnes32));
                     actionBuilder.withId(PRE_QOS_PIPE_SET_PARAMS_UPLINK);
-                } else {
+                } else if (!ueSession.needsBuffering()) {
                     actionBuilder.withId(PRE_QOS_PIPE_SET_PARAMS_DOWNLINK)
-                            .withParameter(new PiActionParam(TUNNEL_PEER_ID, ueSession.tunPeerId()))
-                            // FIXME: when needs_buffering = true, the tunnel_peer_id we return is the buffering one
-                            //  not sure if we need to fix this. Returning the DBUF GTP
-                            //  tunnel peer, simplifies the implementation and
-                            //  removes the need for a store for translating back
-                            //  to the original Tunnel Peer Id.
-                            //  If reads are used only for cleanup, we are fine.
-                            //  This is not compliant with P4RT specs
-                            //  since we are not maintaining R/W symmetry.
-                            .withParameter(new PiActionParam(NEEDS_BUFFERING,
-                                                             ueSession.needsBuffering() ? TRUE : FALSE));
+                            .withParameter(new PiActionParam(TUNNEL_PEER_ID, ueSession.tunPeerId()));
+                } else {
+                    // buffering
+                    actionBuilder.withId(PRE_QOS_PIPE_SET_PARAMS_BUFFERING);
                 }
                 break;
             case TERMINATION:
+                tableEntryBuilder.forTable(PRE_QOS_PIPE_TERMINATIONS);
                 UpfTermination upfTermination = (UpfTermination) entity;
-                matchBuilder.addFieldMatch(new PiExactFieldMatch(HDR_SLICE_ID, ImmutableByteSequence.copyFrom(SLICE_MOBILE)))
-                        .addFieldMatch(new PiExactFieldMatch(HDR_SRC_IFACE, upfTermination.isUplink() ?
-                                ImmutableByteSequence.copyFrom(IFACE_ACCESS) :
-                                ImmutableByteSequence.copyFrom(IFACE_CORE)))
+                matchBuilder.addFieldMatch(
+                        new PiExactFieldMatch(HDR_SLICE_ID, ImmutableByteSequence.copyFrom(SLICE_MOBILE)))
+                        .addFieldMatch(
+                                new PiExactFieldMatch(HDR_SRC_IFACE, upfTermination.isUplink() ?
+                                        ImmutableByteSequence.copyFrom(IFACE_ACCESS) :
+                                        ImmutableByteSequence.copyFrom(IFACE_CORE)))
                         .addFieldMatch(
                                 new PiExactFieldMatch(HDR_UE_ADDRESS,
                                                       ImmutableByteSequence.copyFrom(
@@ -237,17 +241,24 @@ public class Up4TranslatorImpl implements Up4Translator {
                 if (upfTermination.isUplink()) {
                     actionBuilder.withId(PRE_QOS_PIPE_TERM_UPLINK);
                 } else {
-                    actionBuilder.withId(PRE_QOS_PIPE_TERM_UPLINK)
-                            .withParameter(new PiActionParam(TEID, upfTermination.teid()));
+                    actionBuilder.withId(PRE_QOS_PIPE_TERM_DOWNLINK)
+                            .withParameter(new PiActionParam(TEID, upfTermination.teid()))
+                            .withParameter(new PiActionParam(QFI, upfTermination.qfi()));
                 }
                 break;
             case TUNNEL_PEER:
+                tableEntryBuilder.forTable(PRE_QOS_PIPE_TUNNEL_PEERS);
                 GtpTunnelPeer gtpTunnelPeer = (GtpTunnelPeer) entity;
-                matchBuilder.addFieldMatch(new PiExactFieldMatch(HDR_TUNNEL_PEER_ID, ImmutableByteSequence.copyFrom(gtpTunnelPeer.tunPeerId())));
+                matchBuilder.addFieldMatch(
+                        new PiExactFieldMatch(
+                                HDR_TUNNEL_PEER_ID,
+                                ImmutableByteSequence.copyFrom(gtpTunnelPeer.tunPeerId()))
+                );
                 actionBuilder.withId(PRE_QOS_PIPE_LOAD_TUNNEL_PARAM)
                         .withParameter(new PiActionParam(SRC_ADDR, gtpTunnelPeer.src().toOctets()))
-                        .withParameter(new PiActionParam(DST_ADDR, gtpTunnelPeer.src().toOctets()))
+                        .withParameter(new PiActionParam(DST_ADDR, gtpTunnelPeer.dst().toOctets()))
                         .withParameter(new PiActionParam(SPORT, gtpTunnelPeer.srcPort()));
+                break;
             default:
                 throw new Up4TranslationException(
                         "Attempting to translate an unsupported UPF entity to a table entry! " + entity);

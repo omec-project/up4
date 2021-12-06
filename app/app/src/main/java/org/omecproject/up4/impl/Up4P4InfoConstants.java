@@ -114,6 +114,8 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.do_gtpu_tunnel_with_psc");
     public static final PiActionId PRE_QOS_PIPE_LOAD_TUNNEL_PARAM =
             PiActionId.of("PreQosPipe.load_tunnel_param");
+    public static final PiActionId PRE_QOS_PIPE_SET_PARAMS_BUFFERING =
+            PiActionId.of("PreQosPipe.set_params_buffering");
     public static final PiActionId PRE_QOS_PIPE_SET_PARAMS_DOWNLINK =
             PiActionId.of("PreQosPipe.set_params_downlink");
     public static final PiActionId PRE_QOS_PIPE_SET_PARAMS_UPLINK =
@@ -135,8 +137,6 @@ public final class Up4P4InfoConstants {
     public static final PiActionParamId DST_MAC = PiActionParamId.of("dst_mac");
     public static final PiActionParamId EGRESS_PORT =
             PiActionParamId.of("egress_port");
-    public static final PiActionParamId NEEDS_BUFFERING =
-            PiActionParamId.of("needs_buffering");
     public static final PiActionParamId PORT = PiActionParamId.of("port");
     public static final PiActionParamId QFI = PiActionParamId.of("qfi");
     public static final PiActionParamId SLICE_ID =

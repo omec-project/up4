@@ -1,6 +1,6 @@
 package org.omecproject.up4.impl;
 
-public class ExtraP4InfoConstants {
+public final class ExtraP4InfoConstants {
 
     // hide default constructor
     private ExtraP4InfoConstants() {

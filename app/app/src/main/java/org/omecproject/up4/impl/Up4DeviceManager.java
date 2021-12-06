@@ -96,8 +96,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     private static final long NO_UE_LIMIT = -1;
     public static final int GTP_PORT = 2152;
-    public static int DBUF_TUNNEL_ID = 1;
-    public static int SLICE_MOBILE = 0xF; // This is already defined in FabricUpfProgrammable
+    public static final byte DBUF_TUNNEL_ID = 1;
+    public static final byte SLICE_MOBILE = 0xF; // This is already defined in FabricUpfProgrammable
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final AtomicBoolean upfInitialized = new AtomicBoolean(false);
@@ -348,7 +348,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     upfInitialized.set(true);
 
                     // Do the initial device configuration required
-                    installInterfaces();
+                    installInternalUpfEntities();
                     installDbufTunnel();
                     try {
                         if (configIsLoaded() && config.pscEncapEnabled()) {
@@ -412,16 +412,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
-    public void installInterfaces() {
-        log.info("Installing interfaces from config.");
-        UpfProgrammable leader = getLeaderUpfProgrammable();
-        for (UpfInterface iface : configFileInterfaces()) {
-            try {
-                leader.applyUpfEntity(iface);
-            } catch (UpfProgrammableException e) {
-                log.warn("Failed to insert interface: {}", e.getMessage());
-            }
-        }
+    public void installInternalUpfEntities() {
+        ensureInterfacesInstalled();
+        installDbufTunnel();
     }
 
     private void installDbufTunnel() {
@@ -585,20 +578,40 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void applyUpfEntity(UpfEntity entity) throws UpfProgrammableException {
-        // TODO: prevent overriding of the DBUF GTP tunnel peer and DBUF interface
-        if (entity.upfEntityType()==UpfEntityType.SESSION) {
-            UeSession sess = (UeSession) entity;
-            if (sess.needsBuffering()) {
-                // Override tunnel peer id with the DBUF
-                entity = UeSession.builder()
-                        .withBuffering(true)
-                        .withGtpTunnelPeerId(DBUF_TUNNEL_ID)
-                        .withIpv4Address(sess.ipv4Address())
-                        .withQfi(sess.qfi())
-                        .withTeid(sess.teid())
-                        .build();
-            }
+        // TODO: TEST THE PREVENT
+        switch (entity.upfEntityType()) {
+            case SESSION:
+                UeSession sess = (UeSession) entity;
+                if (sess.needsBuffering()) {
+                    // Override tunnel peer id with the DBUF
+                    entity = UeSession.builder()
+                            .withBuffering(true)
+                            .withGtpTunnelPeerId(DBUF_TUNNEL_ID)
+                            .withIpv4Address(sess.ipv4Address())
+                            .withQfi(sess.qfi())
+                            .withTeid(sess.teid())
+                            .build();
+                }
+                break;
+            case INTERFACE:
+                UpfInterface intf = (UpfInterface) entity;
+                if (intf.isDbufReceiver()) {
+                    throw new UpfProgrammableException("Cannot remove the DBUF interface entry!");
+                }
+                break;
+            case TUNNEL_PEER:
+                GtpTunnelPeer tunnelPeer = (GtpTunnelPeer) entity;
+                if (tunnelPeer.tunPeerId() == DBUF_TUNNEL_ID) {
+                    throw new UpfProgrammableException("Cannot remove the DBUF GTP Tunnel Peer");
+                }
+                break;
+            default:
+                break;
         }
+        getLeaderUpfProgrammable().applyUpfEntity(entity);
+    }
+
+    public void internalApplyUpfEntity(UpfEntity entity) throws UpfProgrammableException {
         getLeaderUpfProgrammable().applyUpfEntity(entity);
     }
 
@@ -608,18 +621,22 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         switch (entityType) {
             case INTERFACE:
                 // Don't expose DBUF interface
-                entities = entities.stream()
+                return entities.stream()
                         .filter(e -> !((UpfInterface) e).isDbufReceiver())
                         .collect(Collectors.toList());
-                break;
             case TUNNEL_PEER:
                 // Don't expose DBUF GTP tunnel peer
-                entities = entities.stream()
+                return entities.stream()
                         .filter(e -> ((GtpTunnelPeer) e).tunPeerId() != DBUF_TUNNEL_ID)
                         .collect(Collectors.toList());
-                break;
+            default:
+                return entities;
         }
-        return entities;
+    }
+
+    public Collection<? extends UpfEntity> internalReadUpfEntities(UpfEntityType entityType)
+            throws UpfProgrammableException {
+        return getLeaderUpfProgrammable().readUpfEntities(entityType);
     }
 
     @Override
@@ -651,32 +668,58 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Override
     public void deleteUpfEntity(UpfEntity entity) throws UpfProgrammableException {
         // TODO: ensure we don't remove the DBUF Interface
-        if (entity.upfEntityType() == UpfEntityType.TUNNEL_PEER) {
-            // Ensure we don't remove the DBUF Tunnel Peer
-            GtpTunnelPeer tunnel = (GtpTunnelPeer) entity;
-            if (tunnel.tunPeerId() == DBUF_TUNNEL_ID) {
-                log.warn("Cannot delete the DBUF GTP tunnel peer");
-                return;
-            }
+        switch (entity.upfEntityType()) {
+            case INTERFACE:
+                UpfInterface intf = (UpfInterface) entity;
+                if (intf.isDbufReceiver()) {
+                    throw new UpfProgrammableException("Cannot delete the DBUF interface rule!");
+                }
+                break;
+            case TUNNEL_PEER:
+                GtpTunnelPeer tunnel = (GtpTunnelPeer) entity;
+                if (tunnel.tunPeerId() == DBUF_TUNNEL_ID) {
+                    throw new UpfProgrammableException("Cannot delete the DBUF GTP tunnel peer");
+                }
+                break;
+            default:
+                break;
         }
+        getLeaderUpfProgrammable().deleteUpfEntity(entity);
+    }
+
+    public void internalDeleteUpfEntity(UpfEntity entity) throws UpfProgrammableException {
         getLeaderUpfProgrammable().deleteUpfEntity(entity);
     }
 
     @Override
     public void deleteUpfEntities(UpfEntityType entityType) throws UpfProgrammableException {
         // TODO: ensure we don't remove the DBUF Interface
-        if (entityType == UpfEntityType.TUNNEL_PEER) {
-            // Ensure we don't remove the DBUF Tunnel Peer
-            Collection<? extends UpfEntity> tunnels =
-                    getLeaderUpfProgrammable().readUpfEntities(UpfEntityType.TUNNEL_PEER).stream()
-                            .filter(t -> ((GtpTunnelPeer) t).tunPeerId() != DBUF_TUNNEL_ID)
-                            .collect(Collectors.toList());
-            for (UpfEntity tun : tunnels) {
-                getLeaderUpfProgrammable().deleteUpfEntity(tun);
-            }
-        } else {
-            getLeaderUpfProgrammable().deleteUpfEntities(entityType);
+        switch (entityType) {
+            case INTERFACE:
+                Collection<? extends UpfEntity> intfs =
+                        getLeaderUpfProgrammable().readUpfEntities(UpfEntityType.INTERFACE).stream()
+                                .filter(t -> !((UpfInterface) t).isDbufReceiver())
+                                .collect(Collectors.toList());
+                for (UpfEntity i : intfs) {
+                    getLeaderUpfProgrammable().deleteUpfEntity(i);
+                }
+                break;
+            case TUNNEL_PEER:
+                Collection<? extends UpfEntity> tunnels =
+                        getLeaderUpfProgrammable().readUpfEntities(UpfEntityType.TUNNEL_PEER).stream()
+                                .filter(t -> ((GtpTunnelPeer) t).tunPeerId() != DBUF_TUNNEL_ID)
+                                .collect(Collectors.toList());
+                for (UpfEntity tun : tunnels) {
+                    getLeaderUpfProgrammable().deleteUpfEntity(tun);
+                }
+                break;
+            default:
+                getLeaderUpfProgrammable().deleteUpfEntities(entityType);
         }
+    }
+
+    public void internalDeleteUpfEntities(UpfEntityType entityType) throws UpfProgrammableException {
+        getLeaderUpfProgrammable().deleteUpfEntities(entityType);
     }
 
     @Override
@@ -749,7 +792,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         Map<Ip4Address, UpfFlow.Builder> downlinkFlows = new HashMap<>();
         Map<Integer, Ip4Address> ueToTeid = new HashMap<>();
         Map<Ip4Address, UpfFlow.Builder> uplinkFlows = new HashMap<>();
-        Map<Integer, GtpTunnelPeer> tunnelMap = new HashMap<>();
+        Map<Byte, GtpTunnelPeer> tunnelMap = new HashMap<>();
 
         Collection<? extends UpfEntity> ueSessions = this.readUpfEntities(UpfEntityType.SESSION);
         Collection<? extends UpfEntity> upfTerminations = this.readUpfEntities(UpfEntityType.TERMINATION);
@@ -765,13 +808,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 uplinkFlows.put(upfTerm.ueSessionId(),
                                 UpfFlow.builder()
                                         .setTermination(upfTerm)
-                                        .addUpfCounter(counterStats.get(upfTerm.counterId()))
+                                        .setUpfCounter(counterStats.get(upfTerm.counterId()))
                 );
             } else {
                 downlinkFlows.put(upfTerm.ueSessionId(),
                                   UpfFlow.builder()
                                           .setTermination(upfTerm)
-                                          .addUpfCounter(counterStats.get(upfTerm.counterId()))
+                                          .setUpfCounter(counterStats.get(upfTerm.counterId()))
                 );
                 ueToTeid.put(upfTerm.teid(), upfTerm.ueSessionId());
             }
@@ -1037,10 +1080,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
                 // First remove stale entries and then add the missing ones
                 // otherwise when an entry needs update, it won't be updated.
-                // (e.g., if a FAR needs to be updated, doing add and then remove
-                // translates in only a remove, delete then remove first remove
-                // the entry and the push the new one).
-
                 if (!leaderState.containsAll(followerState)) {
                     log.debug("Removing stale UPF entities from {}", deviceId);
                     Collection<UpfEntity> toRemoveEntities = new HashSet<>(followerState);

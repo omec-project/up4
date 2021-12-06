@@ -42,7 +42,6 @@ import org.onosproject.p4runtime.ctl.utils.P4InfoBrowser;
 import org.onosproject.p4runtime.ctl.utils.PipeconfHelper;
 import org.onosproject.p4runtime.model.P4InfoParser;
 import org.onosproject.p4runtime.model.P4InfoParserException;
-import org.onosproject.store.service.StorageService;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -90,9 +89,6 @@ public class Up4NorthComponent {
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Service up4Service;
-
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected StorageService storageService;
 
     protected final Up4Translator up4Translator = new Up4TranslatorImpl();
     protected final Up4NorthService up4NorthService = new Up4NorthService();
@@ -492,8 +488,8 @@ public class Up4NorthComponent {
                         case OTHER:
                         case UPDATE_NOT_SET:
                         default:
-                            handleErrorResponse(UNIMPLEMENTED
-                                                        .withDescription(request.getUpdateCase() + " not supported"));
+                            handleErrorResponse(
+                                    UNIMPLEMENTED.withDescription(request.getUpdateCase() + " not supported"));
                     }
                 }
 
@@ -551,26 +547,31 @@ public class Up4NorthComponent {
                             log.info("Blindly telling requester with election_id {} they are the primary controller",
                                      TextFormat.shortDebugString(this.electionId));
                             // FIXME: implement election_id handling
-                            responseObserver.onNext(P4RuntimeOuterClass.StreamMessageResponse.newBuilder()
-                                                            .setArbitration(P4RuntimeOuterClass.MasterArbitrationUpdate.newBuilder()
-                                                                                    .setDeviceId(request.getDeviceId())
-                                                                                    .setRole(request.getRole())
-                                                                                    .setElectionId(this.electionId)
-                                                                                    .setStatus(Status.newBuilder().setCode(Code.OK.getNumber()).build())
-                                                                                    .build()
-                                                            ).build());
+                            responseObserver.onNext(
+                                    P4RuntimeOuterClass.StreamMessageResponse.newBuilder()
+                                            .setArbitration(
+                                                    P4RuntimeOuterClass.MasterArbitrationUpdate.newBuilder()
+                                                            .setDeviceId(request.getDeviceId())
+                                                            .setRole(request.getRole())
+                                                            .setElectionId(this.electionId)
+                                                            .setStatus(
+                                                                    Status.newBuilder()
+                                                                            .setCode(Code.OK.getNumber())
+                                                                            .build()
+                                                            ).build()
+                                            ).build());
                             // Store in map.
                             return responseObserver;
                         } else if (responseObserver != storedResponseObserver) {
-                            handleErrorResponse(INVALID_ARGUMENT
-                                                        .withDescription("Election_id already in use by another client"));
+                            handleErrorResponse(
+                                    INVALID_ARGUMENT.withDescription("Election_id already in use by another client"));
                             // Map value unchanged.
                             return storedResponseObserver;
                         } else {
                             // Client is sending a second arbitration request for the same or a new
                             // election_id. Not supported.
-                            handleErrorResponse(UNIMPLEMENTED
-                                                        .withDescription("Update of master arbitration not supported"));
+                            handleErrorResponse(
+                                    UNIMPLEMENTED.withDescription("Update of master arbitration not supported"));
                             // Remove from map.
                             return null;
                         }
@@ -657,11 +658,12 @@ public class Up4NorthComponent {
 
             responseObserver.onNext(
                     P4RuntimeOuterClass.GetForwardingPipelineConfigResponse.newBuilder()
-                            .setConfig(P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
-                                               .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
-                                                                  .setCookie(pipeconfCookie))
-                                               .setP4Info(setPhysicalSizes(p4Info))
-                                               .build())
+                            .setConfig(
+                                    P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
+                                            .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
+                                                               .setCookie(pipeconfCookie))
+                                            .setP4Info(setPhysicalSizes(p4Info))
+                                            .build())
                             .build());
             responseObserver.onCompleted();
         }
@@ -765,9 +767,10 @@ public class Up4NorthComponent {
             for (P4RuntimeOuterClass.Entity requestEntity : request.getEntitiesList()) {
                 switch (requestEntity.getEntityCase()) {
                     case COUNTER_ENTRY:
-                        responseObserver.onNext(P4RuntimeOuterClass.ReadResponse.newBuilder()
-                                                        .addAllEntities(readCountersAndTranslate(requestEntity.getCounterEntry()))
-                                                        .build());
+                        responseObserver.onNext(
+                                P4RuntimeOuterClass.ReadResponse.newBuilder()
+                                        .addAllEntities(readCountersAndTranslate(requestEntity.getCounterEntry()))
+                                        .build());
                         break;
                     case TABLE_ENTRY:
                         PiTableEntry requestEntry;
@@ -778,9 +781,10 @@ public class Up4NorthComponent {
                             log.warn("Unable to decode p4runtime read request entity", e);
                             throw INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
                         }
-                        responseObserver.onNext(P4RuntimeOuterClass.ReadResponse.newBuilder()
-                                                        .addAllEntities(readEntriesAndTranslate(requestEntry))
-                                                        .build());
+                        responseObserver.onNext(
+                                P4RuntimeOuterClass.ReadResponse.newBuilder()
+                                        .addAllEntities(readEntriesAndTranslate(requestEntry))
+                                        .build());
                         break;
                     default:
                         log.warn("Received read request for an entity we don't yet support. Skipping");

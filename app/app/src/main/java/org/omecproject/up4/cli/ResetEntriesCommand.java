@@ -16,7 +16,8 @@ import org.onosproject.net.behaviour.upf.UpfProgrammableException;
  */
 @Service
 @Command(scope = "up4", name = "reset-entries",
-        description = "Remove all dataplane entries and then reinstall the interfaces present in the UP4 config.")
+        description = "Remove all dataplane entries and then reinstall the " +
+                "interfaces and DBUF GTP tunnel present in the app config.")
 public class ResetEntriesCommand extends AbstractShellCommand {
 
     @Override
@@ -24,12 +25,12 @@ public class ResetEntriesCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         print("Clearing all UP4 dataplane table entries.");
-        app.deleteUpfEntities(UpfEntityType.SESSION);
-        app.deleteUpfEntities(UpfEntityType.TERMINATION);
-        app.deleteUpfEntities(UpfEntityType.TUNNEL_PEER);
-        app.deleteUpfEntities(UpfEntityType.INTERFACE);
-        print("Reinstalling UP4 interfaces from app configuration.");
-        app.installInterfaces();
+        app.internalDeleteUpfEntities(UpfEntityType.SESSION);
+        app.internalDeleteUpfEntities(UpfEntityType.TERMINATION);
+        app.internalDeleteUpfEntities(UpfEntityType.TUNNEL_PEER);
+        app.internalDeleteUpfEntities(UpfEntityType.INTERFACE);
+        print("Reinstalling UP4 interfaces and DBUF GTP Tunnel from app configuration.");
+        app.installInternalUpfEntities();
     }
 }
 

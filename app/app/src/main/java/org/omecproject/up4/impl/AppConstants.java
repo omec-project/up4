@@ -12,9 +12,6 @@ public final class AppConstants {
     public static final int GRPC_SERVER_PORT = 51001;
     public static final String P4INFO_PATH = "/p4info.txt";
     public static final String SUPPORTED_PIPECONF_STRING = "fabric-spgw";
-    // TODO: unused constants, remove
-    public static final int LOGICAL_SWITCH_DEVICE_ID = 1;
-    public static final String CONFIG_DEVICE_ID_JSON_KEY = "upfDeviceId";
 
     // hide default constructor
     private AppConstants() {

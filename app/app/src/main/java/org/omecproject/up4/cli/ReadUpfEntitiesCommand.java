@@ -71,7 +71,7 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                 printedTypes.add(UpfEntityType.TUNNEL_PEER);
                 printedTypes.add(UpfEntityType.COUNTER);
                 printedTypes.add(UpfEntityType.INTERFACE);
-            } else if (ue){
+            } else if (ue) {
                 printedTypes.add(UpfEntityType.SESSION);
                 printedTypes.add(UpfEntityType.TERMINATION);
                 printedTypes.add(UpfEntityType.TUNNEL_PEER);
