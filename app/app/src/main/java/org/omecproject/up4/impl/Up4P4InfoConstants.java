@@ -1,5 +1,7 @@
-// Copyright 2020-present Open Networking Foundation
-// SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+/*
+ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ SPDX-FileCopyrightText: 2021-present Open Networking Foundation <info@opennetworking.org>
+ */
 
 // Do not modify this file manually, use `make constants` to generate this file.
 
@@ -108,6 +110,8 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.Routing.drop");
     public static final PiActionId PRE_QOS_PIPE__ROUTING_ROUTE =
             PiActionId.of("PreQosPipe.Routing.route");
+    public static final PiActionId PRE_QOS_PIPE_DO_DROP =
+            PiActionId.of("PreQosPipe.do_drop");
     public static final PiActionId PRE_QOS_PIPE_DO_GTPU_TUNNEL =
             PiActionId.of("PreQosPipe.do_gtpu_tunnel");
     public static final PiActionId PRE_QOS_PIPE_DO_GTPU_TUNNEL_WITH_PSC =

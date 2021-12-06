@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Copyright 2020-present Open Networking Foundation
-# SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 # -*- utf-8 -*-
 import argparse
 import re
@@ -8,8 +8,10 @@ import re
 import google.protobuf.text_format as tf
 from p4.config.v1 import p4info_pb2
 
-copyright = """// Copyright 2020-present Open Networking Foundation
-// SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+copyright = """/*
+ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ SPDX-FileCopyrightText: 2021-present Open Networking Foundation <info@opennetworking.org>
+ */
 
 // Do not modify this file manually, use `make constants` to generate this file.
 """

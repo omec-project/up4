@@ -1,3 +1,8 @@
+/*
+ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ SPDX-FileCopyrightText: 2021-present Open Networking Foundation <info@opennetworking.org>
+ */
+
 package org.omecproject.up4.impl;
 
 public final class ExtraP4InfoConstants {
