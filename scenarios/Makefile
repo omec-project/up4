@@ -12,7 +12,7 @@ DOCKER_COMPOSE_CMD := docker-compose --env-file ./tmp/.env.docker
 CURRENT_USER       := $(shell id -u):$(shell id -g)
 
 # Set to devel to use in-development versions of components
-UP4_ENV ?= stable
+UP4_ENV ?= devel
 
 # TODO: release 2.6 with support for quotes in step commands
 STC_VERSION ?= 2.6-SNAPSHOT

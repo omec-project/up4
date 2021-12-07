@@ -26,7 +26,8 @@
         <!-- Verify route for downlink traffic -->
         <parallel var="${OD#}">
             <step name="Check-Dbuf-Ready-${#}" requires="Check-Summary"
-                  exec="docker-log-grep ${ODI} 'Dbuf service at mininet:10000 is READY=true'"/>
+                  exec="docker-log-grep ${ODI} 'Dbuf service at mininet:10000 is READY=true'"
+                  delay="10"/>
         </parallel>
     </group>
 </scenario>

@@ -9,6 +9,7 @@ UID                      := $(shell id -u)
 main_file := p4src/main.p4
 
 include .env.stable
+include .env.devel
 
 default: build check
 

@@ -41,6 +41,13 @@
             </parallel>
         </group>
 
+        <step name="Fabric-TNA-Check-Pipeconf-Simple"
+              requires="Onos-Wait-For-Ready"
+              exec="docker-log-grep ${ODI} 'New pipeconf registered: org.stratumproject.fabric.bmv2'"/>
+        <step name="Fabric-TNA-Check-Pipeconf-SPGW"
+              requires="Onos-Wait-For-Ready"
+              exec="docker-log-grep ${ODI} 'New pipeconf registered: org.stratumproject.fabric-spgw.bmv2'"/>
+
         <!-- remove pre-installed up4, install local build -->
         <step name="Up4-App-Uninstall" requires="Onos-Wait-For-Ready"
               exec="onos-app ${OCI} uninstall org.omecproject.up4"/>
