@@ -6,7 +6,7 @@
     <group name="No-Forwarding">
         <step name="Check-Up4-No-Flows-No-Fwd"
               exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
-        <group name="Check-Traffic-Doesnt-Fwd" requires="^">
+        <group name="Check-Traffic-Doesnt-Fwd" requires="Check-Up4-No-Flows-No-Fwd">
             <parallel var="${ENODEB#}">
                 <!-- Downlink -->
                 <step name="Negative-Downlink-Enb-Recv-Gtp-Fwd-${#}"
@@ -16,10 +16,12 @@
                 <!-- Uplink -->
                 <step name="Negative-Uplink-Pdn-Recv-Udp-Fwd-${#}"
                       requires="Negative-Downlink-Enb-Recv-Gtp-Fwd-${#},Negative-Downlink-Pdn-Send-Udp-Fwd-${#}"
-                      exec="mn-cmd pdn traffic.py recv-none -t 10"/>
+                      exec="mn-cmd pdn traffic.py recv-none -t 10"
+                      delay="5"/>
                 <step name="Negative-Uplink-Enb-Send-Gtp-Fwd-${#}"
                       requires="Negative-Downlink-Enb-Recv-Gtp-Fwd-${#},Negative-Downlink-Pdn-Send-Udp-Fwd-${#}"
-                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"
+                      delay="5"/>
             </parallel>
         </group>
     </group>
