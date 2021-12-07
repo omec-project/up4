@@ -8,6 +8,7 @@ CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 main_file := p4src/main.p4
 
 include .env.stable
+include .env.devel
 
 default: build check
 
