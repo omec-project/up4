@@ -886,6 +886,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private class InternalDeviceListener implements DeviceListener {
         @Override
         public void event(DeviceEvent event) {
+            eventExecutor.execute(() -> internalEventHandler(event));
+        }
+
+        private void internalEventHandler(DeviceEvent event) {
             DeviceId deviceId = event.subject().id();
             if (upfDevices.contains(deviceId)) {
                 switch (event.type()) {
@@ -918,6 +922,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private class InternalConfigListener implements NetworkConfigListener {
         @Override
         public void event(NetworkConfigEvent event) {
+            eventExecutor.execute(() -> internalEventHandler(event));
+        }
+
+        private void internalEventHandler(NetworkConfigEvent event) {
             switch (event.type()) {
                 case CONFIG_UPDATED:
                 case CONFIG_ADDED:
