@@ -22,7 +22,7 @@
             <step name="Check-Flow-Rules-Buff" requires="Pfcp-Push-Buff" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
-        <group name="Check-Traffic-Buff" requires="Pfcp-Set-Buff" delay="5">
+        <group name="Check-Traffic-Buff" requires="Pfcp-Set-Buff">
             <parallel var="${ENODEB#}">
                 <!-- Check Downlink only -->
                 <step name="Downlink-Pdn-Send-Udp-Buff-${#}"
