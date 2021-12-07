@@ -19,6 +19,10 @@ IFACE_CORE = '2'
 TUNNEL_SPORT = '2152'
 TUNNEL_TYPE_GPDU = '3'
 
+SLICE_MOBILE = "15"
+
+TRAFFIC_CLASS = "1"
+
 
 def get_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -123,7 +127,7 @@ def main():
     # ========================#
     if args.add_ifaces:
         # Uplink
-        entry = sh.TableEntry('PreQosPipe.source_iface_lookup')(
+        entry = sh.TableEntry('PreQosPipe.interfaces')(
             action='PreQosPipe.set_source_iface')
         entry.match['ipv4_dst_prefix'] = str(args.s1u_addr) + '/32'
         entry.action['src_iface'] = IFACE_ACCESS
@@ -131,7 +135,7 @@ def main():
         add_entry(entry, args.action)
 
         # Downlink
-        entry = sh.TableEntry('PreQosPipe.source_iface_lookup')(
+        entry = sh.TableEntry('PreQosPipe.interfaces')(
             action='PreQosPipe.set_source_iface')
         entry.match['ipv4_dst_prefix'] = str(args.ue_pool)
         entry.action['src_iface'] = IFACE_CORE
@@ -144,13 +148,10 @@ def main():
     teid_gen = iter(
         range(args.base if args.base else args.teid_base,
               (args.base if args.base else args.teid_base) + args.ue_count))
-    far_id_gen = iter(
-        range(args.base if args.base else args.far_base,
-              (args.base if args.base else args.far_base) + rule_count))
-    pdr_id_gen = iter(
-        range(args.base if args.base else args.pdr_base,
-              (args.base if args.base else args.pdr_base) + rule_count))
     ctr_id_gen = iter(
+        range(args.base if args.base else args.ctr_base,
+              (args.base if args.base else args.ctr_base) + rule_count))
+    tunnel_peer_gen = iter(
         range(args.base if args.base else args.ctr_base,
               (args.base if args.base else args.ctr_base) + rule_count))
 
@@ -158,84 +159,77 @@ def main():
         ue_addr = next(ue_addr_gen)
         teid = next(teid_gen)
 
-        pdr_uplink = next(pdr_id_gen)
-        pdr_downlink = next(pdr_id_gen)
+        ctr_uplink = next(ctr_id_gen)
+        ctr_downlink = next(ctr_id_gen)
 
-        far_uplink = next(far_id_gen)
-        far_downlink = next(far_id_gen)
-
-        pdr_ctr_uplink = next(ctr_id_gen)
-        pdr_ctr_downlink = next(ctr_id_gen)
+        tunnel_peer_id = next(tunnel_peer_gen)
 
         # ========================#
-        # PDR Entries
+        # UE Session Entries
         # ========================#
 
         ## Uplink
-        entry = sh.TableEntry('PreQosPipe.pdrs')(action='PreQosPipe.set_pdr_attributes')
+        entry = sh.TableEntry('PreQosPipe.sessions')(action='PreQosPipe.set_params_uplink')
         # Match fields
         entry.match['src_iface'] = IFACE_ACCESS
-        entry.match['ue_addr'] = str(ue_addr)
+        entry.match['ipv4_dst'] = str(args.s1u_addr)
         entry.match['teid'] = str(teid)
-        entry.match['tunnel_ipv4_dst'] = str(args.s1u_addr)
         if args.qfi is not None:
-            entry.match['has_qfi'] = TRUE
-            entry.match["qfi"] = str(args.qfi)
-        # Action params
-        entry.action['id'] = str(pdr_uplink)
-        entry.action['fseid'] = str(args.session_id)
-        entry.action['ctr_id'] = str(pdr_ctr_uplink)
-        entry.action['far_id'] = str(far_uplink)
-        entry.action['needs_gtpu_decap'] = TRUE
+            print("QFI match currently unsupported!!")
         add_entry(entry, args.action)
 
         ## Downlink
-        if args.qfi is None:
-            entry = sh.TableEntry('PreQosPipe.pdrs')(action='PreQosPipe.set_pdr_attributes')
+        if not args.buffer:
+            entry = sh.TableEntry('PreQosPipe.sessions')(action='PreQosPipe.set_params_downlink')
+            entry.action["tunnel_peer_id"] = str(tunnel_peer_id)
         else:
-            entry = sh.TableEntry('PreQosPipe.pdrs')(action='PreQosPipe.set_pdr_attributes_qos')
-            entry.action['needs_qfi_push'] = TRUE
-            entry.action['qfi'] = str(args.qfi)
+            entry = sh.TableEntry('PreQosPipe.pdrs')(action='PreQosPipe.set_params_buffering')
         # Match fields
+        entry.match['src_iface'] = IFACE_CORE
+        entry.match['ipv4_dst'] = str(ue_addr)
+        add_entry(entry, args.action)
+
+        # ========================#
+        # Terminations Entries
+        # ========================#
+
+        ## Uplink
+        entry = sh.TableEntry('PreQosPipe.terminations')(
+            action='PreQosPipe.term_uplink')
+        # Match fields
+        entry.match['slice_id'] = SLICE_MOBILE
+        entry.match['src_iface'] = IFACE_ACCESS
+        entry.match['ue_addr'] = str(ue_addr)
+        # Action params
+        entry.action['ctr_idx'] = str(ctr_uplink)
+        entry.action['tc'] = TRAFFIC_CLASS
+        add_entry(entry, args.action)
+
+        ## Downlink
+        entry = sh.TableEntry('PreQosPipe.terminations')(
+            action='PreQosPipe.term_downlink')
+        # Match fields
+        entry.match['slice_id'] = SLICE_MOBILE
         entry.match['src_iface'] = IFACE_CORE
         entry.match['ue_addr'] = str(ue_addr)
         # Action params
-        entry.action['id'] = str(pdr_downlink)
-        entry.action['fseid'] = str(args.session_id)
-        entry.action['ctr_id'] = str(pdr_ctr_downlink)
-        entry.action['far_id'] = str(far_downlink)
-        entry.action['needs_gtpu_decap'] = FALSE
-        add_entry(entry, args.action)
-
-        # ========================#
-        # FAR Entries
-        # ========================#
-
-        ## Uplink
-        entry = sh.TableEntry('PreQosPipe.load_far_attributes')(
-            action='PreQosPipe.load_normal_far_attributes')
-        # Match fields
-        entry.match['far_id'] = str(far_uplink)
-        entry.match['session_id'] = str(args.session_id)
-        # Action params
-        entry.action['needs_dropping'] = FALSE
+        entry.action['teid'] = str(teid)
+        entry.action['ctr_idx'] = str(ctr_downlink)
+        entry.action['tc'] = TRAFFIC_CLASS
+        entry.action['qfi'] = args.qfi if args.qfi else 0
         entry.action['notify_cp'] = FALSE
         add_entry(entry, args.action)
 
-        ## Downlink
-        entry = sh.TableEntry('PreQosPipe.load_far_attributes')(
-            action='PreQosPipe.load_tunnel_far_attributes')
+        # ========================#
+        # Tunnel Peer Entry
+        # ========================#
+        entry = sh.TableEntry('PreQosPipe.tunnel_peers')(
+            action='PreQosPipe.load_tunnel_param')
         # Match fields
-        entry.match['far_id'] = str(far_downlink)
-        entry.match['session_id'] = str(args.session_id)
+        entry.match['tunnel_peer_id'] = str(tunnel_peer_id)
         # Action params
-        entry.action['needs_dropping'] = FALSE
-        entry.action['notify_cp'] = FALSE
-        entry.action['needs_buffering'] = TRUE if args.buffer else FALSE
-        entry.action['tunnel_type'] = TUNNEL_TYPE_GPDU
         entry.action['src_addr'] = str(args.s1u_addr)
         entry.action['dst_addr'] = str(args.enb_addr)
-        entry.action['teid'] = str(teid)
         entry.action['sport'] = TUNNEL_SPORT
         add_entry(entry, args.action)
 
