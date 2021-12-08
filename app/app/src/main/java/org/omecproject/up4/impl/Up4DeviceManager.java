@@ -582,7 +582,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     private UeSession convertToBuffering(UeSession sess) {
-        // Override tunnel peer id with the DBUF
         return UeSession.builder()
                 .withBuffering(true)
                 // Towards southbound, specify the DBUF_TUNNEL_ID
@@ -595,7 +594,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void apply(UpfEntity entity) throws UpfProgrammableException {
-        // TODO: TEST THE PREVENT
         switch (entity.type()) {
             case SESSION:
                 UeSession sess = (UeSession) entity;
@@ -633,6 +631,16 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     });
                 }
                 break;
+            case TERMINATION:
+                UpfTermination term = (UpfTermination) entity;
+                if (isMaxUeSet() && term.counterId() >= getMaxUe() * 2) {
+                    throw new UpfProgrammableException(
+                            "Counter cell index referenced by UPF termination rule above max supported UE value.",
+                            UpfProgrammableException.Type.ENTITY_OUT_OF_RANGE,
+                            UpfEntityType.TERMINATION
+                    );
+                }
+                break;
             case INTERFACE:
                 UpfInterface intf = (UpfInterface) entity;
                 if (intf.isDbufReceiver()) {
@@ -660,7 +668,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         Collection<? extends UpfEntity> entities = getLeaderUpfProgrammable().readAll(entityType);
         switch (entityType) {
             case SESSION:
-                // TODO: this might be an overkill
+                // TODO: this might be an overkill, however reads are required
+                //  only during reconciliation, so this shouldn't affect the
+                //  attachment and detachment of UEs.
                 // Map the DBUF entities back to be BUFFERING entities.
                 return entities.stream().map(e -> {
                     UeSession sess = (UeSession) e;
@@ -700,7 +710,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         if (isMaxUeSet() && counterIdx >= getMaxUe() * 2) {
             throw new UpfProgrammableException(
                     "Requested PDR counter cell index above max supported UE value.",
-                    UpfProgrammableException.Type.ENTITY_OUT_OF_RANGE);
+                    UpfProgrammableException.Type.ENTITY_OUT_OF_RANGE, UpfEntityType.COUNTER);
         }
         // When reading counters we need to explicitly read on all UPF physical
         // devices and aggregate counter values.
@@ -723,7 +733,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void delete(UpfEntity entity) throws UpfProgrammableException {
-        // TODO: ensure we don't remove the DBUF Interface
         switch (entity.type()) {
             case SESSION:
                 UeSession sess = (UeSession) entity;
@@ -758,7 +767,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public void deleteAll(UpfEntityType entityType) throws UpfProgrammableException {
-        // TODO: ensure we don't remove the DBUF Interface
         switch (entityType) {
             case INTERFACE:
                 Collection<? extends UpfEntity> intfs =

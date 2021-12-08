@@ -49,13 +49,6 @@ public interface Up4AdminService {
      * Reads the given type of UPF entity from the UPF data plane, without filtering
      * out reads to entries directly managed by UP4.
      *
-     * @return The UPF entities.
-     * @throws UpfProgrammableException propagate the exception from the UPF data plane.
-     */
-    /**
-     * Reads the given type of UPF entity from the UPF data plane, without filtering
-     * out reads to entries directly managed by UP4.
-     *
      * @param entityType The UPF entity type to read
      * @return The UPF entities.
      * @throws UpfProgrammableException propagate the exception from the UPF data plane.
