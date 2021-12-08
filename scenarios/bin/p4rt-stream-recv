@@ -31,8 +31,8 @@ def main():
     sh.setup(device_id=1, grpc_addr=args.server, election_id=(0, args.election_id))
 
     count = 0
-    type=args.type
-    timeout=args.t
+    type = args.type
+    timeout = args.t
     msgs = []
 
     deadline = time.time() + timeout
