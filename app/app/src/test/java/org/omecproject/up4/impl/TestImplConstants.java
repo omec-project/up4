@@ -70,6 +70,8 @@ public final class TestImplConstants {
     public static final byte TRAFFIC_CLASS_DL = 2;
 
     public static final byte DOWNLINK_QFI = 5;
+    public static final byte QFI_ZERO = 0;
+
     public static final int TEID = 0xff;
     public static final Ip4Address UE_ADDR = Ip4Address.valueOf("17.0.0.1");
     public static final Ip4Address S1U_ADDR = Ip4Address.valueOf("192.168.0.1");
@@ -109,11 +111,19 @@ public final class TestImplConstants {
             .withIpv4Address(UE_ADDR)
             .withGtpTunnelPeerId(GTP_TUNNEL_ID)
             .build();
-    public static final UpfTermination DOWNLINK_TERMINATION = UpfTermination.builder()
+    public static final UpfTermination DOWNLINK_TERMINATION_QOS = UpfTermination.builder()
             .withSliceId(SLICE_MOBILE)
             .withUeSessionId(UE_ADDR)
             .withTeid(TEID)
             .withQfi(DOWNLINK_QFI)
+            .withCounterId(DOWNLINK_COUNTER_CELL_ID)
+            .withTrafficClass(TRAFFIC_CLASS_DL)
+            .build();
+    public static final UpfTermination DOWNLINK_TERMINATION = UpfTermination.builder()
+            .withSliceId(SLICE_MOBILE)
+            .withUeSessionId(UE_ADDR)
+            .withTeid(TEID)
+            .withQfi(QFI_ZERO)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
             .withTrafficClass(TRAFFIC_CLASS_DL)
             .build();
@@ -200,7 +210,7 @@ public final class TestImplConstants {
             )
             .build();
 
-    public static final PiTableEntry UP4_DOWNLINK_TERMINATION = PiTableEntry.builder()
+    public static final PiTableEntry UP4_DOWNLINK_TERMINATION_QOS = PiTableEntry.builder()
             .forTable(PRE_QOS_PIPE_TERMINATIONS)
             .withMatchKey(
                     PiMatchKey.builder()
@@ -219,6 +229,29 @@ public final class TestImplConstants {
                             .withParameter(new PiActionParam(CTR_IDX, DOWNLINK_COUNTER_CELL_ID))
                             .withParameter(new PiActionParam(TC, TRAFFIC_CLASS_DL))
                             .withParameter(new PiActionParam(QFI, DOWNLINK_QFI))
+                            .build()
+            )
+            .build();
+
+    public static final PiTableEntry UP4_DOWNLINK_TERMINATION = PiTableEntry.builder()
+            .forTable(PRE_QOS_PIPE_TERMINATIONS)
+            .withMatchKey(
+                    PiMatchKey.builder()
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_SLICE_ID, ImmutableByteSequence.copyFrom(SLICE_MOBILE)))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_SRC_IFACE, ImmutableByteSequence.copyFrom(IFACE_CORE)))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .build()
+            )
+            .withAction(
+                    PiAction.builder()
+                            .withId(PRE_QOS_PIPE_TERM_DOWNLINK)
+                            .withParameter(new PiActionParam(Up4P4InfoConstants.TEID, TEID))
+                            .withParameter(new PiActionParam(CTR_IDX, DOWNLINK_COUNTER_CELL_ID))
+                            .withParameter(new PiActionParam(TC, TRAFFIC_CLASS_DL))
+                            .withParameter(new PiActionParam(QFI, QFI_ZERO))
                             .build()
             )
             .build();

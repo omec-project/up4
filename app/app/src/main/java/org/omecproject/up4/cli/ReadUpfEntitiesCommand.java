@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * UP4 PDR read command.
+ * UP4 read UPF entities command.
  */
 @Service
 @Command(scope = "up4", name = "read-entities",
@@ -75,7 +75,6 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                 printedTypes.add(UpfEntityType.SESSION);
                 printedTypes.add(UpfEntityType.TERMINATION);
                 printedTypes.add(UpfEntityType.TUNNEL_PEER);
-                printedTypes.add(UpfEntityType.COUNTER);
             } else {
                 if (sessions) {
                     printedTypes.add(UpfEntityType.SESSION);
@@ -94,8 +93,7 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                 }
             }
             for (var type : printedTypes) {
-                app.readUpfEntities(type)
-                        .forEach(upfEntity -> print(upfEntity.toString()));
+                app.readAll(type).forEach(upfEntity -> print(upfEntity.toString()));
             }
         } catch (UpfProgrammableException e) {
             print("Error while reading UPF entity: " + e.getMessage());

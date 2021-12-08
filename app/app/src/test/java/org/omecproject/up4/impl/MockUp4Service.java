@@ -6,7 +6,6 @@ package org.omecproject.up4.impl;
 
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
-import org.omecproject.up4.UpfFlow;
 import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
@@ -37,31 +36,6 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public void installInternalUpfEntities() {
-    }
-
-    @Override
-    public void internalApplyUpfEntity(UpfEntity entity) throws UpfProgrammableException {
-
-    }
-
-    @Override
-    public Collection<? extends UpfEntity> internalReadUpfEntities(UpfEntityType entityType)
-            throws UpfProgrammableException {
-        return null;
-    }
-
-    @Override
-    public void internalDeleteUpfEntity(UpfEntity entity) throws UpfProgrammableException {
-
-    }
-
-    @Override
-    public void internalDeleteUpfEntities(UpfEntityType entityType) throws UpfProgrammableException {
-
-    }
-
-    @Override
     public boolean configIsLoaded() {
         return configAvailable;
     }
@@ -82,8 +56,8 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public void applyUpfEntity(UpfEntity entity) throws UpfProgrammableException {
-        switch (entity.upfEntityType()) {
+    public void apply(UpfEntity entity) throws UpfProgrammableException {
+        switch (entity.type()) {
             case INTERFACE:
                 ifaces.add(entity);
                 break;
@@ -102,7 +76,7 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public Collection<? extends UpfEntity> readUpfEntities(UpfEntityType entityType)
+    public Collection<? extends UpfEntity> readAll(UpfEntityType entityType)
             throws UpfProgrammableException {
         switch (entityType) {
             case INTERFACE:
@@ -130,11 +104,6 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public Collection<UpfFlow> getFlows() {
-        return null;
-    }
-
-    @Override
     public UpfCounter readCounter(int cellId) {
         return UpfCounter.builder()
                 .withCellId(cellId)
@@ -159,9 +128,9 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public void deleteUpfEntity(UpfEntity entity) throws UpfProgrammableException {
+    public void delete(UpfEntity entity) throws UpfProgrammableException {
         List<UpfEntity> entities;
-        switch (entity.upfEntityType()) {
+        switch (entity.type()) {
             case INTERFACE:
                 entities = ifaces;
                 break;
@@ -184,7 +153,7 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public void deleteUpfEntities(UpfEntityType entityType) throws UpfProgrammableException {
+    public void deleteAll(UpfEntityType entityType) throws UpfProgrammableException {
         switch (entityType) {
             case INTERFACE:
                 ifaces.clear();
@@ -204,7 +173,7 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public long getEntitySize(UpfEntityType entityType) throws UpfProgrammableException {
+    public long tableSize(UpfEntityType entityType) throws UpfProgrammableException {
         switch (entityType) {
             case INTERFACE:
                 return TestImplConstants.PHYSICAL_MAX_INTERFACES;

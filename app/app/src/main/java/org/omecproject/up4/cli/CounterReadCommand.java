@@ -16,7 +16,7 @@ import org.onosproject.net.behaviour.upf.UpfCounter;
  */
 @Service
 @Command(scope = "up4", name = "ctr-read",
-        description = "Read a PDR counter")
+        description = "Read a UPF counter")
 public class CounterReadCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "ctr-index",

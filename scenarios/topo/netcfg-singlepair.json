@@ -220,8 +220,7 @@
           "17.0.0.0/16"
         ],
         "dbufDrainAddr": "140.0.0.2",
-        "pscEncapEnabled": false,
-        "defaultQfi": 0
+        "pscEncapEnabled": false
       }
     }
   }

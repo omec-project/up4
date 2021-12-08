@@ -172,7 +172,7 @@ public class Up4TranslatorImpl implements Up4Translator {
         PiTableEntry.Builder tableEntryBuilder = PiTableEntry.builder();
         PiAction.Builder actionBuilder = PiAction.builder();
         PiMatchKey.Builder matchBuilder = PiMatchKey.builder();
-        switch (entity.upfEntityType()) {
+        switch (entity.type()) {
             case INTERFACE:
                 tableEntryBuilder.forTable(PRE_QOS_PIPE_INTERFACES);
                 UpfInterface upfIntf = (UpfInterface) entity;

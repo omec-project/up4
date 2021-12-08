@@ -7,7 +7,7 @@ package org.omecproject.up4.cli;
 import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.impl.Up4DeviceManager;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfInterface;
@@ -27,12 +27,12 @@ public class InterfaceDeleteCommand extends AbstractShellCommand {
 
     @Override
     protected void doExecute() throws Exception {
-        Up4Service app = get(Up4Service.class);
+        Up4DeviceManager app = get(Up4DeviceManager.class);
 
         Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
 
         print("Removing S1U interface address %s", s1uAddr.toString());
-        app.internalDeleteUpfEntity(UpfInterface.createS1uFrom(s1uAddr));
+        app.internalDelete(UpfInterface.createS1uFrom(s1uAddr));
     }
 }
 

@@ -2,10 +2,11 @@
  SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
-package org.omecproject.up4;
+package org.omecproject.up4.impl;
 
 
 import com.google.common.annotations.Beta;
+import org.omecproject.up4.UpfFlow;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
@@ -34,7 +35,7 @@ public interface Up4AdminService {
      * In particular, interfaces present in the app configuration and the DBUF
      * tunnel peer.
      */
-    void installInternalUpfEntities();
+    void installUpfEntities();
 
     /**
      * Applies the given UPF entity to the UPF data plane, without filtering
@@ -43,7 +44,7 @@ public interface Up4AdminService {
      * @param entity the UPF entity
      * @throws UpfProgrammableException propagate the exception from the UPF data plane.
      */
-    void internalApplyUpfEntity(UpfEntity entity) throws UpfProgrammableException;
+    void internalApply(UpfEntity entity) throws UpfProgrammableException;
 
     /**
      * Reads the given type of UPF entity from the UPF data plane, without filtering
@@ -60,7 +61,7 @@ public interface Up4AdminService {
      * @return The UPF entities.
      * @throws UpfProgrammableException propagate the exception from the UPF data plane.
      */
-    Collection<? extends UpfEntity> internalReadUpfEntities(UpfEntityType entityType)
+    Collection<? extends UpfEntity> internalReadAll(UpfEntityType entityType)
             throws UpfProgrammableException;
 
     /**
@@ -70,7 +71,7 @@ public interface Up4AdminService {
      * @param entity The UPF entity to delete.
      * @throws UpfProgrammableException propagate the exception from the UPF data plane.
      */
-    void internalDeleteUpfEntity(UpfEntity entity) throws UpfProgrammableException;
+    void internalDelete(UpfEntity entity) throws UpfProgrammableException;
 
     /**
      * Deletes all the UPF entity of the given type from the UPF data plane, without
@@ -79,5 +80,5 @@ public interface Up4AdminService {
      * @param entityType The UPF entity type to delete.
      * @throws UpfProgrammableException propagate the exception from the UPF data plane.
      */
-    void internalDeleteUpfEntities(UpfEntityType entityType) throws UpfProgrammableException;
+    void internalDeleteAll(UpfEntityType entityType) throws UpfProgrammableException;
 }

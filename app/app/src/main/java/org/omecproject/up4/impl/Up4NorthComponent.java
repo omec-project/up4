@@ -25,7 +25,6 @@ import org.onlab.util.SharedExecutors;
 import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
-import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 import org.onosproject.net.pi.model.DefaultPiPipeconf;
 import org.onosproject.net.pi.model.PiCounterId;
@@ -164,7 +163,7 @@ public class Up4NorthComponent {
     private void translateEntryAndDelete(PiTableEntry entry) throws StatusException {
         log.debug("Translating UP4 deletion request to fabric entry deletion.");
         try {
-            up4Service.deleteUpfEntity(up4Translator.up4TableEntryToUpfEntity(entry));
+            up4Service.delete(up4Translator.up4TableEntryToUpfEntity(entry));
         } catch (Up4Translator.Up4TranslationException e) {
             log.warn("Failed to translate UP4 entry in deletion request: {}", e.getMessage());
             throw INVALID_ARGUMENT
@@ -193,7 +192,7 @@ public class Up4NorthComponent {
                     .asException();
         }
         try {
-            up4Service.applyUpfEntity(up4Translator.up4TableEntryToUpfEntity(entry));
+            up4Service.apply(up4Translator.up4TableEntryToUpfEntity(entry));
         } catch (Up4Translator.Up4TranslationException e) {
             log.warn("Failed to parse entry from a write request: {}", e.getMessage());
             throw INVALID_ARGUMENT
@@ -234,14 +233,10 @@ public class Up4NorthComponent {
         // TODO: return more specific responses
         try {
             UpfEntityType entityType = up4Translator.getEntityType(requestedEntry);
-            Collection<? extends UpfEntity> entities = up4Service.readUpfEntities(entityType);
+            Collection<? extends UpfEntity> entities = up4Service.readAll(entityType);
 
             if (entityType == UpfEntityType.INTERFACE) {
                 for (UpfEntity iface : entities) {
-                    if (((UpfInterface) iface).isDbufReceiver()) {
-                        // Don't expose the dbuf interface to the logical switch
-                        continue;
-                    }
                     log.debug("Translating an interface for a read request: {}", iface);
                     P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
                             up4Translator.entityToUp4TableEntry(iface), null, pipeconf);
@@ -281,10 +276,10 @@ public class Up4NorthComponent {
         long physicalTerminationsTableSize;
         long physicalTunnelPeerTableSize;
         try {
-            physicalCounterSize = up4Service.getEntitySize(UpfEntityType.COUNTER);
-            physicalSessionsTableSize = up4Service.getEntitySize(UpfEntityType.SESSION);
-            physicalTerminationsTableSize = up4Service.getEntitySize(UpfEntityType.TERMINATION);
-            physicalTunnelPeerTableSize = up4Service.getEntitySize(UpfEntityType.TUNNEL_PEER);
+            physicalCounterSize = up4Service.tableSize(UpfEntityType.COUNTER);
+            physicalSessionsTableSize = up4Service.tableSize(UpfEntityType.SESSION);
+            physicalTerminationsTableSize = up4Service.tableSize(UpfEntityType.TERMINATION);
+            physicalTunnelPeerTableSize = up4Service.tableSize(UpfEntityType.TUNNEL_PEER);
         } catch (UpfProgrammableException e) {
             throw new IllegalStateException("Error while getting physical sizes! " + e.getMessage());
         }

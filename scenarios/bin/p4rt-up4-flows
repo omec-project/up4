@@ -183,7 +183,7 @@ def main():
             entry = sh.TableEntry('PreQosPipe.sessions')(action='PreQosPipe.set_params_downlink')
             entry.action["tunnel_peer_id"] = str(tunnel_peer_id)
         else:
-            entry = sh.TableEntry('PreQosPipe.pdrs')(action='PreQosPipe.set_params_buffering')
+            entry = sh.TableEntry('PreQosPipe.sessions')(action='PreQosPipe.set_params_buffering')
         # Match fields
         entry.match['src_iface'] = IFACE_CORE
         entry.match['ipv4_dst'] = str(ue_addr)
@@ -199,7 +199,7 @@ def main():
         # Match fields
         entry.match['slice_id'] = SLICE_MOBILE
         entry.match['src_iface'] = IFACE_ACCESS
-        entry.match['ue_addr'] = str(ue_addr)
+        entry.match['ue_address'] = str(ue_addr)
         # Action params
         entry.action['ctr_idx'] = str(ctr_uplink)
         entry.action['tc'] = TRAFFIC_CLASS
@@ -211,13 +211,12 @@ def main():
         # Match fields
         entry.match['slice_id'] = SLICE_MOBILE
         entry.match['src_iface'] = IFACE_CORE
-        entry.match['ue_addr'] = str(ue_addr)
+        entry.match['ue_address'] = str(ue_addr)
         # Action params
         entry.action['teid'] = str(teid)
         entry.action['ctr_idx'] = str(ctr_downlink)
         entry.action['tc'] = TRAFFIC_CLASS
-        entry.action['qfi'] = args.qfi if args.qfi else 0
-        entry.action['notify_cp'] = FALSE
+        entry.action['qfi'] = str(args.qfi) if args.qfi else "0"
         add_entry(entry, args.action)
 
         # ========================#

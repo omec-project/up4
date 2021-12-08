@@ -4,7 +4,6 @@
  */
 package org.omecproject.up4;
 
-import org.onlab.packet.IpAddress;
 import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.UeSession;
 import org.onosproject.net.behaviour.upf.UpfCounter;
@@ -16,11 +15,10 @@ import static com.google.common.base.Preconditions.checkArgument;
  * Helper class primarily intended for organizing and printing UPF information, grouped by UE.
  */
 public final class UpfFlow {
-    private final IpAddress ueAddress;
     private final UeSession session;
     private final UpfTermination termination;
     private final GtpTunnelPeer tunnelEndPoint;
-    private final UpfCounter counters;
+    private final UpfCounter counter;
     private final Type type;
 
     public enum Type {
@@ -38,14 +36,12 @@ public final class UpfFlow {
         DOWNLINK
     }
 
-    private UpfFlow(Type type, IpAddress ueAddress, UeSession session,
-                    UpfTermination termination, GtpTunnelPeer tunnelEndPoint,
-                    UpfCounter counters) {
-        this.ueAddress = ueAddress;
+    private UpfFlow(Type type, UeSession session, UpfTermination termination,
+                    GtpTunnelPeer tunnelEndPoint, UpfCounter counters) {
         this.session = session;
         this.termination = termination;
         this.tunnelEndPoint = tunnelEndPoint;
-        this.counters = counters;
+        this.counter = counters;
         this.type = type;
     }
 
@@ -96,28 +92,28 @@ public final class UpfFlow {
 
     @Override
     public String toString() {
-        //TODO
-        return "";
-
-//        String farString = "NO FAR!";
-//        if (far != null) {
-//            farString = String.format("FarID %d  -->  %s", far.farId(), far.actionString());
-//        }
-//        String pdrString = "NO PDR!";
-//        if (pdr != null) {
-//            pdrString = pdr.matchString();
-//            if (pdr.hasQfi() && pdr.pushQfi()) {
-//                // Push QFI
-//                pdrString = String.format("%s, Push_qfi(%s)", pdrString, pdr.qfi());
-//            }
-//        }
-//        String statString = "NO STATISTICS!";
-//        if (flowStats != null) {
-//            statString = String.format("%5d Ingress pkts -> %5d Egress pkts",
-//                    flowStats.getIngressPkts(), flowStats.getEgressPkts());
-//        }
-//        return String.format("SEID:%s - %s  -->  %s;\n    >> %s",
-//                pfcpSessionId, pdrString, farString, statString);
+        String sessionString = "No UE Session!";
+        if (session != null) {
+            sessionString = session.toString();
+        }
+        String terminationString = "No termination!";
+        if (termination != null) {
+            terminationString = termination.toString();
+        }
+        String statString = "NO STATISTICS!";
+        if (counter != null) {
+            statString = String.format("%5d Ingress pkts -> %5d Egress pkts",
+                                       counter.getIngressPkts(),
+                                       counter.getEgressPkts());
+        }
+        if (!session.isUplink()) {
+            return String.format("DL: %s (%s)--> %s\n    >> %s",
+                                 sessionString, tunnelEndPoint.toString(),
+                                 terminationString, statString);
+        } else {
+            return String.format("UL: %s --> %s\n    >> %s",
+                                 sessionString, terminationString, statString);
+        }
     }
 
     public static Builder builder() {
@@ -201,7 +197,6 @@ public final class UpfFlow {
             checkArgument(session.isUplink() || tunnelPeer != null,
                           "Downlink flows must have a GTP tunnel peer");
             Type type;
-            IpAddress ueAddress = termination.ueSessionId();
             if (session.isUplink()) {
                 type = Type.UPLINK;
             } else {
@@ -213,7 +208,7 @@ public final class UpfFlow {
                 checkArgument(termination.counterId() == counters.getCellId(),
                               "Counter statistics provided do not use counter index set by the termination rule");
             }
-            return new UpfFlow(type, ueAddress, session, termination, tunnelPeer, counters);
+            return new UpfFlow(type, session, termination, tunnelPeer, counters);
         }
     }
 }

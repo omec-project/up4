@@ -66,6 +66,11 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
+    public void up4EntryToDownlinkTerminationQosTest() {
+        up4ToUpfEntity(TestImplConstants.DOWNLINK_TERMINATION_QOS, TestImplConstants.UP4_DOWNLINK_TERMINATION_QOS);
+    }
+
+    @Test
     public void up4EntryToUplinkInterfaceTest() {
         up4ToUpfEntity(TestImplConstants.UPLINK_INTERFACE, TestImplConstants.UP4_UPLINK_INTERFACE);
     }
@@ -108,5 +113,10 @@ public class Up4TranslatorImplTest {
     @Test
     public void downlinkTerminationToUp4EntryTest() {
         upfEntityToUp4(TestImplConstants.UP4_DOWNLINK_TERMINATION, TestImplConstants.DOWNLINK_TERMINATION);
+    }
+
+    @Test
+    public void downlinkTerminationQosToUp4EntryTest() {
+        upfEntityToUp4(TestImplConstants.UP4_DOWNLINK_TERMINATION_QOS, TestImplConstants.DOWNLINK_TERMINATION_QOS);
     }
 }
