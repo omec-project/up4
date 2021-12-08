@@ -6,8 +6,8 @@ package org.omecproject.up4.cli;
 
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
+import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.UpfFlow;
-import org.omecproject.up4.impl.Up4DeviceManager;
 import org.onosproject.cli.AbstractShellCommand;
 
 import java.util.Collection;
@@ -22,7 +22,7 @@ public class ReadFlowsCommand extends AbstractShellCommand {
 
     @Override
     protected void doExecute() throws Exception {
-        Up4DeviceManager app = get(Up4DeviceManager.class);
+        Up4Service app = get(Up4Service.class);
 
         Collection<UpfFlow> flows = app.getFlows();
         for (UpfFlow flow : flows) {

@@ -2,11 +2,10 @@
  SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
-package org.omecproject.up4.impl;
+package org.omecproject.up4;
 
 
 import com.google.common.annotations.Beta;
-import org.omecproject.up4.UpfFlow;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;

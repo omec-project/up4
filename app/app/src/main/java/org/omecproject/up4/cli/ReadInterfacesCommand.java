@@ -6,7 +6,7 @@ package org.omecproject.up4.cli;
 
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.omecproject.up4.impl.Up4DeviceManager;
+import org.omecproject.up4.Up4Service;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
@@ -22,7 +22,7 @@ public class ReadInterfacesCommand extends AbstractShellCommand {
 
     @Override
     protected void doExecute() {
-        Up4DeviceManager app = get(Up4DeviceManager.class);
+        Up4Service app = get(Up4Service.class);
 
         try {
             for (UpfEntity iface : app.internalReadAll(UpfEntityType.INTERFACE)) {

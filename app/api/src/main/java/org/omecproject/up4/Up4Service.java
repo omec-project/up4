@@ -15,7 +15,7 @@ import org.onosproject.net.behaviour.upf.UpfDevice;
  * This API is a work in progress.
  */
 @Beta
-public interface Up4Service extends ListenerService<Up4Event, Up4EventListener>, UpfDevice {
+public interface Up4Service extends ListenerService<Up4Event, Up4EventListener>, UpfDevice, Up4AdminService {
 
     /**
      * True if the UPF data plane is ready, and false otherwise.

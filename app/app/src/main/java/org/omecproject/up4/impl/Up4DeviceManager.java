@@ -93,7 +93,7 @@ import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FAC
                 UPF_RECONCILE_INTERVAL + ":Long=" + UPF_RECONCILE_INTERVAL_DEFAULT,
         })
 public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4EventListener>
-        implements Up4Service, Up4AdminService {
+        implements Up4Service {
 
     private static final long NO_UE_LIMIT = -1;
     public static final int GTP_PORT = 2152;
@@ -435,7 +435,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         if (this.dbufTunnel != null) {
             try {
                 log.debug("Install DBUF GTP tunnel peer.");
-                getLeaderUpfProgrammable().delete(dbufTunnel);
+                getLeaderUpfProgrammable().apply(dbufTunnel);
             } catch (UpfProgrammableException e) {
                 log.warn("Failed to insert DBUF GTP tunnel peer: {}", e.getMessage());
             }
@@ -584,6 +584,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private UeSession convertToBuffering(UeSession sess) {
         // Override tunnel peer id with the DBUF
         return UeSession.builder()
+                .withBuffering(true)
+                // Towards southbound, specify the DBUF_TUNNEL_ID
                 .withGtpTunnelPeerId(DBUF_TUNNEL_ID)
                 .withIpv4Address(sess.ipv4Address())
                 .withQfi(sess.qfi())
@@ -662,9 +664,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 // Map the DBUF entities back to be BUFFERING entities.
                 return entities.stream().map(e -> {
                     UeSession sess = (UeSession) e;
-                    if (sess.tunPeerId() == DBUF_TUNNEL_ID) {
+                    if (!sess.isUplink() && sess.tunPeerId() == DBUF_TUNNEL_ID) {
                         return UeSession.builder()
                                 .withBuffering(true)
+                                // Towards northbound, DO not specify the DBUF_TUNNEL_ID
                                 .withQfi(sess.qfi())
                                 .withIpv4Address(sess.ipv4Address())
                                 .withTeid(sess.teid())

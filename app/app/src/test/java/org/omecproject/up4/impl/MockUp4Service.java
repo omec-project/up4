@@ -6,6 +6,7 @@ package org.omecproject.up4.impl;
 
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.UpfFlow;
 import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
@@ -193,6 +194,36 @@ public class MockUp4Service implements Up4Service {
 
     @Override
     public void enablePscEncap() throws UpfProgrammableException {
+
+    }
+
+    @Override
+    public Collection<UpfFlow> getFlows() throws UpfProgrammableException {
+        return null;
+    }
+
+    @Override
+    public void installUpfEntities() {
+
+    }
+
+    @Override
+    public void internalApply(UpfEntity entity) throws UpfProgrammableException {
+
+    }
+
+    @Override
+    public Collection<? extends UpfEntity> internalReadAll(UpfEntityType entityType) throws UpfProgrammableException {
+        return null;
+    }
+
+    @Override
+    public void internalDelete(UpfEntity entity) throws UpfProgrammableException {
+
+    }
+
+    @Override
+    public void internalDeleteAll(UpfEntityType entityType) throws UpfProgrammableException {
 
     }
 }
