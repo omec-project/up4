@@ -133,7 +133,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected ComponentConfigService componentConfigService;
 
-    private ExecutorService eventExecutor;
+    private ExecutorService flowRuleEventExecutor;
+    private ExecutorService internalEventExecutor;
     private ScheduledExecutorService reconciliationExecutor;
     private Future<?> reconciliationTask;
 
@@ -166,10 +167,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         flowRuleListener = new InternalFlowRuleListener();
         upfProgrammables = Maps.newConcurrentMap();
         upfDevices = Sets.newConcurrentHashSet();
-        eventExecutor = newSingleThreadScheduledExecutor(groupedThreads(
-                "omec/up4", "event-%d", log));
+        flowRuleEventExecutor = newSingleThreadScheduledExecutor(groupedThreads(
+                "omec/up4/flowEvent", "flowRuleEvent-%d", log));
         reconciliationExecutor = newSingleThreadScheduledExecutor(groupedThreads(
                 "omec/up4/reconcile", "executor", log));
+        internalEventExecutor = newSingleThreadScheduledExecutor(groupedThreads(
+                "omec/up4/internalEvent", "internalEvent-%d", log));
 
         flowRuleService.addListener(flowRuleListener);
         netCfgService.addListener(netCfgListener);
@@ -227,11 +230,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         piPipeconfService.removeListener(piPipeconfListener);
         flowRuleService.removeListener(flowRuleListener);
 
-        eventExecutor.shutdownNow();
+        flowRuleEventExecutor.shutdownNow();
         reconciliationExecutor.shutdown();
 
         reconciliationExecutor = null;
-        eventExecutor = null;
+        flowRuleEventExecutor = null;
+        internalEventExecutor = null;
         leaderUpfDevice = null;
         upfProgrammables = null;
         upfDevices = null;
@@ -886,7 +890,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private class InternalDeviceListener implements DeviceListener {
         @Override
         public void event(DeviceEvent event) {
-            eventExecutor.execute(() -> internalEventHandler(event));
+            internalEventExecutor.execute(() -> internalEventHandler(event));
         }
 
         private void internalEventHandler(DeviceEvent event) {
@@ -922,7 +926,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private class InternalConfigListener implements NetworkConfigListener {
         @Override
         public void event(NetworkConfigEvent event) {
-            eventExecutor.execute(() -> internalEventHandler(event));
+            flowRuleEventExecutor.execute(() -> internalEventHandler(event));
         }
 
         private void internalEventHandler(NetworkConfigEvent event) {
@@ -988,7 +992,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
         @Override
         public void event(FlowRuleEvent event) {
-            eventExecutor.execute(() -> internalEventHandler(event));
+            flowRuleEventExecutor.execute(() -> internalEventHandler(event));
         }
 
         private void internalEventHandler(FlowRuleEvent event) {
