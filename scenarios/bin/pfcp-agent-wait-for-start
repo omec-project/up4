@@ -5,7 +5,7 @@
 for _ in {1..30}; do
     docker-compose ps | grep "pfcp-agent" && \
         # FIXME replace grepping on 'says hello' to 'listening for new PFCP connections',
-        # when no longer using PFCP-stable.
+        # when no longer using PFCP image defined in .env.stable.
         docker-compose logs pfcp-agent | grep "says hello" \
         && exit 0 || sleep 1
 done
