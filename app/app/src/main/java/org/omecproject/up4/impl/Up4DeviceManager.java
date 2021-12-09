@@ -231,6 +231,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         flowRuleService.removeListener(flowRuleListener);
 
         flowRuleEventExecutor.shutdownNow();
+        internalEventExecutor.shutdownNow();
         reconciliationExecutor.shutdown();
 
         reconciliationExecutor = null;
