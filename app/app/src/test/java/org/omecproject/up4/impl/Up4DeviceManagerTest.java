@@ -19,8 +19,6 @@ import org.onosproject.net.device.DeviceServiceAdapter;
 import org.onosproject.net.flow.FlowRuleServiceAdapter;
 import org.onosproject.net.pi.PiPipeconfServiceAdapter;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.omecproject.up4.impl.Up4DeviceManager.DBUF_TUNNEL_ID;
 import static org.onosproject.net.NetTestTools.injectEventDispatcher;
 
