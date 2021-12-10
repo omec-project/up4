@@ -34,7 +34,6 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DST_ADDR;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_IPV4_DST;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_IPV4_DST_PREFIX;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_SLICE_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_SRC_IFACE;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TEID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
@@ -101,7 +100,6 @@ public final class TestImplConstants {
             .build();
 
     public static final UpfTermination UPLINK_TERMINATION = UpfTermination.builder()
-            .withSliceId(SLICE_MOBILE)
             .withUeSessionId(UE_ADDR)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
             .withTrafficClass(TRAFFIC_CLASS_UL)
@@ -112,7 +110,6 @@ public final class TestImplConstants {
             .withGtpTunnelPeerId(GTP_TUNNEL_ID)
             .build();
     public static final UpfTermination DOWNLINK_TERMINATION_QOS = UpfTermination.builder()
-            .withSliceId(SLICE_MOBILE)
             .withUeSessionId(UE_ADDR)
             .withTeid(TEID)
             .withQfi(DOWNLINK_QFI)
@@ -120,7 +117,6 @@ public final class TestImplConstants {
             .withTrafficClass(TRAFFIC_CLASS_DL)
             .build();
     public static final UpfTermination DOWNLINK_TERMINATION = UpfTermination.builder()
-            .withSliceId(SLICE_MOBILE)
             .withUeSessionId(UE_ADDR)
             .withTeid(TEID)
             .withQfi(QFI_ZERO)
@@ -194,8 +190,6 @@ public final class TestImplConstants {
             .withMatchKey(
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
-                                    HDR_SLICE_ID, ImmutableByteSequence.copyFrom(SLICE_MOBILE)))
-                            .addFieldMatch(new PiExactFieldMatch(
                                     HDR_SRC_IFACE, ImmutableByteSequence.copyFrom(IFACE_ACCESS)))
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
@@ -214,8 +208,6 @@ public final class TestImplConstants {
             .forTable(PRE_QOS_PIPE_TERMINATIONS)
             .withMatchKey(
                     PiMatchKey.builder()
-                            .addFieldMatch(new PiExactFieldMatch(
-                                    HDR_SLICE_ID, ImmutableByteSequence.copyFrom(SLICE_MOBILE)))
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_SRC_IFACE, ImmutableByteSequence.copyFrom(IFACE_CORE)))
                             .addFieldMatch(new PiExactFieldMatch(
@@ -237,8 +229,6 @@ public final class TestImplConstants {
             .forTable(PRE_QOS_PIPE_TERMINATIONS)
             .withMatchKey(
                     PiMatchKey.builder()
-                            .addFieldMatch(new PiExactFieldMatch(
-                                    HDR_SLICE_ID, ImmutableByteSequence.copyFrom(SLICE_MOBILE)))
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_SRC_IFACE, ImmutableByteSequence.copyFrom(IFACE_CORE)))
                             .addFieldMatch(new PiExactFieldMatch(

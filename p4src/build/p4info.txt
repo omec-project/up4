@@ -193,18 +193,12 @@ tables {
   }
   match_fields {
     id: 1
-    name: "slice_id"
-    bitwidth: 4
-    match_type: EXACT
-  }
-  match_fields {
-    id: 2
     name: "src_iface"
     bitwidth: 8
     match_type: EXACT
   }
   match_fields {
-    id: 3
+    id: 2
     name: "ue_address"
     bitwidth: 32
     match_type: EXACT
@@ -219,10 +213,11 @@ tables {
     id: 18415550
   }
   action_refs {
-    id: 21257015
+    id: 28401267
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
   }
+  const_default_action_id: 28401267
   size: 1024
 }
 tables {

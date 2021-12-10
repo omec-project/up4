@@ -231,7 +231,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
 
     table terminations {
         key = {
-            local_meta.slice_id     : exact @name("slice_id");
             local_meta.src_iface    : exact @name("src_iface");
             local_meta.ue_addr      : exact @name("ue_address"); // Session ID
         }
@@ -239,7 +238,9 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             term_uplink;
             term_downlink;
             term_drop;
+            @defaultonly do_drop;
         }
+        const default_action = do_drop;
     }
 
     action load_tunnel_param(ipv4_addr_t    src_addr,
@@ -392,9 +393,10 @@ control PreQosPipe (inout parsed_headers_t    hdr,
 
                 sessions.apply();
                 tunnel_peers.apply();
-                terminations.apply();
-                // Count packets at a counter index unique to whichever termination matched.
-                pre_qos_counter.count(local_meta.ctr_idx);
+                if (terminations.apply().hit) {
+                    // Count packets at a counter index unique to whichever termination matched.
+                    pre_qos_counter.count(local_meta.ctr_idx);
+                }
 
                 // Perform whatever header removal the matching PDR required.
                 if (local_meta.needs_gtpu_decap) {

@@ -36,7 +36,6 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DST_ADDR;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_IPV4_DST;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_IPV4_DST_PREFIX;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_SLICE_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_SRC_IFACE;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TEID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
@@ -142,7 +141,6 @@ public class Up4TranslatorImpl implements Up4Translator {
             }
             case TERMINATION: {
                 UpfTermination.Builder builder = UpfTermination.builder();
-                builder.withSliceId(Up4TranslatorUtil.getFieldByte(entry, HDR_SLICE_ID));
                 builder.withUeSessionId(Up4TranslatorUtil.getFieldAddress(entry, HDR_UE_ADDRESS));
                 builder.withCounterId(Up4TranslatorUtil.getParamInt(entry, CTR_IDX));
                 builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
@@ -226,8 +224,6 @@ public class Up4TranslatorImpl implements Up4Translator {
                 tableEntryBuilder.forTable(PRE_QOS_PIPE_TERMINATIONS);
                 UpfTermination upfTermination = (UpfTermination) entity;
                 matchBuilder.addFieldMatch(
-                        new PiExactFieldMatch(HDR_SLICE_ID, ImmutableByteSequence.copyFrom(SLICE_MOBILE)))
-                        .addFieldMatch(
                                 new PiExactFieldMatch(HDR_SRC_IFACE, upfTermination.isUplink() ?
                                         ImmutableByteSequence.copyFrom(IFACE_ACCESS) :
                                         ImmutableByteSequence.copyFrom(IFACE_CORE)))

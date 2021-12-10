@@ -62,10 +62,10 @@ pipeline {
         }
       }
     }
-    stage("Build P4") {
+    stage("Build P4 and constants") {
       steps {
         dir("${env.WORKSPACE}/up4") {
-          sh "make build"
+          sh "make build constants"
         }
       }
     }

@@ -356,12 +356,11 @@ class GtpuBaseTest(P4RuntimeTest):
                 priority=priority,
             ))
 
-    def add_terminations(self, slice_id, src_iface, ue_address, ctr_idx, tc,
+    def add_terminations(self, src_iface, ue_address, ctr_idx, tc,
                          teid=None, qfi=None, drop=False):
         _src_iface = self.helper.get_enum_member_val("InterfaceType", src_iface)
 
         match_fields = {
-            "slice_id": slice_id,
             "src_iface": _src_iface,
             "ue_address": ue_address,
         }
@@ -428,7 +427,6 @@ class GtpuBaseTest(P4RuntimeTest):
             teid=pkt[gtp.GTP_U_Header].teid,
         )
         self.add_terminations(
-            slice_id=MOBILE_SLICE,
             src_iface="ACCESS",
             ue_address=inner_pkt[IP].src,
             ctr_idx=ctr_id,
@@ -482,13 +480,12 @@ class GtpuBaseTest(P4RuntimeTest):
         )
 
         self.add_terminations(
-            slice_id=MOBILE_SLICE,
             src_iface="CORE",
             ue_address=pkt[IP].dst,
             ctr_idx=ctr_id,
             tc=qfi,
             teid=exp_pkt[gtp.GTP_U_Header].teid,
-            qfi=qfi if push_qfi else 0,  # FIXMEEEEE
+            qfi=qfi if push_qfi else 0,
             drop=drop,
         )
         if not drop:

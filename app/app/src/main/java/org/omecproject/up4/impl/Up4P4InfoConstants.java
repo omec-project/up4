@@ -60,9 +60,6 @@ public final class Up4P4InfoConstants {
     public static final PiMatchFieldId HDR_L4_SPORT =
             PiMatchFieldId.of("l4_sport");
     public static final int HDR_L4_SPORT_BITWIDTH = 16;
-    public static final PiMatchFieldId HDR_SLICE_ID =
-            PiMatchFieldId.of("slice_id");
-    public static final int HDR_SLICE_ID_BITWIDTH = 4;
     public static final PiMatchFieldId HDR_SRC_IFACE =
             PiMatchFieldId.of("src_iface");
     public static final int HDR_SRC_IFACE_BITWIDTH = 8;
