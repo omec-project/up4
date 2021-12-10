@@ -931,8 +931,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     Up4DbufConfig.class.equals(event.configClass())) {
                         // Handle only relevant events
                         internalEventExecutor.execute(() -> internalEventHandler(event));
+            } else {
+                log.debug("Ignore irrelevant event class {}", event.configClass().getName());
             }
-            log.debug("Ignore irrelevant event class {}", event.configClass().getName());
         }
 
         private void internalEventHandler(NetworkConfigEvent event) {
