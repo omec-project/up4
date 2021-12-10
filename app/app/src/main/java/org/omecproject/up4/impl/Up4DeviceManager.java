@@ -133,8 +133,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected ComponentConfigService componentConfigService;
 
-    private ExecutorService flowRuleEventExecutor;
-    private ExecutorService internalEventExecutor;
+    private ExecutorService eventExecutor;
     private ScheduledExecutorService reconciliationExecutor;
     private Future<?> reconciliationTask;
 
@@ -167,12 +166,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         flowRuleListener = new InternalFlowRuleListener();
         upfProgrammables = Maps.newConcurrentMap();
         upfDevices = Sets.newConcurrentHashSet();
-        flowRuleEventExecutor = newSingleThreadScheduledExecutor(groupedThreads(
-                "omec/up4/flowEvent", "flowRuleEvent-%d", log));
+        eventExecutor = newSingleThreadScheduledExecutor(groupedThreads(
+                "omec/up4/", "event-%d", log));
         reconciliationExecutor = newSingleThreadScheduledExecutor(groupedThreads(
                 "omec/up4/reconcile", "executor", log));
-        internalEventExecutor = newSingleThreadScheduledExecutor(groupedThreads(
-                "omec/up4/internalEvent", "internalEvent-%d", log));
 
         flowRuleService.addListener(flowRuleListener);
         netCfgService.addListener(netCfgListener);
@@ -230,13 +227,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         piPipeconfService.removeListener(piPipeconfListener);
         flowRuleService.removeListener(flowRuleListener);
 
-        flowRuleEventExecutor.shutdownNow();
-        internalEventExecutor.shutdownNow();
+        eventExecutor.shutdownNow();
         reconciliationExecutor.shutdown();
 
         reconciliationExecutor = null;
-        flowRuleEventExecutor = null;
-        internalEventExecutor = null;
+        eventExecutor = null;
         leaderUpfDevice = null;
         upfProgrammables = null;
         upfDevices = null;
@@ -891,7 +886,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private class InternalDeviceListener implements DeviceListener {
         @Override
         public void event(DeviceEvent event) {
-            internalEventExecutor.execute(() -> internalEventHandler(event));
+            eventExecutor.execute(() -> internalEventHandler(event));
         }
 
         private void internalEventHandler(DeviceEvent event) {
@@ -929,8 +924,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         public void event(NetworkConfigEvent event) {
             if (Up4Config.class.equals(event.configClass()) ||
                     Up4DbufConfig.class.equals(event.configClass())) {
-                        // Handle only relevant events
-                        internalEventExecutor.execute(() -> internalEventHandler(event));
+                // Handle only relevant events
+                eventExecutor.execute(() -> internalEventHandler(event));
             } else {
                 log.debug("Ignore irrelevant event class {}", event.configClass().getName());
             }
@@ -971,7 +966,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private class InternalPiPipeconfListener implements PiPipeconfListener {
         @Override
         public void event(PiPipeconfEvent event) {
-            internalEventExecutor.execute(() -> internalEventHandler(event));
+            eventExecutor.execute(() -> internalEventHandler(event));
         }
 
         private void internalEventHandler(PiPipeconfEvent event) {
@@ -993,7 +988,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
         @Override
         public void event(FlowRuleEvent event) {
-            flowRuleEventExecutor.execute(() -> internalEventHandler(event));
+            eventExecutor.execute(() -> internalEventHandler(event));
         }
 
         private void internalEventHandler(FlowRuleEvent event) {
