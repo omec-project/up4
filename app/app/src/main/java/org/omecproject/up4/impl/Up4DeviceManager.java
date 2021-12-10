@@ -167,7 +167,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         upfProgrammables = Maps.newConcurrentMap();
         upfDevices = Sets.newConcurrentHashSet();
         eventExecutor = newSingleThreadScheduledExecutor(groupedThreads(
-                "omec/up4/", "event-%d", log));
+                "omec/up4", "event-%d", log));
         reconciliationExecutor = newSingleThreadScheduledExecutor(groupedThreads(
                 "omec/up4/reconcile", "executor", log));
 
