@@ -927,7 +927,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private class InternalConfigListener implements NetworkConfigListener {
         @Override
         public void event(NetworkConfigEvent event) {
-            flowRuleEventExecutor.execute(() -> internalEventHandler(event));
+            if (Up4Config.class.equals(event.configClass()) ||
+                    Up4DbufConfig.class.equals(event.configClass())) {
+                        // Handle only relevant events
+                        internalEventExecutor.execute(() -> internalEventHandler(event));
+            }
+            log.debug("Ignore irrelevant event class {}", event.configClass().getName());
         }
 
         private void internalEventHandler(NetworkConfigEvent event) {
@@ -960,21 +965,15 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     break;
             }
         }
-
-        @Override
-        public boolean isRelevant(NetworkConfigEvent event) {
-            if (Up4Config.class.equals(event.configClass()) ||
-                    Up4DbufConfig.class.equals(event.configClass())) {
-                return true;
-            }
-            log.debug("Ignore irrelevant event class {}", event.configClass().getName());
-            return false;
-        }
     }
 
     private class InternalPiPipeconfListener implements PiPipeconfListener {
         @Override
         public void event(PiPipeconfEvent event) {
+            internalEventExecutor.execute(() -> internalEventHandler(event));
+        }
+
+        private void internalEventHandler(PiPipeconfEvent event) {
             switch (event.type()) {
                 case REGISTERED:
                     // Recover the case where pipeconf was not ready while we initialized upfProgrammable
