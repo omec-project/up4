@@ -6,7 +6,7 @@ package org.omecproject.up4.cli;
 
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.impl.Up4AdminService;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
@@ -22,13 +22,13 @@ public class ResetEntriesCommand extends AbstractShellCommand {
 
     @Override
     protected void doExecute() throws UpfProgrammableException {
-        Up4Service app = get(Up4Service.class);
+        Up4AdminService app = get(Up4AdminService.class);
 
         print("Clearing all UP4 dataplane table entries.");
-        app.internalDeleteAll(UpfEntityType.SESSION);
-        app.internalDeleteAll(UpfEntityType.TERMINATION);
-        app.internalDeleteAll(UpfEntityType.TUNNEL_PEER);
-        app.internalDeleteAll(UpfEntityType.INTERFACE);
+        app.adminDeleteAll(UpfEntityType.SESSION);
+        app.adminDeleteAll(UpfEntityType.TERMINATION);
+        app.adminDeleteAll(UpfEntityType.TUNNEL_PEER);
+        app.adminDeleteAll(UpfEntityType.INTERFACE);
         print("Reinstalling UP4 interfaces and DBUF GTP Tunnel from app configuration.");
         app.installUpfEntities();
     }

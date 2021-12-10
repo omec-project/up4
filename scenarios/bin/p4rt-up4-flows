@@ -197,7 +197,6 @@ def main():
         entry = sh.TableEntry('PreQosPipe.terminations')(
             action='PreQosPipe.term_uplink')
         # Match fields
-        entry.match['slice_id'] = SLICE_MOBILE
         entry.match['src_iface'] = IFACE_ACCESS
         entry.match['ue_address'] = str(ue_addr)
         # Action params
@@ -209,7 +208,6 @@ def main():
         entry = sh.TableEntry('PreQosPipe.terminations')(
             action='PreQosPipe.term_downlink')
         # Match fields
-        entry.match['slice_id'] = SLICE_MOBILE
         entry.match['src_iface'] = IFACE_CORE
         entry.match['ue_address'] = str(ue_addr)
         # Action params

@@ -7,7 +7,7 @@ package org.omecproject.up4.cli;
 import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.impl.Up4AdminService;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfInterface;
@@ -27,10 +27,10 @@ public class UePoolInsertCommand extends AbstractShellCommand {
 
     @Override
     protected void doExecute() throws Exception {
-        Up4Service app = get(Up4Service.class);
+        Up4AdminService app = get(Up4AdminService.class);
         Ip4Prefix poolPrefix = Ip4Prefix.valueOf(this.poolPrefix);
         print("Adding UE IPv4 address pool prefix: %s", poolPrefix.toString());
-        app.internalApply(UpfInterface.createUePoolFrom(poolPrefix));
+        app.adminApply(UpfInterface.createUePoolFrom(poolPrefix));
     }
 }
 

@@ -8,11 +8,15 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Option;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.impl.Up4AdminService;
 import org.onosproject.cli.AbstractShellCommand;
+import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
+import org.onosproject.net.behaviour.upf.UpfTermination;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -29,7 +33,7 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
     private boolean all = false;
 
     @Option(name = "--ue", aliases = "-u",
-            description = "Include all UE related entities (session, termination, tunnel peer and counters)",
+            description = "Include all UE related entities (session, termination, tunnel peer, counters)",
             required = false)
     private boolean ue = false;
 
@@ -49,7 +53,7 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
     private boolean tunnels = false;
 
     @Option(name = "--count", aliases = "-c",
-            description = "Include the UPF counters",
+            description = "Include the all the UPF counters",
             required = false)
     private boolean counters = false;
 
@@ -61,20 +65,22 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
 
     @Override
     protected void doExecute() {
-        Up4Service app = get(Up4Service.class);
-
+        Up4AdminService up4Admin = get(Up4AdminService.class);
+        Up4Service up4Service = get(Up4Service.class);
+        boolean filterCounters = false;
         try {
             List<UpfEntityType> printedTypes = new ArrayList<>();
             if (all) {
                 printedTypes.add(UpfEntityType.SESSION);
                 printedTypes.add(UpfEntityType.TERMINATION);
                 printedTypes.add(UpfEntityType.TUNNEL_PEER);
-                printedTypes.add(UpfEntityType.COUNTER);
                 printedTypes.add(UpfEntityType.INTERFACE);
+                filterCounters = true;
             } else if (ue) {
                 printedTypes.add(UpfEntityType.SESSION);
                 printedTypes.add(UpfEntityType.TERMINATION);
                 printedTypes.add(UpfEntityType.TUNNEL_PEER);
+                filterCounters = true;
             } else {
                 if (sessions) {
                     printedTypes.add(UpfEntityType.SESSION);
@@ -87,13 +93,25 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                 }
                 if (counters) {
                     printedTypes.add(UpfEntityType.COUNTER);
+                    filterCounters = false;
                 }
                 if (interfaces) {
                     printedTypes.add(UpfEntityType.INTERFACE);
                 }
             }
             for (var type : printedTypes) {
-                app.readAll(type).forEach(upfEntity -> print(upfEntity.toString()));
+                if (!type.equals(UpfEntityType.TERMINATION)) {
+                    up4Admin.adminReadAll(type).forEach(upfEntity -> print(upfEntity.toString()));
+                } else {
+                    Collection<? extends UpfEntity> terminations = up4Admin.adminReadAll(type);
+                    for (var t : terminations) {
+                        UpfTermination term = (UpfTermination) t;
+                        print(term.toString());
+                        if (filterCounters) {
+                            print(up4Service.readCounter(term.counterId()).toString());
+                        }
+                    }
+                }
             }
         } catch (UpfProgrammableException e) {
             print("Error while reading UPF entity: " + e.getMessage());

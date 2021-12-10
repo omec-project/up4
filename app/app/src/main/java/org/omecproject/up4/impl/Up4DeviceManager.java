@@ -13,7 +13,6 @@ import org.omecproject.dbuf.client.DefaultDbufClient;
 import org.omecproject.up4.Up4Event;
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
-import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.config.Up4Config;
 import org.omecproject.up4.config.Up4DbufConfig;
 import org.onlab.packet.Ip4Address;
@@ -64,7 +63,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Dictionary;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -88,12 +86,12 @@ import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FAC
 /**
  * Draft UP4 ONOS application component.
  */
-@Component(immediate = true, service = {Up4Service.class},
+@Component(immediate = true, service = {Up4Service.class, Up4AdminService.class},
         property = {
                 UPF_RECONCILE_INTERVAL + ":Long=" + UPF_RECONCILE_INTERVAL_DEFAULT,
         })
 public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4EventListener>
-        implements Up4Service {
+        implements Up4Service, Up4AdminService {
 
     private static final long NO_UE_LIMIT = -1;
     public static final int GTP_PORT = 2152;
@@ -659,7 +657,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         getLeaderUpfProgrammable().apply(entity);
     }
 
-    public void internalApply(UpfEntity entity) throws UpfProgrammableException {
+    public void adminApply(UpfEntity entity) throws UpfProgrammableException {
         getLeaderUpfProgrammable().apply(entity);
     }
 
@@ -700,7 +698,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
     }
 
-    public Collection<? extends UpfEntity> internalReadAll(UpfEntityType entityType)
+    public Collection<? extends UpfEntity> adminReadAll(UpfEntityType entityType)
             throws UpfProgrammableException {
         return getLeaderUpfProgrammable().readAll(entityType);
     }
@@ -761,7 +759,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         getLeaderUpfProgrammable().delete(entity);
     }
 
-    public void internalDelete(UpfEntity entity) throws UpfProgrammableException {
+    public void adminDelete(UpfEntity entity) throws UpfProgrammableException {
         getLeaderUpfProgrammable().delete(entity);
     }
 
@@ -791,7 +789,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
     }
 
-    public void internalDeleteAll(UpfEntityType entityType) throws UpfProgrammableException {
+    public void adminDeleteAll(UpfEntityType entityType) throws UpfProgrammableException {
         getLeaderUpfProgrammable().deleteAll(entityType);
     }
 
@@ -852,75 +850,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Override
     public void disablePscEncap() throws UpfProgrammableException {
         getLeaderUpfProgrammable().disablePscEncap();
-    }
-
-    @Override
-    public Collection<UpfFlow> getFlows() throws UpfProgrammableException {
-        Map<Integer, UpfCounter> counterStats = new HashMap<>();
-        this.readCounters(-1).forEach(
-                stats -> counterStats.put(stats.getCellId(), stats));
-
-        // A flow is made of uplink and downlink sessions and terminations,
-        // and a GTP tunnel endpoint.
-        Map<Ip4Address, UpfFlow.Builder> downlinkFlows = new HashMap<>();
-        Map<Integer, Ip4Address> ueToTeid = new HashMap<>();
-        Map<Ip4Address, UpfFlow.Builder> uplinkFlows = new HashMap<>();
-        Map<Byte, GtpTunnelPeer> tunnelMap = new HashMap<>();
-
-        Collection<? extends UpfEntity> ueSessions = this.internalReadAll(UpfEntityType.SESSION);
-        Collection<? extends UpfEntity> upfTerminations = this.internalReadAll(UpfEntityType.TERMINATION);
-        Collection<? extends UpfEntity> gtpTunnelPeers = this.internalReadAll(UpfEntityType.TUNNEL_PEER);
-
-        for (UpfEntity entity : gtpTunnelPeers) {
-            GtpTunnelPeer gtpTunnelPeer = (GtpTunnelPeer) entity;
-            tunnelMap.put(gtpTunnelPeer.tunPeerId(), gtpTunnelPeer);
-        }
-        for (UpfEntity entity : upfTerminations) {
-            UpfTermination upfTerm = (UpfTermination) entity;
-            if (upfTerm.isUplink()) {
-                uplinkFlows.put(upfTerm.ueSessionId(),
-                                UpfFlow.builder()
-                                        .setTermination(upfTerm)
-                                        .setUpfCounter(counterStats.get(upfTerm.counterId()))
-                );
-            } else {
-                downlinkFlows.put(upfTerm.ueSessionId(),
-                                  UpfFlow.builder()
-                                          .setTermination(upfTerm)
-                                          .setUpfCounter(counterStats.get(upfTerm.counterId()))
-                );
-                ueToTeid.put(upfTerm.teid(), upfTerm.ueSessionId());
-            }
-        }
-
-        for (UpfEntity entity : ueSessions) {
-            UeSession ueSess = (UeSession) entity;
-            if (ueSess.isUplink()) {
-                if (ueToTeid.containsKey(ueSess.teid())) {
-                    uplinkFlows.get(ueToTeid.get(ueSess.teid()))
-                            .setUeSession(ueSess);
-                } else {
-                    log.debug("Session without corresponding termination?");
-                }
-            } else {
-                if (downlinkFlows.containsKey(ueSess.ipv4Address())) {
-                    downlinkFlows.get(ueSess.ipv4Address())
-                            .setUeSession(ueSess)
-                            .setGtpTunnelPeer(tunnelMap.get(ueSess.tunPeerId()));
-                } else {
-                    log.debug("Session without corresponding termination?");
-                }
-            }
-        }
-
-        List<UpfFlow> results = new ArrayList<>();
-        for (UpfFlow.Builder builder : downlinkFlows.values()) {
-            results.add(builder.build());
-        }
-        for (UpfFlow.Builder builder : uplinkFlows.values()) {
-            results.add(builder.build());
-        }
-        return results;
     }
 
     /**
