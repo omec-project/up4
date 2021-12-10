@@ -96,7 +96,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private static final long NO_UE_LIMIT = -1;
     public static final int GTP_PORT = 2152;
     public static final byte DBUF_TUNNEL_ID = 1;
-    public static final byte SLICE_MOBILE = 0xF; // This is already defined in FabricUpfProgrammable
+    // Hard coding the mobile slice value, when supporting multiple slices, we
+    // will remove this, and get the slice id from the north.
+    public static final byte SLICE_MOBILE = 0xF;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final AtomicBoolean upfInitialized = new AtomicBoolean(false);
@@ -599,34 +601,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     // Override tunnel peer id with the DBUF
                     entity = convertToBuffering(sess);
                     up4Store.learnBufferingUe(sess.ipv4Address());
-                } else if (up4Store.forgetBufferingUe(sess.ipv4Address())) {
-                    // TODO: Should we wait for rules to be installed on all devices before
-                    //   triggering drain?
-                    // Run the outbound rpc in a forked context so it doesn't cancel if it was called
-                    // by an inbound rpc that completes faster than the drain call
-                    Ip4Address ueAddr = sess.ipv4Address();
-                    Context ctx = Context.current().fork();
-                    ctx.run(() -> {
-                        if (dbufClient == null) {
-                            log.error("Cannot start dbuf drain for {}, dbufClient is null", ueAddr);
-                            return;
-                        }
-                        if (config == null || config.dbufDrainAddr() == null) {
-                            log.error("Cannot start dbuf drain for {}, dbufDrainAddr is null", ueAddr);
-                            return;
-                        }
-                        log.info("Started dbuf drain for {}", ueAddr);
-                        dbufClient.drain(ueAddr, config.dbufDrainAddr(), GTP_PORT)
-                                .whenComplete((result, ex) -> {
-                                    if (ex != null) {
-                                        log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
-                                    } else if (result) {
-                                        log.info("Dbuf drain completed for {}", ueAddr);
-                                    } else {
-                                        log.warn("Unknown error while draining dbuf for {}", ueAddr);
-                                    }
-                                });
-                    });
                 }
                 break;
             case TERMINATION:
@@ -642,19 +616,52 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             case INTERFACE:
                 UpfInterface intf = (UpfInterface) entity;
                 if (intf.isDbufReceiver()) {
-                    throw new UpfProgrammableException("Cannot remove the DBUF interface entry!");
+                    throw new UpfProgrammableException("Cannot apply the DBUF interface entry!");
                 }
                 break;
             case TUNNEL_PEER:
                 GtpTunnelPeer tunnelPeer = (GtpTunnelPeer) entity;
                 if (tunnelPeer.tunPeerId() == DBUF_TUNNEL_ID) {
-                    throw new UpfProgrammableException("Cannot remove the DBUF GTP Tunnel Peer");
+                    throw new UpfProgrammableException("Cannot apply the DBUF GTP Tunnel Peer");
                 }
                 break;
             default:
                 break;
         }
         getLeaderUpfProgrammable().apply(entity);
+        // Drain from DBUF if necessary
+        if (entity.type().equals(UpfEntityType.SESSION)) {
+            UeSession sess = (UeSession) entity;
+            if (!sess.needsBuffering() && up4Store.forgetBufferingUe(sess.ipv4Address())) {
+                // TODO: Should we wait for rules to be installed on all devices before
+                //   triggering drain?
+                // Run the outbound rpc in a forked context so it doesn't cancel if it was called
+                // by an inbound rpc that completes faster than the drain call
+                Ip4Address ueAddr = sess.ipv4Address();
+                Context ctx = Context.current().fork();
+                ctx.run(() -> {
+                    if (dbufClient == null) {
+                        log.error("Cannot start dbuf drain for {}, dbufClient is null", ueAddr);
+                        return;
+                    }
+                    if (config == null || config.dbufDrainAddr() == null) {
+                        log.error("Cannot start dbuf drain for {}, dbufDrainAddr is null", ueAddr);
+                        return;
+                    }
+                    log.info("Started dbuf drain for {}", ueAddr);
+                    dbufClient.drain(ueAddr, config.dbufDrainAddr(), GTP_PORT)
+                            .whenComplete((result, ex) -> {
+                                if (ex != null) {
+                                    log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
+                                } else if (result) {
+                                    log.info("Dbuf drain completed for {}", ueAddr);
+                                } else {
+                                    log.warn("Unknown error while draining dbuf for {}", ueAddr);
+                                }
+                            });
+                });
+            }
+        }
     }
 
     public void adminApply(UpfEntity entity) throws UpfProgrammableException {

@@ -234,21 +234,11 @@ public class Up4NorthComponent {
         try {
             UpfEntityType entityType = up4Translator.getEntityType(requestedEntry);
             Collection<? extends UpfEntity> entities = up4Service.readAll(entityType);
-
-            if (entityType == UpfEntityType.INTERFACE) {
-                for (UpfEntity iface : entities) {
-                    log.debug("Translating an interface for a read request: {}", iface);
-                    P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
-                            up4Translator.entityToUp4TableEntry(iface), null, pipeconf);
-                    translatedEntries.add(responseEntity);
-                }
-            } else {
-                for (UpfEntity entity : entities) {
-                    log.debug("Translating a UPF entity for a read request: {}", entity);
-                    P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
-                            up4Translator.entityToUp4TableEntry(entity), null, pipeconf);
-                    translatedEntries.add(responseEntity);
-                }
+            for (UpfEntity entity : entities) {
+                log.debug("Translating a {} entity for a read request: {}", entity.type(), entity);
+                P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
+                        up4Translator.entityToUp4TableEntry(entity), null, pipeconf);
+                translatedEntries.add(responseEntity);
             }
         } catch (Up4Translator.Up4TranslationException | UpfProgrammableException | CodecException e) {
             log.warn("Unable to encode/translate a read entry to a UP4 read response: {}",

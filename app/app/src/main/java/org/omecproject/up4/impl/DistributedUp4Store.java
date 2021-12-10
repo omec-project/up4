@@ -37,8 +37,7 @@ public class DistributedUp4Store implements Up4Store {
     protected static final String BUFFER_UE_MAP_NAME = "up4-buffer-ue";
 
     protected static final KryoNamespace.Builder SERIALIZER = KryoNamespace.newBuilder()
-            .register(KryoNamespaces.API)
-            .register(Ip4Address.class);
+            .register(KryoNamespaces.API);
 
     // NOTE If we can afford to lose the buffer state, we can make this map a simple concurrent map.
     // This can happen in case of instance failure or change in the DNS resolution.

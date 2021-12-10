@@ -5,6 +5,9 @@
 
 package org.omecproject.up4.impl;
 
+/**
+ * P4Info constants that are not currently parsed automatically from the P4Info.
+ */
 public final class ExtraP4InfoConstants {
 
     // hide default constructor
