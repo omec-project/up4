@@ -922,43 +922,42 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private class InternalConfigListener implements NetworkConfigListener {
         @Override
         public void event(NetworkConfigEvent event) {
-            if (Up4Config.class.equals(event.configClass()) ||
-                    Up4DbufConfig.class.equals(event.configClass())) {
-                // Handle only relevant events
-                eventExecutor.execute(() -> internalEventHandler(event));
-            } else {
-                log.debug("Ignore irrelevant event class {}", event.configClass().getName());
-            }
+            eventExecutor.execute(() -> internalEventHandler(event));
         }
 
         private void internalEventHandler(NetworkConfigEvent event) {
-            switch (event.type()) {
-                case CONFIG_UPDATED:
-                case CONFIG_ADDED:
-                    if (event.config().isEmpty()) {
-                        return;
-                    }
-                    if (event.configClass().equals(Up4Config.class)) {
-                        upfUpdateConfig((Up4Config) event.config().get());
-                    } else if (event.configClass().equals(Up4DbufConfig.class)) {
-                        dbufUpdateConfig((Up4DbufConfig) event.config().get());
-                    }
-                    log.info("{} updated", event.configClass().getSimpleName());
-                    break;
-                case CONFIG_REMOVED:
-                    if (event.configClass().equals(Up4Config.class)) {
-                        upfUpdateConfig(null);
-                    } else if (event.configClass().equals(Up4DbufConfig.class)) {
-                        dbufUpdateConfig(null);
-                    }
-                    log.info("{} removed", event.configClass().getSimpleName());
-                    break;
-                case CONFIG_REGISTERED:
-                case CONFIG_UNREGISTERED:
-                    break;
-                default:
-                    log.warn("Unsupported event type {}", event.type());
-                    break;
+            if (Up4Config.class.equals(event.configClass()) ||
+                    Up4DbufConfig.class.equals(event.configClass())) {
+                switch (event.type()) {
+                    case CONFIG_UPDATED:
+                    case CONFIG_ADDED:
+                        if (event.config().isEmpty()) {
+                            return;
+                        }
+                        if (event.configClass().equals(Up4Config.class)) {
+                            upfUpdateConfig((Up4Config) event.config().get());
+                        } else if (event.configClass().equals(Up4DbufConfig.class)) {
+                            dbufUpdateConfig((Up4DbufConfig) event.config().get());
+                        }
+                        log.info("{} updated", event.configClass().getSimpleName());
+                        break;
+                    case CONFIG_REMOVED:
+                        if (event.configClass().equals(Up4Config.class)) {
+                            upfUpdateConfig(null);
+                        } else if (event.configClass().equals(Up4DbufConfig.class)) {
+                            dbufUpdateConfig(null);
+                        }
+                        log.info("{} removed", event.configClass().getSimpleName());
+                        break;
+                    case CONFIG_REGISTERED:
+                    case CONFIG_UNREGISTERED:
+                        break;
+                    default:
+                        log.warn("Unsupported event type {}", event.type());
+                        break;
+                }
+            } else {
+                log.debug("Ignore irrelevant event class {}", event.configClass().getName());
             }
         }
     }
