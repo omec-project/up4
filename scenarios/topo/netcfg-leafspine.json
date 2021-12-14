@@ -4,7 +4,7 @@
       "basic": {
         "managementAddress": "grpc://mininet:50001?device_id=1",
         "driver": "stratum-bmv2",
-        "pipeconf": "org.onosproject.pipelines.fabric-spgw",
+        "pipeconf": "org.stratumproject.fabric-spgw.bmv2",
         "locType": "grid",
         "gridX": 200,
         "gridY": 600
@@ -22,7 +22,7 @@
       "basic": {
         "managementAddress": "grpc://mininet:50002?device_id=1",
         "driver": "stratum-bmv2",
-        "pipeconf": "org.onosproject.pipelines.fabric-spgw",
+        "pipeconf": "org.stratumproject.fabric-spgw.bmv2",
         "locType": "grid",
         "gridX": 800,
         "gridY": 600
@@ -40,7 +40,7 @@
       "basic": {
         "managementAddress": "grpc://mininet:50003?device_id=1",
         "driver": "stratum-bmv2",
-        "pipeconf": "org.onosproject.pipelines.fabric",
+        "pipeconf": "org.stratumproject.fabric.bmv2",
         "locType": "grid",
         "gridX": 400,
         "gridY": 400
@@ -58,7 +58,7 @@
       "basic": {
         "managementAddress": "grpc://mininet:50004?device_id=1",
         "driver": "stratum-bmv2",
-        "pipeconf": "org.onosproject.pipelines.fabric",
+        "pipeconf": "org.stratumproject.fabric.bmv2",
         "locType": "grid",
         "gridX": 600,
         "gridY": 400

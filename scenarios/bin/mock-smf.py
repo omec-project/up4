@@ -130,7 +130,7 @@ class Session:
             far_down = craft_far(session=self, far_id=self.downlink.far_id, forward_flag=True,
                                  dst_iface=IFACE_ACCESS, tunnel=self.is_created(),
                                  tunnel_dst=args.enb_addr, teid=self.downlink.teid,
-                                 buffer_flag=args.buffer)
+                                 buffer_flag=args.buffer, notifycp_flag=args.notifycp)
             self.add_to_req_if_rule_new(request, far_down, self.downlink.far_id, "far")
 
         if add_qers:
@@ -329,7 +329,7 @@ def craft_pdr(session: Session, flow: UeFlow, src_iface: int, from_tunnel=False,
 
 
 def craft_far(session: Session, far_id: int, forward_flag=False, drop_flag=False, buffer_flag=False,
-              dst_iface: int = None, tunnel=False, tunnel_dst: str = None,
+              notifycp_flag=False, dst_iface: int = None, tunnel=False, tunnel_dst: str = None,
               teid: int = None) -> pfcp.IE_Compound:
     update = far_id in session.sent_fars
     far = pfcp.IE_UpdateFAR() if update else pfcp.IE_CreateFAR()
@@ -342,6 +342,7 @@ def craft_far(session: Session, far_id: int, forward_flag=False, drop_flag=False
     apply_action.FORW = int(forward_flag)
     apply_action.DROP = int(drop_flag)
     apply_action.BUFF = int(buffer_flag)
+    apply_action.NOCP = int(notifycp_flag)
     far.IE_list.append(apply_action)
 
     # Forwarding Parameters
@@ -664,6 +665,9 @@ def handle_user_input(input_file: Optional[IO] = None, output_file: Optional[IO]
     parser.add_argument(
         "--buffer", action='store_true',
         help="If this argument is present, downlink FARs will have the buffering flag set to true")
+    parser.add_argument(
+        "--notifycp", action='store_true',
+        help="If this argument is present, downlink FARs will have the notify CP flag set to true")
     parser.add_argument("--ue-pool", type=IPv4Network, default=IPv4Network("17.0.0.0/24"),
                         help="The IPv4 prefix from which UE addresses will be drawn.")
     parser.add_argument("--s1u-addr", type=IPv4Address, default=IPv4Address("140.0.0.1"),

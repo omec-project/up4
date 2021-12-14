@@ -5,7 +5,7 @@
 <scenario name="smoke" description="UP4 smoke test">
     <import file="./setup.xml"/>
     <import file="./net-setup.xml"/>
-    <import file="./p4rt-forwarding-qos.xml"/>
+    <!-- <import file="./p4rt-forwarding-qos.xml"/> -->
     <import file="./p4rt-end-marker.xml"/>
     <import file="./pfcp-forwarding.xml"/>
     <import file="./pfcp-buffering.xml"/>
@@ -19,9 +19,11 @@
     <dependency name="No-Forwarding" requires="Net-Setup"/>
     <dependency name="Smf-Setup" requires="Net-Setup"/>
     <!-- FIXME: replace with equivalent scenario where mock smf sends qos rules -->
-    <dependency name="P4rt-Forwarding-Qos" requires="No-Forwarding"/>
+    <!-- FIXME: uncomment P4rt-Forwarding-Qos and set it as requirement of 'P4rt-End-Marker',
+                when QFI is implemented in fabric-tna -->
+    <!-- <dependency name="P4rt-Forwarding-Qos" requires="No-Forwarding"/> -->
     <!-- FIXME: replace with equivalent scenario where mock smf sends end markers -->
-    <dependency name="P4rt-End-Marker" requires="P4rt-Forwarding-Qos"/>
+    <dependency name="P4rt-End-Marker" requires="No-Forwarding"/>
     <dependency name="Pfcp-Forwarding" requires="Smf-Setup,P4rt-End-Marker"/>
     <dependency name="Pfcp-Buffering" requires="Pfcp-Forwarding"/>
     <dependency name="Pfcp-Agent-Failure" requires="Pfcp-Buffering"/>

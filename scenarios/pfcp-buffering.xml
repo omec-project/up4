@@ -14,7 +14,7 @@
                     <step name="Pfcp-Buffer-Session-Create-${#}" requires="Push-Netcfg-Dbuf" delay="5"
                           exec="mock-smf-cmd create --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                     <step name="Pfcp-Buffer-Session-Modify-${#}" requires="^" delay="5"
-                          exec="mock-smf-cmd modify --buffer --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                          exec="mock-smf-cmd modify --buffer --notifycp --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-Buff" requires="Pfcp-Push-Buff" delay="5"

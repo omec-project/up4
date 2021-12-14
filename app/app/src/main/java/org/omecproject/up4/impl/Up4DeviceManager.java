@@ -886,6 +886,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private class InternalDeviceListener implements DeviceListener {
         @Override
         public void event(DeviceEvent event) {
+            eventExecutor.execute(() -> internalEventHandler(event));
+        }
+
+        private void internalEventHandler(DeviceEvent event) {
             DeviceId deviceId = event.subject().id();
             if (upfDevices.contains(deviceId)) {
                 switch (event.type()) {
@@ -918,50 +922,53 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private class InternalConfigListener implements NetworkConfigListener {
         @Override
         public void event(NetworkConfigEvent event) {
-            switch (event.type()) {
-                case CONFIG_UPDATED:
-                case CONFIG_ADDED:
-                    if (event.config().isEmpty()) {
-                        return;
-                    }
-                    if (event.configClass().equals(Up4Config.class)) {
-                        upfUpdateConfig((Up4Config) event.config().get());
-                    } else if (event.configClass().equals(Up4DbufConfig.class)) {
-                        dbufUpdateConfig((Up4DbufConfig) event.config().get());
-                    }
-                    log.info("{} updated", event.configClass().getSimpleName());
-                    break;
-                case CONFIG_REMOVED:
-                    if (event.configClass().equals(Up4Config.class)) {
-                        upfUpdateConfig(null);
-                    } else if (event.configClass().equals(Up4DbufConfig.class)) {
-                        dbufUpdateConfig(null);
-                    }
-                    log.info("{} removed", event.configClass().getSimpleName());
-                    break;
-                case CONFIG_REGISTERED:
-                case CONFIG_UNREGISTERED:
-                    break;
-                default:
-                    log.warn("Unsupported event type {}", event.type());
-                    break;
-            }
+            eventExecutor.execute(() -> internalEventHandler(event));
         }
 
-        @Override
-        public boolean isRelevant(NetworkConfigEvent event) {
+        private void internalEventHandler(NetworkConfigEvent event) {
             if (Up4Config.class.equals(event.configClass()) ||
                     Up4DbufConfig.class.equals(event.configClass())) {
-                return true;
+                switch (event.type()) {
+                    case CONFIG_UPDATED:
+                    case CONFIG_ADDED:
+                        if (event.config().isEmpty()) {
+                            return;
+                        }
+                        if (event.configClass().equals(Up4Config.class)) {
+                            upfUpdateConfig((Up4Config) event.config().get());
+                        } else if (event.configClass().equals(Up4DbufConfig.class)) {
+                            dbufUpdateConfig((Up4DbufConfig) event.config().get());
+                        }
+                        log.info("{} updated", event.configClass().getSimpleName());
+                        break;
+                    case CONFIG_REMOVED:
+                        if (event.configClass().equals(Up4Config.class)) {
+                            upfUpdateConfig(null);
+                        } else if (event.configClass().equals(Up4DbufConfig.class)) {
+                            dbufUpdateConfig(null);
+                        }
+                        log.info("{} removed", event.configClass().getSimpleName());
+                        break;
+                    case CONFIG_REGISTERED:
+                    case CONFIG_UNREGISTERED:
+                        break;
+                    default:
+                        log.warn("Unsupported event type {}", event.type());
+                        break;
+                }
+            } else {
+                log.debug("Ignore irrelevant event class {}", event.configClass().getName());
             }
-            log.debug("Ignore irrelevant event class {}", event.configClass().getName());
-            return false;
         }
     }
 
     private class InternalPiPipeconfListener implements PiPipeconfListener {
         @Override
         public void event(PiPipeconfEvent event) {
+            eventExecutor.execute(() -> internalEventHandler(event));
+        }
+
+        private void internalEventHandler(PiPipeconfEvent event) {
             switch (event.type()) {
                 case REGISTERED:
                     // Recover the case where pipeconf was not ready while we initialized upfProgrammable
