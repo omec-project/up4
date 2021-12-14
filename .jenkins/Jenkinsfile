@@ -12,6 +12,9 @@ pipeline {
   agent {
     label "${params.buildNode}"
   }
+  options {
+    timeout(time: 20, unit: 'MINUTES')
+  }
 
   environment {
     UP4_ENV = "${up4Env}"
