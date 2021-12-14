@@ -9,9 +9,7 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Option;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
-import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
-import org.onosproject.net.behaviour.upf.UpfTermination;
 
 /**
  * UP4 UPF termination command.
@@ -54,20 +52,21 @@ public class TerminationCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
-        UpfTermination.Builder termBuilder = UpfTermination.builder()
-                .withUeSessionId(Ip4Address.valueOf(ueAddr))
-                .withTrafficClass(trafficClass);
-        if ((teid == -1 && qfi != -1) || (teid != -1 && qfi == -1)) {
-            print("TEID and QFI must be provided together or not at all");
-        }
-        if (teid != -1 && qfi != -1) {
-            termBuilder.withTeid(teid)
-                    .withQfi(qfi);
-        }
-        if (delete) {
-            app.delete(termBuilder.build());
-        } else {
-            app.apply(termBuilder.build());
-        }
+        //TODO
+//        UpfTermination.Builder termBuilder = UpfTermination.builder()
+//                .withUeSessionId(Ip4Address.valueOf(ueAddr))
+//                .withTrafficClass(trafficClass);
+//        if ((teid == -1 && qfi != -1) || (teid != -1 && qfi == -1)) {
+//            print("TEID and QFI must be provided together or not at all");
+//        }
+//        if (teid != -1 && qfi != -1) {
+//            termBuilder.withTeid(teid)
+//                    .withQfi(qfi);
+//        }
+//        if (delete) {
+//            app.delete(termBuilder.build());
+//        } else {
+//            app.apply(termBuilder.build());
+//        }
     }
 }

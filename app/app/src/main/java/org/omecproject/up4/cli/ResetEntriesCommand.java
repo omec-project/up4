@@ -25,8 +25,10 @@ public class ResetEntriesCommand extends AbstractShellCommand {
         Up4AdminService app = get(Up4AdminService.class);
 
         print("Clearing all UP4 dataplane table entries.");
-        app.adminDeleteAll(UpfEntityType.SESSION);
-        app.adminDeleteAll(UpfEntityType.TERMINATION);
+        app.adminDeleteAll(UpfEntityType.SESSION_UPLINK);
+        app.adminDeleteAll(UpfEntityType.SESSION_DOWNLINK);
+        app.adminDeleteAll(UpfEntityType.TERMINATION_UPLINK);
+        app.adminDeleteAll(UpfEntityType.TERMINATION_DOWNLINK);
         app.adminDeleteAll(UpfEntityType.TUNNEL_PEER);
         app.adminDeleteAll(UpfEntityType.INTERFACE);
         print("Reinstalling UP4 interfaces and DBUF GTP Tunnel from app configuration.");

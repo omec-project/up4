@@ -19,8 +19,10 @@ import java.util.List;
 public class MockUp4Service implements Up4Service {
     boolean upfProgrammableAvailable = true;
     boolean configAvailable = true;
-    final List<UpfEntity> sessions = new ArrayList<>();
-    final List<UpfEntity> terminations = new ArrayList<>();
+    final List<UpfEntity> sessionsUl = new ArrayList<>();
+    final List<UpfEntity> sessionsDl = new ArrayList<>();
+    final List<UpfEntity> terminationsUl = new ArrayList<>();
+    final List<UpfEntity> terminationsDl = new ArrayList<>();
     final List<UpfEntity> tunnelPeers = new ArrayList<>();
     final List<UpfEntity> ifaces = new ArrayList<>();
     final List<ByteBuffer> sentPacketOuts = new ArrayList<>();
@@ -61,11 +63,17 @@ public class MockUp4Service implements Up4Service {
             case INTERFACE:
                 ifaces.add(entity);
                 break;
-            case TERMINATION:
-                terminations.add(entity);
+            case TERMINATION_UPLINK:
+                terminationsUl.add(entity);
                 break;
-            case SESSION:
-                sessions.add(entity);
+            case TERMINATION_DOWNLINK:
+                terminationsDl.add(entity);
+                break;
+            case SESSION_UPLINK:
+                sessionsUl.add(entity);
+                break;
+            case SESSION_DOWNLINK:
+                sessionsDl.add(entity);
                 break;
             case TUNNEL_PEER:
                 tunnelPeers.add(entity);
@@ -81,10 +89,14 @@ public class MockUp4Service implements Up4Service {
         switch (entityType) {
             case INTERFACE:
                 return ifaces;
-            case TERMINATION:
-                return terminations;
-            case SESSION:
-                return sessions;
+            case TERMINATION_UPLINK:
+                return terminationsUl;
+            case TERMINATION_DOWNLINK:
+                return terminationsDl;
+            case SESSION_UPLINK:
+                return sessionsUl;
+            case SESSION_DOWNLINK:
+                return sessionsDl;
             case TUNNEL_PEER:
                 return tunnelPeers;
             default:
@@ -134,11 +146,17 @@ public class MockUp4Service implements Up4Service {
             case INTERFACE:
                 entities = ifaces;
                 break;
-            case TERMINATION:
-                entities = terminations;
+            case TERMINATION_UPLINK:
+                entities = terminationsUl;
                 break;
-            case SESSION:
-                entities = sessions;
+            case TERMINATION_DOWNLINK:
+                entities = terminationsDl;
+                break;
+            case SESSION_UPLINK:
+                entities = sessionsUl;
+                break;
+            case SESSION_DOWNLINK:
+                entities = sessionsDl;
                 break;
             case TUNNEL_PEER:
                 entities = tunnelPeers;
@@ -158,11 +176,17 @@ public class MockUp4Service implements Up4Service {
             case INTERFACE:
                 ifaces.clear();
                 break;
-            case TERMINATION:
-                terminations.clear();
+            case TERMINATION_UPLINK:
+                terminationsUl.clear();
                 break;
-            case SESSION:
-                sessions.clear();
+            case TERMINATION_DOWNLINK:
+                terminationsDl.clear();
+                break;
+            case SESSION_UPLINK:
+                sessionsUl.clear();
+                break;
+            case SESSION_DOWNLINK:
+                sessionsDl.clear();
                 break;
             case TUNNEL_PEER:
                 tunnelPeers.clear();
@@ -177,9 +201,11 @@ public class MockUp4Service implements Up4Service {
         switch (entityType) {
             case INTERFACE:
                 return TestImplConstants.PHYSICAL_MAX_INTERFACES;
-            case TERMINATION:
+            case TERMINATION_DOWNLINK:
+            case TERMINATION_UPLINK:
                 return TestImplConstants.PHYSICAL_MAX_TERMINATIONS;
-            case SESSION:
+            case SESSION_UPLINK:
+            case SESSION_DOWNLINK:
                 return TestImplConstants.PHYSICAL_MAX_SESSIONS;
             case TUNNEL_PEER:
                 return TestImplConstants.PHYSICAL_MAX_TUNNEL_PEERS;

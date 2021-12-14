@@ -9,9 +9,7 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Option;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
-import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
-import org.onosproject.net.behaviour.upf.UeSession;
 
 /**
  * UP4 UE session command.
@@ -51,18 +49,18 @@ public class SessionCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
-
-        UeSession.Builder sessBuilder = UeSession.builder()
-                .withBuffering(buff)
-                .withIpv4Address(Ip4Address.valueOf(dstAddr));
-        if (teid != -1 && tunnelPeer != -1) {
-            sessBuilder.withGtpTunnelPeerId(tunnelPeer)
-                    .withTeid(teid);
-        }
-        if (delete) {
-            app.delete(sessBuilder.build());
-        } else {
-            app.apply(sessBuilder.build());
-        }
+        //TODO
+//        UeSession.Builder sessBuilder = UeSession.builder()
+//                .needsBuffering(buff)
+//                .withIpv4Address(Ip4Address.valueOf(dstAddr));
+//        if (teid != -1 && tunnelPeer != -1) {
+//            sessBuilder.withGtpTunnelPeerId(tunnelPeer)
+//                    .withTeid(teid);
+//        }
+//        if (delete) {
+//            app.delete(sessBuilder.build());
+//        } else {
+//            app.apply(sessBuilder.build());
+//        }
     }
 }

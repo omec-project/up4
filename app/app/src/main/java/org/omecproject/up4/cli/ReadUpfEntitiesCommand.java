@@ -13,7 +13,8 @@ import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
-import org.onosproject.net.behaviour.upf.UpfTermination;
+import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
+import org.onosproject.net.behaviour.upf.UpfTerminationUplink;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -71,22 +72,28 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
         try {
             List<UpfEntityType> printedTypes = new ArrayList<>();
             if (all) {
-                printedTypes.add(UpfEntityType.SESSION);
-                printedTypes.add(UpfEntityType.TERMINATION);
+                printedTypes.add(UpfEntityType.SESSION_UPLINK);
+                printedTypes.add(UpfEntityType.SESSION_DOWNLINK);
+                printedTypes.add(UpfEntityType.TERMINATION_UPLINK);
+                printedTypes.add(UpfEntityType.TERMINATION_DOWNLINK);
                 printedTypes.add(UpfEntityType.TUNNEL_PEER);
                 printedTypes.add(UpfEntityType.INTERFACE);
                 filterCounters = true;
             } else if (ue) {
-                printedTypes.add(UpfEntityType.SESSION);
-                printedTypes.add(UpfEntityType.TERMINATION);
+                printedTypes.add(UpfEntityType.SESSION_UPLINK);
+                printedTypes.add(UpfEntityType.SESSION_DOWNLINK);
+                printedTypes.add(UpfEntityType.TERMINATION_UPLINK);
+                printedTypes.add(UpfEntityType.TERMINATION_DOWNLINK);
                 printedTypes.add(UpfEntityType.TUNNEL_PEER);
                 filterCounters = true;
             } else {
                 if (sessions) {
-                    printedTypes.add(UpfEntityType.SESSION);
+                    printedTypes.add(UpfEntityType.SESSION_UPLINK);
+                    printedTypes.add(UpfEntityType.SESSION_DOWNLINK);
                 }
                 if (termination) {
-                    printedTypes.add(UpfEntityType.TERMINATION);
+                    printedTypes.add(UpfEntityType.TERMINATION_UPLINK);
+                    printedTypes.add(UpfEntityType.TERMINATION_DOWNLINK);
                 }
                 if (tunnels) {
                     printedTypes.add(UpfEntityType.TUNNEL_PEER);
@@ -100,17 +107,26 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                 }
             }
             for (var type : printedTypes) {
-                if (!type.equals(UpfEntityType.TERMINATION)) {
-                    up4Admin.adminReadAll(type).forEach(upfEntity -> print(upfEntity.toString()));
-                } else {
+                if (type.equals(UpfEntityType.TERMINATION_UPLINK)) {
                     Collection<? extends UpfEntity> terminations = up4Admin.adminReadAll(type);
                     for (var t : terminations) {
-                        UpfTermination term = (UpfTermination) t;
+                        UpfTerminationUplink term = (UpfTerminationUplink) t;
                         print(term.toString());
                         if (filterCounters) {
                             print(up4Service.readCounter(term.counterId()).toString());
                         }
                     }
+                } else if (type.equals(UpfEntityType.TERMINATION_DOWNLINK)) {
+                    Collection<? extends UpfEntity> terminations = up4Admin.adminReadAll(type);
+                    for (var t : terminations) {
+                        UpfTerminationDownlink term = (UpfTerminationDownlink) t;
+                        print(term.toString());
+                        if (filterCounters) {
+                            print(up4Service.readCounter(term.counterId()).toString());
+                        }
+                    }
+                } else {
+                    up4Admin.adminReadAll(type).forEach(upfEntity -> print(upfEntity.toString()));
                 }
             }
         } catch (UpfProgrammableException e) {

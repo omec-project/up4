@@ -56,8 +56,18 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
+    public void up4EntryToDownlinkSessionDbufTest() {
+        up4ToUpfEntity(TestImplConstants.DOWNLINK_SESSION_DBUF, TestImplConstants.UP4_DOWNLINK_SESSION_DBUF);
+    }
+
+    @Test
     public void up4EntryToUplinkTerminationTest() {
         up4ToUpfEntity(TestImplConstants.UPLINK_TERMINATION, TestImplConstants.UP4_UPLINK_TERMINATION);
+    }
+
+    @Test
+    public void up4EntryToUplinkTerminationDropTest() {
+        up4ToUpfEntity(TestImplConstants.UPLINK_TERMINATION_DROP, TestImplConstants.UP4_UPLINK_TERMINATION_DROP);
     }
 
     @Test
@@ -66,8 +76,8 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
-    public void up4EntryToDownlinkTerminationQosTest() {
-        up4ToUpfEntity(TestImplConstants.DOWNLINK_TERMINATION_QOS, TestImplConstants.UP4_DOWNLINK_TERMINATION_QOS);
+    public void up4EntryToDownlinkTerminationDropTest() {
+        up4ToUpfEntity(TestImplConstants.DOWNLINK_TERMINATION_DROP, TestImplConstants.UP4_DOWNLINK_TERMINATION_DROP);
     }
 
     @Test
@@ -106,8 +116,18 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
+    public void downlinkSessionDbufToUp4EntryTest() {
+        upfEntityToUp4(TestImplConstants.UP4_DOWNLINK_SESSION_DBUF, TestImplConstants.DOWNLINK_SESSION_DBUF);
+    }
+
+    @Test
     public void uplinkTerminationToUp4EntryTest() {
         upfEntityToUp4(TestImplConstants.UP4_UPLINK_TERMINATION, TestImplConstants.UPLINK_TERMINATION);
+    }
+
+    @Test
+    public void uplinkTerminationDropToUp4EntryTest() {
+        upfEntityToUp4(TestImplConstants.UP4_UPLINK_TERMINATION_DROP, TestImplConstants.UPLINK_TERMINATION_DROP);
     }
 
     @Test
@@ -116,7 +136,7 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
-    public void downlinkTerminationQosToUp4EntryTest() {
-        upfEntityToUp4(TestImplConstants.UP4_DOWNLINK_TERMINATION_QOS, TestImplConstants.DOWNLINK_TERMINATION_QOS);
+    public void downlinkTerminationDropToUp4EntryTest() {
+        upfEntityToUp4(TestImplConstants.UP4_DOWNLINK_TERMINATION_DROP, TestImplConstants.DOWNLINK_TERMINATION_DROP);
     }
 }

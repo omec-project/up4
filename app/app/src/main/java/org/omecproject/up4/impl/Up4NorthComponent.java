@@ -71,8 +71,10 @@ import static org.omecproject.up4.impl.AppConstants.PIPECONF_ID;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.DDN_DIGEST_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.POST_QOS_PIPE_POST_QOS_COUNTER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_PRE_QOS_COUNTER;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_DOWNLINK;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_UPLINK;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_DOWNLINK;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_UPLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TUNNEL_PEERS;
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
 
@@ -262,21 +264,27 @@ public class Up4NorthComponent {
                 .clearCounters()
                 .clearTables();
         long physicalCounterSize;
-        long physicalSessionsTableSize;
-        long physicalTerminationsTableSize;
+        long physicalSessionsUlTableSize;
+        long physicalSessionsDlTableSize;
+        long physicalTerminationsUlTableSize;
+        long physicalTerminationsDlTableSize;
         long physicalTunnelPeerTableSize;
         try {
             physicalCounterSize = up4Service.tableSize(UpfEntityType.COUNTER);
-            physicalSessionsTableSize = up4Service.tableSize(UpfEntityType.SESSION);
-            physicalTerminationsTableSize = up4Service.tableSize(UpfEntityType.TERMINATION);
+            physicalSessionsUlTableSize = up4Service.tableSize(UpfEntityType.SESSION_UPLINK);
+            physicalSessionsDlTableSize = up4Service.tableSize(UpfEntityType.SESSION_DOWNLINK);
+            physicalTerminationsUlTableSize = up4Service.tableSize(UpfEntityType.TERMINATION_UPLINK);
+            physicalTerminationsDlTableSize = up4Service.tableSize(UpfEntityType.TERMINATION_DOWNLINK);
             physicalTunnelPeerTableSize = up4Service.tableSize(UpfEntityType.TUNNEL_PEER);
         } catch (UpfProgrammableException e) {
             throw new IllegalStateException("Error while getting physical sizes! " + e.getMessage());
         }
         int ingressPdrCounterId;
         int egressPdrCounterId;
-        int sessionsTable;
-        int terminationsTable;
+        int sessionsUlTable;
+        int sessionsDlTable;
+        int terminationsUlTable;
+        int terminationsDlTable;
         int tunnelPeerTable;
         try {
             P4InfoBrowser browser = PipeconfHelper.getP4InfoBrowser(pipeconf);
@@ -284,10 +292,14 @@ public class Up4NorthComponent {
                     .getByName(PRE_QOS_PIPE_PRE_QOS_COUNTER.id()).getPreamble().getId();
             egressPdrCounterId = browser.counters()
                     .getByName(POST_QOS_PIPE_POST_QOS_COUNTER.id()).getPreamble().getId();
-            sessionsTable = browser.tables()
-                    .getByName(PRE_QOS_PIPE_SESSIONS.id()).getPreamble().getId();
-            terminationsTable = browser.tables()
-                    .getByName(PRE_QOS_PIPE_TERMINATIONS.id()).getPreamble().getId();
+            sessionsUlTable = browser.tables()
+                    .getByName(PRE_QOS_PIPE_SESSIONS_UPLINK.id()).getPreamble().getId();
+            sessionsDlTable = browser.tables()
+                    .getByName(PRE_QOS_PIPE_SESSIONS_DOWNLINK.id()).getPreamble().getId();
+            terminationsUlTable = browser.tables()
+                    .getByName(PRE_QOS_PIPE_TERMINATIONS_UPLINK.id()).getPreamble().getId();
+            terminationsDlTable = browser.tables()
+                    .getByName(PRE_QOS_PIPE_TERMINATIONS_DOWNLINK.id()).getPreamble().getId();
             tunnelPeerTable = browser.tables()
                     .getByName(PRE_QOS_PIPE_TUNNEL_PEERS.id()).getPreamble().getId();
         } catch (P4InfoBrowser.NotFoundException e) {
@@ -306,14 +318,22 @@ public class Up4NorthComponent {
             }
         });
         p4Info.getTablesList().forEach(table -> {
-            if (table.getPreamble().getId() == sessionsTable) {
+            if (table.getPreamble().getId() == sessionsUlTable) {
                 newP4InfoBuilder.addTables(
                         P4InfoOuterClass.Table.newBuilder(table)
-                                .setSize(physicalSessionsTableSize).build());
-            } else if (table.getPreamble().getId() == terminationsTable) {
+                                .setSize(physicalSessionsUlTableSize).build());
+            } else if (table.getPreamble().getId() == sessionsDlTable) {
                 newP4InfoBuilder.addTables(
                         P4InfoOuterClass.Table.newBuilder(table)
-                                .setSize(physicalTerminationsTableSize).build());
+                                .setSize(physicalSessionsDlTableSize).build());
+            } else if (table.getPreamble().getId() == terminationsUlTable) {
+                newP4InfoBuilder.addTables(
+                        P4InfoOuterClass.Table.newBuilder(table)
+                                .setSize(physicalTerminationsUlTableSize).build());
+            } else if (table.getPreamble().getId() == terminationsDlTable) {
+                newP4InfoBuilder.addTables(
+                        P4InfoOuterClass.Table.newBuilder(table)
+                                .setSize(physicalTerminationsDlTableSize).build());
             } else if (table.getPreamble().getId() == tunnelPeerTable) {
                 newP4InfoBuilder.addTables(
                         P4InfoOuterClass.Table.newBuilder(table)

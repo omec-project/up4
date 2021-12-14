@@ -130,8 +130,6 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.set_session_downlink");
     public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF =
             PiActionId.of("PreQosPipe.set_session_downlink_buff");
-    public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF_DROP =
-            PiActionId.of("PreQosPipe.set_session_downlink_buff_drop");
     public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK_DROP =
             PiActionId.of("PreQosPipe.set_session_downlink_drop");
     public static final PiActionId PRE_QOS_PIPE_SET_SESSION_UPLINK =

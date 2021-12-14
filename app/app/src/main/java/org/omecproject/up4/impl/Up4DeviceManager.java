@@ -25,7 +25,7 @@ import org.onosproject.mastership.MastershipService;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
-import org.onosproject.net.behaviour.upf.UeSession;
+import org.onosproject.net.behaviour.upf.SessionDownlink;
 import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfDevice;
 import org.onosproject.net.behaviour.upf.UpfEntity;
@@ -33,7 +33,8 @@ import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfProgrammable;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
-import org.onosproject.net.behaviour.upf.UpfTermination;
+import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
+import org.onosproject.net.behaviour.upf.UpfTerminationUplink;
 import org.onosproject.net.config.ConfigFactory;
 import org.onosproject.net.config.NetworkConfigEvent;
 import org.onosproject.net.config.NetworkConfigListener;
@@ -581,35 +582,50 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         up4Store.reset();
     }
 
-    private UeSession convertToBuffering(UeSession sess) {
-        return UeSession.builder()
-                .withBuffering(true)
-                // Towards southbound, specify the DBUF_TUNNEL_ID
-                .withGtpTunnelPeerId(DBUF_TUNNEL_ID)
-                .withIpv4Address(sess.ipv4Address())
-                .withQfi(sess.qfi())
-                .withTeid(sess.teid())
-                .build();
+    private SessionDownlink convertToBuffering(SessionDownlink sess) {
+        SessionDownlink.Builder sessBuilder = SessionDownlink.builder()
+                .needsBuffering(true)
+                .withUeAddress(sess.ueAddress());
+
+        if (dbufTunnel == null) {
+            sessBuilder.withGtpTunnelPeerId(DBUF_TUNNEL_ID);
+        } else {
+            // When we don't have dbuf deployed, we need to drop traffic.
+            sessBuilder.needsDropping(true);
+        }
+        return sessBuilder.build();
     }
 
     @Override
     public void apply(UpfEntity entity) throws UpfProgrammableException {
         switch (entity.type()) {
-            case SESSION:
-                UeSession sess = (UeSession) entity;
-                if (sess.needsBuffering()) {
+            case SESSION_DOWNLINK:
+                SessionDownlink sessDl = (SessionDownlink) entity;
+                if (sessDl.needsBuffering()) {
                     // Override tunnel peer id with the DBUF
-                    entity = convertToBuffering(sess);
-                    up4Store.learnBufferingUe(sess.ipv4Address());
+                    entity = convertToBuffering(sessDl);
+                    up4Store.learnBufferingUe(sessDl.ueAddress());
                 }
                 break;
-            case TERMINATION:
-                UpfTermination term = (UpfTermination) entity;
-                if (isMaxUeSet() && term.counterId() >= getMaxUe() * 2) {
+            case TERMINATION_UPLINK:
+                UpfTerminationUplink termUl = (UpfTerminationUplink) entity;
+                if (isMaxUeSet() && termUl.counterId() >= getMaxUe() * 2) {
                     throw new UpfProgrammableException(
-                            "Counter cell index referenced by UPF termination rule above max supported UE value.",
+                            "Counter cell index referenced by uplink UPF termination " +
+                                    "rule above max supported UE value.",
                             UpfProgrammableException.Type.ENTITY_OUT_OF_RANGE,
-                            UpfEntityType.TERMINATION
+                            UpfEntityType.TERMINATION_UPLINK
+                    );
+                }
+                break;
+            case TERMINATION_DOWNLINK:
+                UpfTerminationDownlink termDl = (UpfTerminationDownlink) entity;
+                if (isMaxUeSet() && termDl.counterId() >= getMaxUe() * 2) {
+                    throw new UpfProgrammableException(
+                            "Counter cell index referenced by downlink UPF termination " +
+                                    "rule above max supported UE value.",
+                            UpfProgrammableException.Type.ENTITY_OUT_OF_RANGE,
+                            UpfEntityType.TERMINATION_DOWNLINK
                     );
                 }
                 break;
@@ -630,14 +646,14 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
         getLeaderUpfProgrammable().apply(entity);
         // Drain from DBUF if necessary
-        if (entity.type().equals(UpfEntityType.SESSION)) {
-            UeSession sess = (UeSession) entity;
-            if (!sess.needsBuffering() && up4Store.forgetBufferingUe(sess.ipv4Address())) {
+        if (entity.type().equals(UpfEntityType.SESSION_DOWNLINK)) {
+            SessionDownlink sess = (SessionDownlink) entity;
+            if (!sess.needsBuffering() && up4Store.forgetBufferingUe(sess.ueAddress())) {
                 // TODO: Should we wait for rules to be installed on all devices before
                 //   triggering drain?
                 // Run the outbound rpc in a forked context so it doesn't cancel if it was called
                 // by an inbound rpc that completes faster than the drain call
-                Ip4Address ueAddr = sess.ipv4Address();
+                Ip4Address ueAddr = sess.ueAddress();
                 Context ctx = Context.current().fork();
                 ctx.run(() -> {
                     if (dbufClient == null) {
@@ -672,20 +688,18 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     public Collection<? extends UpfEntity> readAll(UpfEntityType entityType) throws UpfProgrammableException {
         Collection<? extends UpfEntity> entities = getLeaderUpfProgrammable().readAll(entityType);
         switch (entityType) {
-            case SESSION:
+            case SESSION_DOWNLINK:
                 // TODO: this might be an overkill, however reads are required
                 //  only during reconciliation, so this shouldn't affect the
                 //  attachment and detachment of UEs.
                 // Map the DBUF entities back to be BUFFERING entities.
                 return entities.stream().map(e -> {
-                    UeSession sess = (UeSession) e;
-                    if (!sess.isUplink() && sess.tunPeerId() == DBUF_TUNNEL_ID) {
-                        return UeSession.builder()
-                                .withBuffering(true)
-                                // Towards northbound, DO not specify the DBUF_TUNNEL_ID
-                                .withQfi(sess.qfi())
-                                .withIpv4Address(sess.ipv4Address())
-                                .withTeid(sess.teid())
+                    SessionDownlink sess = (SessionDownlink) e;
+                    if (sess.tunPeerId() == DBUF_TUNNEL_ID) {
+                        return SessionDownlink.builder()
+                                .needsBuffering(true)
+                                // Towards northbound, do not specify tunnel peer id
+                                .withUeAddress(sess.ueAddress())
                                 .build();
                     }
                     return e;
@@ -739,13 +753,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Override
     public void delete(UpfEntity entity) throws UpfProgrammableException {
         switch (entity.type()) {
-            case SESSION:
-                UeSession sess = (UeSession) entity;
+            case SESSION_DOWNLINK:
+                SessionDownlink sess = (SessionDownlink) entity;
                 if (sess.needsBuffering()) {
                     entity = convertToBuffering(sess);
                     // TODO: should we always trigger forget to be sure we don't
                     //  leave stale state in UP4?
-                    up4Store.forgetBufferingUe(sess.ipv4Address());
+                    up4Store.forgetBufferingUe(sess.ueAddress());
                 }
                 break;
             case INTERFACE:
@@ -804,15 +818,23 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     public long tableSize(UpfEntityType entityType) throws UpfProgrammableException {
         long entitySize = getLeaderUpfProgrammable().tableSize(entityType);
         switch (entityType) {
-            case TERMINATION:
-            case SESSION:
+            case TERMINATION_UPLINK:
+            case TERMINATION_DOWNLINK:
+            case SESSION_UPLINK:
+            case SESSION_DOWNLINK:
+                if (isMaxUeSet()) {
+                    return Math.min(config.maxUes(), entitySize);
+                }
+                break;
             case COUNTER:
                 if (isMaxUeSet()) {
                     return Math.min(config.maxUes() * 2, entitySize);
                 }
+                break;
             default:
-                return entitySize;
+
         }
+        return entitySize;
     }
 
     @Override
@@ -1065,8 +1087,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             log.trace("Running reconciliation task...");
             assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
             Collection<UpfEntity> leaderState =
-                    (Collection<UpfEntity>) getLeaderUpfProgrammable().readAll(UpfEntityType.SESSION);
-            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TERMINATION));
+                    (Collection<UpfEntity>) getLeaderUpfProgrammable().readAll(UpfEntityType.SESSION_UPLINK);
+            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.SESSION_DOWNLINK));
+            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TERMINATION_UPLINK));
+            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TERMINATION_DOWNLINK));
             leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.INTERFACE));
             leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TUNNEL_PEER));
 
@@ -1080,8 +1104,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     continue;
                 }
                 Collection<UpfEntity> followerState =
-                        (Collection<UpfEntity>) upfProg.readAll(UpfEntityType.SESSION);
-                followerState.addAll(upfProg.readAll(UpfEntityType.TERMINATION));
+                        (Collection<UpfEntity>) upfProg.readAll(UpfEntityType.SESSION_UPLINK);
+                followerState.addAll(upfProg.readAll(UpfEntityType.SESSION_DOWNLINK));
+                followerState.addAll(upfProg.readAll(UpfEntityType.TERMINATION_UPLINK));
+                followerState.addAll(upfProg.readAll(UpfEntityType.TERMINATION_DOWNLINK));
                 followerState.addAll(upfProg.readAll(UpfEntityType.INTERFACE));
                 followerState.addAll(upfProg.readAll(UpfEntityType.TUNNEL_PEER));
 

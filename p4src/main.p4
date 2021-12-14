@@ -199,13 +199,8 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.needs_dropping = true;
     }
 
-    action set_session_downlink_buff(tunnel_peer_id_t tunnel_peer_id) {
-        local_meta.tunnel_peer_id = tunnel_peer_id;
+    action set_session_downlink_buff() {
         local_meta.needs_buffering = true;
-    }
-
-    action set_session_downlink_buff_drop() {
-        local_meta.needs_dropping = true;
     }
 
     table sessions_uplink {
@@ -229,7 +224,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             set_session_downlink;
             set_session_downlink_drop;
             set_session_downlink_buff;
-            set_session_downlink_buff_drop;
             @defaultonly do_drop;
         }
         const default_action = do_drop;

@@ -5,15 +5,17 @@
 package org.omecproject.up4.impl;
 
 import org.omecproject.up4.Up4Translator;
-import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
-import org.onosproject.net.behaviour.upf.UeSession;
+import org.onosproject.net.behaviour.upf.SessionDownlink;
+import org.onosproject.net.behaviour.upf.SessionUplink;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfInterface;
-import org.onosproject.net.behaviour.upf.UpfTermination;
+import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
+import org.onosproject.net.behaviour.upf.UpfTerminationUplink;
+import org.onosproject.net.pi.model.PiActionId;
 import org.onosproject.net.pi.runtime.PiAction;
 import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiCounterCell;
@@ -22,7 +24,6 @@ import org.onosproject.net.pi.runtime.PiExactFieldMatch;
 import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
 import org.onosproject.net.pi.runtime.PiMatchKey;
 import org.onosproject.net.pi.runtime.PiTableEntry;
-import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,25 +35,30 @@ import static org.omecproject.up4.impl.Up4DeviceManager.SLICE_MOBILE;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.CTR_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DST_ADDR;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_IPV4_DST;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_IPV4_DST_PREFIX;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_SRC_IFACE;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_N3_ADDRESS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TEID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.POST_QOS_PIPE_POST_QOS_COUNTER;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_DROP;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_INTERFACES;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_LOAD_TUNNEL_PARAM;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_PRE_QOS_COUNTER;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_PARAMS_BUFFERING;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_PARAMS_DOWNLINK;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_PARAMS_UPLINK;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_DOWNLINK;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_UPLINK;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_DOWNLINK;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_DOWNLINK_DROP;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_UPLINK;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_UPLINK_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SOURCE_IFACE;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERM_DOWNLINK;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERM_UPLINK;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_DOWNLINK;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_UPLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TUNNEL_PEERS;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_DROP;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.QFI;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SLICE_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SPORT;
@@ -70,12 +76,6 @@ public class Up4TranslatorImpl implements Up4Translator {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-    private final ImmutableByteSequence allOnes32 = ImmutableByteSequence.ofOnes(4);
-    private final ImmutableByteSequence allOnes8 = ImmutableByteSequence.ofOnes(1);
-
-    public static final byte FALSE = (byte) 0x00;
-    public static final byte TRUE = (byte) 0x01;
-
     @Override
     public UpfEntityType getEntityType(PiEntity entry) {
         switch (entry.piEntityType()) {
@@ -83,18 +83,22 @@ public class Up4TranslatorImpl implements Up4Translator {
                 PiTableEntry tableEntry = (PiTableEntry) entry;
                 if (tableEntry.table().equals(PRE_QOS_PIPE_INTERFACES)) {
                     return UpfEntityType.INTERFACE;
-                } else if (tableEntry.table().equals(PRE_QOS_PIPE_SESSIONS)) {
-                    return UpfEntityType.SESSION;
-                } else if (tableEntry.table().equals(PRE_QOS_PIPE_TERMINATIONS)) {
-                    return UpfEntityType.TERMINATION;
+                } else if (tableEntry.table().equals(PRE_QOS_PIPE_SESSIONS_UPLINK)) {
+                    return UpfEntityType.SESSION_UPLINK;
+                } else if (tableEntry.table().equals(PRE_QOS_PIPE_SESSIONS_DOWNLINK)) {
+                    return UpfEntityType.SESSION_DOWNLINK;
+                } else if (tableEntry.table().equals(PRE_QOS_PIPE_TERMINATIONS_UPLINK)) {
+                    return UpfEntityType.TERMINATION_UPLINK;
+                } else if (tableEntry.table().equals(PRE_QOS_PIPE_TERMINATIONS_DOWNLINK)) {
+                    return UpfEntityType.TERMINATION_DOWNLINK;
                 } else if (tableEntry.table().equals(PRE_QOS_PIPE_TUNNEL_PEERS)) {
                     return UpfEntityType.TUNNEL_PEER;
                 }
                 break;
             case COUNTER_CELL:
                 PiCounterCell counterCell = (PiCounterCell) entry;
-                if (counterCell.cellId().equals(POST_QOS_PIPE_POST_QOS_COUNTER) ||
-                        counterCell.cellId().equals(PRE_QOS_PIPE_PRE_QOS_COUNTER)) {
+                if (counterCell.cellId().counterId().equals(POST_QOS_PIPE_POST_QOS_COUNTER) ||
+                        counterCell.cellId().counterId().equals(PRE_QOS_PIPE_PRE_QOS_COUNTER)) {
                     return UpfEntityType.COUNTER;
                 }
                 break;
@@ -123,31 +127,50 @@ public class Up4TranslatorImpl implements Up4Translator {
                 builder.setPrefix(prefix);
                 return builder.build();
             }
-            case SESSION: {
-                UeSession.Builder builder = UeSession.builder();
-                if (entry.matchKey().fieldMatch(HDR_TEID).isPresent()) {
-                    builder.withTeid(Up4TranslatorUtil.getFieldInt(entry, HDR_TEID));
-                }
-                builder.withIpv4Address(Ip4Address.valueOf(
-                        Up4TranslatorUtil.getFieldValue(entry, HDR_IPV4_DST).asArray()));
-                PiAction action = (PiAction) entry.action();
-                if (action.id().equals(PRE_QOS_PIPE_SET_PARAMS_DOWNLINK)) {
+            case SESSION_UPLINK: {
+                SessionUplink.Builder builder = SessionUplink.builder();
+                builder.withTeid(Up4TranslatorUtil.getFieldInt(entry, HDR_TEID));
+                builder.withTunDstAddr(Up4TranslatorUtil.getFieldAddress(entry, HDR_N3_ADDRESS));
+                PiActionId actionId = ((PiAction) entry.action()).id();
+                builder.needsDropping(actionId.equals(PRE_QOS_PIPE_SET_SESSION_UPLINK_DROP));
+                return builder.build();
+            }
+            case SESSION_DOWNLINK: {
+                SessionDownlink.Builder builder = SessionDownlink.builder();
+                builder.withUeAddress(Up4TranslatorUtil.getFieldAddress(entry, HDR_UE_ADDRESS));
+                PiActionId actionId = ((PiAction) entry.action()).id();
+                if (actionId.equals(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_DROP)) {
+                    builder.needsDropping(true);
+                } else if (actionId.equals(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF)) {
+                    builder.needsBuffering(true);
+                } else {
                     builder.withGtpTunnelPeerId(Up4TranslatorUtil.getParamByte(entry, TUNNEL_PEER_ID));
-                    // Matching on QFI currently not supported in UP4 logical pipeline
-                } else if (action.id().equals(PRE_QOS_PIPE_SET_PARAMS_BUFFERING)) {
-                    builder.withBuffering(true);
                 }
                 return builder.build();
             }
-            case TERMINATION: {
-                UpfTermination.Builder builder = UpfTermination.builder();
+            case TERMINATION_UPLINK: {
+                UpfTerminationUplink.Builder builder = UpfTerminationUplink.builder();
                 builder.withUeSessionId(Up4TranslatorUtil.getFieldAddress(entry, HDR_UE_ADDRESS));
                 builder.withCounterId(Up4TranslatorUtil.getParamInt(entry, CTR_IDX));
-                builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
-                PiAction action = (PiAction) entry.action();
-                if (action.id().equals(PRE_QOS_PIPE_TERM_DOWNLINK)) {
+                PiActionId actionId = ((PiAction) entry.action()).id();
+                if (actionId.equals(PRE_QOS_PIPE_UPLINK_TERM_DROP)) {
+                    builder.needsDropping(true);
+                } else {
+                    builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
+                }
+                return builder.build();
+            }
+            case TERMINATION_DOWNLINK: {
+                UpfTerminationDownlink.Builder builder = UpfTerminationDownlink.builder();
+                builder.withUeSessionId(Up4TranslatorUtil.getFieldAddress(entry, HDR_UE_ADDRESS));
+                builder.withCounterId(Up4TranslatorUtil.getParamInt(entry, CTR_IDX));
+                PiActionId actionId = ((PiAction) entry.action()).id();
+                if (actionId.equals(PRE_QOS_PIPE_DOWNLINK_TERM_DROP)) {
+                    builder.needsDropping(true);
+                } else {
                     builder.withTeid(Up4TranslatorUtil.getParamInt(entry, TEID));
                     builder.withQfi(Up4TranslatorUtil.getParamByte(entry, QFI));
+                    builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
                 }
                 return builder.build();
             }
@@ -196,50 +219,80 @@ public class Up4TranslatorImpl implements Up4Translator {
                         upfIntf.prefix().prefixLength())
                 );
                 break;
-            case SESSION:
-                tableEntryBuilder.forTable(PRE_QOS_PIPE_SESSIONS);
-                UeSession ueSession = (UeSession) entity;
-                matchBuilder.addFieldMatch(new PiExactFieldMatch(
-                        HDR_SRC_IFACE,
-                        ueSession.isUplink() ? ImmutableByteSequence.copyFrom(IFACE_ACCESS) :
-                                ImmutableByteSequence.copyFrom(IFACE_CORE)))
-                        .addFieldMatch(new PiTernaryFieldMatch(
-                                HDR_IPV4_DST,
-                                ImmutableByteSequence.copyFrom(ueSession.ipv4Address().toOctets()),
-                                allOnes32)
-                        );
-                if (ueSession.isUplink()) {
-                    matchBuilder.addFieldMatch(new PiTernaryFieldMatch(
-                            HDR_TEID, ImmutableByteSequence.copyFrom(ueSession.teid()), allOnes32));
-                    actionBuilder.withId(PRE_QOS_PIPE_SET_PARAMS_UPLINK);
-                } else if (!ueSession.needsBuffering()) {
-                    actionBuilder.withId(PRE_QOS_PIPE_SET_PARAMS_DOWNLINK)
-                            .withParameter(new PiActionParam(TUNNEL_PEER_ID, ueSession.tunPeerId()));
+            case SESSION_UPLINK:
+                tableEntryBuilder.forTable(PRE_QOS_PIPE_SESSIONS_UPLINK);
+                SessionUplink sessionUplink = (SessionUplink) entity;
+                matchBuilder
+                        .addFieldMatch(new PiExactFieldMatch(
+                                HDR_N3_ADDRESS,
+                                ImmutableByteSequence.copyFrom(sessionUplink.tunDstAddr().toOctets()))
+                        ).addFieldMatch(new PiExactFieldMatch(
+                        HDR_TEID,
+                        ImmutableByteSequence.copyFrom(sessionUplink.teid()))
+                );
+
+                if (sessionUplink.needsDropping()) {
+                    actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_UPLINK_DROP);
                 } else {
-                    // buffering
-                    actionBuilder.withId(PRE_QOS_PIPE_SET_PARAMS_BUFFERING);
+                    actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_UPLINK);
                 }
                 break;
-            case TERMINATION:
-                tableEntryBuilder.forTable(PRE_QOS_PIPE_TERMINATIONS);
-                UpfTermination upfTermination = (UpfTermination) entity;
+            case SESSION_DOWNLINK:
+                tableEntryBuilder.forTable(PRE_QOS_PIPE_SESSIONS_DOWNLINK);
+                SessionDownlink sessionDownlink = (SessionDownlink) entity;
                 matchBuilder.addFieldMatch(
-                                new PiExactFieldMatch(HDR_SRC_IFACE, upfTermination.isUplink() ?
-                                        ImmutableByteSequence.copyFrom(IFACE_ACCESS) :
-                                        ImmutableByteSequence.copyFrom(IFACE_CORE)))
-                        .addFieldMatch(
-                                new PiExactFieldMatch(HDR_UE_ADDRESS,
-                                                      ImmutableByteSequence.copyFrom(
-                                                              upfTermination.ueSessionId().toOctets()))
-                        );
-                actionBuilder.withParameter(new PiActionParam(CTR_IDX, upfTermination.counterId()))
-                        .withParameter(new PiActionParam(TC, upfTermination.trafficClass()));
-                if (upfTermination.isUplink()) {
-                    actionBuilder.withId(PRE_QOS_PIPE_TERM_UPLINK);
+                        new PiExactFieldMatch(
+                                HDR_UE_ADDRESS,
+                                ImmutableByteSequence.copyFrom(sessionDownlink.ueAddress().toOctets()))
+                );
+
+                if (sessionDownlink.needsDropping() && sessionDownlink.needsBuffering()) {
+                    log.error("We don't support DROP + BUFF on the UP4 northbound! Defaulting to only BUFF");
+                    actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF);
+                } else if (sessionDownlink.needsDropping()) {
+                    actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_DROP);
+                } else if (sessionDownlink.needsBuffering()) {
+                    actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF);
                 } else {
-                    actionBuilder.withId(PRE_QOS_PIPE_TERM_DOWNLINK)
-                            .withParameter(new PiActionParam(TEID, upfTermination.teid()))
-                            .withParameter(new PiActionParam(QFI, upfTermination.qfi()));
+                    actionBuilder.withParameter(new PiActionParam(
+                            TUNNEL_PEER_ID,
+                            ImmutableByteSequence.copyFrom(sessionDownlink.tunPeerId()))
+                    );
+                    actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK);
+                }
+                break;
+            case TERMINATION_UPLINK:
+                tableEntryBuilder.forTable(PRE_QOS_PIPE_TERMINATIONS_UPLINK);
+                UpfTerminationUplink upfTerminationUl = (UpfTerminationUplink) entity;
+                matchBuilder
+                        .addFieldMatch(new PiExactFieldMatch(
+                                HDR_UE_ADDRESS,
+                                ImmutableByteSequence.copyFrom(upfTerminationUl.ueSessionId().toOctets()))
+                        );
+                actionBuilder.withParameter(new PiActionParam(CTR_IDX, upfTerminationUl.counterId()));
+                if (upfTerminationUl.needsDropping()) {
+                    actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_DROP);
+                } else {
+                    actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_FWD);
+                    actionBuilder.withParameter(new PiActionParam(TC, upfTerminationUl.trafficClass()));
+                }
+                break;
+            case TERMINATION_DOWNLINK:
+                tableEntryBuilder.forTable(PRE_QOS_PIPE_TERMINATIONS_DOWNLINK);
+                UpfTerminationDownlink upfTerminationDl = (UpfTerminationDownlink) entity;
+                matchBuilder
+                        .addFieldMatch(new PiExactFieldMatch(
+                                HDR_UE_ADDRESS,
+                                ImmutableByteSequence.copyFrom(upfTerminationDl.ueSessionId().toOctets()))
+                        );
+                actionBuilder.withParameter(new PiActionParam(CTR_IDX, upfTerminationDl.counterId()));
+                if (upfTerminationDl.needsDropping()) {
+                    actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_DROP);
+                } else {
+                    actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_FWD);
+                    actionBuilder.withParameter(new PiActionParam(TEID, upfTerminationDl.teid()))
+                            .withParameter(new PiActionParam(QFI, upfTerminationDl.qfi()))
+                            .withParameter(new PiActionParam(TC, upfTerminationDl.trafficClass()));
                 }
                 break;
             case TUNNEL_PEER:
@@ -262,14 +315,5 @@ public class Up4TranslatorImpl implements Up4Translator {
         return tableEntryBuilder.withMatchKey(matchBuilder.build())
                 .withAction(actionBuilder.build())
                 .build();
-    }
-
-    private ImmutableByteSequence toImmutableByte(int value) {
-        try {
-            return ImmutableByteSequence.copyFrom(value).fit(8);
-        } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
-            log.error("Attempted to convert an integer larger than 255 to a byte!: {}", e.getMessage());
-            return ImmutableByteSequence.ofZeros(1);
-        }
     }
 }

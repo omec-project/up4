@@ -198,9 +198,6 @@ tables {
     id: 20249483
   }
   action_refs {
-    id: 27474921
-  }
-  action_refs {
     id: 28401267
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
@@ -419,18 +416,6 @@ actions {
     id: 20249483
     name: "PreQosPipe.set_session_downlink_buff"
     alias: "set_session_downlink_buff"
-  }
-  params {
-    id: 1
-    name: "tunnel_peer_id"
-    bitwidth: 8
-  }
-}
-actions {
-  preamble {
-    id: 27474921
-    name: "PreQosPipe.set_session_downlink_buff_drop"
-    alias: "set_session_downlink_buff_drop"
   }
 }
 actions {

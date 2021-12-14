@@ -324,12 +324,6 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void downlinkTerminationQosReadTest() throws Exception {
-        mockUp4Service.apply(TestImplConstants.DOWNLINK_TERMINATION_QOS);
-        readTest(TestImplConstants.UP4_DOWNLINK_TERMINATION_QOS);
-    }
-
-    @Test
     public void uplinkTerminationReadTest() throws Exception {
         mockUp4Service.apply(TestImplConstants.UPLINK_TERMINATION);
         readTest(TestImplConstants.UP4_UPLINK_TERMINATION);
@@ -360,35 +354,28 @@ public class Up4NorthComponentTest {
     public void downlinkSessionInsertionTest() throws Exception {
         PiTableEntry entry = TestImplConstants.UP4_DOWNLINK_SESSION;
         insertionTest(entry);
-        assertThat(mockUp4Service.readAll(UpfEntityType.SESSION).size(), equalTo(1));
+        assertThat(mockUp4Service.readAll(UpfEntityType.SESSION_DOWNLINK).size(), equalTo(1));
     }
 
     @Test
     public void uplinkSessionInsertionTest() throws Exception {
         PiTableEntry entry = TestImplConstants.UP4_UPLINK_SESSION;
         insertionTest(entry);
-        assertThat(mockUp4Service.readAll(UpfEntityType.SESSION).size(), equalTo(1));
+        assertThat(mockUp4Service.readAll(UpfEntityType.SESSION_UPLINK).size(), equalTo(1));
     }
 
     @Test
     public void downlinkTerminationInsertionTest() throws Exception {
         PiTableEntry entry = TestImplConstants.UP4_DOWNLINK_TERMINATION;
         insertionTest(entry);
-        assertThat(mockUp4Service.readAll(UpfEntityType.TERMINATION).size(), equalTo(1));
-    }
-
-    @Test
-    public void downlinkTerminationQosInsertionTest() throws Exception {
-        PiTableEntry entry = TestImplConstants.UP4_DOWNLINK_TERMINATION_QOS;
-        insertionTest(entry);
-        assertThat(mockUp4Service.readAll(UpfEntityType.TERMINATION).size(), equalTo(1));
+        assertThat(mockUp4Service.readAll(UpfEntityType.TERMINATION_DOWNLINK).size(), equalTo(1));
     }
 
     @Test
     public void uplinkTerminationInsertionTest() throws Exception {
         PiTableEntry entry = TestImplConstants.UP4_UPLINK_TERMINATION;
         insertionTest(entry);
-        assertThat(mockUp4Service.readAll(UpfEntityType.TERMINATION).size(), equalTo(1));
+        assertThat(mockUp4Service.readAll(UpfEntityType.TERMINATION_UPLINK).size(), equalTo(1));
     }
 
     @Test
@@ -417,21 +404,21 @@ public class Up4NorthComponentTest {
     public void uplinkSessionDeletionTest() throws Exception {
         mockUp4Service.apply(TestImplConstants.UPLINK_SESSION);
         deletionTest(TestImplConstants.UP4_UPLINK_SESSION);
-        assertTrue(mockUp4Service.readAll(UpfEntityType.SESSION).isEmpty());
+        assertTrue(mockUp4Service.readAll(UpfEntityType.SESSION_UPLINK).isEmpty());
     }
 
     @Test
     public void downlinkSessionDeletionTest() throws Exception {
         mockUp4Service.apply(TestImplConstants.DOWNLINK_SESSION);
         deletionTest(TestImplConstants.UP4_DOWNLINK_SESSION);
-        assertTrue(mockUp4Service.readAll(UpfEntityType.SESSION).isEmpty());
+        assertTrue(mockUp4Service.readAll(UpfEntityType.SESSION_DOWNLINK).isEmpty());
     }
 
     @Test
     public void uplinkTerminationDeletionTest() throws Exception {
         mockUp4Service.apply(TestImplConstants.UPLINK_TERMINATION);
         deletionTest(TestImplConstants.UP4_UPLINK_TERMINATION);
-        assertTrue(mockUp4Service.readAll(UpfEntityType.TERMINATION).isEmpty());
+        assertTrue(mockUp4Service.readAll(UpfEntityType.TERMINATION_UPLINK).isEmpty());
     }
 
     @Test
