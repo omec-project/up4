@@ -114,7 +114,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
     _last_read_counter_values = {}
 
-    def read_pdr_counters(self, index, wait_time=0.1):
+    def read_upf_counters(self, index, wait_time=0.1):
         sleep(wait_time)
         self._last_read_counter_values[index] = [
             self.read_upf_counter(index, pre_qos=True, pkts=True),
@@ -133,7 +133,7 @@ class GtpuBaseTest(P4RuntimeTest):
             - Post-Qos byte count increased by postBytesInc
         """
         old_vals = self._last_read_counter_values.get(index, [0, 0, 0, 0])
-        new_vals = self.read_pdr_counters(index, wait_time=wait_time)
+        new_vals = self.read_upf_counters(index, wait_time=wait_time)
         increases = [new_vals[i] - old_vals[i] for i in range(4)]
         if increases[0] != prePktsInc:
             self.fail("Pre-QoS pkt counter increased by %d, not %d!" % (increases[0], prePktsInc))
@@ -323,63 +323,85 @@ class GtpuBaseTest(P4RuntimeTest):
 
         # yapf: enable
 
-    def add_session(self, src_iface, ipv4_dst, teid=None, tunnel_peer_id=None,
-                    buffer=False, priority=10):
-        ALL_ONES_32 = (1 << 32) - 1
-        _src_iface = self.helper.get_enum_member_val("InterfaceType", src_iface)
-
+    def add_session_uplink(self, n3_addr, teid, drop=False):
         match_fields = {
-            "src_iface": _src_iface,
-            "ipv4_dst": ipv4_dst,
+            "n3_address": n3_addr,
+            "teid": teid,
         }
-        if teid:
-            match_fields["teid"] = (teid, ALL_ONES_32)
-
-        action_params = {}
-        if src_iface == "ACCESS":
-            action_name = "PreQosPipe.set_params_uplink"
-        else:
-            if not buffer:
-                action_name = "PreQosPipe.set_params_downlink"
-                action_params = {
-                    "tunnel_peer_id": tunnel_peer_id
-                }
-            else:
-                action_name = "PreQosPipe.set_params_buffering"
-
+        action_name = "PreQosPipe.set_session_uplink"
+        if drop:
+            action_name = "PreQosPipe.set_session_uplink_drop"
         self.insert(
             self.helper.build_table_entry(
-                table_name="PreQosPipe.sessions",
+                table_name="PreQosPipe.sessions_uplink",
+                match_fields=match_fields,
+                action_name=action_name,
+            ))
+
+    def add_session_downlink(self, ue_addr, tunnel_peer_id=None,
+                             buffer=False, drop=False):
+        match_fields = {
+            "ue_address": ue_addr,
+        }
+
+        action_params = {
+            "tunnel_peer_id": tunnel_peer_id,
+        }
+        action_name = "PreQosPipe.set_session_downlink"
+        if buffer and drop:
+            action_name = "PreQosPipe.set_session_downlink_buff_drop"
+            action_params = {}
+        elif buffer:
+            action_name = "PreQosPipe.set_session_downlink_buff"
+        elif drop:
+            action_name = "PreQosPipe.set_session_downlink_drop"
+            action_params = {}
+        self.insert(
+            self.helper.build_table_entry(
+                table_name="PreQosPipe.sessions_downlink",
                 match_fields=match_fields,
                 action_name=action_name,
                 action_params=action_params,
-                priority=priority,
             ))
 
-    def add_terminations(self, src_iface, ue_address, ctr_idx, tc,
-                         teid=None, qfi=None, drop=False):
-        _src_iface = self.helper.get_enum_member_val("InterfaceType", src_iface)
-
+    def add_terminations_uplink(self, ue_address, ctr_idx, tc=None, drop=False):
         match_fields = {
-            "src_iface": _src_iface,
             "ue_address": ue_address,
         }
         action_params = {
             "ctr_idx": ctr_idx
         }
         if drop:
-            action_name = "PreQosPipe.term_drop"
+            action_name = "PreQosPipe.uplink_term_drop"
         else:
             action_params["tc"] = tc
-            if src_iface == "ACCESS":
-                action_name = "PreQosPipe.term_uplink"
-            else:
-                action_name = "PreQosPipe.term_downlink"
-                action_params["teid"] = teid
-                action_params["qfi"] = qfi if qfi else 0
+            action_name = "PreQosPipe.uplink_term_fwd"
         self.insert(
             self.helper.build_table_entry(
-                table_name="PreQosPipe.terminations",
+                table_name="PreQosPipe.terminations_uplink",
+                match_fields=match_fields,
+                action_name=action_name,
+                action_params=action_params,
+            ))
+
+    def add_terminations_downlink(self, ue_address, ctr_idx, tc=None, teid=None, qfi=None,
+                                  drop=False):
+        match_fields = {
+            "ue_address": ue_address,
+        }
+        action_params = {
+            "ctr_idx": ctr_idx
+        }
+        if drop:
+            action_name = "PreQosPipe.downlink_term_drop"
+        else:
+            action_params["tc"] = tc
+            action_params["teid"] = teid
+            action_params["qfi"] = qfi
+            action_name = "PreQosPipe.downlink_term_fwd"
+        self.insert(
+            self.helper.build_table_entry(
+                table_name="PreQosPipe.terminations_downlink",
                 match_fields=match_fields,
                 action_name=action_name,
                 action_params=action_params,
@@ -408,7 +430,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
         inner_pkt = pkt[gtp.GTP_U_Header].payload
 
-        qfi = None
+        qfi = 0
         if gtp.GTPPDUSessionContainer in pkt:
             qfi = pkt[gtp.GTPPDUSessionContainer].QFI
 
@@ -421,25 +443,23 @@ class GtpuBaseTest(P4RuntimeTest):
             slice_id=MOBILE_SLICE,
         )
 
-        self.add_session(
-            src_iface="ACCESS",
-            ipv4_dst=pkt[IP].dst,
+        self.add_session_uplink(
+            n3_addr=pkt[IP].dst,
             teid=pkt[gtp.GTP_U_Header].teid,
         )
-        self.add_terminations(
-            src_iface="ACCESS",
+        self.add_terminations_uplink(
             ue_address=inner_pkt[IP].src,
             ctr_idx=ctr_id,
-            tc=qfi if qfi is not None else 0,  # TODO: MAP QFI TO TC!!!
+            tc=qfi,  # TODO: MAP QFI TO TC!!!
             drop=drop,
         )
-        if not drop:
-            self.add_routing_entry(
-                ip_prefix=exp_pkt[IP].dst + '/32',
-                src_mac=exp_pkt[Ether].src,
-                dst_mac=exp_pkt[Ether].dst,
-                egress_port=outport,
-            )
+        # Add routing entry even if drop, SPGW drop should be perfomed before routing
+        self.add_routing_entry(
+            ip_prefix=exp_pkt[IP].dst + '/32',
+            src_mac=exp_pkt[Ether].src,
+            dst_mac=exp_pkt[Ether].dst,
+            egress_port=outport,
+        )
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
                                      buffer=False, tun_id=None, qfi=0, push_qfi=False):
@@ -466,11 +486,11 @@ class GtpuBaseTest(P4RuntimeTest):
             slice_id=MOBILE_SLICE,
         )
 
-        self.add_session(
-            src_iface="CORE",
-            ipv4_dst=pkt[IP].dst,
+        self.add_session_downlink(
+            ue_addr=pkt[IP].dst,
             tunnel_peer_id=tun_id,
             buffer=buffer,
+            drop=buffer and drop,
         )
 
         self.add_tunnel_peer(
@@ -479,8 +499,7 @@ class GtpuBaseTest(P4RuntimeTest):
             dst_addr=exp_pkt[IP].dst,
         )
 
-        self.add_terminations(
-            src_iface="CORE",
+        self.add_terminations_downlink(
             ue_address=pkt[IP].dst,
             ctr_idx=ctr_id,
             tc=qfi,
@@ -488,13 +507,13 @@ class GtpuBaseTest(P4RuntimeTest):
             qfi=qfi if push_qfi else 0,
             drop=drop,
         )
-        if not drop:
-            self.add_routing_entry(
-                ip_prefix=exp_pkt[IP].dst + '/32',
-                src_mac=exp_pkt[Ether].src,
-                dst_mac=exp_pkt[Ether].dst,
-                egress_port=outport,
-            )
+        # Add routing entry even if drop, SPGW drop should be perfomed before routing
+        self.add_routing_entry(
+            ip_prefix=exp_pkt[IP].dst + '/32',
+            src_mac=exp_pkt[Ether].src,
+            dst_mac=exp_pkt[Ether].dst,
+            egress_port=outport,
+        )
 
     def set_up_ddn_digest(self, ack_timeout_ns):
         # No timeout, not batching. Not recommended for production.

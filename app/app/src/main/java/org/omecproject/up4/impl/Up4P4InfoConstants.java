@@ -60,6 +60,9 @@ public final class Up4P4InfoConstants {
     public static final PiMatchFieldId HDR_L4_SPORT =
             PiMatchFieldId.of("l4_sport");
     public static final int HDR_L4_SPORT_BITWIDTH = 16;
+    public static final PiMatchFieldId HDR_N3_ADDRESS =
+            PiMatchFieldId.of("n3_address");
+    public static final int HDR_N3_ADDRESS_BITWIDTH = 32;
     public static final PiMatchFieldId HDR_SRC_IFACE =
             PiMatchFieldId.of("src_iface");
     public static final int HDR_SRC_IFACE_BITWIDTH = 8;
@@ -80,10 +83,14 @@ public final class Up4P4InfoConstants {
             PiTableId.of("PreQosPipe.interfaces");
     public static final PiTableId PRE_QOS_PIPE_MY_STATION =
             PiTableId.of("PreQosPipe.my_station");
-    public static final PiTableId PRE_QOS_PIPE_SESSIONS =
-            PiTableId.of("PreQosPipe.sessions");
-    public static final PiTableId PRE_QOS_PIPE_TERMINATIONS =
-            PiTableId.of("PreQosPipe.terminations");
+    public static final PiTableId PRE_QOS_PIPE_SESSIONS_DOWNLINK =
+            PiTableId.of("PreQosPipe.sessions_downlink");
+    public static final PiTableId PRE_QOS_PIPE_SESSIONS_UPLINK =
+            PiTableId.of("PreQosPipe.sessions_uplink");
+    public static final PiTableId PRE_QOS_PIPE_TERMINATIONS_DOWNLINK =
+            PiTableId.of("PreQosPipe.terminations_downlink");
+    public static final PiTableId PRE_QOS_PIPE_TERMINATIONS_UPLINK =
+            PiTableId.of("PreQosPipe.terminations_uplink");
     public static final PiTableId PRE_QOS_PIPE_TUNNEL_PEERS =
             PiTableId.of("PreQosPipe.tunnel_peers");
     // Indirect Counter IDs
@@ -113,22 +120,30 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.do_gtpu_tunnel");
     public static final PiActionId PRE_QOS_PIPE_DO_GTPU_TUNNEL_WITH_PSC =
             PiActionId.of("PreQosPipe.do_gtpu_tunnel_with_psc");
+    public static final PiActionId PRE_QOS_PIPE_DOWNLINK_TERM_DROP =
+            PiActionId.of("PreQosPipe.downlink_term_drop");
+    public static final PiActionId PRE_QOS_PIPE_DOWNLINK_TERM_FWD =
+            PiActionId.of("PreQosPipe.downlink_term_fwd");
     public static final PiActionId PRE_QOS_PIPE_LOAD_TUNNEL_PARAM =
             PiActionId.of("PreQosPipe.load_tunnel_param");
-    public static final PiActionId PRE_QOS_PIPE_SET_PARAMS_BUFFERING =
-            PiActionId.of("PreQosPipe.set_params_buffering");
-    public static final PiActionId PRE_QOS_PIPE_SET_PARAMS_DOWNLINK =
-            PiActionId.of("PreQosPipe.set_params_downlink");
-    public static final PiActionId PRE_QOS_PIPE_SET_PARAMS_UPLINK =
-            PiActionId.of("PreQosPipe.set_params_uplink");
+    public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK =
+            PiActionId.of("PreQosPipe.set_session_downlink");
+    public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF =
+            PiActionId.of("PreQosPipe.set_session_downlink_buff");
+    public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF_DROP =
+            PiActionId.of("PreQosPipe.set_session_downlink_buff_drop");
+    public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK_DROP =
+            PiActionId.of("PreQosPipe.set_session_downlink_drop");
+    public static final PiActionId PRE_QOS_PIPE_SET_SESSION_UPLINK =
+            PiActionId.of("PreQosPipe.set_session_uplink");
+    public static final PiActionId PRE_QOS_PIPE_SET_SESSION_UPLINK_DROP =
+            PiActionId.of("PreQosPipe.set_session_uplink_drop");
     public static final PiActionId PRE_QOS_PIPE_SET_SOURCE_IFACE =
             PiActionId.of("PreQosPipe.set_source_iface");
-    public static final PiActionId PRE_QOS_PIPE_TERM_DOWNLINK =
-            PiActionId.of("PreQosPipe.term_downlink");
-    public static final PiActionId PRE_QOS_PIPE_TERM_DROP =
-            PiActionId.of("PreQosPipe.term_drop");
-    public static final PiActionId PRE_QOS_PIPE_TERM_UPLINK =
-            PiActionId.of("PreQosPipe.term_uplink");
+    public static final PiActionId PRE_QOS_PIPE_UPLINK_TERM_DROP =
+            PiActionId.of("PreQosPipe.uplink_term_drop");
+    public static final PiActionId PRE_QOS_PIPE_UPLINK_TERM_FWD =
+            PiActionId.of("PreQosPipe.uplink_term_fwd");
     // Action Param IDs
     public static final PiActionParamId CTR_IDX = PiActionParamId.of("ctr_idx");
     public static final PiActionParamId DIRECTION =

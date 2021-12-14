@@ -183,61 +183,106 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         exit;
     }
 
-    action set_params_uplink() {
+    action set_session_uplink() {
         local_meta.needs_gtpu_decap = true;
     }
 
-    action set_params_downlink(tunnel_peer_id_t tunnel_peer_id) {
-
-        local_meta.tunnel_peer_id = tunnel_peer_id;
+    action set_session_uplink_drop() {
+        local_meta.needs_gtpu_decap = true;
+        local_meta.needs_dropping = true;
     }
 
-    action set_params_buffering() {
+    action set_session_downlink(tunnel_peer_id_t tunnel_peer_id) {
+        local_meta.tunnel_peer_id = tunnel_peer_id;
+    }
+    action set_session_downlink_drop() {
+        local_meta.needs_dropping = true;
+    }
+
+    action set_session_downlink_buff(tunnel_peer_id_t tunnel_peer_id) {
+        local_meta.tunnel_peer_id = tunnel_peer_id;
         local_meta.needs_buffering = true;
     }
 
-    table sessions {
+    action set_session_downlink_buff_drop() {
+        local_meta.needs_dropping = true;
+    }
+
+    table sessions_uplink {
         key = {
-            local_meta.src_iface    : exact     @name("src_iface");
-            // Outermost IPv4 header. Should be UE or N3 address.
-            hdr.ipv4.dst_addr       : exact     @name("ipv4_dst");
-            local_meta.teid         : ternary   @name("teid"); // don't care for downlink
+            hdr.ipv4.dst_addr   : exact @name("n3_address");
+            local_meta.teid     : exact @name("teid");
         }
         actions = {
-            set_params_uplink;
-            set_params_downlink;
-            set_params_buffering;
+            set_session_uplink;
+            set_session_uplink_drop;
             @defaultonly do_drop;
         }
         const default_action = do_drop;
     }
 
-    action term_uplink(counter_index_t ctr_idx, tc_t tc) {
+    table sessions_downlink {
+        key = {
+            hdr.ipv4.dst_addr   : exact @name("ue_address");
+        }
+        actions = {
+            set_session_downlink;
+            set_session_downlink_drop;
+            set_session_downlink_buff;
+            set_session_downlink_buff_drop;
+            @defaultonly do_drop;
+        }
+        const default_action = do_drop;
+    }
+
+    @hidden
+    action common_term(counter_index_t ctr_idx) {
         local_meta.ctr_idx = ctr_idx;
+        local_meta.terminations_hit = true;
+    }
+
+    action uplink_term_fwd(counter_index_t ctr_idx, tc_t tc) {
+        common_term(ctr_idx);
         local_meta.tc = tc;
+    }
+
+    action uplink_term_drop(counter_index_t ctr_idx) {
+        common_term(ctr_idx);
+        local_meta.needs_dropping = true;
     }
 
     // QFI = 0 for 4G traffic
-    action term_downlink(teid_t teid, counter_index_t ctr_idx, qfi_t qfi, tc_t tc) {
+    action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, tc_t tc) {
+        common_term(ctr_idx);
         local_meta.tunnel_out_teid = teid;
-        local_meta.ctr_idx = ctr_idx;
         local_meta.tc = tc;
         local_meta.tunnel_out_qfi = qfi;
     }
-    action term_drop(counter_index_t ctr_idx) {
+
+    action downlink_term_drop(counter_index_t ctr_idx) {
+        common_term(ctr_idx);
         local_meta.needs_dropping = true;
-        local_meta.ctr_idx = ctr_idx;
     }
 
-    table terminations {
+    table terminations_uplink {
         key = {
-            local_meta.src_iface    : exact @name("src_iface");
-            local_meta.ue_addr      : exact @name("ue_address"); // Session ID
+            local_meta.ue_addr  : exact @name("ue_address"); // Session ID
         }
         actions = {
-            term_uplink;
-            term_downlink;
-            term_drop;
+            uplink_term_fwd;
+            uplink_term_drop;
+            @defaultonly do_drop;
+        }
+        const default_action = do_drop;
+    }
+
+    table terminations_downlink {
+        key = {
+            local_meta.ue_addr  : exact @name("ue_address"); // Session ID
+        }
+        actions = {
+            downlink_term_fwd;
+            downlink_term_drop;
             @defaultonly do_drop;
         }
         const default_action = do_drop;
@@ -354,7 +399,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     // INGRESS APPLY BLOCK
     //----------------------------------------
     apply {
-
         if (hdr.packet_out.isValid()) {
             // All packet-outs should be routed like regular packets, without UPF processing. This
             // is used for sending GTP End Marker to base stations, and for other packets
@@ -365,40 +409,38 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             if (!my_station.apply().hit) {
                 return;
             }
-            // +------------+     +----------+     +--------------+
-            // | interfaces |---->| sessions |---->| terminations |
-            // +------------+     +----------+     +--------------+
-            //                   |
-            //                   |  +--------------+
-            //                   +->| tunnel_peers |
-            //                      +--------------+
             // Interfaces we care about:
             // N3 (from base station) - GTPU - match on outer IP dst
             // N6 (from internet) - no GTPU - match on IP header dst
             if (interfaces.apply().hit) {
-
                 // Normalize so the UE address/port appear as the same field regardless of direction
                 if (local_meta.direction == Direction.UPLINK) {
                     local_meta.ue_addr = hdr.inner_ipv4.src_addr;
                     local_meta.inet_addr = hdr.inner_ipv4.dst_addr;
                     local_meta.ue_l4_port = local_meta.l4_sport;
                     local_meta.inet_l4_port = local_meta.l4_dport;
+
+                    sessions_uplink.apply();
+                    terminations_uplink.apply();
                 }
                 else if (local_meta.direction == Direction.DOWNLINK) {
                     local_meta.ue_addr = hdr.ipv4.dst_addr;
                     local_meta.inet_addr = hdr.ipv4.src_addr;
                     local_meta.ue_l4_port = local_meta.l4_dport;
                     local_meta.inet_l4_port = local_meta.l4_sport;
+
+                    sessions_downlink.apply();
+                    tunnel_peers.apply();
+                    terminations_downlink.apply();
                 }
 
-                sessions.apply();
-                tunnel_peers.apply();
-                if (terminations.apply().hit) {
+                if (local_meta.terminations_hit) {
                     // Count packets at a counter index unique to whichever termination matched.
                     pre_qos_counter.count(local_meta.ctr_idx);
                 }
 
-                // Perform whatever header removal the matching PDR required.
+                // Perform whatever header removal the matching in
+                // sessions_* and terminations_* required.
                 if (local_meta.needs_gtpu_decap) {
                     gtpu_decap();
                 }

@@ -152,6 +152,7 @@ struct local_metadata_t {
     bool needs_tunneling;
     bool needs_buffering;
     bool needs_dropping;
+    bool terminations_hit;
 
     counter_index_t ctr_idx;
 
