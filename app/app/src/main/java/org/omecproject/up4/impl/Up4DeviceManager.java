@@ -81,6 +81,7 @@ import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTER
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL_DEFAULT;
 import static org.onlab.util.Tools.getLongProperty;
 import static org.onlab.util.Tools.groupedThreads;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_DOWNLINK;
 import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FACTORY;
 
 
@@ -353,7 +354,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
                     // Do the initial device configuration required
                     installUpfEntities();
-                    installDbufTunnel();
                     try {
                         if (configIsLoaded() && config.pscEncapEnabled()) {
                             this.enablePscEncap();
@@ -556,7 +556,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 dbufClient.shutdown();
                 dbufClient = null;
             }
-            // FIXME: should we call updateDbufTunnel?
             deleteDbufTunnel();
             dbufTunnel = null;
         }
@@ -587,7 +586,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 .needsBuffering(true)
                 .withUeAddress(sess.ueAddress());
 
-        if (dbufTunnel == null) {
+        if (dbufTunnel != null) {
             sessBuilder.withGtpTunnelPeerId(DBUF_TUNNEL_ID);
         } else {
             // When we don't have dbuf deployed, we need to drop traffic.
@@ -646,7 +645,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
         getLeaderUpfProgrammable().apply(entity);
         // Drain from DBUF if necessary
-        if (entity.type().equals(UpfEntityType.SESSION_DOWNLINK)) {
+        if (entity.type().equals(SESSION_DOWNLINK)) {
             SessionDownlink sess = (SessionDownlink) entity;
             if (!sess.needsBuffering() && up4Store.forgetBufferingUe(sess.ueAddress())) {
                 // TODO: Should we wait for rules to be installed on all devices before
@@ -757,9 +756,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 SessionDownlink sess = (SessionDownlink) entity;
                 if (sess.needsBuffering()) {
                     entity = convertToBuffering(sess);
-                    // TODO: should we always trigger forget to be sure we don't
-                    //  leave stale state in UP4?
-                    up4Store.forgetBufferingUe(sess.ueAddress());
                 }
                 break;
             case INTERFACE:
@@ -778,15 +774,29 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 break;
         }
         getLeaderUpfProgrammable().delete(entity);
+        forgetBufferingUeIfRequired(entity);
     }
 
     public void adminDelete(UpfEntity entity) throws UpfProgrammableException {
         getLeaderUpfProgrammable().delete(entity);
+        forgetBufferingUeIfRequired(entity);
+    }
+
+    private void forgetBufferingUeIfRequired(UpfEntity entity) {
+        // if it was used to be a buffer - we need to clean it as we will not see
+        // the drain trigger
+        if (entity.type().equals(SESSION_DOWNLINK)) {
+            up4Store.forgetBufferingUe(((SessionDownlink) entity).ueAddress());
+        }
     }
 
     @Override
     public void deleteAll(UpfEntityType entityType) throws UpfProgrammableException {
         switch (entityType) {
+            case TERMINATION_DOWNLINK:
+                getLeaderUpfProgrammable().deleteAll(entityType);
+                up4Store.reset();
+                break;
             case INTERFACE:
                 Collection<? extends UpfEntity> intfs =
                         getLeaderUpfProgrammable().readAll(UpfEntityType.INTERFACE).stream()
@@ -1088,7 +1098,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
             Collection<UpfEntity> leaderState =
                     (Collection<UpfEntity>) getLeaderUpfProgrammable().readAll(UpfEntityType.SESSION_UPLINK);
-            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.SESSION_DOWNLINK));
+            leaderState.addAll(getLeaderUpfProgrammable().readAll(SESSION_DOWNLINK));
             leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TERMINATION_UPLINK));
             leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TERMINATION_DOWNLINK));
             leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.INTERFACE));
@@ -1105,7 +1115,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 }
                 Collection<UpfEntity> followerState =
                         (Collection<UpfEntity>) upfProg.readAll(UpfEntityType.SESSION_UPLINK);
-                followerState.addAll(upfProg.readAll(UpfEntityType.SESSION_DOWNLINK));
+                followerState.addAll(upfProg.readAll(SESSION_DOWNLINK));
                 followerState.addAll(upfProg.readAll(UpfEntityType.TERMINATION_UPLINK));
                 followerState.addAll(upfProg.readAll(UpfEntityType.TERMINATION_DOWNLINK));
                 followerState.addAll(upfProg.readAll(UpfEntityType.INTERFACE));
