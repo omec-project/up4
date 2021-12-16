@@ -188,7 +188,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     }
 
     action set_session_uplink_drop() {
-        local_meta.needs_gtpu_decap = true;
         local_meta.needs_dropping = true;
     }
 

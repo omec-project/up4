@@ -343,19 +343,18 @@ class GtpuBaseTest(P4RuntimeTest):
         match_fields = {
             "ue_address": ue_addr,
         }
-
-        action_params = {
-            "tunnel_peer_id": tunnel_peer_id,
-        }
-        action_name = "PreQosPipe.set_session_downlink"
+        action_params = {}
         if buffer and drop:
             action_name = "PreQosPipe.set_session_downlink_buff_drop"
-            action_params = {}
         elif buffer:
             action_name = "PreQosPipe.set_session_downlink_buff"
         elif drop:
             action_name = "PreQosPipe.set_session_downlink_drop"
-            action_params = {}
+        else:
+            action_params = {
+                "tunnel_peer_id": tunnel_peer_id,
+            }
+            action_name = "PreQosPipe.set_session_downlink"
         self.insert(
             self.helper.build_table_entry(
                 table_name="PreQosPipe.sessions_downlink",

@@ -5,7 +5,7 @@
 <scenario name="no-forwarding" description="Check that uplink and downlink packets are not forwarded">
     <group name="No-Forwarding">
         <step name="Check-Up4-No-Flows-No-Fwd"
-              exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
+              exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
         <group name="Check-Traffic-Doesnt-Fwd" requires="^" delay="5">
             <parallel var="${ENODEB#}">
                 <!-- Downlink -->

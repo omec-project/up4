@@ -82,6 +82,10 @@ import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTER
 import static org.onlab.util.Tools.getLongProperty;
 import static org.onlab.util.Tools.groupedThreads;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_DOWNLINK;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_UPLINK;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_DOWNLINK;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_UPLINK;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.TUNNEL_PEER;
 import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FACTORY;
 
 
@@ -413,6 +417,49 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             interfaces.add(UpfInterface.createDbufReceiverFrom(dbufDrainAddr));
         }
         return interfaces;
+    }
+
+    @Override
+    public Collection<UplinkUpfFlow> getUplinkFlows() throws UpfProgrammableException {
+        Collection<UplinkUpfFlow> uplinkFlows = Lists.newArrayList();
+        Collection<? extends UpfEntity> uplinkTerm = this.adminReadAll(TERMINATION_UPLINK);
+        for (UpfEntity t : uplinkTerm) {
+            UpfTerminationUplink term = (UpfTerminationUplink) t;
+            uplinkFlows.add(UplinkUpfFlow.builder().withTerminationUplink(term)
+                                    .withCounter(this.readCounter(term.counterId()))
+                                    .build());
+        }
+        return uplinkFlows;
+    }
+
+    @Override
+    public Collection<DownlinkUpfFlow> getDownlinkFlows() throws UpfProgrammableException {
+        Collection<DownlinkUpfFlow> downlinkFlows = Lists.newArrayList();
+        Map<Ip4Address, SessionDownlink> ueToSess = Maps.newHashMap();
+        Map<Byte, GtpTunnelPeer> idToTunn = Maps.newHashMap();
+
+        Collection<? extends UpfEntity> downlinkTerm = this.adminReadAll(TERMINATION_DOWNLINK);
+        this.adminReadAll(SESSION_DOWNLINK).forEach(
+                s -> ueToSess.put(((SessionDownlink) s).ueAddress(), (SessionDownlink) s));
+        this.adminReadAll(TUNNEL_PEER).forEach(
+                t -> idToTunn.put(((GtpTunnelPeer) t).tunPeerId(), (GtpTunnelPeer) t));
+
+        for (UpfEntity t : downlinkTerm) {
+            UpfTerminationDownlink term = (UpfTerminationDownlink) t;
+            SessionDownlink sess = ueToSess.getOrDefault(term.ueSessionId(), null);
+            GtpTunnelPeer tunn = null;
+            if (sess != null) {
+                tunn = idToTunn.getOrDefault(sess.tunPeerId(), null);
+            }
+            downlinkFlows.add(DownlinkUpfFlow.builder()
+                                      .withTerminationDownlink(term)
+                                      .withSessionDownlink(sess)
+                                      .withTunnelPeer(tunn)
+                                      .withCounter(this.readCounter(term.counterId()))
+                                      .build());
+
+        }
+        return downlinkFlows;
     }
 
     @Override

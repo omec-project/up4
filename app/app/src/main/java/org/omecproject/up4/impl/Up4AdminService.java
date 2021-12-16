@@ -20,6 +20,10 @@ import java.util.Collection;
 @Beta
 public interface Up4AdminService {
 
+    Collection<UplinkUpfFlow> getUplinkFlows() throws UpfProgrammableException;
+
+    Collection<DownlinkUpfFlow> getDownlinkFlows() throws UpfProgrammableException;
+
     /**
      * Install all UPF entities internal to UP4.
      * In particular, interfaces present in the app configuration and the DBUF
