@@ -43,29 +43,36 @@ public final class UplinkUpfFlow {
     public String toString() {
         String termString = "NO TERMINATION!";
         if (term != null) {
-            termString = "UE_ADDR=" + term.ueSessionId() + " --> ";
+            termString = "ue_addr=" + term.ueSessionId() + ", ";
             if (term.needsDropping()) {
-                termString += "DROP";
+                termString += "drop()";
             } else {
-                termString += "FWD(TC=" + term.trafficClass() + ")";
+                termString += "fwd(tc=" + term.trafficClass() + ")";
             }
         }
 
         String statString = "NO STATISTICS!";
         if (counter != null) {
             statString = String.format(
-                    "%5d Ingress pkts -> %5d Egress pkts",
+                    "packets_ingress=%5d, packets_egress=%5d",
                     counter.getIngressPkts(), counter.getEgressPkts()
             );
         }
-        return termString + " >> " + statString;
+        return termString + ", " + statString;
     }
 
+    /**
+     * Returns a new uplink UPF flow builder.
+     *
+     * @return uplink UPF flow builder
+     */
     public static Builder builder() {
         return new Builder();
     }
 
-
+    /**
+     * Builder of a uplink UPF flow.
+     */
     public static class Builder {
         private UpfTerminationUplink term = null;
         private UpfCounter counter = null;

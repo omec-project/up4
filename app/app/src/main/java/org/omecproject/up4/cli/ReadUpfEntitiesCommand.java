@@ -31,37 +31,37 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
     @Option(name = "--all", aliases = "-a",
             description = "Include all UPF entities",
             required = false)
-    private boolean all = false;
+    boolean all = false;
 
     @Option(name = "--ue", aliases = "-u",
             description = "Include all UE related entities (session, termination, tunnel peer, counters)",
             required = false)
-    private boolean ue = false;
+    boolean ue = false;
 
     @Option(name = "--sess", aliases = "-s",
             description = "Include the UE sessions",
             required = false)
-    private boolean sessions = false;
+    boolean sessions = false;
 
     @Option(name = "--term", aliases = "-t",
             description = "Include the UPF termination rules",
             required = false)
-    private boolean termination = false;
+    boolean termination = false;
 
     @Option(name = "--tunn", aliases = "-g",
             description = "Include the GTP tunnel peers",
             required = false)
-    private boolean tunnels = false;
+    boolean tunnels = false;
 
     @Option(name = "--count", aliases = "-c",
             description = "Include the all the UPF counters",
             required = false)
-    private boolean counters = false;
+    boolean counters = false;
 
     @Option(name = "--intf", aliases = "-i",
             description = "Include the UPF interfaces",
             required = false)
-    private boolean interfaces = false;
+    boolean interfaces = false;
 
 
     @Override

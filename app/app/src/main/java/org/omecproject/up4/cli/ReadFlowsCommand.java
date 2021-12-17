@@ -11,6 +11,7 @@ import org.omecproject.up4.impl.Up4AdminService;
 import org.omecproject.up4.impl.UplinkUpfFlow;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.SessionUplink;
+import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 
 import java.util.Collection;
@@ -23,31 +24,41 @@ import java.util.Collection;
         description = "Read all UE data flows installed in the dataplane")
 public class ReadFlowsCommand extends AbstractShellCommand {
 
+    private static final String SEPARATOR = "-".repeat(40);
+
     @Override
     protected void doExecute() throws Exception {
         Up4AdminService adminService = get(Up4AdminService.class);
 
         Collection<DownlinkUpfFlow> dlUpfFlow = adminService.getDownlinkFlows();
         Collection<UplinkUpfFlow> ulUpfFlow = adminService.getUplinkFlows();
-        Collection<SessionUplink> ulSess = (Collection<SessionUplink>)
-                adminService.adminReadAll(UpfEntityType.SESSION_UPLINK);
+        Collection<? extends UpfEntity> ulSess = adminService.adminReadAll(UpfEntityType.SESSION_UPLINK);
 
-        print("-".repeat(40));
+        print(SEPARATOR);
         print(ulSess.size() + " Uplink Sessions");
-        for (SessionUplink s : ulSess) {
-            print("N3 addr=" + s.tunDstAddr() + ", TEID=" + s.teid());
+        for (UpfEntity s : ulSess) {
+            if (!s.type().equals(UpfEntityType.SESSION_UPLINK)) {
+                print("ERROR: Wrong uplink session: " + s);
+                continue;
+            }
+            SessionUplink sess = (SessionUplink) s;
+            print("n3_addr=" + sess.tunDstAddr() +
+                          ", teid=" + sess.teid() +
+                          (sess.needsDropping() ? ", drop()" : ", fwd()")
+            );
         }
-        print("-".repeat(40));
+        print(SEPARATOR);
         print(ulUpfFlow.size() + " Uplink Flows");
         for (UplinkUpfFlow f : ulUpfFlow) {
             print(f.toString());
         }
-        print("-".repeat(40));
+        print(SEPARATOR);
         print(dlUpfFlow.size() + " Downlink Flows");
         for (DownlinkUpfFlow f : dlUpfFlow) {
             print(f.toString());
         }
-        print("-".repeat(40));        print("UL sess=%d, UL flows=%d, DL flows=%s",
+        print(SEPARATOR);
+        print("UL sess=%d, UL flows=%d, DL flows=%s",
               ulSess.size(), ulUpfFlow.size(), dlUpfFlow.size());
     }
 }

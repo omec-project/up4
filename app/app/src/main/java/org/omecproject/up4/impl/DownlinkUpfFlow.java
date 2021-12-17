@@ -68,62 +68,73 @@ public final class DownlinkUpfFlow {
     public String toString() {
         String strTermSess = "NO SESSION AND NO TERMINATION!";
         if (term != null && sess != null) {
-            strTermSess = "UE_ADDR=" + term.ueSessionId() + " --> ";
+            strTermSess = "ue_addr=" + term.ueSessionId() + ", ";
             if ((sess.needsBuffering() && sess.needsDropping()) ||
                     (sess.needsBuffering() && term.needsDropping())) {
-                strTermSess += "DROP+BUFF";
+                strTermSess += "drop_buff()";
             } else if (sess.needsBuffering()) {
-                strTermSess += "BUFF";
+                strTermSess += "buff()";
             } else if (sess.needsDropping() || term.needsDropping()) {
-                strTermSess += "DROP";
+                strTermSess += "drop()";
             } else {
-                strTermSess += "FWD";
+                strTermSess += "fwd";
                 strTermSess += "(" +
-                        "TEID=" + term.teid() +
-                        " QFI=" + term.qfi() +
-                        " TC=" + term.trafficClass() +
+                        "teid=" + term.teid() +
+                        " qfi=" + term.qfi() +
+                        " tc=" + term.trafficClass() +
                         ")";
             }
         } else if (term != null) {
-            strTermSess = "NO_SESSION, UE_ADDR=" + term.ueSessionId() + " --> ";
+            strTermSess = "NO_SESSION, ue_addr=" + term.ueSessionId() + ", ";
             if (term.needsDropping()) {
-                strTermSess += "DROP";
+                strTermSess += "drop()";
             } else {
-                strTermSess += "FWD(" +
-                        "TEID=" + term.teid() +
-                        " QFI=" + term.qfi() +
-                        " TC=" + term.trafficClass() +
+                strTermSess += "fwd(" +
+                        "teid=" + term.teid() +
+                        " qfi=" + term.qfi() +
+                        " tc=" + term.trafficClass() +
                         ")";
             }
         } else if (sess != null) {
-            strTermSess = "NO_TERM, UE_ADDR=" + sess.ueAddress() + " --> ";
+            strTermSess = "NO_TERM, ue_addr=" + sess.ueAddress() + ", ";
             if (sess.needsBuffering() && sess.needsDropping()) {
-                strTermSess += "DROP+BUFF";
+                strTermSess += "drop_buff()";
             } else {
-                strTermSess += "FWD";
+                strTermSess += "fwd()";
             }
         }
 
         String strTunn = "NO GTP TUNNEL!";
         if (tunnelPeer != null) {
-            strTunn = "(" + tunnelPeer + ")";
+            strTunn = ", tunnel(peer_id=" + tunnelPeer.tunPeerId() +
+                    ", dst_addr=" + tunnelPeer.dst() +
+                    ", src_addr=" + tunnelPeer.src() +
+                    ", src_port=" + tunnelPeer.srcPort() +
+                    ")";
         }
 
         String statString = "NO STATISTICS!";
         if (counter != null) {
             statString = String.format(
-                    "%5d Ingress pkts -> %5d Egress pkts",
+                    "packets_ingress=%5d, packets_egress=%5d",
                     counter.getIngressPkts(), counter.getEgressPkts()
             );
         }
-        return strTermSess + " " + strTunn + " >> " + statString;
+        return strTermSess + strTunn + ", " + statString;
     }
 
+    /**
+     * Returns a new downlink UPF flow builder.
+     *
+     * @return downlink UPF flow builder
+     */
     public static Builder builder() {
         return new Builder();
     }
 
-
+    /**
+     * Builder of a downlink UPF flow.
+     */
     public static class Builder {
         private SessionDownlink sess = null;
         private UpfTerminationDownlink term = null;

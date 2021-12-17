@@ -24,7 +24,7 @@ public class ReadInternalUp4StoreCommand extends AbstractShellCommand {
     @Option(name = "-v", aliases = "--verbose",
             description = "Print more detail of each entry",
             required = false, multiValued = false)
-    private boolean verbose = false;
+    boolean verbose = false;
 
     @Override
     protected void doExecute() {

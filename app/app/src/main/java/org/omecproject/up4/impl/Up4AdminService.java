@@ -20,8 +20,20 @@ import java.util.Collection;
 @Beta
 public interface Up4AdminService {
 
+    /**
+     * Gets all the uplink UPF flow installed. Used for debug purposes only.
+     *
+     * @return a collection of installed uplink UPF flow
+     * @throws UpfProgrammableException if flows are unable to read
+     */
     Collection<UplinkUpfFlow> getUplinkFlows() throws UpfProgrammableException;
 
+    /**
+     * Gets all the downlink UPF flow installed. Used for debug purposes only.
+     *
+     * @return a collection of installed downlink UPF flow
+     * @throws UpfProgrammableException if flows are unable to read
+     */
     Collection<DownlinkUpfFlow> getDownlinkFlows() throws UpfProgrammableException;
 
     /**
