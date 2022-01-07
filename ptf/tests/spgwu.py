@@ -26,7 +26,6 @@ from convert import encode
 from spgwu_base import GtpuBaseTest, UDP_GTP_PORT, GTPU_EXT_PSC_TYPE_DL, \
     GTPU_EXT_PSC_TYPE_UL
 
-
 CPU_CLONE_SESSION_ID = 99
 UE_ADDR_BITWIDTH = 32
 UE_IPV4 = "17.0.0.1"

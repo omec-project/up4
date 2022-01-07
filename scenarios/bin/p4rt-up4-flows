@@ -119,16 +119,14 @@ def main():
     # ========================#
     if args.add_ifaces:
         # Uplink
-        entry = sh.TableEntry('PreQosPipe.interfaces')(
-            action='PreQosPipe.set_source_iface')
+        entry = sh.TableEntry('PreQosPipe.interfaces')(action='PreQosPipe.set_source_iface')
         entry.match['ipv4_dst_prefix'] = str(args.s1u_addr) + '/32'
         entry.action['src_iface'] = IFACE_ACCESS
         entry.action['direction'] = DIR_UPLINK
         add_entry(entry, args.action)
 
         # Downlink
-        entry = sh.TableEntry('PreQosPipe.interfaces')(
-            action='PreQosPipe.set_source_iface')
+        entry = sh.TableEntry('PreQosPipe.interfaces')(action='PreQosPipe.set_source_iface')
         entry.match['ipv4_dst_prefix'] = str(args.ue_pool)
         entry.action['src_iface'] = IFACE_CORE
         entry.action['direction'] = DIR_DOWNLINK
@@ -171,10 +169,12 @@ def main():
 
         ## Downlink
         if not args.buffer:
-            entry = sh.TableEntry('PreQosPipe.sessions_downlink')(action='PreQosPipe.set_session_downlink')
+            entry = sh.TableEntry('PreQosPipe.sessions_downlink')(
+                action='PreQosPipe.set_session_downlink')
             entry.action["tunnel_peer_id"] = str(tunnel_peer_id)
         else:
-            entry = sh.TableEntry('PreQosPipe.sessions_downlink')(action='PreQosPipe.set_session_downlink_buff')
+            entry = sh.TableEntry('PreQosPipe.sessions_downlink')(
+                action='PreQosPipe.set_session_downlink_buff')
         # Match fields
         entry.match['ue_address'] = str(ue_addr)
         add_entry(entry, args.action)
@@ -184,8 +184,7 @@ def main():
         # ========================#
 
         ## Uplink
-        entry = sh.TableEntry('PreQosPipe.terminations_uplink')(
-            action='PreQosPipe.uplink_term_fwd')
+        entry = sh.TableEntry('PreQosPipe.terminations_uplink')(action='PreQosPipe.uplink_term_fwd')
         # Match fields
         entry.match['ue_address'] = str(ue_addr)
         # Action params
@@ -208,8 +207,7 @@ def main():
         # ========================#
         # Tunnel Peer Entry
         # ========================#
-        entry = sh.TableEntry('PreQosPipe.tunnel_peers')(
-            action='PreQosPipe.load_tunnel_param')
+        entry = sh.TableEntry('PreQosPipe.tunnel_peers')(action='PreQosPipe.load_tunnel_param')
         # Match fields
         entry.match['tunnel_peer_id'] = str(tunnel_peer_id)
         # Action params
