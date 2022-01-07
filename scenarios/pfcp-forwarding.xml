@@ -16,7 +16,7 @@
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-Fwd" requires="Pfcp-Push-Fwd" delay="5"
-                  exec="onos-cli-grep ${OCI} up4:read-flows '${PFCP_UP4_FLOWS} flows found'"/>
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${PFCP_UP4_FLOWS}, DL flows=${PFCP_UP4_FLOWS}'"/>
             <step name="Check-Flow-Rules-Fwd" requires="Pfcp-Push-Fwd" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>

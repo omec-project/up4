@@ -132,8 +132,7 @@ final class DbufSubscribeManager {
                 if (notification.hasReady()) {
                     readyReceived.set(true);
                 }
-                client.
-                        handleNotification(notification);
+                client.handleNotification(notification);
             } catch (Throwable ex) {
                 log.error("Exception processing Notification from " + client.serviceAddr(),
                         ex);

@@ -13,7 +13,7 @@
         </group>
 
         <step name="AF-Check-Flows-1" requires="AF-Setup-Fwd" delay="2"
-              exec="onos-cli-grep ${OCI} up4:read-flows '2 flows found'"/>
+              exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=2, DL flows=2'"/>
 
         <step name="AF-Restart-Agent" requires="^"
               exec="${DOCKER_COMPOSE_CMD} restart pfcp-agent"/>
@@ -22,7 +22,7 @@
               exec="pfcp-agent-wait-for-start"/>
 
         <step name="AF-Check-Flows-2" requires="^"
-              exec="onos-cli-grep ${OCI} up4:read-flows '0 flows found'"/>
+              exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
 
         <!-- Reboot SMF because it probably doesn't react well to failures -->
         <group name="AF-Restart-Smf" requires="~AF-Check-Flows-2">

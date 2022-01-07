@@ -8,19 +8,15 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.grpc.Context;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.dbuf.client.DbufClient;
 import org.omecproject.dbuf.client.DefaultDbufClient;
 import org.omecproject.up4.Up4Event;
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
-import org.omecproject.up4.UpfFlow;
 import org.omecproject.up4.config.Up4Config;
 import org.omecproject.up4.config.Up4DbufConfig;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
-import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
@@ -28,14 +24,17 @@ import org.onosproject.event.AbstractListenerManager;
 import org.onosproject.mastership.MastershipService;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
-import org.onosproject.net.behaviour.upf.ForwardingActionRule;
-import org.onosproject.net.behaviour.upf.GtpTunnel;
-import org.onosproject.net.behaviour.upf.PacketDetectionRule;
-import org.onosproject.net.behaviour.upf.PdrStats;
+import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
+import org.onosproject.net.behaviour.upf.SessionDownlink;
+import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfDevice;
+import org.onosproject.net.behaviour.upf.UpfEntity;
+import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfProgrammable;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
+import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
+import org.onosproject.net.behaviour.upf.UpfTerminationUplink;
 import org.onosproject.net.config.ConfigFactory;
 import org.onosproject.net.config.NetworkConfigEvent;
 import org.onosproject.net.config.NetworkConfigListener;
@@ -65,7 +64,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Dictionary;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -76,27 +74,37 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL_DEFAULT;
 import static org.onlab.util.Tools.getLongProperty;
 import static org.onlab.util.Tools.groupedThreads;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_DOWNLINK;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_UPLINK;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_DOWNLINK;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_UPLINK;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.TUNNEL_PEER;
 import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FACTORY;
 
 
 /**
  * Draft UP4 ONOS application component.
  */
-@Component(immediate = true, service = {Up4Service.class},
+@Component(immediate = true, service = {Up4Service.class, Up4AdminService.class},
         property = {
                 UPF_RECONCILE_INTERVAL + ":Long=" + UPF_RECONCILE_INTERVAL_DEFAULT,
         })
 public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4EventListener>
-        implements Up4Service {
+        implements Up4Service, Up4AdminService {
 
     private static final long NO_UE_LIMIT = -1;
     public static final int GTP_PORT = 2152;
+    public static final byte DBUF_TUNNEL_ID = 1;
+    // Hard coding the mobile slice value, when supporting multiple slices, we
+    // will remove this, and get the slice id from the north.
+    public static final byte SLICE_MOBILE = 0xF;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final AtomicBoolean upfInitialized = new AtomicBoolean(false);
@@ -129,15 +137,17 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected MastershipService mastershipService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
-    protected Up4Store up4Store;
-    @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected ComponentConfigService componentConfigService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected Up4Store up4Store;
 
     private ExecutorService eventExecutor;
     private ScheduledExecutorService reconciliationExecutor;
     private Future<?> reconciliationTask;
 
-    /** Interval (in seconds) for reconciling state between UPF devices. **/
+    /**
+     * Interval (in seconds) for reconciling state between UPF devices.
+     **/
     private long upfReconcileInterval = UPF_RECONCILE_INTERVAL_DEFAULT;
 
     private ApplicationId appId;
@@ -152,7 +162,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private Up4Config config;
     private DbufClient dbufClient;
 
-    private GtpTunnel dbufTunnel;
+    private GtpTunnelPeer dbufTunnel;
 
     @Activate
     protected void activate() {
@@ -347,10 +357,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     upfInitialized.set(true);
 
                     // Do the initial device configuration required
-                    installInterfaces();
+                    installUpfEntities();
                     try {
                         if (configIsLoaded() && config.pscEncapEnabled()) {
-                            this.enablePscEncap(config.defaultQfi());
+                            this.enablePscEncap();
                         } else {
                             this.disablePscEncap();
                         }
@@ -371,10 +381,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
      */
     private void ensureInterfacesInstalled() {
         log.info("Ensuring all interfaces present in app config are present on the leader device.");
-        Set<UpfInterface> installedInterfaces;
+        Collection<? extends UpfEntity> installedInterfaces;
         UpfProgrammable leader = getLeaderUpfProgrammable();
         try {
-            installedInterfaces = new HashSet<>(leader.getInterfaces());
+            installedInterfaces = leader.readAll(UpfEntityType.INTERFACE);
         } catch (UpfProgrammableException e) {
             log.warn("Failed to read interface: {}", e.getMessage());
             return;
@@ -383,7 +393,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if (!installedInterfaces.contains(iface)) {
                 log.warn("{} is missing from leader device! Installing", iface);
                 try {
-                    leader.addInterface(iface);
+                    leader.apply(iface);
                 } catch (UpfProgrammableException e) {
                     log.warn("Failed to insert interface: {}", e.getMessage());
                 }
@@ -410,14 +420,72 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
-    public void installInterfaces() {
-        log.info("Installing interfaces from config.");
-        UpfProgrammable leader = getLeaderUpfProgrammable();
-        for (UpfInterface iface : configFileInterfaces()) {
+    public Collection<UplinkUpfFlow> getUplinkFlows() throws UpfProgrammableException {
+        Collection<UplinkUpfFlow> uplinkFlows = Lists.newArrayList();
+        Collection<? extends UpfEntity> uplinkTerm = this.adminReadAll(TERMINATION_UPLINK);
+        for (UpfEntity t : uplinkTerm) {
+            UpfTerminationUplink term = (UpfTerminationUplink) t;
+            uplinkFlows.add(UplinkUpfFlow.builder().withTerminationUplink(term)
+                                    .withCounter(this.readCounter(term.counterId()))
+                                    .build());
+        }
+        return uplinkFlows;
+    }
+
+    @Override
+    public Collection<DownlinkUpfFlow> getDownlinkFlows() throws UpfProgrammableException {
+        Collection<DownlinkUpfFlow> downlinkFlows = Lists.newArrayList();
+        Map<Ip4Address, SessionDownlink> ueToSess = Maps.newHashMap();
+        Map<Byte, GtpTunnelPeer> idToTunn = Maps.newHashMap();
+
+        Collection<? extends UpfEntity> downlinkTerm = this.adminReadAll(TERMINATION_DOWNLINK);
+        this.adminReadAll(SESSION_DOWNLINK).forEach(
+                s -> ueToSess.put(((SessionDownlink) s).ueAddress(), (SessionDownlink) s));
+        this.adminReadAll(TUNNEL_PEER).forEach(
+                t -> idToTunn.put(((GtpTunnelPeer) t).tunPeerId(), (GtpTunnelPeer) t));
+
+        for (UpfEntity t : downlinkTerm) {
+            UpfTerminationDownlink term = (UpfTerminationDownlink) t;
+            SessionDownlink sess = ueToSess.getOrDefault(term.ueSessionId(), null);
+            GtpTunnelPeer tunn = null;
+            if (sess != null) {
+                tunn = idToTunn.getOrDefault(sess.tunPeerId(), null);
+            }
+            downlinkFlows.add(DownlinkUpfFlow.builder()
+                                      .withTerminationDownlink(term)
+                                      .withSessionDownlink(sess)
+                                      .withTunnelPeer(tunn)
+                                      .withCounter(this.readCounter(term.counterId()))
+                                      .build());
+
+        }
+        return downlinkFlows;
+    }
+
+    @Override
+    public void installUpfEntities() {
+        ensureInterfacesInstalled();
+        installDbufTunnel();
+    }
+
+    private void deleteDbufTunnel() {
+        if (this.dbufTunnel != null) {
             try {
-                leader.addInterface(iface);
+                log.debug("Remove DBUF GTP tunnel peer.");
+                getLeaderUpfProgrammable().delete(dbufTunnel);
             } catch (UpfProgrammableException e) {
-                log.warn("Failed to insert interface: {}", e.getMessage());
+                log.warn("Failed to delete DBUF GTP tunnel peer: {}", e.getMessage());
+            }
+        }
+    }
+
+    private void installDbufTunnel() {
+        if (this.dbufTunnel != null) {
+            try {
+                log.debug("Install DBUF GTP tunnel peer.");
+                getLeaderUpfProgrammable().apply(dbufTunnel);
+            } catch (UpfProgrammableException e) {
+                log.warn("Failed to insert DBUF GTP tunnel peer: {}", e.getMessage());
             }
         }
     }
@@ -492,13 +560,15 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     private void updateDbufTunnel() {
+        deleteDbufTunnel();
         if (dbufClient != null && configIsLoaded() && config.dbufDrainAddr() != null) {
-            this.dbufTunnel = GtpTunnel.builder()
-                    .setSrc(config.dbufDrainAddr())
-                    .setDst(dbufClient.dataplaneIp4Addr())
-                    .setSrcPort((short) GTP_PORT)
-                    .setTeid(0)
+            this.dbufTunnel = GtpTunnelPeer.builder()
+                    .withSrcAddr(config.dbufDrainAddr())
+                    .withDstAddr(dbufClient.dataplaneIp4Addr())
+                    .withSrcPort((short) GTP_PORT)
+                    .withTunnelPeerId(DBUF_TUNNEL_ID)
                     .build();
+            installDbufTunnel();
         } else {
             this.dbufTunnel = null;
         }
@@ -533,6 +603,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 dbufClient.shutdown();
                 dbufClient = null;
             }
+            deleteDbufTunnel();
             dbufTunnel = null;
         }
     }
@@ -557,70 +628,78 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         up4Store.reset();
     }
 
-    @Override
-    public void clearInterfaces() {
-        getLeaderUpfProgrammable().clearInterfaces();
-    }
+    private SessionDownlink convertToBuffering(SessionDownlink sess) {
+        SessionDownlink.Builder sessBuilder = SessionDownlink.builder()
+                .needsBuffering(true)
+                .withUeAddress(sess.ueAddress());
 
-    @Override
-    public void clearFlows() {
-        getLeaderUpfProgrammable().clearFlows();
-    }
-
-    @Override
-    public Collection<ForwardingActionRule> getFars() throws UpfProgrammableException {
-        return getLeaderUpfProgrammable().getFars();
-    }
-
-    @Override
-    public Collection<PacketDetectionRule> getPdrs() throws UpfProgrammableException {
-        return getLeaderUpfProgrammable().getPdrs();
-    }
-
-    @Override
-    public Collection<UpfInterface> getInterfaces() throws UpfProgrammableException {
-        return getLeaderUpfProgrammable().getInterfaces();
-    }
-
-    @Override
-    public void addPdr(PacketDetectionRule pdr) throws UpfProgrammableException {
-        if (isMaxUeSet() && pdr.counterId() >= getMaxUe() * 2) {
-            throw new UpfProgrammableException(
-                    "Counter cell index referenced by PDR above max supported UE value.",
-                    UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
+        if (dbufTunnel != null) {
+            sessBuilder.withGtpTunnelPeerId(DBUF_TUNNEL_ID);
+        } else {
+            // When we don't have dbuf deployed, we need to drop traffic.
+            sessBuilder.needsDropping(true);
         }
-        getLeaderUpfProgrammable().addPdr(pdr);
-        if (pdr.matchesUnencapped()) {
-            up4Store.learnFarIdToUeAddr(pdr);
-        }
+        return sessBuilder.build();
     }
 
     @Override
-    public void removePdr(PacketDetectionRule pdr) throws UpfProgrammableException {
-        getLeaderUpfProgrammable().removePdr(pdr);
-        if (pdr.matchesUnencapped()) {
-            up4Store.forgetUeAddr(pdr);
+    public void apply(UpfEntity entity) throws UpfProgrammableException {
+        switch (entity.type()) {
+            case SESSION_DOWNLINK:
+                SessionDownlink sessDl = (SessionDownlink) entity;
+                if (sessDl.needsBuffering()) {
+                    // Override tunnel peer id with the DBUF
+                    entity = convertToBuffering(sessDl);
+                    up4Store.learnBufferingUe(sessDl.ueAddress());
+                }
+                break;
+            case TERMINATION_UPLINK:
+                UpfTerminationUplink termUl = (UpfTerminationUplink) entity;
+                if (isMaxUeSet() && termUl.counterId() >= getMaxUe() * 2) {
+                    throw new UpfProgrammableException(
+                            "Counter cell index referenced by uplink UPF termination " +
+                                    "rule above max supported UE value.",
+                            UpfProgrammableException.Type.ENTITY_OUT_OF_RANGE,
+                            UpfEntityType.TERMINATION_UPLINK
+                    );
+                }
+                break;
+            case TERMINATION_DOWNLINK:
+                UpfTerminationDownlink termDl = (UpfTerminationDownlink) entity;
+                if (isMaxUeSet() && termDl.counterId() >= getMaxUe() * 2) {
+                    throw new UpfProgrammableException(
+                            "Counter cell index referenced by downlink UPF termination " +
+                                    "rule above max supported UE value.",
+                            UpfProgrammableException.Type.ENTITY_OUT_OF_RANGE,
+                            UpfEntityType.TERMINATION_DOWNLINK
+                    );
+                }
+                break;
+            case INTERFACE:
+                UpfInterface intf = (UpfInterface) entity;
+                if (intf.isDbufReceiver()) {
+                    throw new UpfProgrammableException("Cannot apply the DBUF interface entry!");
+                }
+                break;
+            case TUNNEL_PEER:
+                GtpTunnelPeer tunnelPeer = (GtpTunnelPeer) entity;
+                if (tunnelPeer.tunPeerId() == DBUF_TUNNEL_ID) {
+                    throw new UpfProgrammableException("Cannot apply the DBUF GTP Tunnel Peer");
+                }
+                break;
+            default:
+                break;
         }
-    }
-
-    @Override
-    public void addFar(ForwardingActionRule far) throws UpfProgrammableException {
-        var ruleId = ImmutablePair.of(far.sessionId(), far.farId());
-        if (far.buffers()) {
-            // If the far has the buffer flag, modify its tunnel so it directs to dbuf
-            far = convertToDbufFar(far);
-            up4Store.learnBufferingFarId(ruleId);
-        }
-        getLeaderUpfProgrammable().addFar(far);
-        // TODO: Should we wait for rules to be installed on all devices before
-        //   triggering drain?
-        if (!far.buffers() && up4Store.forgetBufferingFarId(ruleId)) {
-            // If this FAR does not buffer but used to, then drain the buffer for the UE address
-            // that hits this FAR. It is harmless to trigger drain if there are no buffers to be drained
-            Ip4Address ueAddr = up4Store.ueAddrOfFarId(ruleId);
-            if (ueAddr != null) {
+        getLeaderUpfProgrammable().apply(entity);
+        // Drain from DBUF if necessary
+        if (entity.type().equals(SESSION_DOWNLINK)) {
+            SessionDownlink sess = (SessionDownlink) entity;
+            if (!sess.needsBuffering() && up4Store.forgetBufferingUe(sess.ueAddress())) {
+                // TODO: Should we wait for rules to be installed on all devices before
+                //   triggering drain?
                 // Run the outbound rpc in a forked context so it doesn't cancel if it was called
                 // by an inbound rpc that completes faster than the drain call
+                Ip4Address ueAddr = sess.ueAddress();
                 Context ctx = Context.current().fork();
                 ctx.run(() -> {
                     if (dbufClient == null) {
@@ -647,40 +726,66 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
     }
 
-    @Override
-    public void removeFar(ForwardingActionRule far) throws UpfProgrammableException {
-        getLeaderUpfProgrammable().removeFar(far);
-        // if it was used to be a buffer far - we need to clean it as we will not see
-        // the drain trigger for this far
-        up4Store.forgetBufferingFarId(ImmutablePair.of(far.sessionId(), far.farId()));
+    public void adminApply(UpfEntity entity) throws UpfProgrammableException {
+        getLeaderUpfProgrammable().apply(entity);
     }
 
     @Override
-    public void addInterface(UpfInterface upfInterface) throws UpfProgrammableException {
-        getLeaderUpfProgrammable().addInterface(upfInterface);
+    public Collection<? extends UpfEntity> readAll(UpfEntityType entityType) throws UpfProgrammableException {
+        Collection<? extends UpfEntity> entities = getLeaderUpfProgrammable().readAll(entityType);
+        switch (entityType) {
+            case SESSION_DOWNLINK:
+                // TODO: this might be an overkill, however reads are required
+                //  only during reconciliation, so this shouldn't affect the
+                //  attachment and detachment of UEs.
+                // Map the DBUF entities back to be BUFFERING entities.
+                return entities.stream().map(e -> {
+                    SessionDownlink sess = (SessionDownlink) e;
+                    if (sess.tunPeerId() == DBUF_TUNNEL_ID) {
+                        return SessionDownlink.builder()
+                                .needsBuffering(true)
+                                // Towards northbound, do not specify tunnel peer id
+                                .withUeAddress(sess.ueAddress())
+                                .build();
+                    }
+                    return e;
+                }).collect(Collectors.toList());
+            case INTERFACE:
+                // Don't expose DBUF interface
+                return entities.stream()
+                        .filter(e -> !((UpfInterface) e).isDbufReceiver())
+                        .collect(Collectors.toList());
+            case TUNNEL_PEER:
+                // Don't expose DBUF GTP tunnel peer
+                return entities.stream()
+                        .filter(e -> ((GtpTunnelPeer) e).tunPeerId() != DBUF_TUNNEL_ID)
+                        .collect(Collectors.toList());
+            default:
+                return entities;
+        }
+    }
+
+    public Collection<? extends UpfEntity> adminReadAll(UpfEntityType entityType)
+            throws UpfProgrammableException {
+        return getLeaderUpfProgrammable().readAll(entityType);
     }
 
     @Override
-    public void removeInterface(UpfInterface upfInterface) throws UpfProgrammableException {
-        getLeaderUpfProgrammable().removeInterface(upfInterface);
-    }
-
-    @Override
-    public PdrStats readCounter(int counterIdx) throws UpfProgrammableException {
+    public UpfCounter readCounter(int counterIdx) throws UpfProgrammableException {
         if (isMaxUeSet() && counterIdx >= getMaxUe() * 2) {
             throw new UpfProgrammableException(
                     "Requested PDR counter cell index above max supported UE value.",
-                    UpfProgrammableException.Type.COUNTER_INDEX_OUT_OF_RANGE);
+                    UpfProgrammableException.Type.ENTITY_OUT_OF_RANGE, UpfEntityType.COUNTER);
         }
         // When reading counters we need to explicitly read on all UPF physical
         // devices and aggregate counter values.
         assertUpfIsReady();
         // TODO: add get on builder can simply this, by removing the need for building the PdrStat every time.
-        PdrStats.Builder builder = PdrStats.builder();
+        UpfCounter.Builder builder = UpfCounter.builder();
         builder.withCellId(counterIdx);
-        PdrStats prevStats = builder.build();
+        UpfCounter prevStats = builder.build();
         for (UpfProgrammable upfProg : upfProgrammables.values()) {
-            PdrStats pdrStat = upfProg.readCounter(counterIdx);
+            UpfCounter pdrStat = upfProg.readCounter(counterIdx);
             builder.setIngress(pdrStat.getIngressPkts() + prevStats.getIngressPkts(),
                                pdrStat.getIngressBytes() + prevStats.getIngressBytes());
             builder.setEgress(pdrStat.getEgressPkts() + prevStats.getEgressPkts(),
@@ -692,34 +797,105 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
-    public long pdrCounterSize() {
-        long pdrCounterSize = getLeaderUpfProgrammable().pdrCounterSize();
-        if (isMaxUeSet()) {
-            return Math.min(config.maxUes() * 2, pdrCounterSize);
+    public void delete(UpfEntity entity) throws UpfProgrammableException {
+        switch (entity.type()) {
+            case SESSION_DOWNLINK:
+                SessionDownlink sess = (SessionDownlink) entity;
+                if (sess.needsBuffering()) {
+                    entity = convertToBuffering(sess);
+                }
+                break;
+            case INTERFACE:
+                UpfInterface intf = (UpfInterface) entity;
+                if (intf.isDbufReceiver()) {
+                    throw new UpfProgrammableException("Cannot delete the DBUF interface rule!");
+                }
+                break;
+            case TUNNEL_PEER:
+                GtpTunnelPeer tunnel = (GtpTunnelPeer) entity;
+                if (tunnel.tunPeerId() == DBUF_TUNNEL_ID) {
+                    throw new UpfProgrammableException("Cannot delete the DBUF GTP tunnel peer");
+                }
+                break;
+            default:
+                break;
         }
-        return pdrCounterSize;
+        getLeaderUpfProgrammable().delete(entity);
+        forgetBufferingUeIfRequired(entity);
+    }
+
+    public void adminDelete(UpfEntity entity) throws UpfProgrammableException {
+        getLeaderUpfProgrammable().delete(entity);
+        forgetBufferingUeIfRequired(entity);
+    }
+
+    private void forgetBufferingUeIfRequired(UpfEntity entity) {
+        // if it was used to be a buffer - we need to clean it as we will not see
+        // the drain trigger
+        if (entity.type().equals(SESSION_DOWNLINK)) {
+            up4Store.forgetBufferingUe(((SessionDownlink) entity).ueAddress());
+        }
     }
 
     @Override
-    public long farTableSize() {
-        long farTableSize = getLeaderUpfProgrammable().farTableSize();
-        if (isMaxUeSet()) {
-            return Math.min(config.maxUes() * 2, farTableSize);
+    public void deleteAll(UpfEntityType entityType) throws UpfProgrammableException {
+        switch (entityType) {
+            case TERMINATION_DOWNLINK:
+                getLeaderUpfProgrammable().deleteAll(entityType);
+                up4Store.reset();
+                break;
+            case INTERFACE:
+                Collection<? extends UpfEntity> intfs =
+                        getLeaderUpfProgrammable().readAll(UpfEntityType.INTERFACE).stream()
+                                .filter(t -> !((UpfInterface) t).isDbufReceiver())
+                                .collect(Collectors.toList());
+                for (UpfEntity i : intfs) {
+                    getLeaderUpfProgrammable().delete(i);
+                }
+                break;
+            case TUNNEL_PEER:
+                Collection<? extends UpfEntity> tunnels =
+                        getLeaderUpfProgrammable().readAll(UpfEntityType.TUNNEL_PEER).stream()
+                                .filter(t -> ((GtpTunnelPeer) t).tunPeerId() != DBUF_TUNNEL_ID)
+                                .collect(Collectors.toList());
+                for (UpfEntity tun : tunnels) {
+                    getLeaderUpfProgrammable().delete(tun);
+                }
+                break;
+            default:
+                getLeaderUpfProgrammable().deleteAll(entityType);
         }
-        return farTableSize;
+    }
+
+    public void adminDeleteAll(UpfEntityType entityType) throws UpfProgrammableException {
+        getLeaderUpfProgrammable().deleteAll(entityType);
     }
 
     @Override
-    public long pdrTableSize() {
-        long pdrTableSize = getLeaderUpfProgrammable().pdrTableSize();
-        if (isMaxUeSet()) {
-            return Math.min(config.maxUes() * 2, pdrTableSize);
+    public long tableSize(UpfEntityType entityType) throws UpfProgrammableException {
+        long entitySize = getLeaderUpfProgrammable().tableSize(entityType);
+        switch (entityType) {
+            case TERMINATION_UPLINK:
+            case TERMINATION_DOWNLINK:
+            case SESSION_UPLINK:
+            case SESSION_DOWNLINK:
+                if (isMaxUeSet()) {
+                    return Math.min(config.maxUes(), entitySize);
+                }
+                break;
+            case COUNTER:
+                if (isMaxUeSet()) {
+                    return Math.min(config.maxUes() * 2, entitySize);
+                }
+                break;
+            default:
+
         }
-        return pdrTableSize;
+        return entitySize;
     }
 
     @Override
-    public Collection<PdrStats> readAllCounters(long maxCounterId) throws UpfProgrammableException {
+    public Collection<UpfCounter> readCounters(long maxCounterId) throws UpfProgrammableException {
         if (isMaxUeSet()) {
             if (maxCounterId == -1) {
                 maxCounterId = getMaxUe() * 2;
@@ -731,10 +907,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         // devices and aggregate counter values.
         assertUpfIsReady();
         // TODO: add get on builder can simply this, by removing the need for building the PdrStat every time.
-        PdrStats.Builder builder = PdrStats.builder();
-        Map<Integer, PdrStats> mapCounterIdStats = Maps.newHashMap();
+        UpfCounter.Builder builder = UpfCounter.builder();
+        Map<Integer, UpfCounter> mapCounterIdStats = Maps.newHashMap();
         for (UpfProgrammable upfProg : upfProgrammables.values()) {
-            Collection<PdrStats> pdrStats = upfProg.readAllCounters(maxCounterId);
+            Collection<UpfCounter> pdrStats = upfProg.readCounters(maxCounterId);
             pdrStats.forEach(currStat -> {
                 mapCounterIdStats.compute(currStat.getCellId(), (counterId, prevStats) -> {
                     if (prevStats == null) {
@@ -753,67 +929,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
-    public void enablePscEncap(int defaultQfi) throws UpfProgrammableException {
-        getLeaderUpfProgrammable().enablePscEncap(defaultQfi);
+    public void enablePscEncap() throws UpfProgrammableException {
+        getLeaderUpfProgrammable().enablePscEncap();
     }
 
     @Override
     public void disablePscEncap() throws UpfProgrammableException {
         getLeaderUpfProgrammable().disablePscEncap();
-    }
-
-    @Override
-    public Collection<UpfFlow> getFlows() throws UpfProgrammableException {
-        Map<Integer, PdrStats> counterStats = new HashMap<>();
-        this.readAllCounters(-1).forEach(
-                stats -> counterStats.put(stats.getCellId(), stats));
-
-        // A flow is made of a PDR and the FAR that should apply to packets that
-        // hit the PDR. Multiple PDRs can map to the same FAR, so create a
-        // one->many mapping of FAR Identifier to flow builder.
-        Map<Pair<ImmutableByteSequence, Integer>, List<UpfFlow.Builder>> globalFarToSessionBuilder = new HashMap<>();
-        Collection<ForwardingActionRule> fars = this.getFars();
-        Collection<PacketDetectionRule> pdrs = this.getPdrs();
-        pdrs.forEach(pdr -> globalFarToSessionBuilder.compute(
-                Pair.of(pdr.sessionId(), pdr.farId()),
-                (k, existingVal) -> {
-                    final var builder = UpfFlow.builder()
-                            .setPdr(pdr)
-                            .addStats(counterStats.get(pdr.counterId()));
-                    if (existingVal == null) {
-                        return Lists.newArrayList(builder);
-                    } else {
-                        existingVal.add(builder);
-                        return existingVal;
-                    }
-                }));
-        fars.forEach(far -> globalFarToSessionBuilder.compute(
-                Pair.of(far.sessionId(), far.farId()),
-                (k, builderList) -> {
-                    // If no PDRs use this FAR, then create a new flow with no PDR
-                    if (builderList == null) {
-                        return List.of(UpfFlow.builder().setFar(far));
-                    } else {
-                        // Add the FAR to every flow with a PDR that references it
-                        for (var builder : builderList) {
-                            builder.setFar(far);
-                        }
-                        return builderList;
-                    }
-                }));
-
-        List<UpfFlow> results = new ArrayList<>();
-        for (var builderList : globalFarToSessionBuilder.values()) {
-            for (var builder : builderList) {
-                try {
-                    results.add(builder.build());
-                } catch (java.lang.IllegalArgumentException e) {
-                    log.warn("Corrupt UPF flow found in data plane: {}",
-                             e.getMessage());
-                }
-            }
-        }
-        return results;
     }
 
     /**
@@ -848,28 +970,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     private long getMaxUe() {
         return isMaxUeSet() ? config.maxUes() : NO_UE_LIMIT;
-    }
-
-    /**
-     * Convert the given buffering FAR to a FAR that tunnels the packet to dbuf.
-     *
-     * @param far the FAR to convert
-     * @return the converted FAR
-     */
-    private ForwardingActionRule convertToDbufFar(ForwardingActionRule far) {
-        if (!far.buffers()) {
-            throw new IllegalArgumentException("Converting a non-buffering FAR to a dbuf FAR! This shouldn't happen.");
-        }
-        // dbufTunnel can be null at this point. This will be translated into
-        // a load_far_normal action with notify and drop flags set
-        return ForwardingActionRule.builder()
-                .setFarId(far.farId())
-                .withSessionId(far.sessionId())
-                .setNotifyFlag(far.notifies())
-                .setBufferFlag(true)
-                .setTunnel(dbufTunnel)
-                .setDropFlag(dbufTunnel == null)
-                .build();
     }
 
     private void stopReconcile() {
@@ -1050,9 +1150,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         private void checkStateAndReconcile() throws UpfProgrammableException {
             log.trace("Running reconciliation task...");
             assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
-            Collection<PacketDetectionRule> leaderPdrs = getLeaderUpfProgrammable().getPdrs();
-            Collection<ForwardingActionRule> leaderFars = getLeaderUpfProgrammable().getFars();
-            Collection<UpfInterface> leaderInterfaces = getLeaderUpfProgrammable().getInterfaces();
+            Collection<UpfEntity> leaderState =
+                    (Collection<UpfEntity>) getLeaderUpfProgrammable().readAll(UpfEntityType.SESSION_UPLINK);
+            leaderState.addAll(getLeaderUpfProgrammable().readAll(SESSION_DOWNLINK));
+            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TERMINATION_UPLINK));
+            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TERMINATION_DOWNLINK));
+            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.INTERFACE));
+            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TUNNEL_PEER));
 
             for (var entry : upfProgrammables.entrySet()) {
                 var deviceId = entry.getKey();
@@ -1063,97 +1167,42 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 if (!mastershipService.isLocalMaster(deviceId)) {
                     continue;
                 }
-                Collection<PacketDetectionRule> pdrs = upfProg.getPdrs();
-                Collection<ForwardingActionRule> fars = upfProg.getFars();
-                Collection<UpfInterface> interfaces = upfProg.getInterfaces();
+                Collection<UpfEntity> followerState =
+                        (Collection<UpfEntity>) upfProg.readAll(UpfEntityType.SESSION_UPLINK);
+                followerState.addAll(upfProg.readAll(SESSION_DOWNLINK));
+                followerState.addAll(upfProg.readAll(UpfEntityType.TERMINATION_UPLINK));
+                followerState.addAll(upfProg.readAll(UpfEntityType.TERMINATION_DOWNLINK));
+                followerState.addAll(upfProg.readAll(UpfEntityType.INTERFACE));
+                followerState.addAll(upfProg.readAll(UpfEntityType.TUNNEL_PEER));
 
                 // Do not deal with errors on UPFProgrammable calls, we will
                 // eventually converge in the next reconciliation cycle.
 
                 // First remove stale entries and then add the missing ones
                 // otherwise when an entry needs update, it won't be updated.
-                // (e.g., if a FAR needs to be updated, doing add and then remove
-                // translates in only a remove, delete then remove first remove
-                // the entry and the push the new one).
-
-                // ----- PDRs ----
-                if (!leaderPdrs.containsAll(pdrs)) {
-                    log.debug("Removing stale PDRs from {}", deviceId);
-                    Collection<PacketDetectionRule> toRemovePdrs = new HashSet<>(pdrs);
-                    toRemovePdrs.removeAll(leaderPdrs);
-                    for (var pdr : toRemovePdrs) {
+                if (!leaderState.containsAll(followerState)) {
+                    log.debug("Removing stale UPF entities from {}", deviceId);
+                    Collection<UpfEntity> toRemoveEntities = new HashSet<>(followerState);
+                    toRemoveEntities.removeAll(leaderState);
+                    for (UpfEntity entity : toRemoveEntities) {
                         try {
-                            upfProg.removePdr(pdr);
+                            upfProg.delete(entity);
                         } catch (UpfProgrammableException e) {
                             log.error("Error while reconciling {}: {} [{}]",
-                                      deviceId, e.getMessage(), pdr);
+                                      deviceId, e.getMessage(), entity);
                         }
                     }
                 }
-                if (!pdrs.containsAll(leaderPdrs)) {
-                    log.debug("Adding missing PDRs on {}", deviceId);
-                    Collection<PacketDetectionRule> toAddPdrs = new HashSet<>(leaderPdrs);
-                    toAddPdrs.removeAll(pdrs);
-                    for (var pdr : toAddPdrs) {
+                if (!followerState.containsAll(leaderState)) {
+                    log.debug("Adding missing UPF entities on {}", deviceId);
+                    Collection<UpfEntity> toAddEntities = new HashSet<>(leaderState);
+                    toAddEntities.removeAll(followerState);
+                    for (UpfEntity entity : toAddEntities) {
                         try {
-                            upfProg.addPdr(pdr);
+                            upfProg.apply(entity);
                         } catch (UpfProgrammableException e) {
                             log.error("Error while reconciling {}: {} [{}]",
-                                      deviceId, e.getMessage(), pdr);
-                        }
-                    }
-                }
-                // ----- FARs ----
-                if (!leaderFars.containsAll(fars)) {
-                    log.debug("Removing stale FARs from {}", deviceId);
-                    Collection<ForwardingActionRule> toRemoveFars = new HashSet<>(fars);
-                    toRemoveFars.removeAll(leaderFars);
-                    for (var far : toRemoveFars) {
-                        try {
-                            upfProg.removeFar(far);
-                        } catch (UpfProgrammableException e) {
-                            log.error("Error while reconciling {}: {} [{}]",
-                                      deviceId, e.getMessage(), far);
-                        }
-                    }
-                }
-                if (!fars.containsAll(leaderFars)) {
-                    log.debug("Adding missing FARs on {}", deviceId);
-                    Collection<ForwardingActionRule> toAddFars = new HashSet<>(leaderFars);
-                    toAddFars.removeAll(fars);
-                    for (var far : toAddFars) {
-                        try {
-                            upfProg.addFar(far);
-                        } catch (UpfProgrammableException e) {
-                            log.error("Error while reconciling {}: {} [{}]",
-                                      deviceId, e.getMessage(), far);
-                        }
-                    }
-                }
-                // ----- Interfaces ----
-                if (!leaderInterfaces.containsAll(interfaces)) {
-                    log.debug("Removing stale UPF Interfaces from {}", deviceId);
-                    Collection<UpfInterface> toRemoveIntfs = new HashSet<>(interfaces);
-                    toRemoveIntfs.removeAll(leaderInterfaces);
-                    for (var intf : toRemoveIntfs) {
-                        try {
-                            upfProg.removeInterface(intf);
-                        } catch (UpfProgrammableException e) {
-                            log.error("Error while reconciling {}: {} [{}]",
-                                      deviceId, e.getMessage(), intf);
-                        }
-                    }
-                }
-                if (!interfaces.containsAll(leaderInterfaces)) {
-                    log.debug("Adding missing UPF Interfaces on {}", deviceId);
-                    Collection<UpfInterface> toAddIntfs = new HashSet<>(leaderInterfaces);
-                    toAddIntfs.removeAll(interfaces);
-                    for (var intf : toAddIntfs) {
-                        try {
-                            upfProg.addInterface(intf);
-                        } catch (UpfProgrammableException e) {
-                            log.error("Error while reconciling {}: {} [{}]",
-                                      deviceId, e.getMessage(), intf);
+                                      deviceId, e.getMessage(), entity);
                         }
                     }
                 }

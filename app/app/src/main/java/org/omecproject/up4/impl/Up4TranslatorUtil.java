@@ -90,9 +90,19 @@ final class Up4TranslatorUtil {
         return byteSeqToByte(getFieldValue(entry, fieldId));
     }
 
+    static short getFieldShort(PiTableEntry entry, PiMatchFieldId fieldId)
+            throws Up4TranslatorImpl.Up4TranslationException {
+        return byteSeqToShort(getFieldValue(entry, fieldId));
+    }
+
     static int getParamInt(PiTableEntry entry, PiActionParamId paramId)
             throws Up4TranslatorImpl.Up4TranslationException {
         return byteSeqToInt(getParamValue(entry, paramId));
+    }
+
+    static short getParamShort(PiTableEntry entry, PiActionParamId paramId)
+            throws Up4TranslatorImpl.Up4TranslationException {
+        return byteSeqToShort(getParamValue(entry, paramId));
     }
 
     static byte getParamByte(PiTableEntry entry, PiActionParamId paramId)
@@ -131,6 +141,14 @@ final class Up4TranslatorUtil {
     static byte byteSeqToByte(ImmutableByteSequence sequence) {
         try {
             return sequence.fit(8).asReadOnlyBuffer().get();
+        } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
+            throw new IllegalArgumentException("Attempted to convert a >1 byte wide sequence to an byte!");
+        }
+    }
+
+    static short byteSeqToShort(ImmutableByteSequence sequence) {
+        try {
+            return sequence.fit(16).asReadOnlyBuffer().getShort();
         } catch (ImmutableByteSequence.ByteSequenceTrimException e) {
             throw new IllegalArgumentException("Attempted to convert a >1 byte wide sequence to an byte!");
         }

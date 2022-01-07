@@ -34,22 +34,22 @@ control VerifyChecksumImpl(inout parsed_headers_t hdr,
             hdr.ipv4.checksum,
             HashAlgorithm.csum16
         );
-        verify_checksum(hdr.outer_ipv4.isValid(),
+        verify_checksum(hdr.inner_ipv4.isValid(),
             {
-                hdr.outer_ipv4.version,
-                hdr.outer_ipv4.ihl,
-                hdr.outer_ipv4.dscp,
-                hdr.outer_ipv4.ecn,
-                hdr.outer_ipv4.total_len,
-                hdr.outer_ipv4.identification,
-                hdr.outer_ipv4.flags,
-                hdr.outer_ipv4.frag_offset,
-                hdr.outer_ipv4.ttl,
-                hdr.outer_ipv4.proto,
-                hdr.outer_ipv4.src_addr,
-                hdr.outer_ipv4.dst_addr
+                hdr.inner_ipv4.version,
+                hdr.inner_ipv4.ihl,
+                hdr.inner_ipv4.dscp,
+                hdr.inner_ipv4.ecn,
+                hdr.inner_ipv4.total_len,
+                hdr.inner_ipv4.identification,
+                hdr.inner_ipv4.flags,
+                hdr.inner_ipv4.frag_offset,
+                hdr.inner_ipv4.ttl,
+                hdr.inner_ipv4.proto,
+                hdr.inner_ipv4.src_addr,
+                hdr.inner_ipv4.dst_addr
             },
-            hdr.outer_ipv4.checksum,
+            hdr.inner_ipv4.checksum,
             HashAlgorithm.csum16
         );
         // TODO: add checksum verification for gtpu (if possible), inner_udp, inner_tcp
@@ -64,28 +64,6 @@ control ComputeChecksumImpl(inout parsed_headers_t hdr,
 {
     apply {
         // Compute Outer IPv4 checksum
-        update_checksum(hdr.outer_ipv4.isValid(),{
-                hdr.outer_ipv4.version,
-                hdr.outer_ipv4.ihl,
-                hdr.outer_ipv4.dscp,
-                hdr.outer_ipv4.ecn,
-                hdr.outer_ipv4.total_len,
-                hdr.outer_ipv4.identification,
-                hdr.outer_ipv4.flags,
-                hdr.outer_ipv4.frag_offset,
-                hdr.outer_ipv4.ttl,
-                hdr.outer_ipv4.proto,
-                hdr.outer_ipv4.src_addr,
-                hdr.outer_ipv4.dst_addr
-            },
-            hdr.outer_ipv4.checksum,
-            HashAlgorithm.csum16
-        );
-        
-        // Outer UDP checksum currently remains 0, 
-        // which is legal for IPv4
-
-        // Compute IPv4 checksum
         update_checksum(hdr.ipv4.isValid(),{
                 hdr.ipv4.version,
                 hdr.ipv4.ihl,
@@ -101,6 +79,28 @@ control ComputeChecksumImpl(inout parsed_headers_t hdr,
                 hdr.ipv4.dst_addr
             },
             hdr.ipv4.checksum,
+            HashAlgorithm.csum16
+        );
+        
+        // Outer UDP checksum currently remains 0, 
+        // which is legal for IPv4
+
+        // Compute IPv4 checksum
+        update_checksum(hdr.inner_ipv4.isValid(),{
+                hdr.inner_ipv4.version,
+                hdr.inner_ipv4.ihl,
+                hdr.inner_ipv4.dscp,
+                hdr.inner_ipv4.ecn,
+                hdr.inner_ipv4.total_len,
+                hdr.inner_ipv4.identification,
+                hdr.inner_ipv4.flags,
+                hdr.inner_ipv4.frag_offset,
+                hdr.inner_ipv4.ttl,
+                hdr.inner_ipv4.proto,
+                hdr.inner_ipv4.src_addr,
+                hdr.inner_ipv4.dst_addr
+            },
+            hdr.inner_ipv4.checksum,
             HashAlgorithm.csum16
         );
     }

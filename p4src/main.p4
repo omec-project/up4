@@ -89,7 +89,7 @@ control Routing(inout parsed_headers_t    hdr,
 
     table routes_v4 {
         key = {
-            local_meta.next_hop_ip   : lpm @name("dst_prefix");
+            hdr.ipv4.dst_addr      : lpm @name("dst_prefix");
             hdr.ipv4.src_addr      : selector;
             hdr.ipv4.proto         : selector;
             local_meta.l4_sport    : selector;
@@ -106,15 +106,7 @@ control Routing(inout parsed_headers_t    hdr,
     apply {
         // Normalize IP address for routing table, and decrement TTL
         // TODO: find a better alternative to this hack
-        if (hdr.outer_ipv4.isValid()) {
-            local_meta.next_hop_ip = hdr.outer_ipv4.dst_addr;
-            hdr.outer_ipv4.ttl = hdr.outer_ipv4.ttl - 1;
-        } else if (hdr.ipv4.isValid()){
-            local_meta.next_hop_ip = hdr.ipv4.dst_addr;
-            hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
-
-        }
-
+        hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
         if (hdr.ipv4.ttl == 0) {
             drop();
         }
@@ -124,39 +116,224 @@ control Routing(inout parsed_headers_t    hdr,
     }
 }
 
+//------------------------------------------------------------------------------
+// INGRESS PIPELINE
+//------------------------------------------------------------------------------
+control PreQosPipe (inout parsed_headers_t    hdr,
+                    inout local_metadata_t    local_meta,
+                    inout standard_metadata_t std_meta) {
 
-//------------------------------------------------------------------------------
-// FAR EXECUTION CONTROL BLOCK
-//------------------------------------------------------------------------------
-control ExecuteFar (inout parsed_headers_t    hdr,
-                     inout local_metadata_t    local_meta,
-                     inout standard_metadata_t std_meta) {
+
+    counter(MAX_PDRS, CounterType.packets_and_bytes) pre_qos_counter;
+
+    table my_station {
+        key = {
+            hdr.ethernet.dst_addr : exact @name("dst_mac");
+        }
+        actions = {
+            NoAction;
+        }
+    }
+
+    action set_source_iface(InterfaceType src_iface, Direction direction, slice_id_t slice_id) {
+        // Interface type can be access, core (see InterfaceType enum)
+        // If interface is from the control plane, direction can be either up or down
+        local_meta.src_iface = src_iface;
+        local_meta.direction = direction;
+        local_meta.slice_id = slice_id;
+    }
+    table interfaces {
+        key = {
+            hdr.ipv4.dst_addr : lpm @name("ipv4_dst_prefix");
+        }
+        actions = {
+            set_source_iface;
+        }
+        const default_action = set_source_iface(InterfaceType.UNKNOWN, Direction.UNKNOWN, Slice.DEFAULT);
+    }
+
+    @hidden
+    action gtpu_decap() {
+        hdr.ipv4 = hdr.inner_ipv4;
+        hdr.inner_ipv4.setInvalid();
+        hdr.udp = hdr.inner_udp;
+        hdr.inner_udp.setInvalid();
+        hdr.tcp = hdr.inner_tcp;
+        hdr.inner_tcp.setInvalid();
+        hdr.icmp = hdr.inner_icmp;
+        hdr.inner_icmp.setInvalid();
+        hdr.gtpu.setInvalid();
+        hdr.gtpu_options.setInvalid();
+        hdr.gtpu_ext_psc.setInvalid();
+    }
+
+    @hidden
+    action do_buffer() {
+        // Send digest. This is equivalent to a PFCP Downlink Data Notification (DDN), used to
+        // notify control plane to initiate the paging procedure to locate and wake-up the UE.
+        // The first argument is unused on BMv2.
+        digest<ddn_digest_t>(1, { local_meta.ue_addr });
+        // The actual buffering cannot be expressed in the logical pipeline.
+        mark_to_drop(std_meta);
+        exit;
+    }
+
+    action do_drop() {
+        mark_to_drop(std_meta);
+        exit;
+    }
+
+    action set_session_uplink() {
+        local_meta.needs_gtpu_decap = true;
+    }
+
+    action set_session_uplink_drop() {
+        local_meta.needs_dropping = true;
+    }
+
+    action set_session_downlink(tunnel_peer_id_t tunnel_peer_id) {
+        local_meta.tunnel_peer_id = tunnel_peer_id;
+    }
+    action set_session_downlink_drop() {
+        local_meta.needs_dropping = true;
+    }
+
+    action set_session_downlink_buff() {
+        local_meta.needs_buffering = true;
+    }
+
+    table sessions_uplink {
+        key = {
+            hdr.ipv4.dst_addr   : exact @name("n3_address");
+            local_meta.teid     : exact @name("teid");
+        }
+        actions = {
+            set_session_uplink;
+            set_session_uplink_drop;
+            @defaultonly do_drop;
+        }
+        const default_action = do_drop;
+    }
+
+    table sessions_downlink {
+        key = {
+            hdr.ipv4.dst_addr   : exact @name("ue_address");
+        }
+        actions = {
+            set_session_downlink;
+            set_session_downlink_drop;
+            set_session_downlink_buff;
+            @defaultonly do_drop;
+        }
+        const default_action = do_drop;
+    }
+
+    @hidden
+    action common_term(counter_index_t ctr_idx) {
+        local_meta.ctr_idx = ctr_idx;
+        local_meta.terminations_hit = true;
+    }
+
+    action uplink_term_fwd(counter_index_t ctr_idx, tc_t tc) {
+        common_term(ctr_idx);
+        local_meta.tc = tc;
+    }
+
+    action uplink_term_drop(counter_index_t ctr_idx) {
+        common_term(ctr_idx);
+        local_meta.needs_dropping = true;
+    }
+
+    // QFI = 0 for 4G traffic
+    action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, tc_t tc) {
+        common_term(ctr_idx);
+        local_meta.tunnel_out_teid = teid;
+        local_meta.tc = tc;
+        local_meta.tunnel_out_qfi = qfi;
+    }
+
+    action downlink_term_drop(counter_index_t ctr_idx) {
+        common_term(ctr_idx);
+        local_meta.needs_dropping = true;
+    }
+
+    table terminations_uplink {
+        key = {
+            local_meta.ue_addr  : exact @name("ue_address"); // Session ID
+        }
+        actions = {
+            uplink_term_fwd;
+            uplink_term_drop;
+            @defaultonly do_drop;
+        }
+        const default_action = do_drop;
+    }
+
+    table terminations_downlink {
+        key = {
+            local_meta.ue_addr  : exact @name("ue_address"); // Session ID
+        }
+        actions = {
+            downlink_term_fwd;
+            downlink_term_drop;
+            @defaultonly do_drop;
+        }
+        const default_action = do_drop;
+    }
+
+    action load_tunnel_param(ipv4_addr_t    src_addr,
+                             ipv4_addr_t    dst_addr,
+                             l4_port_t      sport
+                             ) {
+        local_meta.tunnel_out_src_ipv4_addr = src_addr;
+        local_meta.tunnel_out_dst_ipv4_addr = dst_addr;
+        local_meta.tunnel_out_udp_sport     = sport;
+        local_meta.needs_tunneling          = true;
+    }
+
+    table tunnel_peers {
+        key = {
+            local_meta.tunnel_peer_id : exact @name("tunnel_peer_id");
+        }
+        actions = {
+            load_tunnel_param;
+        }
+    }
 
     @hidden
     action _udp_encap(ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
-                      L4Port udp_sport, L4Port udp_dport,
+                      l4_port_t udp_sport, l4_port_t udp_dport,
                       bit<16> ipv4_total_len,
                       bit<16> udp_len) {
-        hdr.outer_ipv4.setValid();
-        hdr.outer_ipv4.version = IP_VERSION_4;
-        hdr.outer_ipv4.ihl = IPV4_MIN_IHL;
-        hdr.outer_ipv4.dscp = 0;
-        hdr.outer_ipv4.ecn = 0;
-        hdr.outer_ipv4.total_len = ipv4_total_len;
-        hdr.outer_ipv4.identification = 0x1513; // TODO: change this to timestamp or some incremental num
-        hdr.outer_ipv4.flags = 0;
-        hdr.outer_ipv4.frag_offset = 0;
-        hdr.outer_ipv4.ttl = DEFAULT_IPV4_TTL;
-        hdr.outer_ipv4.proto = IpProtocol.UDP;
-        hdr.outer_ipv4.src_addr = src_addr;
-        hdr.outer_ipv4.dst_addr = dst_addr;
-        hdr.outer_ipv4.checksum = 0; // Updated later
+        hdr.inner_udp = hdr.udp;
+        hdr.udp.setInvalid();
+        hdr.inner_tcp = hdr.tcp;
+        hdr.tcp.setInvalid();
+        hdr.inner_icmp = hdr.icmp;
+        hdr.icmp.setInvalid();
+        hdr.udp.setValid();
+        hdr.udp.sport = udp_sport;
+        hdr.udp.dport = udp_dport;
+        hdr.udp.len = udp_len;
+        hdr.udp.checksum = 0; // Never updated due to p4 limitations
 
-        hdr.outer_udp.setValid();
-        hdr.outer_udp.sport = udp_sport;
-        hdr.outer_udp.dport = udp_dport;
-        hdr.outer_udp.len = udp_len;
-        hdr.outer_udp.checksum = 0; // Never updated due to p4 limitations
+        hdr.inner_ipv4 = hdr.ipv4;
+        hdr.ipv4.setValid();
+        hdr.ipv4.version = IP_VERSION_4;
+        hdr.ipv4.ihl = IPV4_MIN_IHL;
+        hdr.ipv4.dscp = 0;
+        hdr.ipv4.ecn = 0;
+        hdr.ipv4.total_len = ipv4_total_len;
+        hdr.ipv4.identification = 0x1513; // TODO: change this to timestamp or some incremental num
+        hdr.ipv4.flags = 0;
+        hdr.ipv4.frag_offset = 0;
+        hdr.ipv4.ttl = DEFAULT_IPV4_TTL;
+        hdr.ipv4.proto = IpProtocol.UDP;
+        hdr.ipv4.src_addr = src_addr;
+        hdr.ipv4.dst_addr = dst_addr;
+        hdr.ipv4.checksum = 0; // Updated later
+
+
     }
 
     @hidden
@@ -169,29 +346,32 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         hdr.gtpu.seq_flag = 0;
         hdr.gtpu.npdu_flag = 0;
         hdr.gtpu.msgtype = GTPUMessageType.GPDU;
-        hdr.gtpu.msglen = hdr.ipv4.total_len;
+        hdr.gtpu.msglen = hdr.inner_ipv4.total_len;
         hdr.gtpu.teid = teid;
     }
 
-    @hidden
-    action gtpu_only(ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
-                      L4Port     udp_sport, teid_t teid) {
-        _udp_encap(src_addr, dst_addr, udp_sport, L4Port.GTP_GPDU,
+    action do_gtpu_tunnel() {
+        _udp_encap(local_meta.tunnel_out_src_ipv4_addr,
+                   local_meta.tunnel_out_dst_ipv4_addr,
+                   local_meta.tunnel_out_udp_sport,
+                   L4Port.GTP_GPDU,
                    hdr.ipv4.total_len + IPV4_HDR_SIZE + UDP_HDR_SIZE + GTP_HDR_MIN_SIZE,
                    hdr.ipv4.total_len + UDP_HDR_SIZE + GTP_HDR_MIN_SIZE);
-        _gtpu_encap(teid);
+        _gtpu_encap(local_meta.tunnel_out_teid);
     }
 
-    @hidden
-    action gtpu_with_psc(ipv4_addr_t src_addr, ipv4_addr_t dst_addr,
-                            L4Port     udp_sport, teid_t teid, bit<6> qfi) {
-        _udp_encap(src_addr, dst_addr, udp_sport, L4Port.GTP_GPDU,
+
+    action do_gtpu_tunnel_with_psc() {
+        _udp_encap(local_meta.tunnel_out_src_ipv4_addr,
+                   local_meta.tunnel_out_dst_ipv4_addr,
+                   local_meta.tunnel_out_udp_sport,
+                   L4Port.GTP_GPDU,
                    hdr.ipv4.total_len + IPV4_HDR_SIZE + UDP_HDR_SIZE + GTP_HDR_MIN_SIZE
                     + GTPU_OPTIONS_HDR_BYTES + GTPU_EXT_PSC_HDR_BYTES,
                    hdr.ipv4.total_len + UDP_HDR_SIZE + GTP_HDR_MIN_SIZE
                     + GTPU_OPTIONS_HDR_BYTES + GTPU_EXT_PSC_HDR_BYTES);
-        _gtpu_encap(teid);
-        hdr.gtpu.msglen = hdr.ipv4.total_len + GTPU_OPTIONS_HDR_BYTES
+        _gtpu_encap(local_meta.tunnel_out_teid);
+        hdr.gtpu.msglen = hdr.inner_ipv4.total_len + GTPU_OPTIONS_HDR_BYTES
                             + GTPU_EXT_PSC_HDR_BYTES; // Override msglen set by _gtpu_encap
         hdr.gtpu.ex_flag = 1; // Override value set by _gtpu_encap
         hdr.gtpu_options.setValid();
@@ -204,232 +384,14 @@ control ExecuteFar (inout parsed_headers_t    hdr,
         hdr.gtpu_ext_psc.spare0   = 0;
         hdr.gtpu_ext_psc.ppp      = 0;
         hdr.gtpu_ext_psc.rqi      = 0;
-        hdr.gtpu_ext_psc.qfi      = qfi;
+        hdr.gtpu_ext_psc.qfi      = local_meta.tunnel_out_qfi;
         hdr.gtpu_ext_psc.next_ext = GTPU_NEXT_EXT_NONE;
     }
-
-    action do_gtpu_tunnel() {
-        gtpu_only(local_meta.far.tunnel_out_src_ipv4_addr,
-                   local_meta.far.tunnel_out_dst_ipv4_addr,
-                   local_meta.far.tunnel_out_udp_sport,
-                   local_meta.far.tunnel_out_teid);
-    }
-
-    action do_gtpu_tunnel_with_psc() {
-        gtpu_with_psc(local_meta.far.tunnel_out_src_ipv4_addr,
-                       local_meta.far.tunnel_out_dst_ipv4_addr,
-                       local_meta.far.tunnel_out_udp_sport,
-                       local_meta.far.tunnel_out_teid,
-                       local_meta.pdr.tunnel_out_qfi);
-    }
-
-    action do_forward() {
-        // Currently a no-op due to forwarding being logically separated
-    }
-
-    action do_buffer() {
-        // Send digest. This is equivalent to a PFCP Downlink Data Notification (DDN), used to
-        // notify control plane to initiate the paging procedure to locate and wake-up the UE.
-        // FIXME: what is the first argument 1 used for?
-        digest<ddn_digest_t>(1, { local_meta.fseid });
-        // The actual buffering cannot be expressed in the logical pipeline.
-        mark_to_drop(std_meta);
-        exit;
-    }
-
-    action do_drop() {
-        mark_to_drop(std_meta);
-        exit;
-    }
-
-    action do_notify_cp() {
-        clone3(CloneType.I2E, CPU_CLONE_SESSION_ID, { std_meta.ingress_port });
-    }
-
-    apply {
-        if (local_meta.far.notify_cp) {
-            do_notify_cp();
-        }
-        if (local_meta.bar.needs_buffering) {
-            do_buffer();
-        }
-        if (local_meta.far.needs_tunneling) {
-            if (local_meta.far.tunnel_out_type == TunnelType.GTPU) {
-              if(local_meta.needs_ext_psc) {
-                do_gtpu_tunnel_with_psc();
-              } else {
-                do_gtpu_tunnel();
-              }
-            }
-        }
-        if (local_meta.far.needs_dropping) {
-            do_drop();
-        } else {
-            do_forward();
-        }
-    }
-}
-
-
-//------------------------------------------------------------------------------
-// INGRESS PIPELINE
-//------------------------------------------------------------------------------
-control PreQosPipe (inout parsed_headers_t    hdr,
-                    inout local_metadata_t    local_meta,
-                    inout standard_metadata_t std_meta) {
-
-
-    counter(MAX_PDRS, CounterType.packets_and_bytes) pre_qos_pdr_counter;
-
-    table my_station {
-        key = {
-            hdr.ethernet.dst_addr : exact @name("dst_mac");
-        }
-        actions = {
-            NoAction;
-        }
-    }
-
-    // TODO: eventually add the SliceId to let PFCP agent set the slice ID.
-    action set_source_iface(InterfaceType src_iface, Direction direction) {
-        // Interface type can be access, core, n6_lan, etc (see InterfaceType enum)
-        // If interface is from the control plane, direction can be either up or down
-        local_meta.src_iface = src_iface;
-        local_meta.direction = direction;
-    }
-    table source_iface_lookup {
-        key = {
-            hdr.ipv4.dst_addr : lpm @name("ipv4_dst_prefix");
-            // Eventually should also check VLAN ID here
-        }
-        actions = {
-            set_source_iface;
-        }
-        const default_action = set_source_iface(InterfaceType.UNKNOWN, Direction.UNKNOWN);
-    }
-
-
-    @hidden
-    action gtpu_decap() {
-        hdr.gtpu.setInvalid();
-        hdr.gtpu_options.setInvalid();
-        hdr.gtpu_ext_psc.setInvalid();
-        hdr.outer_ipv4.setInvalid();
-        hdr.outer_udp.setInvalid();
-    }
-
-    @hidden
-    action _set_pdr(pdr_id_t          id,
-                    fseid_t           fseid,
-                    counter_index_t   ctr_id,
-                    far_id_t          far_id,
-                    bit<1>            needs_gtpu_decap
-                    )
-    {
-        local_meta.pdr.id           = id;
-        local_meta.fseid            = fseid;
-        local_meta.pdr.ctr_idx      = ctr_id;
-        local_meta.far.id           = far_id;
-        local_meta.needs_gtpu_decap = (bool)needs_gtpu_decap;
-    }
-
-    action set_pdr_attributes(pdr_id_t          id,
-                              fseid_t           fseid,
-                              counter_index_t   ctr_id,
-                              far_id_t          far_id,
-                              bit<1>            needs_gtpu_decap
-                             )
-    {
-        _set_pdr(id, fseid, ctr_id, far_id, needs_gtpu_decap);
-        local_meta.needs_ext_psc = false;
-    }
-
-    action set_pdr_attributes_qos(pdr_id_t          id,
-                                       fseid_t           fseid,
-                                       counter_index_t   ctr_id,
-                                       far_id_t          far_id,
-                                       bit<1>            needs_gtpu_decap,
-                                       // Used to push QFI, valid for 5G traffic only
-                                       bit<1>            needs_qfi_push,
-                                       bit<6>            qfi
-                                       )
-    {
-        _set_pdr(id, fseid, ctr_id, far_id, needs_gtpu_decap);
-        local_meta.needs_ext_psc        = (bool)needs_qfi_push;
-        local_meta.pdr.tunnel_out_qfi   = qfi;
-    }
-
-    // Contains PDRs for both the Uplink and Downlink Direction
-    // One PDR's match conditions are made of PDI and a set of 5-tuple filters (SDFs).
-    // The PDR matches if the PDI and any of the SDFs match, but 'filter1 or filter2' cannot be
-    // expressed as one table entry in P4, so this table will contain the cross product of every
-    // PDR's PDI and its SDFs.
-    // Matching on QFI is allowed only for uplink PDRs, while setting a QFI attribute is allowed
-    // only for downlink ones.
-    table pdrs {
-        key = {
-            // PDI
-            local_meta.src_iface        : exact     @name("src_iface"); // To differentiate uplink and downlink
-            hdr.outer_ipv4.dst_addr     : ternary   @name("tunnel_ipv4_dst"); // combines with TEID to make F-TEID
-            local_meta.teid             : ternary   @name("teid");
-            // One SDF filter from a PDR's filter set
-            local_meta.ue_addr          : ternary   @name("ue_addr");
-            local_meta.inet_addr        : ternary   @name("inet_addr");
-            local_meta.ue_l4_port       : range     @name("ue_l4_port");
-            local_meta.inet_l4_port     : range     @name("inet_l4_port");
-            hdr.ipv4.proto              : ternary   @name("ip_proto");
-            // Match on QFI, valid for 5G traffic only
-            hdr.gtpu_ext_psc.isValid()  : ternary  @name("has_qfi");
-            hdr.gtpu_ext_psc.qfi        : ternary  @name("qfi");
-        }
-        actions = {
-            set_pdr_attributes;
-            set_pdr_attributes_qos;
-        }
-    }
-
-    action load_normal_far_attributes(bit<1> needs_dropping,
-                                      bit<1> notify_cp) {
-        local_meta.far.needs_tunneling = false;
-        local_meta.far.needs_dropping    = (bool)needs_dropping;
-        local_meta.far.notify_cp = (bool)notify_cp;
-    }
-    action load_tunnel_far_attributes(bit<1> needs_dropping,
-                                    bit<1> notify_cp,
-                                    bit<1> needs_buffering,
-                                    TunnelType     tunnel_type,
-                                    ipv4_addr_t    src_addr,
-                                    ipv4_addr_t    dst_addr,
-                                    teid_t         teid,
-                                    L4Port         sport) {
-        local_meta.far.needs_tunneling = true;
-        local_meta.far.needs_dropping = (bool)needs_dropping;
-        local_meta.far.notify_cp = (bool)notify_cp;
-        local_meta.far.tunnel_out_type          = tunnel_type;
-        local_meta.far.tunnel_out_src_ipv4_addr = src_addr;
-        local_meta.far.tunnel_out_dst_ipv4_addr = dst_addr;
-        local_meta.far.tunnel_out_teid          = teid;
-        local_meta.far.tunnel_out_udp_sport     = sport;
-        local_meta.bar.needs_buffering = (bool)needs_buffering;
-    }
-
-    table load_far_attributes {
-        key = {
-            local_meta.far.id : exact      @name("far_id");
-            local_meta.fseid  : exact      @name("session_id");
-        }
-        actions = {
-            load_normal_far_attributes;
-            load_tunnel_far_attributes;
-        }
-    }
-
 
     //----------------------------------------
     // INGRESS APPLY BLOCK
     //----------------------------------------
     apply {
-
         if (hdr.packet_out.isValid()) {
             // All packet-outs should be routed like regular packets, without UPF processing. This
             // is used for sending GTP End Marker to base stations, and for other packets
@@ -440,74 +402,60 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             if (!my_station.apply().hit) {
                 return;
             }
-
             // Interfaces we care about:
             // N3 (from base station) - GTPU - match on outer IP dst
             // N6 (from internet) - no GTPU - match on IP header dst
-            // N9 (from another UPF) - GTPU - match on outer IP dst
-            // N4-u (from SMF) - GTPU - match on outer IP dst
-            source_iface_lookup.apply();
-            // Interface lookup happens before normalization of headers,
-            // because the lookup uses the outermost IP header in all cases
+            if (interfaces.apply().hit) {
+                // Normalize so the UE address/port appear as the same field regardless of direction
+                if (local_meta.direction == Direction.UPLINK) {
+                    local_meta.ue_addr = hdr.inner_ipv4.src_addr;
+                    local_meta.inet_addr = hdr.inner_ipv4.dst_addr;
+                    local_meta.ue_l4_port = local_meta.l4_sport;
+                    local_meta.inet_l4_port = local_meta.l4_dport;
 
-
-            // Normalize the headers so that the UE's IPv4 header is always hdr.ipv4
-            // regardless of if there is encapsulation or not.
-            if (hdr.inner_ipv4.isValid()) {
-                hdr.outer_ipv4 = hdr.ipv4;
-                hdr.ipv4 = hdr.inner_ipv4;
-                hdr.inner_ipv4.setInvalid();
-                hdr.outer_udp = hdr.udp;
-                if (hdr.inner_udp.isValid()) {
-                    hdr.udp = hdr.inner_udp;
-                    hdr.inner_udp.setInvalid();
+                    sessions_uplink.apply();
+                    terminations_uplink.apply();
                 }
-                else {
-                    hdr.udp.setInvalid();
-                    if (hdr.inner_tcp.isValid()) {
-                        hdr.tcp = hdr.inner_tcp;
-                        hdr.inner_tcp.setInvalid();
-                    }
-                    else if (hdr.inner_icmp.isValid()) {
-                        hdr.icmp = hdr.inner_icmp;
-                        hdr.inner_icmp.setInvalid();
+                else if (local_meta.direction == Direction.DOWNLINK) {
+                    local_meta.ue_addr = hdr.ipv4.dst_addr;
+                    local_meta.inet_addr = hdr.ipv4.src_addr;
+                    local_meta.ue_l4_port = local_meta.l4_dport;
+                    local_meta.inet_l4_port = local_meta.l4_sport;
+
+                    sessions_downlink.apply();
+                    tunnel_peers.apply();
+                    terminations_downlink.apply();
+                }
+
+                if (local_meta.terminations_hit) {
+                    // Count packets at a counter index unique to whichever termination matched.
+                    pre_qos_counter.count(local_meta.ctr_idx);
+                }
+
+                // Perform whatever header removal the matching in
+                // sessions_* and terminations_* required.
+                if (local_meta.needs_gtpu_decap) {
+                    gtpu_decap();
+                }
+                if (local_meta.needs_buffering) {
+                    do_buffer();
+                }
+                if (local_meta.needs_tunneling) {
+                    if (local_meta.tunnel_out_qfi == 0) {
+                        // 4G
+                        do_gtpu_tunnel();
+                    } else {
+                        // 5G
+                        do_gtpu_tunnel_with_psc();
                     }
                 }
+                if (local_meta.needs_dropping) {
+                    do_drop();
+                }
             }
-
-
-            // Normalize so the UE address/port appear as the same field regardless of direction
-            if (local_meta.direction == Direction.UPLINK) {
-                local_meta.ue_addr = hdr.ipv4.src_addr;
-                local_meta.inet_addr = hdr.ipv4.dst_addr;
-                local_meta.ue_l4_port = local_meta.l4_sport;
-                local_meta.inet_l4_port = local_meta.l4_dport;
-            }
-            else if (local_meta.direction == Direction.DOWNLINK) {
-                local_meta.ue_addr = hdr.ipv4.dst_addr;
-                local_meta.inet_addr = hdr.ipv4.src_addr;
-                local_meta.ue_l4_port = local_meta.l4_dport;
-                local_meta.inet_l4_port = local_meta.l4_sport;
-            }
-
-
-            // Find a matching PDR and load the relevant attributes.
-            pdrs.apply();
-            // Count packets at a counter index unique to whichever PDR matched.
-            pre_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
-
-            // Perform whatever header removal the matching PDR required.
-            if (local_meta.needs_gtpu_decap) {
-                gtpu_decap();
-            }
-
-            // Look up FAR info using the FAR-ID loaded by the PDR table.
-            load_far_attributes.apply();
-            // Execute the loaded FAR
-            ExecuteFar.apply(hdr, local_meta, std_meta);
         }
 
-        // FAR only set the destination IP.
+        // UPF only set the destination IP.
         // Now we need to choose a destination MAC egress port.
         Routing.apply(hdr, local_meta, std_meta);
 
@@ -524,12 +472,12 @@ control PostQosPipe (inout parsed_headers_t hdr,
                      inout standard_metadata_t std_meta) {
 
 
-    counter(MAX_PDRS, CounterType.packets_and_bytes) post_qos_pdr_counter;
+    counter(MAX_PDRS, CounterType.packets_and_bytes) post_qos_counter;
 
     apply {
         // Count packets that made it through QoS and were not dropped,
-        // using the counter index assigned by the PDR that matched in ingress.
-        post_qos_pdr_counter.count(local_meta.pdr.ctr_idx);
+        // using the counter index assigned by the terminations table in ingress.
+        post_qos_counter.count(local_meta.ctr_idx);
 
         // If this is a packet-in to the controller, e.g., if in ingress we
         // matched on the ACL table with action send/clone_to_cpu...

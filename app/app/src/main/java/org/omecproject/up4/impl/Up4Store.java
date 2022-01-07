@@ -4,12 +4,8 @@
  */
 package org.omecproject.up4.impl;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.onlab.packet.Ip4Address;
-import org.onlab.util.ImmutableByteSequence;
-import org.onosproject.net.behaviour.upf.PacketDetectionRule;
 
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -23,68 +19,33 @@ public interface Up4Store {
     void reset();
 
     /**
-     * Returns true if the given FAR IDs is known to be a buffering one.
+     * Returns true if the given UE address is known to be a buffering one.
      *
-     * @param farId FAR ID
+     * @param ueAddr UE address
      * @return boolean
      */
-    boolean isFarIdBuffering(ImmutablePair<ImmutableByteSequence, Integer> farId);
+    boolean isUeBuffering(Ip4Address ueAddr);
 
     /**
-     * Learns the given FAR ID as being a buffering one.
+     * Learns the given UE address as being a buffering one.
      *
-     * @param farId FAR ID
+     * @param ueAddr UE address
      */
-    void learnBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
+    void learnBufferingUe(Ip4Address ueAddr);
 
     /**
-     * Forgets the given FAR ID as being a buffering one. Returns true if the given
-     * FAR IDs is known to be a buffering one.
+     * Forgets the given UE address as being a buffering one. Returns true if
+     * the given UE address is known to be a buffering one.
      *
-     * @param farId FAR ID
-     * @return true if the given FAR IDs is known to be a buffering one
+     * @param ueAddr UE address
+     * @return true if the given UE address is known to be a buffering one
      */
-    boolean forgetBufferingFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
+    boolean forgetBufferingUe(Ip4Address ueAddr);
 
     /**
-     * Returns the set of known buffering FAR IDs.
+     * Returns the set of known buffering UE addresses.
+     *
      * @return set
      */
-    Set<ImmutablePair<ImmutableByteSequence, Integer>> getBufferFarIds();
-
-    /**
-     * Stores the mapping between FAR ID and UE address as defined by the given PDR.
-     *
-     * @param pdr PDR
-     */
-    void learnFarIdToUeAddr(PacketDetectionRule pdr);
-
-    /**
-     * Returns the UE address associated with the given FAR ID.
-     *
-     * @param farId FAR ID
-     * @return the Ip4Address assigned to UE
-     */
-    Ip4Address ueAddrOfFarId(ImmutablePair<ImmutableByteSequence, Integer> farId);
-
-    /**
-     * Removes the given UE address from the FAR ID to UE address map.
-     * @param pdr PDR
-     */
-    void forgetUeAddr(PacketDetectionRule pdr);
-
-    /**
-     * Returns the FAR ID to UE address map.
-     *
-     * @return mapping far id to ue address
-     */
-    Map<ImmutablePair<ImmutableByteSequence, Integer>, Ip4Address> getFarIdsToUeAddrs();
-
-    /**
-     * Returns the UE to FAR ID address map.
-     *
-     * @return mapping ue to far id
-     */
-    Map<Ip4Address, ImmutablePair<ImmutableByteSequence, Integer>> getUeAddrsToFarIds();
-
+    Set<Ip4Address> getBufferUe();
 }

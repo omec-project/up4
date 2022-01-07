@@ -6,9 +6,13 @@ package org.omecproject.up4.cli;
 
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.omecproject.up4.Up4Service;
-import org.omecproject.up4.UpfFlow;
+import org.omecproject.up4.impl.DownlinkUpfFlow;
+import org.omecproject.up4.impl.Up4AdminService;
+import org.omecproject.up4.impl.UplinkUpfFlow;
 import org.onosproject.cli.AbstractShellCommand;
+import org.onosproject.net.behaviour.upf.SessionUplink;
+import org.onosproject.net.behaviour.upf.UpfEntity;
+import org.onosproject.net.behaviour.upf.UpfEntityType;
 
 import java.util.Collection;
 
@@ -20,14 +24,41 @@ import java.util.Collection;
         description = "Read all UE data flows installed in the dataplane")
 public class ReadFlowsCommand extends AbstractShellCommand {
 
+    private static final String SEPARATOR = "-".repeat(40);
+
     @Override
     protected void doExecute() throws Exception {
-        Up4Service app = get(Up4Service.class);
+        Up4AdminService adminService = get(Up4AdminService.class);
 
-        Collection<UpfFlow> flows = app.getFlows();
-        for (UpfFlow flow : flows) {
-            print(flow.toString());
+        Collection<DownlinkUpfFlow> dlUpfFlow = adminService.getDownlinkFlows();
+        Collection<UplinkUpfFlow> ulUpfFlow = adminService.getUplinkFlows();
+        Collection<? extends UpfEntity> ulSess = adminService.adminReadAll(UpfEntityType.SESSION_UPLINK);
+
+        print(SEPARATOR);
+        print(ulSess.size() + " Uplink Sessions");
+        for (UpfEntity s : ulSess) {
+            if (!s.type().equals(UpfEntityType.SESSION_UPLINK)) {
+                print("ERROR: Wrong uplink session: " + s);
+                continue;
+            }
+            SessionUplink sess = (SessionUplink) s;
+            print("n3_addr=" + sess.tunDstAddr() +
+                          ", teid=" + sess.teid() +
+                          (sess.needsDropping() ? ", drop()" : ", fwd()")
+            );
         }
-        print("%d flows found", flows.size());
+        print(SEPARATOR);
+        print(ulUpfFlow.size() + " Uplink Flows");
+        for (UplinkUpfFlow f : ulUpfFlow) {
+            print(f.toString());
+        }
+        print(SEPARATOR);
+        print(dlUpfFlow.size() + " Downlink Flows");
+        for (DownlinkUpfFlow f : dlUpfFlow) {
+            print(f.toString());
+        }
+        print(SEPARATOR);
+        print("UL sess=%d, UL flows=%d, DL flows=%s",
+              ulSess.size(), ulUpfFlow.size(), dlUpfFlow.size());
     }
 }

@@ -6,9 +6,10 @@ package org.omecproject.up4.cli;
 
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
-import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.impl.Up4AdminService;
 import org.onosproject.cli.AbstractShellCommand;
-import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfEntity;
+import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 
 /**
@@ -21,10 +22,10 @@ public class ReadInterfacesCommand extends AbstractShellCommand {
 
     @Override
     protected void doExecute() {
-        Up4Service app = get(Up4Service.class);
+        Up4AdminService app = get(Up4AdminService.class);
 
         try {
-            for (UpfInterface iface : app.getInterfaces()) {
+            for (UpfEntity iface : app.adminReadAll(UpfEntityType.INTERFACE)) {
                 print(iface.toString());
             }
         } catch (UpfProgrammableException e) {

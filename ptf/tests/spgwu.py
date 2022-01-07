@@ -25,12 +25,10 @@ from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
 from convert import encode
 from spgwu_base import GtpuBaseTest, UDP_GTP_PORT, GTPU_EXT_PSC_TYPE_DL, \
     GTPU_EXT_PSC_TYPE_UL
-from unittest import skip
 
-from extra_headers import CpuHeader
 
 CPU_CLONE_SESSION_ID = 99
-FSEID_BITWIDTH = 96
+UE_ADDR_BITWIDTH = 32
 UE_IPV4 = "17.0.0.1"
 ENODEB_IPV4 = "140.0.100.1"
 S1U_IPV4 = "140.0.100.2"
@@ -70,14 +68,14 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
 
-        # PDR counter ID
+        # UPF counter ID
         ctr_id = self.new_counter_id()
 
         # program all the tables
         self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False)
 
         # read pre and post-QoS packet and byte counters
-        self.read_pdr_counters(ctr_id)
+        self.read_upf_counters(ctr_id)
 
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, pkt)
@@ -116,14 +114,14 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
 
-        # PDR counter ID
+        # UPF counter ID
         ctr_id = self.new_counter_id()
 
         # program all the tables
         self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False)
 
         # read pre and post-QoS packet and byte counters
-        self.read_pdr_counters(ctr_id)
+        self.read_upf_counters(ctr_id)
 
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, pkt)
@@ -135,7 +133,7 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
 
 @group("gtpu")
 class GtpuDropUplinkTest(GtpuBaseTest):
-    """ Tests that a packet received from a UE gets decapsulated and dropped because of FAR rule.
+    """ Tests that a packet received from a UE gets decapsulated and dropped because of terminations rule.
     """
 
     def runTest(self):
@@ -162,14 +160,14 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
 
-        # PDR counter ID
+        # UPF counter ID
         ctr_id = self.new_counter_id()
 
         # program all the tables
         self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=True)
 
         # read pre and post-QoS packet and byte counters
-        self.read_pdr_counters(ctr_id)
+        self.read_upf_counters(ctr_id)
 
         # send packet and verify it is dropped
         testutils.send_packet(self, self.port1, pkt)
@@ -182,7 +180,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
 
 @group("gtpu")
 class GtpuDropDownlinkTest(GtpuBaseTest):
-    """ Tests that a packet received from the internet/core gets dropped because of FAR rule.
+    """ Tests that a packet received from the internet/core gets dropped because of terminations rule.
     """
 
     def runTest(self):
@@ -211,14 +209,14 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
 
-        # PDR counter ID
+        # UPF counter ID
         ctr_id = self.new_counter_id()
 
         # program all the tables
         self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=True)
 
         # read pre and post-QoS packet and byte counters
-        self.read_pdr_counters(ctr_id)
+        self.read_upf_counters(ctr_id)
 
         # send packet and verify it is dropped
         testutils.send_packet(self, self.port1, pkt)
@@ -230,7 +228,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
 
 
 class GtpuDdnDigestTest(GtpuBaseTest):
-    """ Tests that the switch sends digests for buffering FARs.
+    """ Tests that the switch sends digests for buffering sessions.
     """
 
     def runTest(self):
@@ -248,22 +246,20 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         self.set_up_ddn_digest(ack_timeout_ns=1 * 10**9)
 
         # Build the expected encapsulated pkt that we would receive as output without buffering.
-        # The actual pkt will be dropped, but we still need it to populate FAR with tunneling info.
+        # The actual pkt will be dropped, but we still need it to populate tables with tunneling info.
         exp_pkt = pkt.copy()
         exp_pkt = self.gtpu_encap(exp_pkt, ip_src=S1U_IPV4, ip_dst=ENODEB_IPV4)
         pkt_route(exp_pkt, ENODEB_MAC)
         pkt_decrement_ttl(exp_pkt)
 
-        # PDR counter ID.
+        # UPF counter ID.
         ctr_id = self.new_counter_id()
 
         # Program all the tables.
-        fseid = 0xBEEF
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, buffer=True,
-                                          session_id=fseid)
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, buffer=True)
 
         # Read pre and post-QoS packet and byte counters.
-        self.read_pdr_counters(ctr_id)
+        self.read_upf_counters(ctr_id)
 
         # Send 1st packet.
         testutils.send_packet(self, self.port1, pkt)
@@ -271,11 +267,11 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
         # Verify that we have received the DDN digest
         exp_digest_data = self.helper.build_p4data_struct(
-            [self.helper.build_p4data_bitstring(encode(fseid, FSEID_BITWIDTH))])
+            [self.helper.build_p4data_bitstring(encode(pkt[IP].dst, UE_ADDR_BITWIDTH))])
         self.verify_digest_list("ddn_digest_t", exp_digest_data)
 
         # Send 2nd packet immediately, verify counter increase but NO digest should be generated.
-        self.read_pdr_counters(ctr_id)
+        self.read_upf_counters(ctr_id)
         testutils.send_packet(self, self.port1, pkt)
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
         self.verify_no_other_digest_list(timeout=1)
@@ -283,7 +279,7 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         # Send third packet after waiting at least ack_timeout_ns.
         # We should receive a new digest.
         sleep(1.1)
-        self.read_pdr_counters(ctr_id)
+        self.read_upf_counters(ctr_id)
         testutils.send_packet(self, self.port1, pkt)
         self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
         self.verify_digest_list("ddn_digest_t", exp_digest_data)
@@ -383,7 +379,7 @@ class GtpuEncapPscDownlinkTest(GtpuBaseTest):
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
 
-        # PDR counter ID
+        # UPF counter ID
         ctr_id = self.new_counter_id()
 
         # program all the tables
@@ -391,7 +387,7 @@ class GtpuEncapPscDownlinkTest(GtpuBaseTest):
                                           qfi=1, push_qfi=True)
 
         # read pre and post-QoS packet and byte counters
-        self.read_pdr_counters(ctr_id)
+        self.read_upf_counters(ctr_id)
 
         # send packet and verify it is encapsulated and routed
         testutils.send_packet(self, self.port1, pkt)
@@ -432,15 +428,14 @@ class GtpuDecapPscUplinkTest(GtpuBaseTest):
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
 
-        # PDR counter ID
+        # UPF counter ID
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False,
-                                        match_qfi=True)
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False)
 
         # read pre and post-QoS packet and byte counters
-        self.read_pdr_counters(ctr_id)
+        self.read_upf_counters(ctr_id)
 
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, pkt)

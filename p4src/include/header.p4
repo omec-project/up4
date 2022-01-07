@@ -11,7 +11,7 @@
 header ethernet_t {
     mac_addr_t  dst_addr;
     mac_addr_t  src_addr;
-    EtherType   ether_type;
+    eth_type_t  ether_type;
 }
 
 header ipv4_t {
@@ -24,31 +24,31 @@ header ipv4_t {
     bit<3>          flags;
     bit<13>         frag_offset;
     bit<8>          ttl;
-    IpProtocol      proto;
+    ip_proto_t      proto;
     bit<16>         checksum;
     ipv4_addr_t     src_addr;
     ipv4_addr_t     dst_addr;
 }
 
 header tcp_t {
-    L4Port  sport;
-    L4Port  dport;
-    bit<32> seq_no;
-    bit<32> ack_no;
-    bit<4>  data_offset;
-    bit<3>  res;
-    bit<3>  ecn;
-    bit<6>  ctrl;
-    bit<16> window;
-    bit<16> checksum;
-    bit<16> urgent_ptr;
+    l4_port_t   sport;
+    l4_port_t   dport;
+    bit<32>     seq_no;
+    bit<32>     ack_no;
+    bit<4>      data_offset;
+    bit<3>      res;
+    bit<3>      ecn;
+    bit<6>      ctrl;
+    bit<16>     window;
+    bit<16>     checksum;
+    bit<16>     urgent_ptr;
 }
 
 header udp_t {
-    L4Port  sport;
-    L4Port  dport;
-    bit<16> len;
-    bit<16> checksum;
+    l4_port_t   sport;
+    l4_port_t   dport;
+    bit<16>     len;
+    bit<16>     checksum;
 }
 
 header icmp_t {
@@ -61,15 +61,15 @@ header icmp_t {
 }
 
 header gtpu_t {
-    bit<3>          version;    /* version */
-    bit<1>          pt;         /* protocol type */
-    bit<1>          spare;      /* reserved */
-    bit<1>          ex_flag;    /* next extension hdr present? */
-    bit<1>          seq_flag;   /* sequence no. */
-    bit<1>          npdu_flag;  /* n-pdn number present ? */
-    GTPUMessageType msgtype;    /* message type */
-    bit<16>         msglen;     /* message length */
-    teid_t          teid;       /* tunnel endpoint id */
+    bit<3>  version;    /* version */
+    bit<1>  pt;         /* protocol type */
+    bit<1>  spare;      /* reserved */
+    bit<1>  ex_flag;    /* next extension hdr present? */
+    bit<1>  seq_flag;   /* sequence no. */
+    bit<1>  npdu_flag;  /* n-pdn number present ? */
+    bit<8>  msgtype;    /* message type */
+    bit<16> msglen;     /* message length */
+    teid_t  teid;       /* tunnel endpoint id */
 }
 
 // Follows gtpu_t if any of ex_flag, seq_flag, or npdu_flag is 1.
@@ -103,20 +103,17 @@ header packet_in_t {
 }
 
 
-
 struct parsed_headers_t {
     packet_out_t  packet_out;
     packet_in_t   packet_in;
     ethernet_t ethernet;
-    ipv4_t outer_ipv4;
-    udp_t outer_udp;
-    gtpu_t gtpu;
-    gtpu_options_t gtpu_options;
-    gtpu_ext_psc_t gtpu_ext_psc;
     ipv4_t ipv4;
     udp_t udp;
     tcp_t tcp;
     icmp_t icmp;
+    gtpu_t gtpu;
+    gtpu_options_t gtpu_options;
+    gtpu_ext_psc_t gtpu_ext_psc;
     ipv4_t inner_ipv4;
     udp_t inner_udp;
     tcp_t inner_tcp;
@@ -127,80 +124,46 @@ struct parsed_headers_t {
 // METADATA DEFINITIONS
 //------------------------------------------------------------------------------
 
-// Data associated with a PDR entry
-struct pdr_metadata_t {
-    pdr_id_t id;
-    counter_index_t ctr_idx;
-    bit<6> tunnel_out_qfi;
-}
-
-// Data associated with Buffering and BARs
-struct bar_metadata_t {
-    bool needs_buffering;
-    bar_id_t bar_id;
-    bit<32> ddn_delay_ms; // unused so far
-    bit<32> suggest_pkt_count; // unused so far
-}
-
 struct ddn_digest_t {
-    fseid_t  fseid;
-}
-
-
-// Data associated with a FAR entry. Loaded by a FAR (except ID which is loaded by a PDR)
-struct far_metadata_t {
-    far_id_t    id;
-
-    // Buffering, dropping, tunneling etc. are not mutually exclusive.
-    // Hence, they should be flags and not different action types.
-    bool needs_dropping;
-    bool needs_tunneling;
-    bool notify_cp;
-
-    TunnelType  tunnel_out_type;
-    ipv4_addr_t tunnel_out_src_ipv4_addr;
-    ipv4_addr_t tunnel_out_dst_ipv4_addr;
-    L4Port      tunnel_out_udp_sport;
-    teid_t      tunnel_out_teid;
-
-    ipv4_addr_t next_hop_ip;
+    ipv4_addr_t  ue_address;
 }
 
 // The primary metadata structure.
 struct local_metadata_t {
     Direction direction;
 
-    // SEID and F-TEID currently have no use in fast path
-    teid_t teid;    // local Tunnel ID.  F-TEID = TEID + GTP endpoint address
-    // seid_t seid; // local Session ID. F-SEID = SEID + GTP endpoint address
+    teid_t teid;
 
-    // fteid_t fteid;
-    fseid_t fseid;
+    slice_id_t slice_id;
+    tc_t tc;
 
     ipv4_addr_t next_hop_ip;
 
-    bool needs_gtpu_decap;
-    bool needs_udp_decap; // unused
-    bool needs_vlan_removal; // unused
-    bool needs_ext_psc; // used to signal gtpu encap with PSC extension
-
-    InterfaceType src_iface;
-    InterfaceType dst_iface; // unused
-
     ipv4_addr_t ue_addr;
     ipv4_addr_t inet_addr;
-    L4Port      ue_l4_port;
-    L4Port      inet_l4_port;
+    l4_port_t   ue_l4_port;
+    l4_port_t   inet_l4_port;
 
-    L4Port      l4_sport;
-    L4Port      l4_dport;
+    l4_port_t   l4_sport;
+    l4_port_t   l4_dport;
 
-    net_instance_t net_instance;
+    bit<8> src_iface;
+    bool needs_gtpu_decap;
+    bool needs_tunneling;
+    bool needs_buffering;
+    bool needs_dropping;
+    bool terminations_hit;
 
-    pdr_metadata_t pdr;
-    far_metadata_t far;
-    bar_metadata_t bar;
+    counter_index_t ctr_idx;
+
+    tunnel_peer_id_t tunnel_peer_id;
+
+    // GTP tunnel out parameters
+    ipv4_addr_t tunnel_out_src_ipv4_addr;
+    ipv4_addr_t tunnel_out_dst_ipv4_addr;
+    l4_port_t   tunnel_out_udp_sport;
+    teid_t      tunnel_out_teid;
+    qfi_t       tunnel_out_qfi;
 }
-
 
 #endif

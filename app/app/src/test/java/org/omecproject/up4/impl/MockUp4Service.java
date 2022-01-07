@@ -6,11 +6,10 @@ package org.omecproject.up4.impl;
 
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
-import org.omecproject.up4.UpfFlow;
-import org.onosproject.net.behaviour.upf.ForwardingActionRule;
-import org.onosproject.net.behaviour.upf.PacketDetectionRule;
-import org.onosproject.net.behaviour.upf.PdrStats;
-import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfCounter;
+import org.onosproject.net.behaviour.upf.UpfEntity;
+import org.onosproject.net.behaviour.upf.UpfEntityType;
+import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -20,9 +19,12 @@ import java.util.List;
 public class MockUp4Service implements Up4Service {
     boolean upfProgrammableAvailable = true;
     boolean configAvailable = true;
-    final List<PacketDetectionRule> pdrs = new ArrayList<>();
-    final List<ForwardingActionRule> fars = new ArrayList<>();
-    final List<UpfInterface> ifaces = new ArrayList<>();
+    final List<UpfEntity> sessionsUl = new ArrayList<>();
+    final List<UpfEntity> sessionsDl = new ArrayList<>();
+    final List<UpfEntity> terminationsUl = new ArrayList<>();
+    final List<UpfEntity> terminationsDl = new ArrayList<>();
+    final List<UpfEntity> tunnelPeers = new ArrayList<>();
+    final List<UpfEntity> ifaces = new ArrayList<>();
     final List<ByteBuffer> sentPacketOuts = new ArrayList<>();
 
     public void hideState(boolean hideUpfProgrammable, boolean hideConfig) {
@@ -33,10 +35,6 @@ public class MockUp4Service implements Up4Service {
     @Override
     public boolean isReady() {
         return upfProgrammableAvailable;
-    }
-
-    @Override
-    public void installInterfaces() {
     }
 
     @Override
@@ -60,23 +58,51 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public long farTableSize() {
-        return TestImplConstants.PHYSICAL_MAX_FARS;
+    public void apply(UpfEntity entity) throws UpfProgrammableException {
+        switch (entity.type()) {
+            case INTERFACE:
+                ifaces.add(entity);
+                break;
+            case TERMINATION_UPLINK:
+                terminationsUl.add(entity);
+                break;
+            case TERMINATION_DOWNLINK:
+                terminationsDl.add(entity);
+                break;
+            case SESSION_UPLINK:
+                sessionsUl.add(entity);
+                break;
+            case SESSION_DOWNLINK:
+                sessionsDl.add(entity);
+                break;
+            case TUNNEL_PEER:
+                tunnelPeers.add(entity);
+                break;
+            default:
+                break;
+        }
     }
 
     @Override
-    public long pdrTableSize() {
-        return TestImplConstants.PHYSICAL_MAX_PDRS;
-    }
-
-    @Override
-    public long pdrCounterSize() {
-        return TestImplConstants.PHYSICAL_COUNTER_SIZE;
-    }
-
-    @Override
-    public void enablePscEncap(int defaultQfi) {
-
+    public Collection<? extends UpfEntity> readAll(UpfEntityType entityType)
+            throws UpfProgrammableException {
+        switch (entityType) {
+            case INTERFACE:
+                return ifaces;
+            case TERMINATION_UPLINK:
+                return terminationsUl;
+            case TERMINATION_DOWNLINK:
+                return terminationsDl;
+            case SESSION_UPLINK:
+                return sessionsUl;
+            case SESSION_DOWNLINK:
+                return sessionsDl;
+            case TUNNEL_PEER:
+                return tunnelPeers;
+            default:
+                break;
+        }
+        return null;
     }
 
     @Override
@@ -90,78 +116,8 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public Collection<UpfFlow> getFlows() {
-        return null;
-    }
-
-    @Override
-    public void clearInterfaces() {
-        ifaces.clear();
-    }
-
-    @Override
-    public void clearFlows() {
-        pdrs.clear();
-        fars.clear();
-    }
-
-    @Override
-    public Collection<ForwardingActionRule> getFars() {
-        return List.copyOf(fars);
-    }
-
-    @Override
-    public Collection<PacketDetectionRule> getPdrs() {
-        return List.copyOf(pdrs);
-    }
-
-    @Override
-    public Collection<UpfInterface> getInterfaces() {
-        return List.copyOf(ifaces);
-    }
-
-    @Override
-    public void addPdr(PacketDetectionRule pdr) {
-        pdrs.add(pdr);
-    }
-
-    @Override
-    public void removePdr(PacketDetectionRule pdr) {
-        int index = pdrs.indexOf(pdr);
-        if (index != -1) {
-            pdrs.remove(index);
-        }
-    }
-
-    @Override
-    public void addFar(ForwardingActionRule far) {
-        fars.add(far);
-    }
-
-    @Override
-    public void removeFar(ForwardingActionRule far) {
-        int index = fars.indexOf(far);
-        if (index != -1) {
-            fars.remove(index);
-        }
-    }
-
-    @Override
-    public void addInterface(UpfInterface upfInterface) {
-        ifaces.add(upfInterface);
-    }
-
-    @Override
-    public void removeInterface(UpfInterface upfInterface) {
-        int index = ifaces.indexOf(upfInterface);
-        if (index != -1) {
-            ifaces.remove(index);
-        }
-    }
-
-    @Override
-    public PdrStats readCounter(int cellId) {
-        return PdrStats.builder()
+    public UpfCounter readCounter(int cellId) {
+        return UpfCounter.builder()
                 .withCellId(cellId)
                 .setEgress(NorthTestConstants.EGRESS_COUNTER_PKTS, NorthTestConstants.EGRESS_COUNTER_BYTES)
                 .setIngress(NorthTestConstants.INGRESS_COUNTER_PKTS, NorthTestConstants.INGRESS_COUNTER_BYTES)
@@ -169,10 +125,10 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public Collection<PdrStats> readAllCounters(long maxCounterId) {
-        List<PdrStats> stats = new ArrayList<>();
+    public Collection<UpfCounter> readCounters(long maxCounterId) {
+        List<UpfCounter> stats = new ArrayList<>();
         for (int i = 0; i < TestImplConstants.PHYSICAL_COUNTER_SIZE; i++) {
-            stats.add(PdrStats.builder()
+            stats.add(UpfCounter.builder()
                               .withCellId(i)
                               .setEgress(NorthTestConstants.EGRESS_COUNTER_PKTS,
                                          NorthTestConstants.EGRESS_COUNTER_BYTES)
@@ -181,5 +137,88 @@ public class MockUp4Service implements Up4Service {
                               .build());
         }
         return stats;
+    }
+
+    @Override
+    public void delete(UpfEntity entity) throws UpfProgrammableException {
+        List<UpfEntity> entities;
+        switch (entity.type()) {
+            case INTERFACE:
+                entities = ifaces;
+                break;
+            case TERMINATION_UPLINK:
+                entities = terminationsUl;
+                break;
+            case TERMINATION_DOWNLINK:
+                entities = terminationsDl;
+                break;
+            case SESSION_UPLINK:
+                entities = sessionsUl;
+                break;
+            case SESSION_DOWNLINK:
+                entities = sessionsDl;
+                break;
+            case TUNNEL_PEER:
+                entities = tunnelPeers;
+                break;
+            default:
+                return;
+        }
+        int index = entities.indexOf(entity);
+        if (index != -1) {
+            entities.remove(index);
+        }
+    }
+
+    @Override
+    public void deleteAll(UpfEntityType entityType) throws UpfProgrammableException {
+        switch (entityType) {
+            case INTERFACE:
+                ifaces.clear();
+                break;
+            case TERMINATION_UPLINK:
+                terminationsUl.clear();
+                break;
+            case TERMINATION_DOWNLINK:
+                terminationsDl.clear();
+                break;
+            case SESSION_UPLINK:
+                sessionsUl.clear();
+                break;
+            case SESSION_DOWNLINK:
+                sessionsDl.clear();
+                break;
+            case TUNNEL_PEER:
+                tunnelPeers.clear();
+                break;
+            default:
+                break;
+        }
+    }
+
+    @Override
+    public long tableSize(UpfEntityType entityType) throws UpfProgrammableException {
+        switch (entityType) {
+            case INTERFACE:
+                return TestImplConstants.PHYSICAL_MAX_INTERFACES;
+            case TERMINATION_DOWNLINK:
+            case TERMINATION_UPLINK:
+                return TestImplConstants.PHYSICAL_MAX_TERMINATIONS;
+            case SESSION_UPLINK:
+            case SESSION_DOWNLINK:
+                return TestImplConstants.PHYSICAL_MAX_SESSIONS;
+            case TUNNEL_PEER:
+                return TestImplConstants.PHYSICAL_MAX_TUNNEL_PEERS;
+            case COUNTER:
+                return TestImplConstants.PHYSICAL_COUNTER_SIZE;
+            default:
+                break;
+        }
+        return 0;
+    }
+
+    @Override
+    public void enablePscEncap() throws UpfProgrammableException {
+
     }
 }
