@@ -164,6 +164,8 @@ pipeline {
 void runSTCSmokeTest(String topo) {
   dir("${env.WORKSPACE}/up4/scenarios") {
     sh "make reset"
+    // FIXME: restore smoke.xml tests, using P4RT based until we update PFCP agent
+    //  to support the new UP4 logical pipeline.
     sh "TOPO=${topo} make p4rt-smoke.xml stcColor=false stcDumpLogs=true"
   }
 }
