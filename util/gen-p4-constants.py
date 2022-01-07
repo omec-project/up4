@@ -171,18 +171,14 @@ class ConstantClassGenerator(object):
             lines.append("    // Header field IDs")
         for hf in self.header_fields:
             lines.append(
-                self.const_line(
-                    HF_VAR_PREFIX + hf, PI_HF_FIELD_ID, PI_HF_FIELD_ID_CST, value=hf
-                )
-            )
+                self.const_line(HF_VAR_PREFIX + hf, PI_HF_FIELD_ID, PI_HF_FIELD_ID_CST, value=hf))
             lines.append(
                 self.const_line(
                     HF_VAR_PREFIX + hf + BITWIDTH_VAR_SUFFIX,
                     PI_HF_FIELD_BITWIDTH,
                     PI_HF_FIELD_BITWIDTH_CST,
                     value=self.match_field_bitwidth[hf],
-                )
-            )
+                ))
 
         if len(self.tables) != 0:
             lines.append("    // Table IDs")
@@ -225,8 +221,7 @@ class ConstantClassGenerator(object):
                         PI_PKT_META_BITWIDTH,
                         PI_PKT_META_BITWIDTH_CST,
                         value=self.packet_metadata_bitwidth[pmeta],
-                    )
-                )
+                    ))
 
         if len(self.meters) != 0:
             lines.append("    // Meter IDs")
@@ -242,7 +237,7 @@ def gen_pkg_path(output, base_name):
     if output is not None:
         i = output.find("java/")
         if i != -1:
-            pkg_path = output[i + 5 :]
+            pkg_path = output[i + 5:]
             last_slash = pkg_path.rfind("/")
             pkg_path = pkg_path[:last_slash].replace("/", ".")
             return pkg_path
@@ -251,13 +246,16 @@ def gen_pkg_path(output, base_name):
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="gen-p4-constants.py", description="P4Info to Java constant generator.",
+        prog="gen-p4-constants.py",
+        description="P4Info to Java constant generator.",
     )
     parser.add_argument("name", help="Name of the constant, will be used as class name")
     parser.add_argument("p4info", help="P4Info file")
     parser.add_argument("-o", "--output", help="output path", default="-")
     parser.add_argument(
-        "--with-package-path", help="Specify the java package path", dest="pkg_path",
+        "--with-package-path",
+        help="Specify the java package path",
+        dest="pkg_path",
     )
     args = parser.parse_args()
 

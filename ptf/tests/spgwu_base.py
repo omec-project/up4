@@ -338,8 +338,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_name=action_name,
             ))
 
-    def add_session_downlink(self, ue_addr, tunnel_peer_id=None,
-                             buffer=False, drop=False):
+    def add_session_downlink(self, ue_addr, tunnel_peer_id=None, buffer=False, drop=False):
         match_fields = {
             "ue_address": ue_addr,
         }
@@ -367,9 +366,7 @@ class GtpuBaseTest(P4RuntimeTest):
         match_fields = {
             "ue_address": ue_address,
         }
-        action_params = {
-            "ctr_idx": ctr_idx
-        }
+        action_params = {"ctr_idx": ctr_idx}
         if drop:
             action_name = "PreQosPipe.uplink_term_drop"
         else:
@@ -388,9 +385,7 @@ class GtpuBaseTest(P4RuntimeTest):
         match_fields = {
             "ue_address": ue_address,
         }
-        action_params = {
-            "ctr_idx": ctr_idx
-        }
+        action_params = {"ctr_idx": ctr_idx}
         if drop:
             action_name = "PreQosPipe.downlink_term_drop"
         else:
@@ -410,17 +405,13 @@ class GtpuBaseTest(P4RuntimeTest):
         match_fields = {}
         self.insert(
             self.helper.build_table_entry(
-                table_name="PreQosPipe.tunnel_peers",
-                match_fields={
+                table_name="PreQosPipe.tunnel_peers", match_fields={
                     "tunnel_peer_id": tunnel_peer_id,
-                },
-                action_name="PreQosPipe.load_tunnel_param",
-                action_params={
+                }, action_name="PreQosPipe.load_tunnel_param", action_params={
                     "src_addr": src_addr,
                     "dst_addr": dst_addr,
                     "sport": sport,
-                }
-            ))
+                }))
 
     def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False):
         """ Add all table entries required for the given uplink packet to flow through the UPF
