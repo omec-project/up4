@@ -66,6 +66,11 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
+    public void up4EntryToUplinkTerminationNoTcTest() {
+        up4ToUpfEntity(TestImplConstants.UPLINK_TERMINATION_NO_TC, TestImplConstants.UP4_UPLINK_TERMINATION_NO_TC);
+    }
+
+    @Test
     public void up4EntryToUplinkTerminationDropTest() {
         up4ToUpfEntity(TestImplConstants.UPLINK_TERMINATION_DROP, TestImplConstants.UP4_UPLINK_TERMINATION_DROP);
     }
@@ -73,6 +78,11 @@ public class Up4TranslatorImplTest {
     @Test
     public void up4EntryToDownlinkTerminationTest() {
         up4ToUpfEntity(TestImplConstants.DOWNLINK_TERMINATION, TestImplConstants.UP4_DOWNLINK_TERMINATION);
+    }
+
+    @Test
+    public void up4EntryToDownlinkTerminationNoTcTest() {
+        up4ToUpfEntity(TestImplConstants.DOWNLINK_TERMINATION_NO_TC, TestImplConstants.UP4_DOWNLINK_TERMINATION_NO_TC);
     }
 
     @Test
@@ -126,6 +136,11 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
+    public void uplinkTerminationNoTcToUp4EntryTest() {
+        upfEntityToUp4(TestImplConstants.UP4_UPLINK_TERMINATION_NO_TC, TestImplConstants.UPLINK_TERMINATION_NO_TC);
+    }
+
+    @Test
     public void uplinkTerminationDropToUp4EntryTest() {
         upfEntityToUp4(TestImplConstants.UP4_UPLINK_TERMINATION_DROP, TestImplConstants.UPLINK_TERMINATION_DROP);
     }
@@ -133,6 +148,11 @@ public class Up4TranslatorImplTest {
     @Test
     public void downlinkTerminationToUp4EntryTest() {
         upfEntityToUp4(TestImplConstants.UP4_DOWNLINK_TERMINATION, TestImplConstants.DOWNLINK_TERMINATION);
+    }
+
+    @Test
+    public void downlinkTerminationNoTcToUp4EntryTest() {
+        upfEntityToUp4(TestImplConstants.UP4_DOWNLINK_TERMINATION_NO_TC, TestImplConstants.DOWNLINK_TERMINATION_NO_TC);
     }
 
     @Test

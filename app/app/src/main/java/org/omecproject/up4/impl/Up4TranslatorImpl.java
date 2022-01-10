@@ -43,6 +43,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.POST_QOS_PIPE_POST_QOS_COUNTER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_INTERFACES;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_LOAD_TUNNEL_PARAM;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_PRE_QOS_COUNTER;
@@ -59,6 +60,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATI
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TUNNEL_PEERS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.QFI;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SLICE_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SPORT;
@@ -155,7 +157,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 PiActionId actionId = ((PiAction) entry.action()).id();
                 if (actionId.equals(PRE_QOS_PIPE_UPLINK_TERM_DROP)) {
                     builder.needsDropping(true);
-                } else {
+                } else if (actionId.equals(PRE_QOS_PIPE_UPLINK_TERM_FWD)) {
                     builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
                 }
                 return builder.build();
@@ -170,7 +172,9 @@ public class Up4TranslatorImpl implements Up4Translator {
                 } else {
                     builder.withTeid(Up4TranslatorUtil.getParamInt(entry, TEID));
                     builder.withQfi(Up4TranslatorUtil.getParamByte(entry, QFI));
-                    builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
+                    if (actionId.equals(PRE_QOS_PIPE_DOWNLINK_TERM_FWD)) {
+                        builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
+                    }
                 }
                 return builder.build();
             }
@@ -273,8 +277,12 @@ public class Up4TranslatorImpl implements Up4Translator {
                 if (upfTerminationUl.needsDropping()) {
                     actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_DROP);
                 } else {
-                    actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_FWD);
-                    actionBuilder.withParameter(new PiActionParam(TC, upfTerminationUl.trafficClass()));
+                    if (upfTerminationUl.trafficClass() != null) {
+                        actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_FWD);
+                        actionBuilder.withParameter(new PiActionParam(TC, upfTerminationUl.trafficClass()));
+                    } else {
+                        actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC);
+                    }
                 }
                 break;
             case TERMINATION_DOWNLINK:
@@ -289,10 +297,14 @@ public class Up4TranslatorImpl implements Up4Translator {
                 if (upfTerminationDl.needsDropping()) {
                     actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_DROP);
                 } else {
-                    actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_FWD);
                     actionBuilder.withParameter(new PiActionParam(TEID, upfTerminationDl.teid()))
-                            .withParameter(new PiActionParam(QFI, upfTerminationDl.qfi()))
-                            .withParameter(new PiActionParam(TC, upfTerminationDl.trafficClass()));
+                            .withParameter(new PiActionParam(QFI, upfTerminationDl.qfi()));
+                    if (upfTerminationDl.trafficClass() != null) {
+                        actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_FWD);
+                        actionBuilder.withParameter(new PiActionParam(TC, upfTerminationDl.trafficClass()));
+                    } else {
+                        actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC);
+                    }
                 }
                 break;
             case TUNNEL_PEER:
