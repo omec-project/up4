@@ -280,6 +280,9 @@ def craft_pdr(session: Session, flow: UeFlow, src_iface: int, from_tunnel=False,
     source_interface.interface = src_iface
     pdi.IE_list.append(source_interface)
 
+    if session.ue_addr is None:
+        raise Exception("UE address required for both UL and DL PDRs!")
+
     if from_tunnel:
         if tunnel_dst is None or flow.teid is None:
             raise Exception("ERROR: tunnel dst and teid should be provided for tunnel PDR")
@@ -294,17 +297,16 @@ def craft_pdr(session: Session, flow: UeFlow, src_iface: int, from_tunnel=False,
         outer_header_removal.header = 0
         pdr.IE_list.append(outer_header_removal)
     else:
-        if session.ue_addr is None:
-            raise Exception("UE address required for downlink PDRs!")
-        # Add UE IPv4 address to the PDI
-        _ue_addr = pfcp.IE_UE_IP_Address()
-        _ue_addr.V4 = 1
-        _ue_addr.ipv4 = session.ue_addr
-        pdi.IE_list.append(_ue_addr)
         # If its not from a tunnel, then its from the internet
         net_instance = pfcp.IE_NetworkInstance()
         net_instance.instance = "internetinternetinternetinterne"
         pdi.IE_list.append(net_instance)
+
+    # Add UE IPv4 address to the PDI
+    _ue_addr = pfcp.IE_UE_IP_Address()
+    _ue_addr.V4 = 1
+    _ue_addr.ipv4 = session.ue_addr
+    pdi.IE_list.append(_ue_addr)
 
     # Add a fully wildcard SDF filter
     sdf = pfcp.IE_SDF_Filter()
