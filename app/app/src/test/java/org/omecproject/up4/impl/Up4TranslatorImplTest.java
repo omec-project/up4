@@ -91,6 +91,11 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
+    public void up4EntryToApplicationFilteringTest() {
+        up4ToUpfEntity(TestImplConstants.APPLICATION_FILTERING, TestImplConstants.UP4_APPLICATION_FILTERING);
+    }
+
+    @Test
     public void tunnelPeerToUp4EntryTest() {
         upfEntityToUp4(TestImplConstants.UP4_TUNNEL_PEER, TestImplConstants.TUNNEL_PEER);
     }
@@ -138,5 +143,10 @@ public class Up4TranslatorImplTest {
     @Test
     public void downlinkTerminationDropToUp4EntryTest() {
         upfEntityToUp4(TestImplConstants.UP4_DOWNLINK_TERMINATION_DROP, TestImplConstants.DOWNLINK_TERMINATION_DROP);
+    }
+
+    @Test
+    public void applicationFilteringToUp4EntryTest() {
+        upfEntityToUp4(TestImplConstants.UP4_APPLICATION_FILTERING, TestImplConstants.APPLICATION_FILTERING);
     }
 }
