@@ -105,6 +105,7 @@ public final class TestImplConstants {
     public static final long COUNTER_PKTS = 15;
 
     public static final byte APP_FILTERING_ID = 10;
+    public static final int APP_FILTERING_PRIORITY = 10;
     public static final Ip4Prefix APP_IP_PREFIX = Ip4Prefix.valueOf("10.0.0.0/24");
     public static final Pair<Short, Short> APP_L4_RANGE = Pair.of((short) 100, (short) 1000);
     public static final byte APP_IP_PROTO = 6;
@@ -166,6 +167,7 @@ public final class TestImplConstants {
             .withIp4Prefix(APP_IP_PREFIX)
             .withL4PortRange(APP_L4_RANGE.getLeft(), APP_L4_RANGE.getRight())
             .withIpProto(APP_IP_PROTO)
+            .withPriority(APP_FILTERING_PRIORITY)
             .build();
 
     public static final PiTableEntry UP4_TUNNEL_PEER = PiTableEntry.builder()
@@ -364,7 +366,9 @@ public final class TestImplConstants {
                                 .withParameter(new PiActionParam(
                                         Up4P4InfoConstants.APP_ID,
                                         APP_FILTERING_ID))
-                                .build()).build();
+                                .build())
+            .withPriority(APP_FILTERING_PRIORITY)
+            .build();
 
     /**
      * Hidden constructor for utility class.

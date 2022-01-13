@@ -198,6 +198,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             case APPLICATION: {
                 Application.Builder builder = Application.builder();
                 builder.withAppId(Up4TranslatorUtil.getParamByte(entry, APP_ID));
+                builder.withPriority(Up4TranslatorUtil.getPriority(entry));
                 if (Up4TranslatorUtil.fieldIsPresent(entry, HDR_APP_IP_ADDRESS)) {
                     builder.withIp4Prefix(Up4TranslatorUtil.getFieldPrefix(entry, HDR_APP_IP_ADDRESS));
                 }
@@ -210,6 +211,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 if (Up4TranslatorUtil.fieldIsPresent(entry, HDR_APP_IP_PROTO)) {
                     builder.withIpProto(Up4TranslatorUtil.getFieldByte(entry, HDR_APP_IP_PROTO));
                 }
+
                 return builder.build();
             }
             default:
@@ -341,6 +343,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             case APPLICATION:
                 tableEntryBuilder.forTable(PRE_QOS_PIPE_APPLICATIONS);
                 Application application = (Application) entity;
+                tableEntryBuilder.withPriority(application.priority());
                 actionBuilder.withId(PRE_QOS_PIPE_SET_APP_ID)
                         .withParameter(new PiActionParam(APP_ID, application.appId()));
                 matchBuilder.addFieldMatch(new PiExactFieldMatch(

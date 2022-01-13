@@ -135,6 +135,10 @@ final class Up4TranslatorUtil {
         return Pair.of(byteSeqToShort(field.lowValue()), byteSeqToShort(field.highValue()));
     }
 
+    static int getPriority(PiTableEntry entry) {
+        return entry.priority().orElseThrow();
+    }
+
     static Ip4Address getFieldAddress(PiTableEntry entry, PiMatchFieldId fieldId)
             throws Up4TranslatorImpl.Up4TranslationException {
         return Ip4Address.valueOf(getFieldValue(entry, fieldId).asArray());
