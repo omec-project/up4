@@ -147,6 +147,11 @@ struct local_metadata_t {
     l4_port_t   l4_sport;
     l4_port_t   l4_dport;
 
+    ip_proto_t  ip_proto;
+
+    // SPGW application ID
+    bit<8>  application_id;
+
     bit<8> src_iface;
     bool needs_gtpu_decap;
     bool needs_tunneling;

@@ -30,6 +30,12 @@ GTPU_EXT_PSC_TYPE_UL = 1
 DEFAULT_SLICE = 0
 MOBILE_SLICE = 15
 
+NO_APP_ID = 0
+APP_ID = 10
+
+IP_PROTO_UDP = 0x11
+IP_PROTO_TCP = 0x06
+IP_PROTO_ICMP = 0x01
 
 class GtpuBaseTest(P4RuntimeTest):
 
@@ -207,51 +213,6 @@ class GtpuBaseTest(P4RuntimeTest):
                 },
             ))
 
-    # TODO: never used, we should remove
-    def add_global_session(self, global_session_id=1025, n4_teid=1025, default_pdr_id=0,
-                           default_far_id=0, default_ctr_id=0, n4_ip=None, smf_ip="192.168.1.52",
-                           smf_mac="0a:0b:0c:0d:0e:0f", smf_port=None, miss_pdr_ctr_id=None,
-                           dhcp_req_ctr_id=None):
-
-        if smf_port is None:
-            smf_port = self.port4
-
-        ALL_ONES_32 = (1 << 32) - 1
-        ALL_ONES_16 = (1 << 16) - 1
-        ALL_ONES_8 = (1 << 8) - 1
-
-        # Default PDR drops
-        drop_far_id = self.unique_rule_id()
-        miss_pdr_id = self.unique_rule_id()
-        self.miss_pdr_ctr_id = miss_pdr_ctr_id or self.new_counter_id()
-        self.modify(
-            self.helper.build_table_entry(
-                table_name="PreQosPipe.pdrs", default_action=True,
-                action_name="PreQosPipe.set_pdr_attributes", action_params={
-                    "id": miss_pdr_id,
-                    "ctr_id": self.miss_pdr_ctr_id,
-                    "fseid": global_session_id,
-                    "far_id": drop_far_id,
-                    "needs_gtpu_decap": False,
-                    "needs_udp_decap": False,
-                }))
-        self.add_far(far_id=drop_far_id, session_id=global_session_id, drop=True)
-
-        # Redirect DHCP messages from UEs to the SMF via N4
-        dhcp_req_pdr_id = self.unique_rule_id()
-        self.dhcp_req_ctr_id = dhcp_req_ctr_id or self.new_counter_id()
-
-        towards_smf_far_id = self.unique_rule_id()
-
-        self.add_pdr(pdr_id=dhcp_req_pdr_id, far_id=towards_smf_far_id,
-                     session_id=global_session_id, src_iface="ACCESS", ctr_id=self.dhcp_req_ctr_id,
-                     inet_l4_port=DHCP_SERVER_PORT, needs_gtpu_decap=True)
-
-        self.add_far(far_id=towards_smf_far_id, session_id=global_session_id, tunnel=True,
-                     teid=n4_teid, src_addr=n4_ip, dst_addr=smf_ip)
-
-        self.add_routing_entry(ip_prefix=smf_ip + '/32', dst_mac=smf_mac, egress_port=smf_port)
-
     def add_cpu_clone_session(self, cpu_clone_session_id=99):
         self.insert_pre_clone_session(cpu_clone_session_id, [self.cpu_port])
 
@@ -362,9 +323,11 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params=action_params,
             ))
 
-    def add_terminations_uplink(self, ue_address, ctr_idx, tc=None, drop=False):
+    def add_terminations_uplink(self, ue_address, ctr_idx, tc=None, drop=False,
+                                app_id=NO_APP_ID):
         match_fields = {
             "ue_address": ue_address,
+            "app_id": app_id,
         }
         action_params = {"ctr_idx": ctr_idx}
         if drop:
@@ -381,9 +344,10 @@ class GtpuBaseTest(P4RuntimeTest):
             ))
 
     def add_terminations_downlink(self, ue_address, ctr_idx, tc=None, teid=None, qfi=None,
-                                  drop=False):
+                                  drop=False, app_id=NO_APP_ID):
         match_fields = {
             "ue_address": ue_address,
+            "app_id": app_id,
         }
         action_params = {"ctr_idx": ctr_idx}
         if drop:
@@ -401,8 +365,30 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params=action_params,
             ))
 
+    def add_application_filtering(self, app_id, slice_id=DEFAULT_SLICE, ip_prefix=None, l4_port=None, ip_proto=None, priority=10):
+        match_fields = {
+            "slice_id" : slice_id,
+        }
+        if ip_prefix:
+            match_fields["app_ip_address"] = ip_prefix
+        if l4_port:
+            match_fields["app_l4_port"] = [l4_port, l4_port]
+        if ip_proto:
+            match_fields["app_ip_proto"] = (ip_proto, (1 << 8) - 1)
+        self.insert(
+            self.helper.build_table_entry(
+                table_name="PreQosPipe.applications",
+                match_fields=match_fields,
+                action_name="PreQosPipe.set_app_id",
+                action_params={
+                    "app_id": app_id,
+                },
+                priority=priority
+            )
+        )
+
+
     def add_tunnel_peer(self, tunnel_peer_id, src_addr, dst_addr, sport=2152):
-        match_fields = {}
         self.insert(
             self.helper.build_table_entry(
                 table_name="PreQosPipe.tunnel_peers", match_fields={
@@ -413,7 +399,7 @@ class GtpuBaseTest(P4RuntimeTest):
                     "sport": sport,
                 }))
 
-    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False):
+    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False, app_filtering=False):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -437,11 +423,35 @@ class GtpuBaseTest(P4RuntimeTest):
             n3_addr=pkt[IP].dst,
             teid=pkt[gtp.GTP_U_Header].teid,
         )
+
+        app_id = NO_APP_ID
+        if app_filtering:
+            app_id = APP_ID
+            ipv4_prefix = inner_pkt[IP].dst + "/32"
+            l4_port = None
+            ip_proto = None
+            if UDP in inner_pkt:
+                ip_proto = IP_PROTO_UDP
+                l4_port = inner_pkt[UDP].dport
+            elif TCP in inner_pkt:
+                ip_proto = IP_PROTO_TCP
+                l4_port = inner_pkt[TCP].dport
+            elif ICMP in inner_pkt:
+                ip_proto = IP_PROTO_ICMP
+            self.add_application_filtering(
+                app_id=app_id,
+                slice_id=MOBILE_SLICE,
+                ip_prefix=ipv4_prefix,
+                l4_port=l4_port,
+                ip_proto=ip_proto,
+            )
+
         self.add_terminations_uplink(
             ue_address=inner_pkt[IP].src,
             ctr_idx=ctr_id,
             tc=qfi,  # TODO: MAP QFI TO TC!!!
             drop=drop,
+            app_id=app_id,
         )
         # Add routing entry even if drop, SPGW drop should be perfomed before routing
         self.add_routing_entry(
@@ -452,7 +462,7 @@ class GtpuBaseTest(P4RuntimeTest):
         )
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                     buffer=False, tun_id=None, qfi=0, push_qfi=False):
+                                     buffer=False, tun_id=None, qfi=0, push_qfi=False, app_filtering=False):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -489,6 +499,28 @@ class GtpuBaseTest(P4RuntimeTest):
             dst_addr=exp_pkt[IP].dst,
         )
 
+        app_id = NO_APP_ID
+        if app_filtering:
+            app_id = APP_ID
+            ipv4_prefix = pkt[IP].src + "/32"
+            l4_port = None
+            ip_proto = None
+            if UDP in pkt:
+                ip_proto = IP_PROTO_UDP
+                l4_port = pkt[UDP].sport
+            elif TCP in pkt:
+                ip_proto = IP_PROTO_TCP
+                l4_port = pkt[TCP].sport
+            elif ICMP in pkt:
+                ip_proto = IP_PROTO_ICMP
+            self.add_application_filtering(
+                app_id=app_id,
+                slice_id=MOBILE_SLICE,
+                ip_prefix=ipv4_prefix,
+                l4_port=l4_port,
+                ip_proto=ip_proto,
+            )
+
         self.add_terminations_downlink(
             ue_address=pkt[IP].dst,
             ctr_idx=ctr_id,
@@ -496,6 +528,7 @@ class GtpuBaseTest(P4RuntimeTest):
             teid=exp_pkt[gtp.GTP_U_Header].teid,
             qfi=qfi if push_qfi else 0,
             drop=drop,
+            app_id=app_id,
         )
         # Add routing entry even if drop, SPGW drop should be perfomed before routing
         self.add_routing_entry(

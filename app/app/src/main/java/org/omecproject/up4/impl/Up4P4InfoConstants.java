@@ -25,6 +25,17 @@ public final class Up4P4InfoConstants {
     }
 
     // Header field IDs
+    public static final PiMatchFieldId HDR_APP_ID = PiMatchFieldId.of("app_id");
+    public static final int HDR_APP_ID_BITWIDTH = 8;
+    public static final PiMatchFieldId HDR_APP_IP_ADDRESS =
+            PiMatchFieldId.of("app_ip_address");
+    public static final int HDR_APP_IP_ADDRESS_BITWIDTH = 32;
+    public static final PiMatchFieldId HDR_APP_IP_PROTO =
+            PiMatchFieldId.of("app_ip_proto");
+    public static final int HDR_APP_IP_PROTO_BITWIDTH = 8;
+    public static final PiMatchFieldId HDR_APP_L4_PORT =
+            PiMatchFieldId.of("app_l4_port");
+    public static final int HDR_APP_L4_PORT_BITWIDTH = 16;
     public static final PiMatchFieldId HDR_DST_MAC =
             PiMatchFieldId.of("dst_mac");
     public static final int HDR_DST_MAC_BITWIDTH = 48;
@@ -63,6 +74,9 @@ public final class Up4P4InfoConstants {
     public static final PiMatchFieldId HDR_N3_ADDRESS =
             PiMatchFieldId.of("n3_address");
     public static final int HDR_N3_ADDRESS_BITWIDTH = 32;
+    public static final PiMatchFieldId HDR_SLICE_ID =
+            PiMatchFieldId.of("slice_id");
+    public static final int HDR_SLICE_ID_BITWIDTH = 4;
     public static final PiMatchFieldId HDR_SRC_IFACE =
             PiMatchFieldId.of("src_iface");
     public static final int HDR_SRC_IFACE_BITWIDTH = 8;
@@ -79,6 +93,8 @@ public final class Up4P4InfoConstants {
             PiTableId.of("PreQosPipe.Acl.acls");
     public static final PiTableId PRE_QOS_PIPE__ROUTING_ROUTES_V4 =
             PiTableId.of("PreQosPipe.Routing.routes_v4");
+    public static final PiTableId PRE_QOS_PIPE_APPLICATIONS =
+            PiTableId.of("PreQosPipe.applications");
     public static final PiTableId PRE_QOS_PIPE_INTERFACES =
             PiTableId.of("PreQosPipe.interfaces");
     public static final PiTableId PRE_QOS_PIPE_MY_STATION =
@@ -126,6 +142,8 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.downlink_term_fwd");
     public static final PiActionId PRE_QOS_PIPE_LOAD_TUNNEL_PARAM =
             PiActionId.of("PreQosPipe.load_tunnel_param");
+    public static final PiActionId PRE_QOS_PIPE_SET_APP_ID =
+            PiActionId.of("PreQosPipe.set_app_id");
     public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK =
             PiActionId.of("PreQosPipe.set_session_downlink");
     public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF =
@@ -143,6 +161,7 @@ public final class Up4P4InfoConstants {
     public static final PiActionId PRE_QOS_PIPE_UPLINK_TERM_FWD =
             PiActionId.of("PreQosPipe.uplink_term_fwd");
     // Action Param IDs
+    public static final PiActionParamId APP_ID = PiActionParamId.of("app_id");
     public static final PiActionParamId CTR_IDX = PiActionParamId.of("ctr_idx");
     public static final PiActionParamId DIRECTION =
             PiActionParamId.of("direction");

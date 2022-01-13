@@ -59,7 +59,10 @@ typedef bit<8> tunnel_peer_id_t;
 typedef bit<SLICE_ID_WIDTH> slice_id_t;
 typedef bit<TC_WIDTH> tc_t; // Traffic Class (for QoS) within a slice
 
-const qfi_t    DEFAULT_QFI    = 0;
+const qfi_t DEFAULT_QFI = 0;
+
+// Signal that NO application ID has been set
+const bit<8> NO_APP_ID = 0;
 
 //------------------------------------------------------------------------------
 // ENUMS
