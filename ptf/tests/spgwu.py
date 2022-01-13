@@ -72,7 +72,8 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False, app_filtering=app_filtering)
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False,
+                                        app_filtering=app_filtering)
 
         # read pre and post-QoS packet and byte counters
         self.read_upf_counters(ctr_id)
@@ -434,7 +435,8 @@ class GtpuDecapPscUplinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False, app_filtering=app_filtering)
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False,
+                                        app_filtering=app_filtering)
 
         # read pre and post-QoS packet and byte counters
         self.read_upf_counters(ctr_id)

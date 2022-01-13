@@ -37,6 +37,7 @@ IP_PROTO_UDP = 0x11
 IP_PROTO_TCP = 0x06
 IP_PROTO_ICMP = 0x01
 
+
 class GtpuBaseTest(P4RuntimeTest):
 
     supported_l4 = ["udp", "tcp", "icmp"]
@@ -323,8 +324,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params=action_params,
             ))
 
-    def add_terminations_uplink(self, ue_address, ctr_idx, tc=None, drop=False,
-                                app_id=NO_APP_ID):
+    def add_terminations_uplink(self, ue_address, ctr_idx, tc=None, drop=False, app_id=NO_APP_ID):
         match_fields = {
             "ue_address": ue_address,
             "app_id": app_id,
@@ -365,9 +365,10 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params=action_params,
             ))
 
-    def add_application_filtering(self, app_id, slice_id=DEFAULT_SLICE, ip_prefix=None, l4_port=None, ip_proto=None, priority=10):
+    def add_application_filtering(self, app_id, slice_id=DEFAULT_SLICE, ip_prefix=None,
+                                  l4_port=None, ip_proto=None, priority=10):
         match_fields = {
-            "slice_id" : slice_id,
+            "slice_id": slice_id,
         }
         if ip_prefix:
             match_fields["app_ip_address"] = ip_prefix
@@ -376,17 +377,11 @@ class GtpuBaseTest(P4RuntimeTest):
         if ip_proto:
             match_fields["app_ip_proto"] = (ip_proto, (1 << 8) - 1)
         self.insert(
-            self.helper.build_table_entry(
-                table_name="PreQosPipe.applications",
-                match_fields=match_fields,
-                action_name="PreQosPipe.set_app_id",
-                action_params={
-                    "app_id": app_id,
-                },
-                priority=priority
-            )
-        )
-
+            self.helper.build_table_entry(table_name="PreQosPipe.applications",
+                                          match_fields=match_fields,
+                                          action_name="PreQosPipe.set_app_id", action_params={
+                                              "app_id": app_id,
+                                          }, priority=priority))
 
     def add_tunnel_peer(self, tunnel_peer_id, src_addr, dst_addr, sport=2152):
         self.insert(
@@ -399,7 +394,8 @@ class GtpuBaseTest(P4RuntimeTest):
                     "sport": sport,
                 }))
 
-    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False, app_filtering=False):
+    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
+                                   app_filtering=False):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -462,7 +458,8 @@ class GtpuBaseTest(P4RuntimeTest):
         )
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                     buffer=False, tun_id=None, qfi=0, push_qfi=False, app_filtering=False):
+                                     buffer=False, tun_id=None, qfi=0, push_qfi=False,
+                                     app_filtering=False):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
