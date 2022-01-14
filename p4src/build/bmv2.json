@@ -5721,7 +5721,7 @@
             },
             {
               "match_type" : "lpm",
-              "name" : "app_ip_address",
+              "name" : "app_ip_addr",
               "target" : ["scalars", "userMetadata.inet_addr"],
               "mask" : null
             },

@@ -401,7 +401,7 @@ public class Up4NorthComponentTest {
     public void applicationFilteringInsertionTest() throws Exception {
         PiTableEntry entry = TestImplConstants.UP4_APPLICATION_FILTERING;
         insertionTest(entry);
-        assertThat(mockUp4Service.readAll(UpfEntityType.APPLICATION).size(), equalTo(1));
+        assertThat(mockUp4Service.readAll(UpfEntityType.APPLICATION_FILTER).size(), equalTo(1));
     }
 
     // ------------------- DELETION TESTS --------------------------------------
@@ -452,7 +452,7 @@ public class Up4NorthComponentTest {
     public void applicationFilteringDeletionTest() throws Exception {
         mockUp4Service.apply(TestImplConstants.APPLICATION_FILTERING);
         deletionTest(TestImplConstants.UP4_APPLICATION_FILTERING);
-        assertTrue(mockUp4Service.readAll(UpfEntityType.APPLICATION).isEmpty());
+        assertTrue(mockUp4Service.readAll(UpfEntityType.APPLICATION_FILTER).isEmpty());
     }
 
     public void doArbitration(StreamObserver<P4RuntimeOuterClass.StreamMessageRequest> requestObserver) {

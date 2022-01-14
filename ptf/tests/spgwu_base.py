@@ -37,6 +37,9 @@ IP_PROTO_UDP = 0x11
 IP_PROTO_TCP = 0x06
 IP_PROTO_ICMP = 0x01
 
+DIRECTION_UPLINK = "UL"
+DIRECTION_DOWNLINK = "DL"
+
 
 class GtpuBaseTest(P4RuntimeTest):
 
@@ -365,13 +368,32 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params=action_params,
             ))
 
-    def add_application_filtering(self, app_id, slice_id=DEFAULT_SLICE, ip_prefix=None,
-                                  l4_port=None, ip_proto=None, priority=10):
+    def add_application_filtering(self, pkt, app_id, direction, slice_id=DEFAULT_SLICE,
+                                  priority=10):
         match_fields = {
             "slice_id": slice_id,
         }
-        if ip_prefix:
-            match_fields["app_ip_address"] = ip_prefix
+        if direction == DIRECTION_UPLINK:
+            match_fields["app_ip_addr"] = pkt[IP].dst + "/32"
+        else:
+            match_fields["app_ip_addr"] = pkt[IP].src + "/32"
+        l4_port = None
+        ip_proto = None
+        if UDP in pkt:
+            ip_proto = IP_PROTO_UDP
+            if direction == DIRECTION_UPLINK:
+                l4_port = pkt[UDP].dport
+            else:
+                l4_port = pkt[UDP].sport
+        elif TCP in pkt:
+            ip_proto = IP_PROTO_TCP
+            if direction == DIRECTION_UPLINK:
+                l4_port = pkt[TCP].dport
+            else:
+                l4_port = pkt[TCP].sport
+        elif ICMP in pkt:
+            ip_proto = IP_PROTO_ICMP
+
         if l4_port:
             match_fields["app_l4_port"] = [l4_port, l4_port]
         if ip_proto:
@@ -423,23 +445,11 @@ class GtpuBaseTest(P4RuntimeTest):
         app_id = NO_APP_ID
         if app_filtering:
             app_id = APP_ID
-            ipv4_prefix = inner_pkt[IP].dst + "/32"
-            l4_port = None
-            ip_proto = None
-            if UDP in inner_pkt:
-                ip_proto = IP_PROTO_UDP
-                l4_port = inner_pkt[UDP].dport
-            elif TCP in inner_pkt:
-                ip_proto = IP_PROTO_TCP
-                l4_port = inner_pkt[TCP].dport
-            elif ICMP in inner_pkt:
-                ip_proto = IP_PROTO_ICMP
             self.add_application_filtering(
+                pkt=inner_pkt,
                 app_id=app_id,
+                direction=DIRECTION_UPLINK,
                 slice_id=MOBILE_SLICE,
-                ip_prefix=ipv4_prefix,
-                l4_port=l4_port,
-                ip_proto=ip_proto,
             )
 
         self.add_terminations_uplink(
@@ -499,23 +509,11 @@ class GtpuBaseTest(P4RuntimeTest):
         app_id = NO_APP_ID
         if app_filtering:
             app_id = APP_ID
-            ipv4_prefix = pkt[IP].src + "/32"
-            l4_port = None
-            ip_proto = None
-            if UDP in pkt:
-                ip_proto = IP_PROTO_UDP
-                l4_port = pkt[UDP].sport
-            elif TCP in pkt:
-                ip_proto = IP_PROTO_TCP
-                l4_port = pkt[TCP].sport
-            elif ICMP in pkt:
-                ip_proto = IP_PROTO_ICMP
             self.add_application_filtering(
+                pkt=pkt,
                 app_id=app_id,
+                direction=DIRECTION_DOWNLINK,
                 slice_id=MOBILE_SLICE,
-                ip_prefix=ipv4_prefix,
-                l4_port=l4_port,
-                ip_proto=ip_proto,
             )
 
         self.add_terminations_downlink(

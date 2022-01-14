@@ -4,11 +4,11 @@
  */
 package org.omecproject.up4.impl;
 
-import org.apache.commons.lang3.tuple.Pair;
+import com.google.common.collect.Range;
 import org.omecproject.up4.Up4Translator;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
-import org.onosproject.net.behaviour.upf.Application;
+import org.onosproject.net.behaviour.upf.ApplicationFilter;
 import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.SessionDownlink;
 import org.onosproject.net.behaviour.upf.SessionUplink;
@@ -40,7 +40,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.APP_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.CTR_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DST_ADDR;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_ADDRESS;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_ADDR;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_PROTO;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_L4_PORT;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_IPV4_DST_PREFIX;
@@ -105,7 +105,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 } else if (tableEntry.table().equals(PRE_QOS_PIPE_TUNNEL_PEERS)) {
                     return UpfEntityType.TUNNEL_PEER;
                 } else if (tableEntry.table().equals(PRE_QOS_PIPE_APPLICATIONS)) {
-                    return UpfEntityType.APPLICATION;
+                    return UpfEntityType.APPLICATION_FILTER;
                 }
                 break;
             case COUNTER_CELL:
@@ -195,18 +195,15 @@ public class Up4TranslatorImpl implements Up4Translator {
                 builder.withSrcPort(Up4TranslatorUtil.getParamShort(entry, SPORT));
                 return builder.build();
             }
-            case APPLICATION: {
-                Application.Builder builder = Application.builder();
+            case APPLICATION_FILTER: {
+                ApplicationFilter.Builder builder = ApplicationFilter.builder();
                 builder.withAppId(Up4TranslatorUtil.getParamByte(entry, APP_ID));
                 builder.withPriority(Up4TranslatorUtil.getPriority(entry));
-                if (Up4TranslatorUtil.fieldIsPresent(entry, HDR_APP_IP_ADDRESS)) {
-                    builder.withIp4Prefix(Up4TranslatorUtil.getFieldPrefix(entry, HDR_APP_IP_ADDRESS));
+                if (Up4TranslatorUtil.fieldIsPresent(entry, HDR_APP_IP_ADDR)) {
+                    builder.withIp4Prefix(Up4TranslatorUtil.getFieldPrefix(entry, HDR_APP_IP_ADDR));
                 }
                 if (Up4TranslatorUtil.fieldIsPresent(entry, HDR_APP_L4_PORT)) {
-                    Pair<Short, Short> range = Up4TranslatorUtil.getFieldRangeShort(entry, HDR_APP_L4_PORT);
-                    if (range != null) {
-                        builder.withL4PortRange(range.getLeft(), range.getRight());
-                    }
+                    builder.withL4PortRange(Up4TranslatorUtil.getFieldRangeShort(entry, HDR_APP_L4_PORT));
                 }
                 if (Up4TranslatorUtil.fieldIsPresent(entry, HDR_APP_IP_PROTO)) {
                     builder.withIpProto(Up4TranslatorUtil.getFieldByte(entry, HDR_APP_IP_PROTO));
@@ -340,9 +337,9 @@ public class Up4TranslatorImpl implements Up4Translator {
                         .withParameter(new PiActionParam(DST_ADDR, gtpTunnelPeer.dst().toOctets()))
                         .withParameter(new PiActionParam(SPORT, gtpTunnelPeer.srcPort()));
                 break;
-            case APPLICATION:
+            case APPLICATION_FILTER:
                 tableEntryBuilder.forTable(PRE_QOS_PIPE_APPLICATIONS);
-                Application application = (Application) entity;
+                ApplicationFilter application = (ApplicationFilter) entity;
                 tableEntryBuilder.withPriority(application.priority());
                 actionBuilder.withId(PRE_QOS_PIPE_SET_APP_ID)
                         .withParameter(new PiActionParam(APP_ID, application.appId()));
@@ -351,16 +348,16 @@ public class Up4TranslatorImpl implements Up4Translator {
                 if (application.ip4Prefix().isPresent()) {
                     Ip4Prefix ipPrefix = application.ip4Prefix().get();
                     matchBuilder.addFieldMatch(new PiLpmFieldMatch(
-                            HDR_APP_IP_ADDRESS,
+                            HDR_APP_IP_ADDR,
                             ImmutableByteSequence.copyFrom(ipPrefix.address().toOctets()),
                             ipPrefix.prefixLength()));
                 }
                 if (application.l4PortRange().isPresent()) {
-                    Pair<Short, Short> portRange = application.l4PortRange().get();
+                    Range<Short> portRange = application.l4PortRange().get();
                     matchBuilder.addFieldMatch(new PiRangeFieldMatch(
                             HDR_APP_L4_PORT,
-                            ImmutableByteSequence.copyFrom(portRange.getLeft()),
-                            ImmutableByteSequence.copyFrom(portRange.getRight())));
+                            ImmutableByteSequence.copyFrom(portRange.lowerEndpoint()),
+                            ImmutableByteSequence.copyFrom(portRange.upperEndpoint())));
                 }
                 if (application.ipProto().isPresent()) {
                     byte ipProto = application.ipProto().get();

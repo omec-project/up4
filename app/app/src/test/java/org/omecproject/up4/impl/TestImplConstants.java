@@ -4,14 +4,14 @@
  */
 package org.omecproject.up4.impl;
 
-import org.apache.commons.lang3.tuple.Pair;
+import com.google.common.collect.Range;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.DefaultApplicationId;
 import org.onosproject.net.DeviceId;
-import org.onosproject.net.behaviour.upf.Application;
+import org.onosproject.net.behaviour.upf.ApplicationFilter;
 import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.SessionDownlink;
 import org.onosproject.net.behaviour.upf.SessionUplink;
@@ -37,7 +37,7 @@ import static org.omecproject.up4.impl.Up4DeviceManager.SLICE_MOBILE;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.CTR_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DST_ADDR;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_ADDRESS;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_ADDR;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_PROTO;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_L4_PORT;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_IPV4_DST_PREFIX;
@@ -107,7 +107,7 @@ public final class TestImplConstants {
     public static final byte APP_FILTERING_ID = 10;
     public static final int APP_FILTERING_PRIORITY = 10;
     public static final Ip4Prefix APP_IP_PREFIX = Ip4Prefix.valueOf("10.0.0.0/24");
-    public static final Pair<Short, Short> APP_L4_RANGE = Pair.of((short) 100, (short) 1000);
+    public static final Range<Short> APP_L4_RANGE = Range.closed((short) 100, (short) 1000);
     public static final byte APP_IP_PROTO = 6;
 
     public static final GtpTunnelPeer TUNNEL_PEER = GtpTunnelPeer.builder()
@@ -162,10 +162,10 @@ public final class TestImplConstants {
 
     public static final UpfInterface DOWNLINK_INTERFACE = UpfInterface.createUePoolFrom(UE_POOL);
 
-    public static final Application APPLICATION_FILTERING = Application.builder()
+    public static final ApplicationFilter APPLICATION_FILTERING = ApplicationFilter.builder()
             .withAppId(APP_FILTERING_ID)
             .withIp4Prefix(APP_IP_PREFIX)
-            .withL4PortRange(APP_L4_RANGE.getLeft(), APP_L4_RANGE.getRight())
+            .withL4PortRange(APP_L4_RANGE)
             .withIpProto(APP_IP_PROTO)
             .withPriority(APP_FILTERING_PRIORITY)
             .build();
@@ -344,22 +344,22 @@ public final class TestImplConstants {
     public static final PiTableEntry UP4_APPLICATION_FILTERING = PiTableEntry.builder()
             .forTable(PRE_QOS_PIPE_APPLICATIONS)
             .withMatchKey(PiMatchKey.builder()
-                          .addFieldMatch(new PiExactFieldMatch(
-                                  HDR_SLICE_ID,
-                                  ImmutableByteSequence.copyFrom(SLICE_MOBILE)))
-                          .addFieldMatch(new PiLpmFieldMatch(
-                                  HDR_APP_IP_ADDRESS,
-                                  ImmutableByteSequence.copyFrom(APP_IP_PREFIX.address().toOctets()),
-                                  APP_IP_PREFIX.prefixLength()))
-                          .addFieldMatch(new PiRangeFieldMatch(
-                                  HDR_APP_L4_PORT,
-                                  ImmutableByteSequence.copyFrom(APP_L4_RANGE.getLeft()),
-                                  ImmutableByteSequence.copyFrom(APP_L4_RANGE.getRight())))
-                          .addFieldMatch(new PiTernaryFieldMatch(
-                                  HDR_APP_IP_PROTO,
-                                  ImmutableByteSequence.copyFrom(APP_IP_PROTO),
-                                  ImmutableByteSequence.ofOnes(1)
-                          )).build()
+                                  .addFieldMatch(new PiExactFieldMatch(
+                                          HDR_SLICE_ID,
+                                          ImmutableByteSequence.copyFrom(SLICE_MOBILE)))
+                                  .addFieldMatch(new PiLpmFieldMatch(
+                                          HDR_APP_IP_ADDR,
+                                          ImmutableByteSequence.copyFrom(APP_IP_PREFIX.address().toOctets()),
+                                          APP_IP_PREFIX.prefixLength()))
+                                  .addFieldMatch(new PiRangeFieldMatch(
+                                          HDR_APP_L4_PORT,
+                                          ImmutableByteSequence.copyFrom(APP_L4_RANGE.lowerEndpoint()),
+                                          ImmutableByteSequence.copyFrom(APP_L4_RANGE.upperEndpoint())))
+                                  .addFieldMatch(new PiTernaryFieldMatch(
+                                          HDR_APP_IP_PROTO,
+                                          ImmutableByteSequence.copyFrom(APP_IP_PROTO),
+                                          ImmutableByteSequence.ofOnes(1)
+                                  )).build()
             )
             .withAction(PiAction.builder()
                                 .withId(PRE_QOS_PIPE_SET_APP_ID)

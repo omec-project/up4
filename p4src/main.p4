@@ -290,7 +290,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     table applications {
         key = {
             local_meta.slice_id     : exact     @name("slice_id");
-            local_meta.inet_addr    : lpm       @name("app_ip_address");
+            local_meta.inet_addr    : lpm       @name("app_ip_addr");
             local_meta.inet_l4_port : range     @name("app_l4_port");
             local_meta.ip_proto     : ternary   @name("app_ip_proto");
         }
