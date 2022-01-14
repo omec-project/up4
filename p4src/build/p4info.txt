@@ -227,6 +227,9 @@ tables {
     id: 28305359
   }
   action_refs {
+    id: 21760615
+  }
+  action_refs {
     id: 20977365
   }
   action_refs {
@@ -260,6 +263,9 @@ tables {
   }
   action_refs {
     id: 31264233
+  }
+  action_refs {
+    id: 26185804
   }
   action_refs {
     id: 28401267
@@ -485,6 +491,18 @@ actions {
 }
 actions {
   preamble {
+    id: 21760615
+    name: "PreQosPipe.uplink_term_fwd_no_tc"
+    alias: "uplink_term_fwd_no_tc"
+  }
+  params {
+    id: 1
+    name: "ctr_idx"
+    bitwidth: 32
+  }
+}
+actions {
+  preamble {
     id: 20977365
     name: "PreQosPipe.uplink_term_drop"
     alias: "uplink_term_drop"
@@ -520,6 +538,28 @@ actions {
     id: 4
     name: "tc"
     bitwidth: 2
+  }
+}
+actions {
+  preamble {
+    id: 26185804
+    name: "PreQosPipe.downlink_term_fwd_no_tc"
+    alias: "downlink_term_fwd_no_tc"
+  }
+  params {
+    id: 1
+    name: "ctr_idx"
+    bitwidth: 32
+  }
+  params {
+    id: 2
+    name: "teid"
+    bitwidth: 32
+  }
+  params {
+    id: 3
+    name: "qfi"
+    bitwidth: 6
   }
 }
 actions {

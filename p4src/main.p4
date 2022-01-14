@@ -239,6 +239,10 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.tc = tc;
     }
 
+    action uplink_term_fwd_no_tc(counter_index_t ctr_idx) {
+        common_term(ctr_idx);
+    }
+
     action uplink_term_drop(counter_index_t ctr_idx) {
         common_term(ctr_idx);
         local_meta.needs_dropping = true;
@@ -248,7 +252,13 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, tc_t tc) {
         common_term(ctr_idx);
         local_meta.tunnel_out_teid = teid;
+        local_meta.tunnel_out_qfi = qfi;
         local_meta.tc = tc;
+    }
+
+    action downlink_term_fwd_no_tc(counter_index_t ctr_idx, teid_t teid, qfi_t qfi) {
+        common_term(ctr_idx);
+        local_meta.tunnel_out_teid = teid;
         local_meta.tunnel_out_qfi = qfi;
     }
 
@@ -264,6 +274,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         }
         actions = {
             uplink_term_fwd;
+            uplink_term_fwd_no_tc;
             uplink_term_drop;
             @defaultonly do_drop;
         }
@@ -278,6 +289,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         actions = {
             downlink_term_fwd;
             downlink_term_drop;
+            downlink_term_fwd_no_tc;
             @defaultonly do_drop;
         }
         const default_action = do_drop;

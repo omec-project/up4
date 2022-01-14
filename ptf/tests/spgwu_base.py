@@ -335,6 +335,8 @@ class GtpuBaseTest(P4RuntimeTest):
         action_params = {"ctr_idx": ctr_idx}
         if drop:
             action_name = "PreQosPipe.uplink_term_drop"
+        elif tc is None:
+            action_name = "PreQosPipe.uplink_term_fwd_no_tc"
         else:
             action_params["tc"] = tc
             action_name = "PreQosPipe.uplink_term_fwd"
@@ -356,10 +358,13 @@ class GtpuBaseTest(P4RuntimeTest):
         if drop:
             action_name = "PreQosPipe.downlink_term_drop"
         else:
-            action_params["tc"] = tc
             action_params["teid"] = teid
             action_params["qfi"] = qfi
-            action_name = "PreQosPipe.downlink_term_fwd"
+            if tc:
+                action_params["tc"] = tc
+                action_name = "PreQosPipe.downlink_term_fwd"
+            else:
+                action_name = "PreQosPipe.downlink_term_fwd_no_tc"
         self.insert(
             self.helper.build_table_entry(
                 table_name="PreQosPipe.terminations_downlink",
@@ -416,17 +421,18 @@ class GtpuBaseTest(P4RuntimeTest):
                     "sport": sport,
                 }))
 
-    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                   app_filtering=False):
+    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, tc=0,
+                                   app_filtering=False, drop=False):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
         """
 
         inner_pkt = pkt[gtp.GTP_U_Header].payload
 
-        qfi = 0
-        if gtp.GTPPDUSessionContainer in pkt:
-            qfi = pkt[gtp.GTPPDUSessionContainer].QFI
+        # TODO: restore when we'll support matching on QFI
+        # qfi = 0
+        # if gtp.GTPPDUSessionContainer in pkt:
+        #     qfi = pkt[gtp.GTPPDUSessionContainer].QFI
 
         self.add_device_mac(pkt[Ether].dst)
 
@@ -455,7 +461,7 @@ class GtpuBaseTest(P4RuntimeTest):
         self.add_terminations_uplink(
             ue_address=inner_pkt[IP].src,
             ctr_idx=ctr_id,
-            tc=qfi,  # TODO: MAP QFI TO TC!!!
+            tc=tc,
             drop=drop,
             app_id=app_id,
         )
@@ -468,7 +474,7 @@ class GtpuBaseTest(P4RuntimeTest):
         )
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id, drop=False,
-                                     buffer=False, tun_id=None, qfi=0, push_qfi=False,
+                                     buffer=False, tun_id=None, qfi=0, tc=0, push_qfi=False,
                                      app_filtering=False):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
@@ -519,7 +525,7 @@ class GtpuBaseTest(P4RuntimeTest):
         self.add_terminations_downlink(
             ue_address=pkt[IP].dst,
             ctr_idx=ctr_id,
-            tc=qfi,
+            tc=tc,
             teid=exp_pkt[gtp.GTP_U_Header].teid,
             qfi=qfi if push_qfi else 0,
             drop=drop,
