@@ -46,16 +46,18 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
     def runTest(self):
         # Test with different type of packets.
         for pkt_type in self.supported_l4:
-            print_inline("%s ... " % pkt_type)
-            pkt = getattr(testutils,
-                          "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
-                                                         ip_src=UE_IPV4, ip_dst=PDN_IPV4)
-            pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
+            # Verify that default TC behaves in the same way as when we specify TC
+            for tc in [0, None]:
+                print_inline("%s, tc=%s... " % (pkt_type, tc))
+                pkt = getattr(testutils,
+                              "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
+                                                             ip_src=UE_IPV4, ip_dst=PDN_IPV4)
+                pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
 
-            self.testPacket(pkt)
+                self.testPacket(pkt, tc)
 
     @autocleanup
-    def testPacket(self, pkt):
+    def testPacket(self, pkt, tc):
 
         if gtp.GTP_U_Header not in pkt:
             raise AssertionError("Packet given to decap test is not encapsulated!")
@@ -71,7 +73,8 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False)
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, tc=tc,
+                                        drop=False)
 
         # read pre and post-QoS packet and byte counters
         self.read_upf_counters(ctr_id)
@@ -92,14 +95,16 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
     def runTest(self):
         # Test with different type of packets.
         for pkt_type in self.supported_l4:
-            print_inline("%s ... " % pkt_type)
-            pkt = getattr(testutils,
-                          "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
-                                                         ip_src=PDN_IPV4, ip_dst=UE_IPV4)
-            self.testPacket(pkt)
+            # Verify that default TC behaves in the same way as when we specify TC
+            for tc in [0, None]:
+                print_inline("%s, tc=%s... " % (pkt_type, tc))
+                pkt = getattr(testutils,
+                              "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
+                                                             ip_src=PDN_IPV4, ip_dst=UE_IPV4)
+                self.testPacket(pkt, tc)
 
     @autocleanup
-    def testPacket(self, pkt):
+    def testPacket(self, pkt, tc):
 
         # build the expected encapsulated packet
         exp_pkt = pkt.copy()
@@ -117,7 +122,8 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         ctr_id = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False)
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, tc=tc,
+                                          drop=False)
 
         # read pre and post-QoS packet and byte counters
         self.read_upf_counters(ctr_id)

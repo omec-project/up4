@@ -124,6 +124,8 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.downlink_term_drop");
     public static final PiActionId PRE_QOS_PIPE_DOWNLINK_TERM_FWD =
             PiActionId.of("PreQosPipe.downlink_term_fwd");
+    public static final PiActionId PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC =
+            PiActionId.of("PreQosPipe.downlink_term_fwd_no_tc");
     public static final PiActionId PRE_QOS_PIPE_LOAD_TUNNEL_PARAM =
             PiActionId.of("PreQosPipe.load_tunnel_param");
     public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK =
@@ -142,6 +144,8 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.uplink_term_drop");
     public static final PiActionId PRE_QOS_PIPE_UPLINK_TERM_FWD =
             PiActionId.of("PreQosPipe.uplink_term_fwd");
+    public static final PiActionId PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC =
+            PiActionId.of("PreQosPipe.uplink_term_fwd_no_tc");
     // Action Param IDs
     public static final PiActionParamId CTR_IDX = PiActionParamId.of("ctr_idx");
     public static final PiActionParamId DIRECTION =

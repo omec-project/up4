@@ -40,6 +40,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_INTERFACES;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_LOAD_TUNNEL_PARAM;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_DOWNLINK;
@@ -53,6 +54,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATI
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TUNNEL_PEERS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.QFI;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SLICE_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SPORT;
@@ -111,6 +113,11 @@ public final class TestImplConstants {
             .withTrafficClass(TRAFFIC_CLASS_UL)
             .build();
 
+    public static final UpfTerminationUplink UPLINK_TERMINATION_NO_TC = UpfTerminationUplink.builder()
+            .withUeSessionId(UE_ADDR)
+            .withCounterId(UPLINK_COUNTER_CELL_ID)
+            .build();
+
     public static final UpfTerminationUplink UPLINK_TERMINATION_DROP = UpfTerminationUplink.builder()
             .withUeSessionId(UE_ADDR)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
@@ -133,6 +140,13 @@ public final class TestImplConstants {
             .withQfi(DOWNLINK_QFI)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
             .withTrafficClass(TRAFFIC_CLASS_DL)
+            .build();
+
+    public static final UpfTerminationDownlink DOWNLINK_TERMINATION_NO_TC = UpfTerminationDownlink.builder()
+            .withUeSessionId(UE_ADDR)
+            .withTeid(TEID)
+            .withQfi(DOWNLINK_QFI)
+            .withCounterId(DOWNLINK_COUNTER_CELL_ID)
             .build();
 
     public static final UpfTerminationDownlink DOWNLINK_TERMINATION_DROP = UpfTerminationDownlink.builder()
@@ -230,6 +244,22 @@ public final class TestImplConstants {
             )
             .build();
 
+    public static final PiTableEntry UP4_UPLINK_TERMINATION_NO_TC = PiTableEntry.builder()
+            .forTable(PRE_QOS_PIPE_TERMINATIONS_UPLINK)
+            .withMatchKey(
+                    PiMatchKey.builder()
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .build()
+            )
+            .withAction(
+                    PiAction.builder()
+                            .withId(PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC)
+                            .withParameter(new PiActionParam(CTR_IDX, UPLINK_COUNTER_CELL_ID))
+                            .build()
+            )
+            .build();
+
     public static final PiTableEntry UP4_UPLINK_TERMINATION_DROP = PiTableEntry.builder()
             .forTable(PRE_QOS_PIPE_TERMINATIONS_UPLINK)
             .withMatchKey(
@@ -261,6 +291,24 @@ public final class TestImplConstants {
                             .withParameter(new PiActionParam(Up4P4InfoConstants.TEID, TEID))
                             .withParameter(new PiActionParam(QFI, DOWNLINK_QFI))
                             .withParameter(new PiActionParam(TC, TRAFFIC_CLASS_DL))
+                            .build()
+            )
+            .build();
+
+    public static final PiTableEntry UP4_DOWNLINK_TERMINATION_NO_TC = PiTableEntry.builder()
+            .forTable(PRE_QOS_PIPE_TERMINATIONS_DOWNLINK)
+            .withMatchKey(
+                    PiMatchKey.builder()
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .build()
+            )
+            .withAction(
+                    PiAction.builder()
+                            .withId(PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC)
+                            .withParameter(new PiActionParam(CTR_IDX, DOWNLINK_COUNTER_CELL_ID))
+                            .withParameter(new PiActionParam(Up4P4InfoConstants.TEID, TEID))
+                            .withParameter(new PiActionParam(QFI, DOWNLINK_QFI))
                             .build()
             )
             .build();
