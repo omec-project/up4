@@ -51,8 +51,9 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
                 for tc in [0, None]:
                     print_inline("%s, tc=%s, app_filtering=%s... " % (pkt_type, tc, app_filtering))
                     pkt = getattr(testutils,
-                                  "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
-                                                                 ip_src=UE_IPV4, ip_dst=PDN_IPV4)
+                                  "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC,
+                                                                 eth_dst=SWITCH_MAC, ip_src=UE_IPV4,
+                                                                 ip_dst=PDN_IPV4)
                     pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
 
                     self.testPacket(pkt, app_filtering, tc)
@@ -101,7 +102,8 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
                 for tc in [0, None]:
                     print_inline("%s, tc=%s, app_filtering=%s... " % (pkt_type, tc, app_filtering))
                     pkt = getattr(testutils,
-                                  "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
+                                  "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC,
+                                                                 eth_dst=SWITCH_MAC,
                                                                  ip_src=PDN_IPV4, ip_dst=UE_IPV4)
                     self.testPacket(pkt, app_filtering, tc)
 
