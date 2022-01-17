@@ -74,9 +74,6 @@ public final class Up4P4InfoConstants {
     public static final PiMatchFieldId HDR_N3_ADDRESS =
             PiMatchFieldId.of("n3_address");
     public static final int HDR_N3_ADDRESS_BITWIDTH = 32;
-    public static final PiMatchFieldId HDR_SLICE_ID =
-            PiMatchFieldId.of("slice_id");
-    public static final int HDR_SLICE_ID_BITWIDTH = 4;
     public static final PiMatchFieldId HDR_SRC_IFACE =
             PiMatchFieldId.of("src_iface");
     public static final int HDR_SRC_IFACE_BITWIDTH = 8;

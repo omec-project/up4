@@ -42,7 +42,6 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_PROTO;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_L4_PORT;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_IPV4_DST_PREFIX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_N3_ADDRESS;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_SLICE_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TEID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
@@ -392,9 +391,6 @@ public final class TestImplConstants {
     public static final PiTableEntry UP4_APPLICATION_FILTERING = PiTableEntry.builder()
             .forTable(PRE_QOS_PIPE_APPLICATIONS)
             .withMatchKey(PiMatchKey.builder()
-                                  .addFieldMatch(new PiExactFieldMatch(
-                                          HDR_SLICE_ID,
-                                          ImmutableByteSequence.copyFrom(SLICE_MOBILE)))
                                   .addFieldMatch(new PiLpmFieldMatch(
                                           HDR_APP_IP_ADDR,
                                           ImmutableByteSequence.copyFrom(APP_IP_PREFIX.address().toOctets()),

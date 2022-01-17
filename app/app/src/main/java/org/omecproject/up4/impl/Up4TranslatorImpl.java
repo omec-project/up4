@@ -45,7 +45,6 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_PROTO;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_L4_PORT;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_IPV4_DST_PREFIX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_N3_ADDRESS;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_SLICE_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TEID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
@@ -355,8 +354,6 @@ public class Up4TranslatorImpl implements Up4Translator {
                 tableEntryBuilder.withPriority(application.priority());
                 actionBuilder.withId(PRE_QOS_PIPE_SET_APP_ID)
                         .withParameter(new PiActionParam(APP_ID, application.appId()));
-                matchBuilder.addFieldMatch(new PiExactFieldMatch(
-                        HDR_SLICE_ID, ImmutableByteSequence.copyFrom(SLICE_MOBILE)));
                 if (application.ip4Prefix().isPresent()) {
                     Ip4Prefix ipPrefix = application.ip4Prefix().get();
                     matchBuilder.addFieldMatch(new PiLpmFieldMatch(
