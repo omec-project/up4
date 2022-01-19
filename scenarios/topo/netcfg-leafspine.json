@@ -22,7 +22,7 @@
       "basic": {
         "managementAddress": "grpc://mininet:50002?device_id=1",
         "driver": "stratum-bmv2",
-        "pipeconf": "org.stratumproject.fabric-spgw.bmv2",
+        "pipeconf": "org.stratumproject.fabric.bmv2",
         "locType": "grid",
         "gridX": 800,
         "gridY": 600
@@ -155,19 +155,24 @@
   "apps": {
     "org.omecproject.up4": {
       "up4": {
-        "devices": [
-          "device:leaf1",
-          "device:leaf2"
-        ],
-        "s1uAddr": "140.0.0.1",
+        "deviceId": "device:leaf1",
+        "s1uAddr": "140.0.100.254",
         "maxUes": 32,
         "uePools": [
           "17.0.0.0/24"
         ],
-        "dbufDrainAddr": "140.0.0.2",
+        "dbufDrainAddr": "140.0.99.254",
         "pscEncapEnabled": false,
         "defaultQfi": 0
       }
+    },
+    "org.onosproject.route-service": {
+      "routes": [
+        {
+          "prefix": "17.0.0.0/24",
+          "nextHop": "140.0.100.1"
+        }
+      ]
     }
   }
 }

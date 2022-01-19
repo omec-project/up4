@@ -40,7 +40,7 @@ class SinglePairLeaf(Topo):
         # we can specify the drainIp and drainMac, that will install a /32 route
         # and an ARP entry for those values.
         dbuf1 = self.addHost('dbuf1', cls=DualHomedDbufHost, mac='00:00:00:00:db:0f',
-                             ip='140.0.99.1/24', drainIp="140.0.0.2", drainMac="00:aa:00:00:00:01")
+                             ip='140.0.99.1/24', drainIp="140.0.99.254", drainMac="00:aa:00:00:00:01")
         self.addLink(dbuf1, leaf1)  # port 1
         self.addLink(dbuf1, leaf2)  # port 1
 

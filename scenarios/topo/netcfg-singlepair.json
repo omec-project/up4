@@ -214,12 +214,12 @@
           "device:leaf1",
           "device:leaf2"
         ],
-        "s1uAddr": "140.0.0.1",
+        "s1uAddr": "140.0.100.254",
         "maxUes": 32,
         "uePools": [
           "17.0.0.0/16"
         ],
-        "dbufDrainAddr": "140.0.0.2",
+        "dbufDrainAddr": "140.0.99.254",
         "pscEncapEnabled": false,
         "defaultQfi": 0
       }
