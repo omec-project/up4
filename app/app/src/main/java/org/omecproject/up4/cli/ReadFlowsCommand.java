@@ -10,7 +10,7 @@ import org.omecproject.up4.impl.DownlinkUpfFlow;
 import org.omecproject.up4.impl.Up4AdminService;
 import org.omecproject.up4.impl.UplinkUpfFlow;
 import org.onosproject.cli.AbstractShellCommand;
-import org.onosproject.net.behaviour.upf.ApplicationFilter;
+import org.onosproject.net.behaviour.upf.UpfApplication;
 import org.onosproject.net.behaviour.upf.SessionUplink;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
@@ -34,16 +34,16 @@ public class ReadFlowsCommand extends AbstractShellCommand {
         Collection<DownlinkUpfFlow> dlUpfFlow = adminService.getDownlinkFlows();
         Collection<UplinkUpfFlow> ulUpfFlow = adminService.getUplinkFlows();
         Collection<? extends UpfEntity> ulSess = adminService.adminReadAll(UpfEntityType.SESSION_UPLINK);
-        Collection<? extends UpfEntity> appFilters = adminService.adminReadAll(UpfEntityType.APPLICATION_FILTER);
+        Collection<? extends UpfEntity> appFilters = adminService.adminReadAll(UpfEntityType.APPLICATION);
 
         print(SEPARATOR);
         print(appFilters.size() + " Application Filters");
         for (UpfEntity a : appFilters) {
-            if (!a.type().equals(UpfEntityType.APPLICATION_FILTER)) {
+            if (!a.type().equals(UpfEntityType.APPLICATION)) {
                 print("ERROR: Wrong application filter: " + a);
                 continue;
             }
-            ApplicationFilter app = (ApplicationFilter) a;
+            UpfApplication app = (UpfApplication) a;
             print("ipv4_prefix=" + app.ip4Prefix() +
                           ", l4_range=" + app.l4PortRange() +
                           ", ip_proto=" + app.ipProto()

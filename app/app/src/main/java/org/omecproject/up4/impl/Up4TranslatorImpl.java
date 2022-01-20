@@ -8,7 +8,7 @@ import com.google.common.collect.Range;
 import org.omecproject.up4.Up4Translator;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
-import org.onosproject.net.behaviour.upf.ApplicationFilter;
+import org.onosproject.net.behaviour.upf.UpfApplication;
 import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.SessionDownlink;
 import org.onosproject.net.behaviour.upf.SessionUplink;
@@ -50,7 +50,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TEID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.POST_QOS_PIPE_POST_QOS_COUNTER;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APPLICATION_FILTERS;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APPLICATIONS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC;
@@ -106,8 +106,8 @@ public class Up4TranslatorImpl implements Up4Translator {
                     return UpfEntityType.TERMINATION_DOWNLINK;
                 } else if (tableEntry.table().equals(PRE_QOS_PIPE_TUNNEL_PEERS)) {
                     return UpfEntityType.TUNNEL_PEER;
-                } else if (tableEntry.table().equals(PRE_QOS_PIPE_APPLICATION_FILTERS)) {
-                    return UpfEntityType.APPLICATION_FILTER;
+                } else if (tableEntry.table().equals(PRE_QOS_PIPE_APPLICATIONS)) {
+                    return UpfEntityType.APPLICATION;
                 }
                 break;
             case COUNTER_CELL:
@@ -201,8 +201,8 @@ public class Up4TranslatorImpl implements Up4Translator {
                 builder.withSrcPort(Up4TranslatorUtil.getParamShort(entry, SPORT));
                 return builder.build();
             }
-            case APPLICATION_FILTER: {
-                ApplicationFilter.Builder builder = ApplicationFilter.builder();
+            case APPLICATION: {
+                UpfApplication.Builder builder = UpfApplication.builder();
                 builder.withAppId(Up4TranslatorUtil.getParamByte(entry, APP_ID));
                 builder.withPriority(Up4TranslatorUtil.getPriority(entry));
                 if (Up4TranslatorUtil.fieldIsPresent(entry, HDR_APP_IP_ADDR)) {
@@ -359,9 +359,9 @@ public class Up4TranslatorImpl implements Up4Translator {
                         .withParameter(new PiActionParam(DST_ADDR, gtpTunnelPeer.dst().toOctets()))
                         .withParameter(new PiActionParam(SPORT, gtpTunnelPeer.srcPort()));
                 break;
-            case APPLICATION_FILTER:
-                tableEntryBuilder.forTable(PRE_QOS_PIPE_APPLICATION_FILTERS);
-                ApplicationFilter application = (ApplicationFilter) entity;
+            case APPLICATION:
+                tableEntryBuilder.forTable(PRE_QOS_PIPE_APPLICATIONS);
+                UpfApplication application = (UpfApplication) entity;
                 tableEntryBuilder.withPriority(application.priority());
                 actionBuilder.withId(PRE_QOS_PIPE_SET_APP_ID)
                         .withParameter(new PiActionParam(APP_ID, application.appId()));

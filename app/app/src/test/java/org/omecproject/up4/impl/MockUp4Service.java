@@ -79,7 +79,7 @@ public class MockUp4Service implements Up4Service {
             case TUNNEL_PEER:
                 tunnelPeers.add(entity);
                 break;
-            case APPLICATION_FILTER:
+            case APPLICATION:
                 applications.add(entity);
                 break;
             default:
@@ -103,7 +103,7 @@ public class MockUp4Service implements Up4Service {
                 return sessionsDl;
             case TUNNEL_PEER:
                 return tunnelPeers;
-            case APPLICATION_FILTER:
+            case APPLICATION:
                 return applications;
             default:
                 break;
@@ -167,7 +167,7 @@ public class MockUp4Service implements Up4Service {
             case TUNNEL_PEER:
                 entities = tunnelPeers;
                 break;
-            case APPLICATION_FILTER:
+            case APPLICATION:
                 entities = applications;
                 break;
             default:
@@ -200,7 +200,7 @@ public class MockUp4Service implements Up4Service {
             case TUNNEL_PEER:
                 tunnelPeers.clear();
                 break;
-            case APPLICATION_FILTER:
+            case APPLICATION:
                 applications.clear();
                 break;
             default:
@@ -223,7 +223,7 @@ public class MockUp4Service implements Up4Service {
                 return TestImplConstants.PHYSICAL_MAX_TUNNEL_PEERS;
             case COUNTER:
                 return TestImplConstants.PHYSICAL_COUNTER_SIZE;
-            case APPLICATION_FILTER:
+            case APPLICATION:
                 return TestImplConstants.PHYSICAL_APPLICATIONS_SIZE;
             default:
                 break;

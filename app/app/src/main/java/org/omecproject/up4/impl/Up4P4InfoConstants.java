@@ -90,8 +90,8 @@ public final class Up4P4InfoConstants {
             PiTableId.of("PreQosPipe.Acl.acls");
     public static final PiTableId PRE_QOS_PIPE__ROUTING_ROUTES_V4 =
             PiTableId.of("PreQosPipe.Routing.routes_v4");
-    public static final PiTableId PRE_QOS_PIPE_APPLICATION_FILTERS =
-            PiTableId.of("PreQosPipe.application_filters");
+    public static final PiTableId PRE_QOS_PIPE_APPLICATIONS =
+            PiTableId.of("PreQosPipe.applications");
     public static final PiTableId PRE_QOS_PIPE_INTERFACES =
             PiTableId.of("PreQosPipe.interfaces");
     public static final PiTableId PRE_QOS_PIPE_MY_STATION =

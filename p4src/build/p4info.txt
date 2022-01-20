@@ -277,9 +277,9 @@ tables {
 }
 tables {
   preamble {
-    id: 46865406
-    name: "PreQosPipe.application_filters"
-    alias: "application_filters"
+    id: 46868458
+    name: "PreQosPipe.applications"
+    alias: "applications"
   }
   match_fields {
     id: 1

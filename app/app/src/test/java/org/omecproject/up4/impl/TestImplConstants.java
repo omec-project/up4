@@ -11,10 +11,10 @@ import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.DefaultApplicationId;
 import org.onosproject.net.DeviceId;
-import org.onosproject.net.behaviour.upf.ApplicationFilter;
 import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.SessionDownlink;
 import org.onosproject.net.behaviour.upf.SessionUplink;
+import org.onosproject.net.behaviour.upf.UpfApplication;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
 import org.onosproject.net.behaviour.upf.UpfTerminationUplink;
@@ -46,7 +46,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_N3_ADDRESS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TEID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APPLICATION_FILTERS;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APPLICATIONS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC;
@@ -179,7 +179,7 @@ public final class TestImplConstants {
 
     public static final UpfInterface DOWNLINK_INTERFACE = UpfInterface.createUePoolFrom(UE_POOL);
 
-    public static final ApplicationFilter APPLICATION_FILTERING = ApplicationFilter.builder()
+    public static final UpfApplication APPLICATION_FILTERING = UpfApplication.builder()
             .withAppId(APP_FILTERING_ID)
             .withIp4Prefix(APP_IP_PREFIX)
             .withL4PortRange(APP_L4_RANGE)
@@ -411,7 +411,7 @@ public final class TestImplConstants {
                                 .build()).build();
 
     public static final PiTableEntry UP4_APPLICATION_FILTERING = PiTableEntry.builder()
-            .forTable(PRE_QOS_PIPE_APPLICATION_FILTERS)
+            .forTable(PRE_QOS_PIPE_APPLICATIONS)
             .withMatchKey(PiMatchKey.builder()
                                   .addFieldMatch(new PiLpmFieldMatch(
                                           HDR_APP_IP_ADDR,

@@ -64,9 +64,9 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
     boolean interfaces = false;
 
     @Option(name = "--app", aliases = "-f",
-            description = "Include the Application filters",
+            description = "Include the UPF Application filters",
             required = false)
-    boolean applicationFilter = false;
+    boolean application = false;
 
 
     @Override
@@ -77,7 +77,7 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
         try {
             List<UpfEntityType> printedTypes = new ArrayList<>();
             if (all) {
-                printedTypes.add(UpfEntityType.APPLICATION_FILTER);
+                printedTypes.add(UpfEntityType.APPLICATION);
                 printedTypes.add(UpfEntityType.SESSION_UPLINK);
                 printedTypes.add(UpfEntityType.SESSION_DOWNLINK);
                 printedTypes.add(UpfEntityType.TERMINATION_UPLINK);
@@ -86,7 +86,7 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                 printedTypes.add(UpfEntityType.INTERFACE);
                 filterCounters = true;
             } else if (ue) {
-                printedTypes.add(UpfEntityType.APPLICATION_FILTER);
+                printedTypes.add(UpfEntityType.APPLICATION);
                 printedTypes.add(UpfEntityType.SESSION_UPLINK);
                 printedTypes.add(UpfEntityType.SESSION_DOWNLINK);
                 printedTypes.add(UpfEntityType.TERMINATION_UPLINK);
@@ -94,8 +94,8 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                 printedTypes.add(UpfEntityType.TUNNEL_PEER);
                 filterCounters = true;
             } else {
-                if (applicationFilter) {
-                    printedTypes.add(UpfEntityType.APPLICATION_FILTER);
+                if (application) {
+                    printedTypes.add(UpfEntityType.APPLICATION);
                 }
                 if (sessions) {
                     printedTypes.add(UpfEntityType.SESSION_UPLINK);

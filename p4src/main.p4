@@ -299,7 +299,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.application_id = app_id;
     }
 
-    table application_filters {
+    table applications {
         key = {
             local_meta.inet_addr    : lpm       @name("app_ip_addr");
             local_meta.inet_l4_port : range     @name("app_l4_port");
@@ -456,7 +456,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                     tunnel_peers.apply();
                 }
 
-                application_filters.apply();
+                applications.apply();
 
                 if (local_meta.direction == Direction.UPLINK) {
                     terminations_uplink.apply();

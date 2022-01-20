@@ -12,7 +12,7 @@ import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Prefix;
 import org.onosproject.cli.AbstractShellCommand;
-import org.onosproject.net.behaviour.upf.ApplicationFilter;
+import org.onosproject.net.behaviour.upf.UpfApplication;
 
 /**
  * UP4 UE session command.
@@ -27,7 +27,7 @@ public class ApplicationFilterCommand extends AbstractShellCommand {
             required = true)
     Byte appId = null;
 
-    @Argument(index = 0, name = "priority",
+    @Argument(index = 1, name = "priority",
             description = "Priority this application filter rule",
             required = true)
     Integer priority = null;
@@ -56,7 +56,7 @@ public class ApplicationFilterCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
-        ApplicationFilter.Builder appFilterBuilder = ApplicationFilter.builder()
+        UpfApplication.Builder appFilterBuilder = UpfApplication.builder()
                 .withAppId(appId)
                 .withPriority(priority);
         boolean oneFilter = false;
