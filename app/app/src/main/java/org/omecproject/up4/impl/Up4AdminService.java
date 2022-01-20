@@ -6,6 +6,8 @@ package org.omecproject.up4.impl;
 
 
 import com.google.common.annotations.Beta;
+import org.onosproject.net.DeviceId;
+import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
@@ -80,4 +82,6 @@ public interface Up4AdminService {
      * @throws UpfProgrammableException propagate the exception from the UPF data plane.
      */
     void adminDeleteAll(UpfEntityType entityType) throws UpfProgrammableException;
+
+    UpfCounter readCounter(int counterIdx, DeviceId device) throws UpfProgrammableException;
 }

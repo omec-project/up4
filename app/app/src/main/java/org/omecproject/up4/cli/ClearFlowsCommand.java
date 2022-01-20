@@ -24,6 +24,7 @@ public class ClearFlowsCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
 
         print("Clearing all currently installed UE sessions.");
+        app.deleteAll(UpfEntityType.APPLICATION_FILTER);
         app.deleteAll(UpfEntityType.SESSION_DOWNLINK);
         app.deleteAll(UpfEntityType.SESSION_UPLINK);
         app.deleteAll(UpfEntityType.TERMINATION_DOWNLINK);

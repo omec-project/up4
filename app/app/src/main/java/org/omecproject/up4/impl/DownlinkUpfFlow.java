@@ -68,7 +68,7 @@ public final class DownlinkUpfFlow {
     public String toString() {
         String strTermSess = "NO SESSION AND NO TERMINATION!";
         if (term != null && sess != null) {
-            strTermSess = "ue_addr=" + term.ueSessionId() + ", app_id=" + term.applicationId();
+            strTermSess = "ue_addr=" + term.ueSessionId() + ", app_id=" + term.applicationId() + ", ";
             if ((sess.needsBuffering() && sess.needsDropping()) ||
                     (sess.needsBuffering() && term.needsDropping())) {
                 strTermSess += "drop_buff()";
@@ -85,7 +85,7 @@ public final class DownlinkUpfFlow {
                         ")";
             }
         } else if (term != null) {
-            strTermSess = "NO_SESSION, ue_addr=" + term.ueSessionId() + ", app_id=" + term.applicationId();
+            strTermSess = "NO_SESSION, ue_addr=" + term.ueSessionId() + ", app_id=" + term.applicationId() + ", ";
             if (term.needsDropping()) {
                 strTermSess += "drop()";
             } else {
@@ -96,7 +96,7 @@ public final class DownlinkUpfFlow {
                         ")";
             }
         } else if (sess != null) {
-            strTermSess = "NO_TERM, ue_addr=" + sess.ueAddress() + ", app_id=" + term.applicationId();
+            strTermSess = "NO_TERM, ue_addr=" + sess.ueAddress() + ", app_id=" + term.applicationId() + ", ";
             if (sess.needsBuffering() && sess.needsDropping()) {
                 strTermSess += "drop_buff()";
             } else {
