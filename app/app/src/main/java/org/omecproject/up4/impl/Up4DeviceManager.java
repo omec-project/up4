@@ -64,7 +64,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Dictionary;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -75,6 +74,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL;
@@ -82,7 +82,6 @@ import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTER
 import static org.onlab.util.Tools.getLongProperty;
 import static org.onlab.util.Tools.groupedThreads;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_DOWNLINK;
-import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_UPLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_DOWNLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_UPLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TUNNEL_PEER;
@@ -1150,6 +1149,59 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         private void checkStateAndReconcile() throws UpfProgrammableException {
             log.trace("Running reconciliation task...");
             assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
+            Set<FlowRule> leaderRules =
+                StreamSupport.stream(flowRuleService.getFlowEntries(leaderUpfDevice).spliterator(), false)
+                    .filter(r -> getLeaderUpfProgrammable().fromThisUpf(r))
+                    .collect(Collectors.toSet());
+
+            for (var entry : upfProgrammables.entrySet()) {
+                var deviceId = entry.getKey();
+                var upfProg = entry.getValue();
+                if (deviceId.equals(leaderUpfDevice)) {
+                    continue;
+                }
+                if (!mastershipService.isLocalMaster(deviceId)) {
+                    continue;
+                }
+                // Replace the follower's device id with leader's id,
+                // so that we can re-use the exact match function to compare the state
+                Set<FlowRule> followerRules =
+                    StreamSupport.stream(flowRuleService.getFlowEntries(deviceId).spliterator(), false)
+                        .filter(r -> upfProg.fromThisUpf(r))
+                        .map(r -> copyFlowRuleForDevice(r, leaderUpfDevice))
+                        .collect(Collectors.toSet());
+
+                // Do not deal with errors on UPFProgrammable calls, we will
+                // eventually converge in the next reconciliation cycle.
+
+                // Collect the difference between leader and followers
+                // There are 3 situations
+                // Unexpected: Rules presented in follower but not in leader
+                // Stale: Rules presented on both side but the treatments are different
+                // Missing: Rules presented in leader while but in follower
+                Set<FlowRule> unexpectedRules =
+                    followerRules.stream()
+                        .filter(fr -> leaderRules.stream().noneMatch(lr -> lr.equals(fr)))
+                        .map(fr -> copyFlowRuleForDevice(fr, deviceId))
+                        .collect(Collectors.toSet());
+                Set<FlowRule> staleMissingRules =
+                    leaderRules.stream()
+                        .filter(lr -> followerRules.stream().noneMatch(fr -> fr.exactMatch(lr)))
+                        .map(lr -> copyFlowRuleForDevice(lr, deviceId))
+                        .collect(Collectors.toSet());
+                if (!unexpectedRules.isEmpty()) {
+                    flowRuleService.removeFlowRules(unexpectedRules.toArray(new FlowRule[unexpectedRules.size()]));
+                }
+                if (!staleMissingRules.isEmpty()) {
+                    flowRuleService.applyFlowRules(staleMissingRules.toArray(new FlowRule[staleMissingRules.size()]));
+                }
+            }
+        }
+        // TODO: Clean up commented lines
+        /*
+        private void checkStateAndReconcile() throws UpfProgrammableException {
+            log.trace("Running reconciliation task...");
+            assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
             Collection<UpfEntity> leaderState =
                     (Collection<UpfEntity>) getLeaderUpfProgrammable().readAll(UpfEntityType.SESSION_UPLINK);
             leaderState.addAll(getLeaderUpfProgrammable().readAll(SESSION_DOWNLINK));
@@ -1208,5 +1260,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 }
             }
         }
+        */
     }
 }
