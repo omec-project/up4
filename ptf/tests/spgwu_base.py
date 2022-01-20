@@ -400,7 +400,7 @@ class GtpuBaseTest(P4RuntimeTest):
         if ip_proto:
             match_fields["app_ip_proto"] = (ip_proto, (1 << 8) - 1)
         self.insert(
-            self.helper.build_table_entry(table_name="PreQosPipe.application_filters",
+            self.helper.build_table_entry(table_name="PreQosPipe.applications",
                                           match_fields=match_fields,
                                           action_name="PreQosPipe.set_app_id", action_params={
                                               "app_id": app_id,
