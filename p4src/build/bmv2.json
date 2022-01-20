@@ -5751,11 +5751,11 @@
           "direct_meters" : null,
           "action_ids" : [18, 19, 13],
           "actions" : ["PreQosPipe.set_session_uplink", "PreQosPipe.set_session_uplink_drop", "PreQosPipe.do_drop"],
-          "base_default_next" : "PreQosPipe.applications",
+          "base_default_next" : "PreQosPipe.application_filters",
           "next_tables" : {
-            "PreQosPipe.set_session_uplink" : "PreQosPipe.applications",
-            "PreQosPipe.set_session_uplink_drop" : "PreQosPipe.applications",
-            "PreQosPipe.do_drop" : "PreQosPipe.applications"
+            "PreQosPipe.set_session_uplink" : "PreQosPipe.application_filters",
+            "PreQosPipe.set_session_uplink_drop" : "PreQosPipe.application_filters",
+            "PreQosPipe.do_drop" : "PreQosPipe.application_filters"
           },
           "default_entry" : {
             "action_id" : 13,
@@ -5857,10 +5857,10 @@
           "direct_meters" : null,
           "action_ids" : [30, 3],
           "actions" : ["PreQosPipe.load_tunnel_param", "NoAction"],
-          "base_default_next" : "PreQosPipe.applications",
+          "base_default_next" : "PreQosPipe.application_filters",
           "next_tables" : {
-            "PreQosPipe.load_tunnel_param" : "PreQosPipe.applications",
-            "NoAction" : "PreQosPipe.applications"
+            "PreQosPipe.load_tunnel_param" : "PreQosPipe.application_filters",
+            "NoAction" : "PreQosPipe.application_filters"
           },
           "default_entry" : {
             "action_id" : 3,
@@ -5870,13 +5870,13 @@
           }
         },
         {
-          "name" : "PreQosPipe.applications",
+          "name" : "PreQosPipe.application_filters",
           "id" : 10,
           "source_info" : {
             "filename" : "p4src/main.p4",
             "line" : 302,
             "column" : 10,
-            "source_fragment" : "applications"
+            "source_fragment" : "application_filters"
           },
           "key" : [
             {
@@ -6498,7 +6498,7 @@
             }
           },
           "true_next" : "tbl_main449",
-          "false_next" : "PreQosPipe.applications"
+          "false_next" : "PreQosPipe.application_filters"
         },
         {
           "name" : "node_17",

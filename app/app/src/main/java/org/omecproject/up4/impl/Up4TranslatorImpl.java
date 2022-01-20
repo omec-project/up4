@@ -49,7 +49,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TEID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.POST_QOS_PIPE_POST_QOS_COUNTER;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APPLICATIONS;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APPLICATION_FILTERS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC;
@@ -105,7 +105,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                     return UpfEntityType.TERMINATION_DOWNLINK;
                 } else if (tableEntry.table().equals(PRE_QOS_PIPE_TUNNEL_PEERS)) {
                     return UpfEntityType.TUNNEL_PEER;
-                } else if (tableEntry.table().equals(PRE_QOS_PIPE_APPLICATIONS)) {
+                } else if (tableEntry.table().equals(PRE_QOS_PIPE_APPLICATION_FILTERS)) {
                     return UpfEntityType.APPLICATION_FILTER;
                 }
                 break;
@@ -349,7 +349,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                         .withParameter(new PiActionParam(SPORT, gtpTunnelPeer.srcPort()));
                 break;
             case APPLICATION_FILTER:
-                tableEntryBuilder.forTable(PRE_QOS_PIPE_APPLICATIONS);
+                tableEntryBuilder.forTable(PRE_QOS_PIPE_APPLICATION_FILTERS);
                 ApplicationFilter application = (ApplicationFilter) entity;
                 tableEntryBuilder.withPriority(application.priority());
                 actionBuilder.withId(PRE_QOS_PIPE_SET_APP_ID)

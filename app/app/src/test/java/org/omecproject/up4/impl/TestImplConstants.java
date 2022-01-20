@@ -45,7 +45,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_N3_ADDRESS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TEID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APPLICATIONS;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APPLICATION_FILTERS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC;
@@ -389,7 +389,7 @@ public final class TestImplConstants {
                                 .build()).build();
 
     public static final PiTableEntry UP4_APPLICATION_FILTERING = PiTableEntry.builder()
-            .forTable(PRE_QOS_PIPE_APPLICATIONS)
+            .forTable(PRE_QOS_PIPE_APPLICATION_FILTERS)
             .withMatchKey(PiMatchKey.builder()
                                   .addFieldMatch(new PiLpmFieldMatch(
                                           HDR_APP_IP_ADDR,
