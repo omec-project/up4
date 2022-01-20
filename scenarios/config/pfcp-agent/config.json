@@ -2,7 +2,8 @@
   "enable_p4rt": true,
   "log_level": "trace",
   "enable_hbTimer": true,
-  "heart_beat_interval": "5s",
+  "heart_beat_interval": "6s",
+  "max_req_retries": 1,
   "p4rtciface": {
     "p4rtc_server": "onos1",
     "p4rtc_port": "51001",
