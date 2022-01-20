@@ -30,9 +30,8 @@ def get_args():
     parser.add_argument(
         "--add-ifaces", action='store_true',
         help="If this argument is present, interface table entries will be installed.")
-    parser.add_argument(
-        "--buffer", action='store_true',
-        help="If this argument is present, downlink session will buffer traffic")
+    parser.add_argument("--buffer", action='store_true',
+                        help="If this argument is present, downlink session will buffer traffic")
     parser.add_argument("--ue-count", type=int, default=1,
                         help="The number of UE flows for which table entries should be created.")
     parser.add_argument("--ue-pool", type=IPv4Network, default=IPv4Network("17.0.0.0/24"),
@@ -55,7 +54,8 @@ def get_args():
         "If specified, overrides all the other --*-base arguments")
     parser.add_argument("--prio-app-filter", type=int, default=1,
                         help="Priority of the application filtering rule")
-    parser.add_argument("--app-id", type=int, default=DEFAULT_APP_ID, help="Application ID. ID=0 means NO application filtering.")
+    parser.add_argument("--app-id", type=int, default=DEFAULT_APP_ID,
+                        help="Application ID. ID=0 means NO application filtering.")
     parser.add_argument("--ipv4-app-filter", type=str, default=None,
                         help="IPv4 prefix for application filtering")
     parser.add_argument("--l4-app-filter", type=int, default=None,
@@ -224,10 +224,12 @@ def main():
 
         ## Uplink
         if not args.ul_drop:
-            entry = sh.TableEntry('PreQosPipe.terminations_uplink')(action='PreQosPipe.uplink_term_fwd')
+            entry = sh.TableEntry('PreQosPipe.terminations_uplink')(
+                action='PreQosPipe.uplink_term_fwd')
             entry.action['tc'] = TRAFFIC_CLASS
         else:
-            entry = sh.TableEntry('PreQosPipe.terminations_uplink')(action='PreQosPipe.uplink_term_drop')
+            entry = sh.TableEntry('PreQosPipe.terminations_uplink')(
+                action='PreQosPipe.uplink_term_drop')
         entry.match['ue_address'] = str(ue_addr)
         entry.match["app_id"] = str(app_id)
         entry.action['ctr_idx'] = str(ctr_uplink)
@@ -235,12 +237,14 @@ def main():
 
         ## Downlink
         if not args.dl_drop:
-            entry = sh.TableEntry('PreQosPipe.terminations_downlink')(action='PreQosPipe.downlink_term_fwd')
+            entry = sh.TableEntry('PreQosPipe.terminations_downlink')(
+                action='PreQosPipe.downlink_term_fwd')
             entry.action['tc'] = TRAFFIC_CLASS
             entry.action['qfi'] = str(args.qfi) if args.qfi else "0"
             entry.action['teid'] = str(teid)
         else:
-            entry = sh.TableEntry('PreQosPipe.terminations_downlink')(action='PreQosPipe.downlink_term_drop')
+            entry = sh.TableEntry('PreQosPipe.terminations_downlink')(
+                action='PreQosPipe.downlink_term_drop')
         entry.match['ue_address'] = str(ue_addr)
         entry.match["app_id"] = str(app_id)
         entry.action['ctr_idx'] = str(ctr_downlink)

@@ -26,7 +26,7 @@ public class SessionUplinkCommand extends AbstractShellCommand {
             required = true)
     String n3Addr = null;
 
-    @Argument(index = 2, name = "teid",
+    @Argument(index = 1, name = "teid",
             description = "Tunnel ID of the tunnel from the base station",
             required = true)
     int teid = -1;

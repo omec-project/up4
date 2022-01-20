@@ -26,7 +26,7 @@ public class SessionDownlinkCommand extends AbstractShellCommand {
             required = true)
     String ueAddr = null;
 
-    @Argument(index = 3, name = "tunnel-peer",
+    @Argument(index = 1, name = "tunnel-peer",
             description = "ID of the GTP Tunnel Peer",
             required = false)
     byte tunnelPeer = -1;
