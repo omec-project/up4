@@ -43,7 +43,7 @@ public final class UplinkUpfFlow {
     public String toString() {
         String termString = "NO TERMINATION!";
         if (term != null) {
-            termString = "ue_addr=" + term.ueSessionId() + ", ";
+            termString = "ue_addr=" + term.ueSessionId() + ", app_id" + term.applicationId();
             if (term.needsDropping()) {
                 termString += "drop()";
             } else {

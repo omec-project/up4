@@ -37,6 +37,7 @@ import static org.omecproject.up4.impl.Up4DeviceManager.SLICE_MOBILE;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.CTR_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DST_ADDR;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_ADDR;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_PROTO;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_L4_PORT;
@@ -106,6 +107,7 @@ public final class TestImplConstants {
     public static final long COUNTER_PKTS = 15;
 
     public static final byte APP_FILTERING_ID = 10;
+    public static final byte DEFAULT_APP_ID = 0;
     public static final int APP_FILTERING_PRIORITY = 10;
     public static final Ip4Prefix APP_IP_PREFIX = Ip4Prefix.valueOf("10.0.0.0/24");
     public static final Range<Short> APP_L4_RANGE = Range.closed((short) 100, (short) 1000);
@@ -125,6 +127,7 @@ public final class TestImplConstants {
 
     public static final UpfTerminationUplink UPLINK_TERMINATION = UpfTerminationUplink.builder()
             .withUeSessionId(UE_ADDR)
+            .withApplicationId(APP_FILTERING_ID)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
             .withTrafficClass(TRAFFIC_CLASS_UL)
             .build();
@@ -152,6 +155,7 @@ public final class TestImplConstants {
 
     public static final UpfTerminationDownlink DOWNLINK_TERMINATION = UpfTerminationDownlink.builder()
             .withUeSessionId(UE_ADDR)
+            .withApplicationId(APP_FILTERING_ID)
             .withTeid(TEID)
             .withQfi(DOWNLINK_QFI)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
@@ -257,6 +261,9 @@ public final class TestImplConstants {
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(APP_FILTERING_ID)
+                            ))
                             .build()
             )
             .withAction(
@@ -274,6 +281,9 @@ public final class TestImplConstants {
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(DEFAULT_APP_ID)
+                            ))
                             .build()
             )
             .withAction(
@@ -290,6 +300,9 @@ public final class TestImplConstants {
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(DEFAULT_APP_ID)
+                            ))
                             .build()
             )
             .withAction(
@@ -306,6 +319,9 @@ public final class TestImplConstants {
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(APP_FILTERING_ID)
+                            ))
                             .build()
             )
             .withAction(
@@ -325,6 +341,9 @@ public final class TestImplConstants {
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(DEFAULT_APP_ID)
+                            ))
                             .build()
             )
             .withAction(
@@ -343,6 +362,9 @@ public final class TestImplConstants {
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(DEFAULT_APP_ID)
+                            ))
                             .build()
             )
             .withAction(

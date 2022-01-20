@@ -40,6 +40,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.APP_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.CTR_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DST_ADDR;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_ADDR;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_PROTO;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_L4_PORT;
@@ -165,6 +166,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             case TERMINATION_UPLINK: {
                 UpfTerminationUplink.Builder builder = UpfTerminationUplink.builder();
                 builder.withUeSessionId(Up4TranslatorUtil.getFieldAddress(entry, HDR_UE_ADDRESS));
+                builder.withApplicationId(Up4TranslatorUtil.getFieldByte(entry, HDR_APP_ID));
                 builder.withCounterId(Up4TranslatorUtil.getParamInt(entry, CTR_IDX));
                 PiActionId actionId = ((PiAction) entry.action()).id();
                 if (actionId.equals(PRE_QOS_PIPE_UPLINK_TERM_DROP)) {
@@ -177,6 +179,7 @@ public class Up4TranslatorImpl implements Up4Translator {
             case TERMINATION_DOWNLINK: {
                 UpfTerminationDownlink.Builder builder = UpfTerminationDownlink.builder();
                 builder.withUeSessionId(Up4TranslatorUtil.getFieldAddress(entry, HDR_UE_ADDRESS));
+                builder.withApplicationId(Up4TranslatorUtil.getFieldByte(entry, HDR_APP_ID));
                 builder.withCounterId(Up4TranslatorUtil.getParamInt(entry, CTR_IDX));
                 PiActionId actionId = ((PiAction) entry.action()).id();
                 if (actionId.equals(PRE_QOS_PIPE_DOWNLINK_TERM_DROP)) {
@@ -300,7 +303,11 @@ public class Up4TranslatorImpl implements Up4Translator {
                         .addFieldMatch(new PiExactFieldMatch(
                                 HDR_UE_ADDRESS,
                                 ImmutableByteSequence.copyFrom(upfTerminationUl.ueSessionId().toOctets()))
-                        );
+                        )
+                        .addFieldMatch(new PiExactFieldMatch(
+                                HDR_APP_ID,
+                                ImmutableByteSequence.copyFrom(upfTerminationUl.applicationId())
+                        ));
                 actionBuilder.withParameter(new PiActionParam(CTR_IDX, upfTerminationUl.counterId()));
                 if (upfTerminationUl.needsDropping()) {
                     actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_DROP);
@@ -320,7 +327,11 @@ public class Up4TranslatorImpl implements Up4Translator {
                         .addFieldMatch(new PiExactFieldMatch(
                                 HDR_UE_ADDRESS,
                                 ImmutableByteSequence.copyFrom(upfTerminationDl.ueSessionId().toOctets()))
-                        );
+                        )
+                        .addFieldMatch(new PiExactFieldMatch(
+                                HDR_APP_ID,
+                                ImmutableByteSequence.copyFrom(upfTerminationDl.applicationId())
+                        ));
                 actionBuilder.withParameter(new PiActionParam(CTR_IDX, upfTerminationDl.counterId()));
                 if (upfTerminationDl.needsDropping()) {
                     actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_DROP);
