@@ -46,6 +46,7 @@ import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.FlowRuleEvent;
 import org.onosproject.net.flow.FlowRuleListener;
+import org.onosproject.net.flow.FlowRuleOperations;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
@@ -1176,25 +1177,33 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
                 // Collect the difference between leader and followers
                 // There are 3 situations
-                // Unexpected: Rules presented in follower but not in leader
-                // Stale: Rules presented on both side but the treatments are different
-                // Missing: Rules presented in leader while but in follower
+                // Remove unexpected: Rules presented in follower but not in leader
+                // Update stale: Rules presented on both side but the treatments are different
+                // Add missing: Rules presented in leader while but in follower
                 Set<FlowRule> unexpectedRules =
                     followerRules.stream()
                         .filter(fr -> leaderRules.stream().noneMatch(lr -> lr.equals(fr)))
                         .map(fr -> copyFlowRuleForDevice(fr, deviceId))
                         .collect(Collectors.toSet());
-                Set<FlowRule> staleMissingRules =
+                Set<FlowRule> staleRules =
                     leaderRules.stream()
                         .filter(lr -> followerRules.stream().noneMatch(fr -> fr.exactMatch(lr)))
+                        .filter(lr -> followerRules.stream().anyMatch(fr -> fr.equals(lr)))
                         .map(lr -> copyFlowRuleForDevice(lr, deviceId))
                         .collect(Collectors.toSet());
-                if (!unexpectedRules.isEmpty()) {
-                    flowRuleService.removeFlowRules(unexpectedRules.toArray(new FlowRule[unexpectedRules.size()]));
-                }
-                if (!staleMissingRules.isEmpty()) {
-                    flowRuleService.applyFlowRules(staleMissingRules.toArray(new FlowRule[staleMissingRules.size()]));
-                }
+                Set<FlowRule> missingRules =
+                    leaderRules.stream()
+                        .filter(lr -> followerRules.stream().noneMatch(fr -> fr.exactMatch(lr)))
+                        .filter(lr -> followerRules.stream().noneMatch(fr -> fr.equals(lr)))
+                        .map(lr -> copyFlowRuleForDevice(lr, deviceId))
+                        .collect(Collectors.toSet());
+
+                FlowRuleOperations.Builder ops = FlowRuleOperations.builder();
+                unexpectedRules.forEach(r -> ops.remove(r));
+                staleRules.forEach(r -> ops.modify(r));
+                missingRules.forEach(r -> ops.add(r));
+
+                flowRuleService.apply(ops.build());
             }
         }
         // TODO: Clean up commented lines
