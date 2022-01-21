@@ -1179,7 +1179,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 // There are 3 situations
                 // Remove unexpected: Rules presented in follower but not in leader
                 // Update stale: Rules presented on both side but the treatments are different
-                // Add missing: Rules presented in leader while but in follower
+                // Add missing: Rules presented in leader but not in follower
                 Set<FlowRule> unexpectedRules =
                     followerRules.stream()
                         .filter(fr -> leaderRules.stream().noneMatch(lr -> lr.equals(fr)))
