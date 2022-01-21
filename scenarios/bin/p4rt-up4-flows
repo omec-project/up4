@@ -173,7 +173,7 @@ def main():
     app_id = args.app_id
 
     if app_filtering:
-        entry = sh.TableEntry('PreQosPipe.application_filters')(action='PreQosPipe.set_app_id')
+        entry = sh.TableEntry('PreQosPipe.applications')(action='PreQosPipe.set_app_id')
         if args.ipv4_app_filter:
             entry.match["app_ip_addr"] = args.ipv4_app_filter
         if args.l4_app_filter:
