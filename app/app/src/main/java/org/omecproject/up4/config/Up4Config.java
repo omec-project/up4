@@ -163,5 +163,14 @@ public class Up4Config extends Config<ApplicationId> {
     public boolean pscEncapEnabled() {
         return get(PSC_ENCAP_ENABLED, false);
     }
+
+    /**
+     * Enable or disable the PDU Session Container field.
+     *
+     * @param enabled True if enable PDU Session Container, False otherwise
+     */
+    public void setPscEncap(boolean enabled) {
+        setOrClear(PSC_ENCAP_ENABLED, enabled);
+    }
 }
 

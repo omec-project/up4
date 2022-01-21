@@ -332,6 +332,16 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 // be small intervals without a master and interfaces pushed could be lost. Having this call here should
                 // provide more guarantee as this is also called when the pipeline is ready
                 ensureInterfacesInstalled();
+                // We need to update the PSC encap flag, to support dynamic changes to the config.
+                try {
+                    if (configIsLoaded() && config.pscEncapEnabled()) {
+                        this.enablePscEncap();
+                    } else {
+                        this.disablePscEncap();
+                    }
+                } catch (UpfProgrammableException e) {
+                    log.info(e.getMessage());
+                }
             } else if (!upfDevices.contains(deviceId)) {
                 log.warn("UPF {} is not in the configuration!", deviceId);
             } else if (deviceService.getDevice(deviceId) == null) {
