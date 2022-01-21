@@ -82,7 +82,6 @@ import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTER
 import static org.onlab.util.Tools.getLongProperty;
 import static org.onlab.util.Tools.groupedThreads;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_DOWNLINK;
-import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_UPLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_DOWNLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_UPLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TUNNEL_PEER;
@@ -332,16 +331,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 // be small intervals without a master and interfaces pushed could be lost. Having this call here should
                 // provide more guarantee as this is also called when the pipeline is ready
                 ensureInterfacesInstalled();
-                // We need to update the PSC encap flag, to support dynamic changes to the config.
-                try {
-                    if (configIsLoaded() && config.pscEncapEnabled()) {
-                        this.enablePscEncap();
-                    } else {
-                        this.disablePscEncap();
-                    }
-                } catch (UpfProgrammableException e) {
-                    log.info(e.getMessage());
-                }
             } else if (!upfDevices.contains(deviceId)) {
                 log.warn("UPF {} is not in the configuration!", deviceId);
             } else if (deviceService.getDevice(deviceId) == null) {
@@ -368,21 +357,28 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
                     // Do the initial device configuration required
                     installUpfEntities();
-                    try {
-                        if (configIsLoaded() && config.pscEncapEnabled()) {
-                            this.enablePscEncap();
-                        } else {
-                            this.disablePscEncap();
-                        }
-                    } catch (UpfProgrammableException e) {
-                        log.info(e.getMessage());
-                    }
+                    applyPscEncap();
                     // Start reconcile thread only when UPF data plane is initialized
                     reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
                             new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
                     log.info("UPF data plane setup successful!");
                 }
             }
+        }
+    }
+
+    /**
+     * Enable or disable the PSC encap feature in the data plane, based on the config.
+     */
+    private void applyPscEncap() {
+        try {
+            if (configIsLoaded() && config.pscEncapEnabled()) {
+                this.enablePscEncap();
+            } else {
+                this.disablePscEncap();
+            }
+        } catch (UpfProgrammableException e) {
+            log.info(e.getMessage());
         }
     }
 
@@ -563,6 +559,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             upfDevices.addAll(upfDeviceIds);
             upfDeviceIds.forEach(this::setUpfDevice);
             updateDbufTunnel();
+            applyPscEncap();
         } else {
             log.error("Invalid UP4 config loaded! Cannot set up UPF.");
         }
