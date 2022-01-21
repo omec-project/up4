@@ -395,6 +395,8 @@ class P4RuntimeTest(BaseTest):
                       format_pkt_match(rx_pkt, exp_pkt))
         rx_meta_dict = {}
         for m in rx_packet_in_msg.metadata:
+            # This approach to get controller metadata is useful for correctly
+            # de-canonicalize fields, when we'll move to stratum_bmv2
             pkt_in_metadata = self.get_controller_packet_metadata(self.p4info,
                                                                   meta_type="packet_in",
                                                                   id=m.metadata_id)
