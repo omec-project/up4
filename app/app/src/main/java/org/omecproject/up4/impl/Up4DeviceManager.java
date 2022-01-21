@@ -1150,10 +1150,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         private void checkStateAndReconcile() throws UpfProgrammableException {
             log.trace("Running reconciliation task...");
             assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
-            Set<FlowRule> leaderRules =
-                StreamSupport.stream(flowRuleService.getFlowEntries(leaderUpfDevice).spliterator(), false)
-                    .filter(r -> getLeaderUpfProgrammable().fromThisUpf(r))
-                    .collect(Collectors.toSet());
 
             for (var entry : upfProgrammables.entrySet()) {
                 var deviceId = entry.getKey();
@@ -1164,6 +1160,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 if (!mastershipService.isLocalMaster(deviceId)) {
                     continue;
                 }
+
+                Set<FlowRule> leaderRules =
+                    StreamSupport.stream(flowRuleService.getFlowEntries(leaderUpfDevice).spliterator(), false)
+                        .filter(r -> getLeaderUpfProgrammable().fromThisUpf(r))
+                        .collect(Collectors.toSet());
+
                 // Replace the follower's device id with leader's id,
                 // so that we can re-use the exact match function to compare the state
                 Set<FlowRule> followerRules =
@@ -1172,37 +1174,42 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                         .map(r -> copyFlowRuleForDevice(r, leaderUpfDevice))
                         .collect(Collectors.toSet());
 
-                // Do not deal with errors on UPFProgrammable calls, we will
-                // eventually converge in the next reconciliation cycle.
-
                 // Collect the difference between leader and followers
                 // There are 3 situations
-                // Remove unexpected: Rules presented in follower but not in leader
-                // Update stale: Rules presented on both side but the treatments are different
-                // Add missing: Rules presented in leader but not in follower
+                // Remove unexpected: Rule is in the follower but not in the leader
+                // Update stale: Rule is both on follower and leader but treatments are different
+                // Add missing: Rule is in the leader but not in the follower
                 Set<FlowRule> unexpectedRules =
                     followerRules.stream()
                         .filter(fr -> leaderRules.stream().noneMatch(lr -> lr.equals(fr)))
-                        .map(fr -> copyFlowRuleForDevice(fr, deviceId))
                         .collect(Collectors.toSet());
+                followerRules.removeAll(unexpectedRules);
+
                 Set<FlowRule> staleRules =
                     leaderRules.stream()
                         .filter(lr -> followerRules.stream().noneMatch(fr -> fr.exactMatch(lr)))
                         .filter(lr -> followerRules.stream().anyMatch(fr -> fr.equals(lr)))
-                        .map(lr -> copyFlowRuleForDevice(lr, deviceId))
                         .collect(Collectors.toSet());
+                leaderRules.removeAll(staleRules);
+
                 Set<FlowRule> missingRules =
                     leaderRules.stream()
                         .filter(lr -> followerRules.stream().noneMatch(fr -> fr.equals(lr)))
                         .map(lr -> copyFlowRuleForDevice(lr, deviceId))
                         .collect(Collectors.toSet());
 
-                FlowRuleOperations.Builder ops = FlowRuleOperations.builder();
-                unexpectedRules.forEach(r -> ops.remove(r));
-                staleRules.forEach(r -> ops.modify(r));
-                missingRules.forEach(r -> ops.add(r));
+                FlowRuleOperations.Builder removeOps = FlowRuleOperations.builder();
+                unexpectedRules.forEach(r -> removeOps.remove(copyFlowRuleForDevice(r, deviceId)));
 
-                flowRuleService.apply(ops.build());
+                FlowRuleOperations.Builder modifyOps = FlowRuleOperations.builder();
+                staleRules.forEach(r -> modifyOps.modify(copyFlowRuleForDevice(r, deviceId)));
+
+                FlowRuleOperations.Builder addOps = FlowRuleOperations.builder();
+                missingRules.forEach(r -> addOps.add(copyFlowRuleForDevice(r, deviceId)));
+
+                flowRuleService.apply(removeOps.build());
+                flowRuleService.apply(modifyOps.build());
+                flowRuleService.apply(addOps.build());
             }
         }
     }
