@@ -1,3 +1,7 @@
+/*
+ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ SPDX-FileCopyrightText: 2022-present Open Networking Foundation <info@opennetworking.org>
+ */
 package org.omecproject.up4.cli;
 
 import org.apache.karaf.shell.api.action.Argument;
