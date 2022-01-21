@@ -63,8 +63,8 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
             required = false)
     boolean interfaces = false;
 
-    @Option(name = "--app", aliases = "-f",
-            description = "Include the UPF Application filters",
+    @Option(name = "--apps", aliases = "-f",
+            description = "Include the UPF Applications",
             required = false)
     boolean application = false;
 

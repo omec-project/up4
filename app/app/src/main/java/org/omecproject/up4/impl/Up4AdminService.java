@@ -83,5 +83,14 @@ public interface Up4AdminService {
      */
     void adminDeleteAll(UpfEntityType entityType) throws UpfProgrammableException;
 
+    /**
+     * Reads a counter at the given ID from the given UPF data plane device.
+     *
+     * @param counterIdx Counter ID
+     * @param device UPF data plane device
+     * @return The UPF counter
+     * @throws UpfProgrammableException propagate the exception from the UPF data plane
+     * and if the given device is not a UPF programmable.
+     */
     UpfCounter readCounter(int counterIdx, DeviceId device) throws UpfProgrammableException;
 }

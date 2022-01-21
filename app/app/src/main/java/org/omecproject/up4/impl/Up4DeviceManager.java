@@ -734,6 +734,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Override
     public Collection<? extends UpfEntity> readAll(UpfEntityType entityType) throws UpfProgrammableException {
         if (entityType.equals(COUNTER)) {
+            // Counters can't be read from only the leader UPF.
             return this.readCounters(-1);
         } else {
             Collection<? extends UpfEntity> entities = getLeaderUpfProgrammable().readAll(entityType);
@@ -773,6 +774,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     public Collection<? extends UpfEntity> adminReadAll(UpfEntityType entityType)
             throws UpfProgrammableException {
         if (entityType.equals(COUNTER)) {
+            // Counters can't be read from only the leader UPF.
             return this.readCounters(-1);
         }
         return getLeaderUpfProgrammable().readAll(entityType);

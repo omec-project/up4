@@ -37,7 +37,7 @@ public class ReadFlowsCommand extends AbstractShellCommand {
         Collection<? extends UpfEntity> appFilters = adminService.adminReadAll(UpfEntityType.APPLICATION);
 
         print(SEPARATOR);
-        print(appFilters.size() + " Application Filters");
+        print(appFilters.size() + " Applications");
         for (UpfEntity a : appFilters) {
             if (!a.type().equals(UpfEntityType.APPLICATION)) {
                 print("ERROR: Wrong application filter: " + a);
@@ -73,7 +73,7 @@ public class ReadFlowsCommand extends AbstractShellCommand {
             print(f.toString());
         }
         print(SEPARATOR);
-        print("App filters=%d, UL sess=%d, UL flows=%d, DL flows=%s",
+        print("Apps=%d, UL sess=%d, UL flows=%d, DL flows=%s",
               appFilters.size(), ulSess.size(), ulUpfFlow.size(), dlUpfFlow.size());
     }
 }
