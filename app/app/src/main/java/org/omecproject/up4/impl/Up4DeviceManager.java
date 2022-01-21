@@ -1193,7 +1193,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                         .collect(Collectors.toSet());
                 Set<FlowRule> missingRules =
                     leaderRules.stream()
-                        .filter(lr -> followerRules.stream().noneMatch(fr -> fr.exactMatch(lr)))
                         .filter(lr -> followerRules.stream().noneMatch(fr -> fr.equals(lr)))
                         .map(lr -> copyFlowRuleForDevice(lr, deviceId))
                         .collect(Collectors.toSet());
@@ -1206,69 +1205,5 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 flowRuleService.apply(ops.build());
             }
         }
-        // TODO: Clean up commented lines
-        /*
-        private void checkStateAndReconcile() throws UpfProgrammableException {
-            log.trace("Running reconciliation task...");
-            assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
-            Collection<UpfEntity> leaderState =
-                    (Collection<UpfEntity>) getLeaderUpfProgrammable().readAll(UpfEntityType.SESSION_UPLINK);
-            leaderState.addAll(getLeaderUpfProgrammable().readAll(SESSION_DOWNLINK));
-            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TERMINATION_UPLINK));
-            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TERMINATION_DOWNLINK));
-            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.INTERFACE));
-            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TUNNEL_PEER));
-
-            for (var entry : upfProgrammables.entrySet()) {
-                var deviceId = entry.getKey();
-                var upfProg = entry.getValue();
-                if (deviceId.equals(leaderUpfDevice)) {
-                    continue;
-                }
-                if (!mastershipService.isLocalMaster(deviceId)) {
-                    continue;
-                }
-                Collection<UpfEntity> followerState =
-                        (Collection<UpfEntity>) upfProg.readAll(UpfEntityType.SESSION_UPLINK);
-                followerState.addAll(upfProg.readAll(SESSION_DOWNLINK));
-                followerState.addAll(upfProg.readAll(UpfEntityType.TERMINATION_UPLINK));
-                followerState.addAll(upfProg.readAll(UpfEntityType.TERMINATION_DOWNLINK));
-                followerState.addAll(upfProg.readAll(UpfEntityType.INTERFACE));
-                followerState.addAll(upfProg.readAll(UpfEntityType.TUNNEL_PEER));
-
-                // Do not deal with errors on UPFProgrammable calls, we will
-                // eventually converge in the next reconciliation cycle.
-
-                // First remove stale entries and then add the missing ones
-                // otherwise when an entry needs update, it won't be updated.
-                if (!leaderState.containsAll(followerState)) {
-                    log.debug("Removing stale UPF entities from {}", deviceId);
-                    Collection<UpfEntity> toRemoveEntities = new HashSet<>(followerState);
-                    toRemoveEntities.removeAll(leaderState);
-                    for (UpfEntity entity : toRemoveEntities) {
-                        try {
-                            upfProg.delete(entity);
-                        } catch (UpfProgrammableException e) {
-                            log.error("Error while reconciling {}: {} [{}]",
-                                      deviceId, e.getMessage(), entity);
-                        }
-                    }
-                }
-                if (!followerState.containsAll(leaderState)) {
-                    log.debug("Adding missing UPF entities on {}", deviceId);
-                    Collection<UpfEntity> toAddEntities = new HashSet<>(leaderState);
-                    toAddEntities.removeAll(followerState);
-                    for (UpfEntity entity : toAddEntities) {
-                        try {
-                            upfProg.apply(entity);
-                        } catch (UpfProgrammableException e) {
-                            log.error("Error while reconciling {}: {} [{}]",
-                                      deviceId, e.getMessage(), entity);
-                        }
-                    }
-                }
-            }
-        }
-        */
     }
 }
