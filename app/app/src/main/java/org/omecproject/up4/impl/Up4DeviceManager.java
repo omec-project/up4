@@ -1195,7 +1195,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 Set<FlowRule> missingRules =
                     leaderRules.stream()
                         .filter(lr -> followerRules.stream().noneMatch(fr -> fr.equals(lr)))
-                        .map(lr -> copyFlowRuleForDevice(lr, deviceId))
                         .collect(Collectors.toSet());
 
                 FlowRuleOperations.Builder removeOps = FlowRuleOperations.builder();
