@@ -1179,11 +1179,15 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 // Remove unexpected: Rule is in the follower but not in the leader
                 // Update stale: Rule is both on follower and leader but treatments are different
                 // Add missing: Rule is in the leader but not in the follower
+                FlowRuleOperations.Builder ops = FlowRuleOperations.builder();
+
                 Set<FlowRule> unexpectedRules =
                     followerRules.stream()
                         .filter(fr -> leaderRules.stream().noneMatch(lr -> lr.equals(fr)))
                         .collect(Collectors.toSet());
                 followerRules.removeAll(unexpectedRules);
+                ops.newStage();
+                unexpectedRules.forEach(r -> ops = ops.remove(copyFlowRuleForDevice(r, deviceId)));
 
                 Set<FlowRule> staleRules =
                     leaderRules.stream()
@@ -1191,24 +1195,17 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                         .filter(lr -> followerRules.stream().anyMatch(fr -> fr.equals(lr)))
                         .collect(Collectors.toSet());
                 leaderRules.removeAll(staleRules);
+                ops.newStage();
+                staleRules.forEach(r -> ops = ops.modify(copyFlowRuleForDevice(r, deviceId)));
 
                 Set<FlowRule> missingRules =
                     leaderRules.stream()
                         .filter(lr -> followerRules.stream().noneMatch(fr -> fr.equals(lr)))
                         .collect(Collectors.toSet());
+                ops.newStage();
+                missingRules.forEach(r -> ops = ops.add(copyFlowRuleForDevice(r, deviceId)));
 
-                FlowRuleOperations.Builder removeOps = FlowRuleOperations.builder();
-                unexpectedRules.forEach(r -> removeOps.remove(copyFlowRuleForDevice(r, deviceId)));
-
-                FlowRuleOperations.Builder modifyOps = FlowRuleOperations.builder();
-                staleRules.forEach(r -> modifyOps.modify(copyFlowRuleForDevice(r, deviceId)));
-
-                FlowRuleOperations.Builder addOps = FlowRuleOperations.builder();
-                missingRules.forEach(r -> addOps.add(copyFlowRuleForDevice(r, deviceId)));
-
-                flowRuleService.apply(removeOps.build());
-                flowRuleService.apply(modifyOps.build());
-                flowRuleService.apply(addOps.build());
+                flowRuleService.apply(ops.build());
             }
         }
     }
