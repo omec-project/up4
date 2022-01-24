@@ -164,7 +164,7 @@ pipeline {
 void runSTCSmokeTest(String topo) {
   dir("${env.WORKSPACE}/up4/scenarios") {
     sh "make reset"
-    sh "TOPO=${topo} make smoke.xml stcColor=false stcDumpLogs=true"
+    sh "TOPO=${topo} UP4_ENV=devel make smoke.xml stcColor=false stcDumpLogs=true"
   }
 }
 

@@ -4,6 +4,7 @@
  */
 package org.omecproject.up4.impl;
 
+import com.google.common.collect.Range;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
@@ -123,6 +124,19 @@ final class Up4TranslatorUtil {
         PiLpmFieldMatch field = (PiLpmFieldMatch) optField.get();
         Ip4Address address = Ip4Address.valueOf(field.value().asArray());
         return Ip4Prefix.valueOf(address, field.prefixLength());
+    }
+
+    static Range<Short> getFieldRangeShort(PiTableEntry entry, PiMatchFieldId fieldId) {
+        Optional<PiFieldMatch> optField = entry.matchKey().fieldMatch(fieldId);
+        if (optField.isEmpty()) {
+            return null;
+        }
+        PiRangeFieldMatch field = (PiRangeFieldMatch) optField.get();
+        return Range.closed(byteSeqToShort(field.lowValue()), byteSeqToShort(field.highValue()));
+    }
+
+    static int getPriority(PiTableEntry entry) {
+        return entry.priority().orElseThrow();
     }
 
     static Ip4Address getFieldAddress(PiTableEntry entry, PiMatchFieldId fieldId)

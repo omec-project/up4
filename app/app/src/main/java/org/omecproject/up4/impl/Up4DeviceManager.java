@@ -81,6 +81,7 @@ import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTER
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL_DEFAULT;
 import static org.onlab.util.Tools.getLongProperty;
 import static org.onlab.util.Tools.groupedThreads;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.COUNTER;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_DOWNLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_UPLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_DOWNLINK;
@@ -732,41 +733,50 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public Collection<? extends UpfEntity> readAll(UpfEntityType entityType) throws UpfProgrammableException {
-        Collection<? extends UpfEntity> entities = getLeaderUpfProgrammable().readAll(entityType);
-        switch (entityType) {
-            case SESSION_DOWNLINK:
-                // TODO: this might be an overkill, however reads are required
-                //  only during reconciliation, so this shouldn't affect the
-                //  attachment and detachment of UEs.
-                // Map the DBUF entities back to be BUFFERING entities.
-                return entities.stream().map(e -> {
-                    SessionDownlink sess = (SessionDownlink) e;
-                    if (sess.tunPeerId() == DBUF_TUNNEL_ID) {
-                        return SessionDownlink.builder()
-                                .needsBuffering(true)
-                                // Towards northbound, do not specify tunnel peer id
-                                .withUeAddress(sess.ueAddress())
-                                .build();
-                    }
-                    return e;
-                }).collect(Collectors.toList());
-            case INTERFACE:
-                // Don't expose DBUF interface
-                return entities.stream()
-                        .filter(e -> !((UpfInterface) e).isDbufReceiver())
-                        .collect(Collectors.toList());
-            case TUNNEL_PEER:
-                // Don't expose DBUF GTP tunnel peer
-                return entities.stream()
-                        .filter(e -> ((GtpTunnelPeer) e).tunPeerId() != DBUF_TUNNEL_ID)
-                        .collect(Collectors.toList());
-            default:
-                return entities;
+        if (entityType.equals(COUNTER)) {
+            // Counters can't be read from only the leader UPF.
+            return this.readCounters(-1);
+        } else {
+            Collection<? extends UpfEntity> entities = getLeaderUpfProgrammable().readAll(entityType);
+            switch (entityType) {
+                case SESSION_DOWNLINK:
+                    // TODO: this might be an overkill, however reads are required
+                    //  only during reconciliation, so this shouldn't affect the
+                    //  attachment and detachment of UEs.
+                    // Map the DBUF entities back to be BUFFERING entities.
+                    return entities.stream().map(e -> {
+                        SessionDownlink sess = (SessionDownlink) e;
+                        if (sess.tunPeerId() == DBUF_TUNNEL_ID) {
+                            return SessionDownlink.builder()
+                                    .needsBuffering(true)
+                                    // Towards northbound, do not specify tunnel peer id
+                                    .withUeAddress(sess.ueAddress())
+                                    .build();
+                        }
+                        return e;
+                    }).collect(Collectors.toList());
+                case INTERFACE:
+                    // Don't expose DBUF interface
+                    return entities.stream()
+                            .filter(e -> !((UpfInterface) e).isDbufReceiver())
+                            .collect(Collectors.toList());
+                case TUNNEL_PEER:
+                    // Don't expose DBUF GTP tunnel peer
+                    return entities.stream()
+                            .filter(e -> ((GtpTunnelPeer) e).tunPeerId() != DBUF_TUNNEL_ID)
+                            .collect(Collectors.toList());
+                default:
+                    return entities;
+            }
         }
     }
 
     public Collection<? extends UpfEntity> adminReadAll(UpfEntityType entityType)
             throws UpfProgrammableException {
+        if (entityType.equals(COUNTER)) {
+            // Counters can't be read from only the leader UPF.
+            return this.readCounters(-1);
+        }
         return getLeaderUpfProgrammable().readAll(entityType);
     }
 
@@ -869,6 +879,20 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     public void adminDeleteAll(UpfEntityType entityType) throws UpfProgrammableException {
         getLeaderUpfProgrammable().deleteAll(entityType);
+    }
+
+    @Override
+    public UpfCounter readCounter(int counterIdx, DeviceId device) throws UpfProgrammableException {
+        if (!upfProgrammables.containsKey(device)) {
+            throw new UpfProgrammableException("Provided Device ID is not a UPF Programmable!");
+        }
+        if (isMaxUeSet() && counterIdx >= getMaxUe() * 2) {
+            throw new UpfProgrammableException(
+                    "Requested PDR counter cell index above max supported UE value.",
+                    UpfProgrammableException.Type.ENTITY_OUT_OF_RANGE, UpfEntityType.COUNTER);
+        }
+        UpfProgrammable upfProgrammable = upfProgrammables.get(device);
+        return upfProgrammable.readCounter(counterIdx);
     }
 
     @Override
