@@ -81,7 +81,7 @@ services:
       - "5005:5005" # Java debugger
     volumes:
       - ./config/onos/onos1.json:/root/onos/config/cluster.json
-      - ./tmp/onos1:/root/onos/apache-karaf-4.2.9/data/tmp
+      - ./tmp/onos1:/root/onos/apache-karaf-4.2.14/data/tmp
     env_file:
       - ${STC_ENV_FILE} # Includes ONOS_APPS
     entrypoint: "./bin/onos-service"
@@ -101,7 +101,7 @@ services:
       - 51001
     volumes:
       - ./config/onos/onos2.json:/root/onos/config/cluster.json
-      - ./tmp/onos2:/root/onos/apache-karaf-4.2.9/data/tmp
+      - ./tmp/onos2:/root/onos/apache-karaf-4.2.14/data/tmp
     env_file:
       - ${STC_ENV_FILE}
     entrypoint: "./bin/onos-service"
@@ -118,7 +118,7 @@ services:
       - 51001
     volumes:
       - ./config/onos/onos3.json:/root/onos/config/cluster.json
-      - ./tmp/onos3:/root/onos/apache-karaf-4.2.9/data/tmp
+      - ./tmp/onos3:/root/onos/apache-karaf-4.2.14/data/tmp
     env_file:
       - ${STC_ENV_FILE}
     entrypoint: "./bin/onos-service"
