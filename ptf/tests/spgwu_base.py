@@ -327,7 +327,8 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params=action_params,
             ))
 
-    def add_terminations_uplink(self, ue_address, ctr_idx, tc=None, drop=False, app_id=APP_ID_UNKNOWN):
+    def add_terminations_uplink(self, ue_address, ctr_idx, tc=None, drop=False,
+                                app_id=APP_ID_UNKNOWN):
         match_fields = {
             "ue_address": ue_address,
             "app_id": app_id,
