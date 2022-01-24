@@ -4,6 +4,7 @@
  */
 package org.omecproject.up4.impl;
 
+import com.google.common.collect.Range;
 import org.onlab.packet.Ip4Address;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
@@ -13,6 +14,7 @@ import org.onosproject.net.DeviceId;
 import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.SessionDownlink;
 import org.onosproject.net.behaviour.upf.SessionUplink;
+import org.onosproject.net.behaviour.upf.UpfApplication;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
 import org.onosproject.net.behaviour.upf.UpfTerminationUplink;
@@ -21,7 +23,9 @@ import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiExactFieldMatch;
 import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
 import org.onosproject.net.pi.runtime.PiMatchKey;
+import org.onosproject.net.pi.runtime.PiRangeFieldMatch;
 import org.onosproject.net.pi.runtime.PiTableEntry;
+import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 
 import java.util.Arrays;
 
@@ -33,11 +37,16 @@ import static org.omecproject.up4.impl.Up4DeviceManager.SLICE_MOBILE;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.CTR_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DST_ADDR;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_ID;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_ADDR;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_PROTO;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_L4_PORT;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_IPV4_DST_PREFIX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_N3_ADDRESS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TEID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APPLICATIONS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC;
@@ -45,6 +54,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_INTERFACE
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_LOAD_TUNNEL_PARAM;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_DOWNLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_UPLINK;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_APP_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_DOWNLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_UPLINK;
@@ -91,9 +101,17 @@ public final class TestImplConstants {
     public static final int PHYSICAL_MAX_TERMINATIONS = 512;
     public static final int PHYSICAL_MAX_TUNNEL_PEERS = 256;
     public static final int PHYSICAL_MAX_INTERFACES = 256;
+    public static final int PHYSICAL_APPLICATIONS_SIZE = 100;
 
     public static final long COUNTER_BYTES = 12;
     public static final long COUNTER_PKTS = 15;
+
+    public static final byte APP_FILTER_ID = 10;
+    public static final byte DEFAULT_APP_ID = 0;
+    public static final int APP_FILTER_PRIORITY = 10;
+    public static final Ip4Prefix APP_IP_PREFIX = Ip4Prefix.valueOf("10.0.0.0/24");
+    public static final Range<Short> APP_L4_RANGE = Range.closed((short) 100, (short) 1000);
+    public static final byte APP_IP_PROTO = 6;
 
     public static final GtpTunnelPeer TUNNEL_PEER = GtpTunnelPeer.builder()
             .withTunnelPeerId(GTP_TUNNEL_ID)
@@ -109,6 +127,7 @@ public final class TestImplConstants {
 
     public static final UpfTerminationUplink UPLINK_TERMINATION = UpfTerminationUplink.builder()
             .withUeSessionId(UE_ADDR)
+            .withApplicationId(APP_FILTER_ID)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
             .withTrafficClass(TRAFFIC_CLASS_UL)
             .build();
@@ -136,6 +155,7 @@ public final class TestImplConstants {
 
     public static final UpfTerminationDownlink DOWNLINK_TERMINATION = UpfTerminationDownlink.builder()
             .withUeSessionId(UE_ADDR)
+            .withApplicationId(APP_FILTER_ID)
             .withTeid(TEID)
             .withQfi(DOWNLINK_QFI)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
@@ -158,6 +178,14 @@ public final class TestImplConstants {
     public static final UpfInterface UPLINK_INTERFACE = UpfInterface.createS1uFrom(S1U_ADDR);
 
     public static final UpfInterface DOWNLINK_INTERFACE = UpfInterface.createUePoolFrom(UE_POOL);
+
+    public static final UpfApplication APPLICATION_FILTERING = UpfApplication.builder()
+            .withAppId(APP_FILTER_ID)
+            .withIp4Prefix(APP_IP_PREFIX)
+            .withL4PortRange(APP_L4_RANGE)
+            .withIpProto(APP_IP_PROTO)
+            .withPriority(APP_FILTER_PRIORITY)
+            .build();
 
     public static final PiTableEntry UP4_TUNNEL_PEER = PiTableEntry.builder()
             .forTable(PRE_QOS_PIPE_TUNNEL_PEERS)
@@ -233,6 +261,9 @@ public final class TestImplConstants {
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(APP_FILTER_ID)
+                            ))
                             .build()
             )
             .withAction(
@@ -250,6 +281,9 @@ public final class TestImplConstants {
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(DEFAULT_APP_ID)
+                            ))
                             .build()
             )
             .withAction(
@@ -266,6 +300,9 @@ public final class TestImplConstants {
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(DEFAULT_APP_ID)
+                            ))
                             .build()
             )
             .withAction(
@@ -282,6 +319,9 @@ public final class TestImplConstants {
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(APP_FILTER_ID)
+                            ))
                             .build()
             )
             .withAction(
@@ -301,6 +341,9 @@ public final class TestImplConstants {
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(DEFAULT_APP_ID)
+                            ))
                             .build()
             )
             .withAction(
@@ -319,6 +362,9 @@ public final class TestImplConstants {
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
+                            .addFieldMatch(new PiExactFieldMatch(
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(DEFAULT_APP_ID)
+                            ))
                             .build()
             )
             .withAction(
@@ -363,6 +409,32 @@ public final class TestImplConstants {
                                         new PiActionParam(SLICE_ID, SLICE_MOBILE)
                                 ))
                                 .build()).build();
+
+    public static final PiTableEntry UP4_APPLICATION_FILTERING = PiTableEntry.builder()
+            .forTable(PRE_QOS_PIPE_APPLICATIONS)
+            .withMatchKey(PiMatchKey.builder()
+                                  .addFieldMatch(new PiLpmFieldMatch(
+                                          HDR_APP_IP_ADDR,
+                                          ImmutableByteSequence.copyFrom(APP_IP_PREFIX.address().toOctets()),
+                                          APP_IP_PREFIX.prefixLength()))
+                                  .addFieldMatch(new PiRangeFieldMatch(
+                                          HDR_APP_L4_PORT,
+                                          ImmutableByteSequence.copyFrom(APP_L4_RANGE.lowerEndpoint()),
+                                          ImmutableByteSequence.copyFrom(APP_L4_RANGE.upperEndpoint())))
+                                  .addFieldMatch(new PiTernaryFieldMatch(
+                                          HDR_APP_IP_PROTO,
+                                          ImmutableByteSequence.copyFrom(APP_IP_PROTO),
+                                          ImmutableByteSequence.ofOnes(1)
+                                  )).build()
+            )
+            .withAction(PiAction.builder()
+                                .withId(PRE_QOS_PIPE_SET_APP_ID)
+                                .withParameter(new PiActionParam(
+                                        Up4P4InfoConstants.APP_ID,
+                                        APP_FILTER_ID))
+                                .build())
+            .withPriority(APP_FILTER_PRIORITY)
+            .build();
 
     /**
      * Hidden constructor for utility class.

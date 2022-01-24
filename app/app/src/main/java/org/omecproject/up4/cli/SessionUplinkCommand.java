@@ -18,8 +18,7 @@ import org.onosproject.net.behaviour.upf.SessionUplink;
  */
 @Service
 @Command(scope = "up4", name = "session-ul",
-        description = "Insert (or delete) a uplink UE Session into the UP4 dataplane," +
-                " specifying TEID and tunnel peer means it's a DL UE session")
+        description = "Insert (or delete) a uplink UE Session into the UP4 dataplane")
 public class SessionUplinkCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "n3-addr",
@@ -27,7 +26,7 @@ public class SessionUplinkCommand extends AbstractShellCommand {
             required = true)
     String n3Addr = null;
 
-    @Argument(index = 2, name = "teid",
+    @Argument(index = 1, name = "teid",
             description = "Tunnel ID of the tunnel from the base station",
             required = true)
     int teid = -1;
