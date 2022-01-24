@@ -30,7 +30,7 @@ GTPU_EXT_PSC_TYPE_UL = 1
 DEFAULT_SLICE = 0
 MOBILE_SLICE = 15
 
-NO_APP_ID = 0
+APP_ID_UNKNOWN = 0
 APP_ID = 10
 
 IP_PROTO_UDP = 0x11
@@ -327,7 +327,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params=action_params,
             ))
 
-    def add_terminations_uplink(self, ue_address, ctr_idx, tc=None, drop=False, app_id=NO_APP_ID):
+    def add_terminations_uplink(self, ue_address, ctr_idx, tc=None, drop=False, app_id=APP_ID_UNKNOWN):
         match_fields = {
             "ue_address": ue_address,
             "app_id": app_id,
@@ -349,7 +349,7 @@ class GtpuBaseTest(P4RuntimeTest):
             ))
 
     def add_terminations_downlink(self, ue_address, ctr_idx, tc=None, teid=None, qfi=None,
-                                  drop=False, app_id=NO_APP_ID):
+                                  drop=False, app_id=APP_ID_UNKNOWN):
         match_fields = {
             "ue_address": ue_address,
             "app_id": app_id,
@@ -373,7 +373,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params=action_params,
             ))
 
-    def add_application_filtering(self, pkt, app_id, direction, priority=10):
+    def add_application(self, pkt, app_id, direction, priority=10):
         if direction == DIRECTION_UPLINK:
             match_fields = {"app_ip_addr": pkt[IP].dst + "/32"}
         else:
@@ -444,10 +444,10 @@ class GtpuBaseTest(P4RuntimeTest):
             teid=pkt[gtp.GTP_U_Header].teid,
         )
 
-        app_id = NO_APP_ID
+        app_id = APP_ID_UNKNOWN
         if app_filtering:
             app_id = APP_ID
-            self.add_application_filtering(
+            self.add_application(
                 pkt=inner_pkt,
                 app_id=app_id,
                 direction=DIRECTION_UPLINK,
@@ -507,10 +507,10 @@ class GtpuBaseTest(P4RuntimeTest):
             dst_addr=exp_pkt[IP].dst,
         )
 
-        app_id = NO_APP_ID
+        app_id = APP_ID_UNKNOWN
         if app_filtering:
             app_id = APP_ID
-            self.add_application_filtering(
+            self.add_application(
                 pkt=pkt,
                 app_id=app_id,
                 direction=DIRECTION_DOWNLINK,

@@ -20,35 +20,35 @@ import org.onosproject.net.behaviour.upf.UpfApplication;
 @Service
 @Command(scope = "up4", name = "app-filter",
         description = "Insert (or delete) an application filtering into the UP4 dataplane")
-public class ApplicationFilterCommand extends AbstractShellCommand {
+public class ApplicationFilteringCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "app-id",
-            description = "Application ID for this application filter rule",
+            description = "Application ID for this application filtering rule",
             required = true)
     Byte appId = null;
 
     @Argument(index = 1, name = "priority",
-            description = "Priority this application filter rule",
+            description = "Priority this application filtering rule",
             required = true)
     Integer priority = null;
 
     @Option(name = "--ip-prefix",
-            description = "IPv4 Prefix",
+            description = "IPv4 prefix",
             required = false)
     String ipPrefix = null;
 
     @Option(name = "--l4-port",
-            description = "L4 Port",
+            description = "L4 port",
             required = false)
     Short l4Port = null;
 
     @Option(name = "--ip-proto",
-            description = "IP Proto value",
+            description = "IP proto value",
             required = false)
     Byte ipProto = null;
 
     @Option(name = "--delete", aliases = "-d",
-            description = "Delete the given Application Filter",
+            description = "Delete the given application filter",
             required = false)
     boolean delete = false;
 
@@ -73,7 +73,7 @@ public class ApplicationFilterCommand extends AbstractShellCommand {
             oneFilter = true;
         }
         if (!oneFilter) {
-            print("At least one filter (IP Prefix, L4Port, IpProto) must be provided");
+            print("At least one filter (IpPrefix, L4Port, IpProto) must be provided");
             return;
         }
         if (delete) {

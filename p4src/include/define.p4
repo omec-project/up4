@@ -62,7 +62,7 @@ typedef bit<TC_WIDTH> tc_t; // Traffic Class (for QoS) within a slice
 const qfi_t DEFAULT_QFI = 0;
 
 // Signal that NO application ID has been set
-const bit<8> NO_APP_ID = 0;
+const bit<8> APP_ID_UNKNOWN = 0;
 
 //------------------------------------------------------------------------------
 // ENUMS

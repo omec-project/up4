@@ -427,9 +427,7 @@ class P4RuntimeTest(BaseTest):
             pre = t.preamble
             if pre.name == meta_type:
                 for m in t.metadata:
-
                     if id is not None:
-
                         if m.id == id:
                             return m
         return None
@@ -450,8 +448,8 @@ class P4RuntimeTest(BaseTest):
         if input is None:
             raise ValueError("input cannot be of NoneType.")
 
-        byte_width = (bitwidth +
-                      7) // 8  # use integer division to avoid floating point rounding errors.
+        # use integer division to avoid floating point rounding errors.
+        byte_width = (bitwidth + 7) // 8
         return input.rjust(byte_width, b"\0")  # right padding <-> BigEndian
 
     def verify_digest_list(self, digest_name, exp_data, timeout=2):

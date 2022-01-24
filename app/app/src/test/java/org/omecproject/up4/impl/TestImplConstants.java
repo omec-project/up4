@@ -106,9 +106,9 @@ public final class TestImplConstants {
     public static final long COUNTER_BYTES = 12;
     public static final long COUNTER_PKTS = 15;
 
-    public static final byte APP_FILTERING_ID = 10;
+    public static final byte APP_FILTER_ID = 10;
     public static final byte DEFAULT_APP_ID = 0;
-    public static final int APP_FILTERING_PRIORITY = 10;
+    public static final int APP_FILTER_PRIORITY = 10;
     public static final Ip4Prefix APP_IP_PREFIX = Ip4Prefix.valueOf("10.0.0.0/24");
     public static final Range<Short> APP_L4_RANGE = Range.closed((short) 100, (short) 1000);
     public static final byte APP_IP_PROTO = 6;
@@ -127,7 +127,7 @@ public final class TestImplConstants {
 
     public static final UpfTerminationUplink UPLINK_TERMINATION = UpfTerminationUplink.builder()
             .withUeSessionId(UE_ADDR)
-            .withApplicationId(APP_FILTERING_ID)
+            .withApplicationId(APP_FILTER_ID)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
             .withTrafficClass(TRAFFIC_CLASS_UL)
             .build();
@@ -155,7 +155,7 @@ public final class TestImplConstants {
 
     public static final UpfTerminationDownlink DOWNLINK_TERMINATION = UpfTerminationDownlink.builder()
             .withUeSessionId(UE_ADDR)
-            .withApplicationId(APP_FILTERING_ID)
+            .withApplicationId(APP_FILTER_ID)
             .withTeid(TEID)
             .withQfi(DOWNLINK_QFI)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
@@ -180,11 +180,11 @@ public final class TestImplConstants {
     public static final UpfInterface DOWNLINK_INTERFACE = UpfInterface.createUePoolFrom(UE_POOL);
 
     public static final UpfApplication APPLICATION_FILTERING = UpfApplication.builder()
-            .withAppId(APP_FILTERING_ID)
+            .withAppId(APP_FILTER_ID)
             .withIp4Prefix(APP_IP_PREFIX)
             .withL4PortRange(APP_L4_RANGE)
             .withIpProto(APP_IP_PROTO)
-            .withPriority(APP_FILTERING_PRIORITY)
+            .withPriority(APP_FILTER_PRIORITY)
             .build();
 
     public static final PiTableEntry UP4_TUNNEL_PEER = PiTableEntry.builder()
@@ -262,7 +262,7 @@ public final class TestImplConstants {
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
                             .addFieldMatch(new PiExactFieldMatch(
-                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(APP_FILTERING_ID)
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(APP_FILTER_ID)
                             ))
                             .build()
             )
@@ -320,7 +320,7 @@ public final class TestImplConstants {
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
                             .addFieldMatch(new PiExactFieldMatch(
-                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(APP_FILTERING_ID)
+                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(APP_FILTER_ID)
                             ))
                             .build()
             )
@@ -431,9 +431,9 @@ public final class TestImplConstants {
                                 .withId(PRE_QOS_PIPE_SET_APP_ID)
                                 .withParameter(new PiActionParam(
                                         Up4P4InfoConstants.APP_ID,
-                                        APP_FILTERING_ID))
+                                        APP_FILTER_ID))
                                 .build())
-            .withPriority(APP_FILTERING_PRIORITY)
+            .withPriority(APP_FILTER_PRIORITY)
             .build();
 
     /**

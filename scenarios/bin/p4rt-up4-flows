@@ -52,21 +52,20 @@ def get_args():
     parser.add_argument(
         "--base", type=int, default=None, help="First ID used to generate all other ID fields." +
         "If specified, overrides all the other --*-base arguments")
-    parser.add_argument("--prio-app-filter", type=int, default=1,
+    parser.add_argument("--app-prio", type=int, default=1,
                         help="Priority of the application filtering rule")
     parser.add_argument("--app-id", type=int, default=DEFAULT_APP_ID,
                         help="Application ID. ID=0 means NO application filtering.")
-    parser.add_argument("--ipv4-app-filter", type=str, default=None,
+    parser.add_argument("--app-ipv4", type=str, default=None,
                         help="IPv4 prefix for application filtering")
-    parser.add_argument("--l4-app-filter", type=int, default=None,
+    parser.add_argument("--app-l4-port", type=int, default=None,
                         help="L4 Port for application filtering")
-    parser.add_argument("--proto-app-filter", choices=['UDP', 'TCP', 'ICMP'], default=None,
+    parser.add_argument("--app-proto", choices=['UDP', 'TCP', 'ICMP'], default=None,
                         help="IP Proto value for application filtering")
-    parser.add_argument("--ul-drop", type=bool, default=False,
+    parser.add_argument("--drop-ul", type=bool, default=False,
                         help="Drop traffic in uplink direction")
-    parser.add_argument("--dl-drop", type=bool, default=False,
+    parser.add_argument("--drop-dl", type=bool, default=False,
                         help="Drop traffic in downlink direction")
-
     parser.add_argument("--server", type=str, default="onos1:51001",
                         help="Address and port of the p4runtime server.")
     parser.add_argument("action", choices=["program", "clear", "dry"])
@@ -122,7 +121,7 @@ def clear_entries():
 def main():
     # Validate some args
     app_filtering = False
-    if args.ipv4_app_filter or args.l4_app_filter or args.proto_app_filter:
+    if args.app_ipv4 or args.app_l4_port or args.app_proto:
         app_filtering = True
         if args.base == 0 or (not args.base and args.app_id == 0):
             print("APP ID must be different from 0, when doing application filtering")
@@ -174,14 +173,14 @@ def main():
 
     if app_filtering:
         entry = sh.TableEntry('PreQosPipe.applications')(action='PreQosPipe.set_app_id')
-        if args.ipv4_app_filter:
-            entry.match["app_ip_addr"] = args.ipv4_app_filter
-        if args.l4_app_filter:
-            entry.match["app_l4_port"] = str(args.l4_app_filter) + ".." + str(args.l4_app_filter)
-        if args.proto_app_filter:
-            entry.match["app_ip_proto"] = args.proto_app_filter
+        if args.app_ipv4:
+            entry.match["app_ip_addr"] = args.app_ipv4
+        if args.app_l4_port:
+            entry.match["app_l4_port"] = str(args.app_l4_port) + ".." + str(args.app_l4_port)
+        if args.app_proto:
+            entry.match["app_ip_proto"] = args.app_proto
         entry.action["app_id"] = str(app_id)
-        entry.priority = args.prio_app_filter
+        entry.priority = args.app_prio
         add_entry(entry, args.action)
 
     for ue_index in range(args.ue_count):
@@ -223,7 +222,7 @@ def main():
         # ========================#
 
         ## Uplink
-        if not args.ul_drop:
+        if not args.drop_ul:
             entry = sh.TableEntry('PreQosPipe.terminations_uplink')(
                 action='PreQosPipe.uplink_term_fwd')
             entry.action['tc'] = TRAFFIC_CLASS
@@ -236,7 +235,7 @@ def main():
         add_entry(entry, args.action)
 
         ## Downlink
-        if not args.dl_drop:
+        if not args.drop_dl:
             entry = sh.TableEntry('PreQosPipe.terminations_downlink')(
                 action='PreQosPipe.downlink_term_fwd')
             entry.action['tc'] = TRAFFIC_CLASS

@@ -308,7 +308,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         actions = {
             set_app_id;
         }
-        const default_action = set_app_id(NO_APP_ID);
+        const default_action = set_app_id(APP_ID_UNKNOWN);
     }
 
     action load_tunnel_param(ipv4_addr_t    src_addr,

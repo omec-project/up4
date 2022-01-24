@@ -149,7 +149,6 @@ struct local_metadata_t {
 
     ip_proto_t  ip_proto;
 
-    // SPGW application ID
     bit<8>  application_id;
 
     bit<8> src_iface;
