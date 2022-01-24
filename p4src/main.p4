@@ -269,7 +269,8 @@ control PreQosPipe (inout parsed_headers_t    hdr,
 
     table terminations_uplink {
         key = {
-            local_meta.ue_addr  : exact @name("ue_address"); // Session ID
+            local_meta.ue_addr          : exact @name("ue_address"); // Session ID
+            local_meta.application_id   : exact @name("app_id");
         }
         actions = {
             uplink_term_fwd;
@@ -282,7 +283,8 @@ control PreQosPipe (inout parsed_headers_t    hdr,
 
     table terminations_downlink {
         key = {
-            local_meta.ue_addr  : exact @name("ue_address"); // Session ID
+            local_meta.ue_addr          : exact @name("ue_address"); // Session ID
+            local_meta.application_id   : exact @name("app_id");
         }
         actions = {
             downlink_term_fwd;
@@ -291,6 +293,22 @@ control PreQosPipe (inout parsed_headers_t    hdr,
             @defaultonly do_drop;
         }
         const default_action = do_drop;
+    }
+
+    action set_app_id(bit<8> app_id) {
+        local_meta.application_id = app_id;
+    }
+
+    table applications {
+        key = {
+            local_meta.inet_addr    : lpm       @name("app_ip_addr");
+            local_meta.inet_l4_port : range     @name("app_l4_port");
+            local_meta.ip_proto     : ternary   @name("app_ip_proto");
+        }
+        actions = {
+            set_app_id;
+        }
+        const default_action = set_app_id(APP_ID_UNKNOWN);
     }
 
     action load_tunnel_param(ipv4_addr_t    src_addr,
@@ -424,18 +442,25 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                     local_meta.inet_addr = hdr.inner_ipv4.dst_addr;
                     local_meta.ue_l4_port = local_meta.l4_sport;
                     local_meta.inet_l4_port = local_meta.l4_dport;
+                    local_meta.ip_proto = hdr.inner_ipv4.proto;
 
                     sessions_uplink.apply();
-                    terminations_uplink.apply();
-                }
-                else if (local_meta.direction == Direction.DOWNLINK) {
+                } else if (local_meta.direction == Direction.DOWNLINK) {
                     local_meta.ue_addr = hdr.ipv4.dst_addr;
                     local_meta.inet_addr = hdr.ipv4.src_addr;
                     local_meta.ue_l4_port = local_meta.l4_dport;
                     local_meta.inet_l4_port = local_meta.l4_sport;
+                    local_meta.ip_proto = hdr.ipv4.proto;
 
                     sessions_downlink.apply();
                     tunnel_peers.apply();
+                }
+
+                applications.apply();
+
+                if (local_meta.direction == Direction.UPLINK) {
+                    terminations_uplink.apply();
+                }  else if (local_meta.direction == Direction.DOWNLINK) {
                     terminations_downlink.apply();
                 }
 

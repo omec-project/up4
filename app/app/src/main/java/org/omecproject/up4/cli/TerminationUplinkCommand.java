@@ -26,12 +26,17 @@ public class TerminationUplinkCommand extends AbstractShellCommand {
             required = true)
     String ueAddr = null;
 
-    @Argument(index = 1, name = "counter-id",
+    @Argument(index = 1, name = "app-id",
+            description = "Application ID for this termination rule",
+            required = true)
+    Byte appId = null;
+
+    @Argument(index = 2, name = "counter-id",
             description = "Counter ID for this termination rule",
             required = true)
     int counterID = 0;
 
-    @Argument(index = 2, name = "traffic-class",
+    @Argument(index = 3, name = "traffic-class",
             description = "Traffic Class",
             required = false)
     byte trafficClass = -1;
@@ -52,6 +57,7 @@ public class TerminationUplinkCommand extends AbstractShellCommand {
         UpfTerminationUplink.Builder termBuilder = UpfTerminationUplink.builder()
                 .needsDropping(drop)
                 .withUeSessionId(Ip4Address.valueOf(ueAddr))
+                .withApplicationId(appId)
                 .withCounterId(counterID);
         if (trafficClass != -1) {
             termBuilder.withTrafficClass(trafficClass);
