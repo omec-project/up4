@@ -46,6 +46,7 @@ import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.FlowRuleEvent;
 import org.onosproject.net.flow.FlowRuleListener;
+import org.onosproject.net.flow.FlowRuleOperations;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
@@ -64,7 +65,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Dictionary;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -75,6 +75,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL;
@@ -1181,13 +1182,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         private void checkStateAndReconcile() throws UpfProgrammableException {
             log.trace("Running reconciliation task...");
             assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
-            Collection<UpfEntity> leaderState =
-                    (Collection<UpfEntity>) getLeaderUpfProgrammable().readAll(UpfEntityType.SESSION_UPLINK);
-            leaderState.addAll(getLeaderUpfProgrammable().readAll(SESSION_DOWNLINK));
-            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TERMINATION_UPLINK));
-            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TERMINATION_DOWNLINK));
-            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.INTERFACE));
-            leaderState.addAll(getLeaderUpfProgrammable().readAll(UpfEntityType.TUNNEL_PEER));
 
             for (var entry : upfProgrammables.entrySet()) {
                 var deviceId = entry.getKey();
@@ -1198,45 +1192,52 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 if (!mastershipService.isLocalMaster(deviceId)) {
                     continue;
                 }
-                Collection<UpfEntity> followerState =
-                        (Collection<UpfEntity>) upfProg.readAll(UpfEntityType.SESSION_UPLINK);
-                followerState.addAll(upfProg.readAll(SESSION_DOWNLINK));
-                followerState.addAll(upfProg.readAll(UpfEntityType.TERMINATION_UPLINK));
-                followerState.addAll(upfProg.readAll(UpfEntityType.TERMINATION_DOWNLINK));
-                followerState.addAll(upfProg.readAll(UpfEntityType.INTERFACE));
-                followerState.addAll(upfProg.readAll(UpfEntityType.TUNNEL_PEER));
 
-                // Do not deal with errors on UPFProgrammable calls, we will
-                // eventually converge in the next reconciliation cycle.
+                Set<FlowRule> leaderRules =
+                    StreamSupport.stream(flowRuleService.getFlowEntries(leaderUpfDevice).spliterator(), false)
+                        .filter(r -> getLeaderUpfProgrammable().fromThisUpf(r))
+                        .collect(Collectors.toSet());
 
-                // First remove stale entries and then add the missing ones
-                // otherwise when an entry needs update, it won't be updated.
-                if (!leaderState.containsAll(followerState)) {
-                    log.debug("Removing stale UPF entities from {}", deviceId);
-                    Collection<UpfEntity> toRemoveEntities = new HashSet<>(followerState);
-                    toRemoveEntities.removeAll(leaderState);
-                    for (UpfEntity entity : toRemoveEntities) {
-                        try {
-                            upfProg.delete(entity);
-                        } catch (UpfProgrammableException e) {
-                            log.error("Error while reconciling {}: {} [{}]",
-                                      deviceId, e.getMessage(), entity);
-                        }
-                    }
-                }
-                if (!followerState.containsAll(leaderState)) {
-                    log.debug("Adding missing UPF entities on {}", deviceId);
-                    Collection<UpfEntity> toAddEntities = new HashSet<>(leaderState);
-                    toAddEntities.removeAll(followerState);
-                    for (UpfEntity entity : toAddEntities) {
-                        try {
-                            upfProg.apply(entity);
-                        } catch (UpfProgrammableException e) {
-                            log.error("Error while reconciling {}: {} [{}]",
-                                      deviceId, e.getMessage(), entity);
-                        }
-                    }
-                }
+                // Replace the follower's device id with leader's id,
+                // so that we can re-use the exact match function to compare the state
+                Set<FlowRule> followerRules =
+                    StreamSupport.stream(flowRuleService.getFlowEntries(deviceId).spliterator(), false)
+                        .filter(r -> upfProg.fromThisUpf(r))
+                        .map(r -> copyFlowRuleForDevice(r, leaderUpfDevice))
+                        .collect(Collectors.toSet());
+
+                // Collect the difference between leader and followers
+                // There are 3 situations
+                // Remove unexpected: Rule is in the follower but not in the leader
+                // Update stale: Rule is both on follower and leader but treatments are different
+                // Add missing: Rule is in the leader but not in the follower
+                FlowRuleOperations.Builder ops = FlowRuleOperations.builder();
+
+                Set<FlowRule> unexpectedRules =
+                    followerRules.stream()
+                        .filter(fr -> leaderRules.stream().noneMatch(lr -> lr.equals(fr)))
+                        .collect(Collectors.toSet());
+                followerRules.removeAll(unexpectedRules);
+                ops.newStage();
+                unexpectedRules.forEach(r -> ops.remove(copyFlowRuleForDevice(r, deviceId)));
+
+                Set<FlowRule> staleRules =
+                    leaderRules.stream()
+                        .filter(lr -> followerRules.stream().noneMatch(fr -> fr.exactMatch(lr)))
+                        .filter(lr -> followerRules.stream().anyMatch(fr -> fr.equals(lr)))
+                        .collect(Collectors.toSet());
+                leaderRules.removeAll(staleRules);
+                ops.newStage();
+                staleRules.forEach(r -> ops.modify(copyFlowRuleForDevice(r, deviceId)));
+
+                Set<FlowRule> missingRules =
+                    leaderRules.stream()
+                        .filter(lr -> followerRules.stream().noneMatch(fr -> fr.equals(lr)))
+                        .collect(Collectors.toSet());
+                ops.newStage();
+                missingRules.forEach(r -> ops.add(copyFlowRuleForDevice(r, deviceId)));
+
+                flowRuleService.apply(ops.build());
             }
         }
     }
