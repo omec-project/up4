@@ -4,25 +4,44 @@
   -->
 <scenario name="p4rt-forwarding-pressure" description="Forwarding test with large number of UE using p4runtime messages">
     <group name="P4rt-Forwarding-Pressure">
-        <step name="Check-Up4-No-Flows-No-Fwd-Pressure"
-                exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
-        <group name="Check-Traffic-Drop-Pressure" requires="Check-Up4-No-Flows-No-Fwd-Pressure">
+        <group name="P4rt-Program-Drop-UL-Pressure">
+            <group name="Push-Up4-Flows-Drop-UL-Pressure">
+                <sequential var="${ENODEB#}"
+                            starts="P4rt-Set-Drop-UL-Pressure-${#}"
+                            ends="P4rt-Set-Drop-UL-Pressure-${#-1}">
+                    <step name="P4rt-Set-Drop-UL-Pressure-${#}"
+                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --ue-count ${P4RT_UP4_FLOWS_PRESSURE} --drop-ul true --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                </sequential>
+            </group>
+            <step name="Check-Up4-Flows-Drop-UL-Pressure" requires="Push-Up4-Flows-Drop-UL-Pressure"
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${P4RT_UP4_FLOWS_PRESSURE}, DL flows=${P4RT_UP4_FLOWS_PRESSURE}'"/>
+            <step name="Check-Flow-Rules-Drop-UL-Pressure" requires="^" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+        <group name="Check-Traffic-Drop-UL-Pressure" requires="P4rt-Program-Drop-UL-Pressure">
             <parallel var="${ENODEB#}">
-                <!-- Downlink -->
-                <step name="Downlink-Enb-No-Fwd-Pressure-${#}"
-                      exec="mn-cmd ${ENODEB#} traffic.py recv-none -t 10"/>
-                <step name="Downlink-Pdn-No-Fwd-Pressure-${#}" delay="5"
-                      exec="mn-cmd pdn traffic.py send-udp --flow-count 10 -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <!-- Uplink -->
-                <step name="Uplink-Pdn-No-Fwd-Pressure-${#}"
-                      requires="Downlink-Enb-No-Fwd-Pressure-${#},Downlink-Pdn-No-Fwd-Pressure-${#}"
+                <step name="Uplink-Pdn-No-Recv-Udp-Pressure-${#}" requires="P4rt-Program-Drop-UL-Pressure"
                       exec="mn-cmd pdn traffic.py recv-none -t 10"/>
-                <step name="Uplink-Enb-No-Fwd-Pressure-${#}" delay="5"
-                      requires="Downlink-Enb-No-Fwd-Pressure-${#},Downlink-Pdn-No-Fwd-Pressure-${#}"
-                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp --flow-count 10 -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <step name="Uplink-Enb-Send-Gtp-Pressure-Drop-UL-${#}" requires="P4rt-Program-Drop-UL-Pressure" delay="5"
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp --flow-count 25 -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
             </parallel>
         </group>
-        <group name="P4rt-Program-Pressure" requires="Check-Traffic-Drop-Pressure">
+        <group name="P4rt-Clear-Drop-UL-Pressure" requires="~Check-Traffic-Drop-UL-Pressure">
+            <group name="Clear-Up4-Flows-Drop-UL-Pressure">
+                <sequential var="${ENODEB#}"
+                            starts="P4rt-Unset-Drop-UL-Pressure-${#}"
+                            ends="P4rt-Unset-Drop-UL-Pressure-${#-1}">
+                    <step name="P4rt-Unset-Drop-UL-Pressure-${#}" requires="~Check-Traffic-Drop-UL-Pressure"
+                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows clear --ue-count ${P4RT_UP4_FLOWS_PRESSURE} --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                </sequential>
+            </group>
+            <step name="Check-Up4-Flows-Drop-UL-Pressure-Cleared" requires="Clear-Up4-Flows-Drop-UL-Pressure"
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
+            <step name="Check-Flow-Rules-Drop-UL-Pressure-Cleared" requires="^" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+        <group name="P4rt-Program-Pressure" requires="P4rt-Clear-Drop-UL-Pressure">
             <group name="Push-Up4-Flows-Pressure">
                 <sequential var="${ENODEB#}"
                             starts="P4rt-Set-Fwd-Pressure-${#}"
@@ -40,16 +59,14 @@
             <parallel var="${ENODEB#}">
                 <!-- Downlink -->
                 <step name="Downlink-Enb-Recv-Gtp-Fwd-Pressure-${#}" requires="P4rt-Program-Pressure"
-                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp --flow-count 10 -t 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp --flow-count 25 -t 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <step name="Downlink-Pdn-Send-Udp-Fwd-Pressure-${#}" requires="P4rt-Program-Pressure" delay="5"
-                      exec="mn-cmd pdn traffic.py send-udp --flow-count 10 -c 50 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="mn-cmd pdn traffic.py send-udp --flow-count 25 -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <!-- Uplink -->
-                <step name="Uplink-Pdn-Recv-Udp-Fwd-Pressure-${#}"
-                      requires="P4rt-Program-Pressure,Downlink-Enb-Recv-Gtp-Fwd-Pressure-${#},Downlink-Pdn-Send-Udp-Fwd-Pressure-${#}"
-                      exec="mn-cmd pdn traffic.py recv-udp --flow-count 10 -t 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
-                <step name="Uplink-Enb-Send-Gtp-Fwd-Pressure-${#}"
-                      requires="P4rt-Program-Pressure,Downlink-Enb-Recv-Gtp-Fwd-Pressure-${#},Downlink-Pdn-Send-Udp-Fwd-Pressure-${#}" delay="5"
-                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp --flow-count 10 -c 50 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <step name="Uplink-Pdn-Recv-Udp-Fwd-Pressure-${#}" requires="P4rt-Program-Pressure"
+                      exec="mn-cmd pdn traffic.py recv-udp --flow-count 25 -t 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <step name="Uplink-Enb-Send-Gtp-Fwd-Pressure-${#}" requires="P4rt-Program-Pressure" delay="5"
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp --flow-count 25 -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
             </parallel>
         </group>
         <group name="P4rt-Clear-Fwd-Pressure" requires="~Check-Traffic-Fwd-Pressure">
