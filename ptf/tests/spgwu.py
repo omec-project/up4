@@ -49,17 +49,22 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
             for app_filtering in [False, True]:
                 # Verify that default TC behaves in the same way as when we specify TC
                 for tc in [0, None]:
-                    print_inline("%s, tc=%s, app_filtering=%s... " % (pkt_type, tc, app_filtering))
-                    pkt = getattr(testutils,
-                                  "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC,
-                                                                 eth_dst=SWITCH_MAC, ip_src=UE_IPV4,
-                                                                 ip_dst=PDN_IPV4)
-                    pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
+                    for app_bitrate in [0, 10000]:
+                        for session_bitrate in [0, 10000]:
+                            if app_bitrate == 0 and session_bitrate == 0:
+                                # Skip when both bitrates are 0
+                                continue
+                            print(" %s, tc=%s, app_filtering=%s, app_bitrate=%s, session_bitrate=%s... " % (pkt_type, tc, app_filtering, app_bitrate, session_bitrate))
+                            pkt = getattr(testutils,
+                                          "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC,
+                                                                         eth_dst=SWITCH_MAC, ip_src=UE_IPV4,
+                                                                         ip_dst=PDN_IPV4)
+                            pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
 
-                    self.testPacket(pkt, app_filtering, tc)
+                            self.testPacket(pkt, app_filtering, tc, app_bitrate, session_bitrate)
 
     @autocleanup
-    def testPacket(self, pkt, app_filtering, tc):
+    def testPacket(self, pkt, app_filtering, tc, app_bitrate, session_bitrate):
 
         if gtp.GTP_U_Header not in pkt:
             raise AssertionError("Packet given to decap test is not encapsulated!")
@@ -73,9 +78,16 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
 
         # UPF counter ID
         ctr_id = self.new_counter_id()
+        # Meter IDs
+        app_meter_id = self.unique_rule_id()
+        session_meter_id = self.unique_rule_id()
 
         # program all the tables
         self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, tc=tc,
+                                        app_meter_id=app_meter_id,
+                                        app_meter_max_bitrate=app_bitrate,
+                                        session_meter_id=session_meter_id,
+                                        session_meter_max_bitrate=session_bitrate,
                                         drop=False, app_filtering=app_filtering)
 
         # read pre and post-QoS packet and byte counters
@@ -83,10 +95,19 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
 
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, pkt)
-        testutils.verify_packet(self, exp_pkt, self.port2)
+        if app_bitrate == 0 or session_bitrate == 0:
+            testutils.verify_no_other_packets(self)
+        else:
+            testutils.verify_packet(self, exp_pkt, self.port2)
 
         # Check if pre and post-QoS packet and byte counters incremented
-        self.verify_counters_increased(ctr_id, 1, len(pkt), 1, len(pkt))
+        if app_bitrate == 0 or session_bitrate == 0:
+            post_qos_pkts = 0
+            post_qos_bytes = 0
+        else:
+            post_qos_pkts = 1
+            post_qos_bytes = len(pkt)
+        self.verify_counters_increased(ctr_id, 1, len(pkt), post_qos_pkts, post_qos_bytes)
 
 
 @group("gtpu")
@@ -100,15 +121,20 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
             for app_filtering in [False, True]:
                 # Verify that default TC behaves in the same way as when we specify TC
                 for tc in [0, None]:
-                    print_inline("%s, tc=%s, app_filtering=%s... " % (pkt_type, tc, app_filtering))
-                    pkt = getattr(testutils,
-                                  "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC,
-                                                                 eth_dst=SWITCH_MAC,
-                                                                 ip_src=PDN_IPV4, ip_dst=UE_IPV4)
-                    self.testPacket(pkt, app_filtering, tc)
+                    for app_bitrate in [0, 10000]:
+                        for session_bitrate in [0, 10000]:
+                            if app_bitrate == 0 and session_bitrate == 0:
+                                # Skip when both bitrates are 0
+                                continue
+                            print(" %s, tc=%s, app_filtering=%s, app_bitrate=%s, session_bitrate=%s... " % (pkt_type, tc, app_filtering, app_bitrate, session_bitrate))
+                            pkt = getattr(testutils,
+                                          "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC,
+                                                                         eth_dst=SWITCH_MAC,
+                                                                         ip_src=PDN_IPV4, ip_dst=UE_IPV4)
+                            self.testPacket(pkt, app_filtering, tc, app_bitrate, session_bitrate)
 
     @autocleanup
-    def testPacket(self, pkt, app_filtering, tc):
+    def testPacket(self, pkt, app_filtering, tc, app_bitrate, session_bitrate):
         # build the expected encapsulated packet
         exp_pkt = pkt.copy()
         dst_mac = ENODEB_MAC
@@ -123,9 +149,16 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
 
         # UPF counter ID
         ctr_id = self.new_counter_id()
+        # Meter IDs
+        app_meter_id = self.unique_rule_id()
+        session_meter_id = self.unique_rule_id()
 
         # program all the tables
         self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, tc=tc,
+                                          app_meter_id=app_meter_id,
+                                          app_meter_max_bitrate=app_bitrate,
+                                          session_meter_id=session_meter_id,
+                                          session_meter_max_bitrate=session_bitrate,
                                           app_filtering=app_filtering, drop=False)
 
         # read pre and post-QoS packet and byte counters
@@ -133,10 +166,19 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
 
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, pkt)
-        testutils.verify_packet(self, exp_pkt, self.port2)
+        if app_bitrate == 0 or session_bitrate == 0:
+            testutils.verify_no_other_packets(self)
+        else:
+            testutils.verify_packet(self, exp_pkt, self.port2)
 
         # Check if pre and post-QoS packet and byte counters incremented
-        self.verify_counters_increased(ctr_id, 1, len(pkt), 1, len(pkt))
+        if app_bitrate == 0 or session_bitrate == 0:
+            post_qos_pkts = 0
+            post_qos_bytes = 0
+        else:
+            post_qos_pkts = 1
+            post_qos_bytes = len(pkt)
+        self.verify_counters_increased(ctr_id, 1, len(pkt), post_qos_pkts, post_qos_bytes)
 
 
 @group("gtpu")

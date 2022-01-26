@@ -513,13 +513,15 @@ class P4RuntimeTest(BaseTest):
     def modify(self, entity):
         if isinstance(entity, list) or isinstance(entity, tuple):
             for e in entity:
-                self.insert(e)
+                self.modify(e)
             return
         req = self.get_new_write_request()
         update = req.updates.add()
         update.type = p4runtime_pb2.Update.MODIFY
         if isinstance(entity, p4runtime_pb2.TableEntry):
             msg_entity = update.entity.table_entry
+        elif isinstance(entity, p4runtime_pb2.MeterEntry):
+            msg_entity = update.entity.meter_entry
         else:
             self.fail("Entity %s not supported" % entity.__class__.__name__)
         msg_entity.CopyFrom(entity)

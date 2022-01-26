@@ -3,6 +3,9 @@
  * SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 #include <core.p4>
+// Use non retro-compatible (P4_14) v1model.p4 architecture
+// this reduces the need for weird casting.
+#define V1MODEL_VERSION 20200408
 #include <v1model.p4>
 
 #include "include/define.p4"
@@ -18,7 +21,7 @@ control Acl(
     inout local_metadata_t local_meta,
     inout standard_metadata_t std_meta) {
 
-    action set_port(port_num_t port) {
+    action set_port(PortId_t port) {
         std_meta.egress_spec = port;
     }
 
@@ -29,9 +32,9 @@ control Acl(
     action clone_to_cpu() {
         // Cloning is achieved by using a v1model-specific primitive. Here we
         // set the type of clone operation (ingress-to-egress pipeline), the
-        // clone session ID (the CPU one), and the metadata fields we want to
-        // preserve for the cloned packet replica.
-        clone3(CloneType.I2E, CPU_CLONE_SESSION_ID, { std_meta.ingress_port });
+        // clone session ID (the CPU one) and the field list ID of user defined
+        // metadata we want to preserve (currently none).
+        clone_preserving_field_list(CloneType.I2E, CPU_CLONE_SESSION_ID, 0);
     }
 
     action drop() {
@@ -81,7 +84,7 @@ control Routing(inout parsed_headers_t    hdr,
 
     action route(mac_addr_t src_mac,
                  mac_addr_t dst_mac,
-                 port_num_t egress_port) {
+                 PortId_t egress_port) {
         std_meta.egress_spec = egress_port;
         hdr.ethernet.src_addr = src_mac;
         hdr.ethernet.dst_addr = dst_mac;
@@ -124,7 +127,16 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                     inout standard_metadata_t std_meta) {
 
 
-    counter(MAX_PDRS, CounterType.packets_and_bytes) pre_qos_counter;
+    counter<counter_index_t>(MAX_PDRS, CounterType.packets_and_bytes) pre_qos_counter;
+    meter<app_meter_id_t>(MAX_APP_METERS, MeterType.bytes) app_meter;
+    meter<session_meter_id_t>(MAX_SESSION_METERS, MeterType.bytes) session_meter;
+
+    action _initialize_metadata() {
+        local_meta.session_meter_id_internal = DEFAULT_SESSION_METER_ID;
+        local_meta.app_meter_id_internal = DEFAULT_APP_METER_ID;
+        local_meta.application_id = APP_ID_UNKNOWN;
+        local_meta.preserved_ingress_port = std_meta.ingress_port;
+    }
 
     table my_station {
         key = {
@@ -183,23 +195,28 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         exit;
     }
 
-    action set_session_uplink() {
+    action set_session_uplink(session_meter_id_t session_meter_id) {
         local_meta.needs_gtpu_decap = true;
+        local_meta.session_meter_id_internal = session_meter_id;
     }
 
     action set_session_uplink_drop() {
         local_meta.needs_dropping = true;
+        // TODO: should I set the meter id?
     }
 
-    action set_session_downlink(tunnel_peer_id_t tunnel_peer_id) {
+    action set_session_downlink(tunnel_peer_id_t tunnel_peer_id, session_meter_id_t session_meter_id) {
         local_meta.tunnel_peer_id = tunnel_peer_id;
+        local_meta.session_meter_id_internal = session_meter_id;
     }
     action set_session_downlink_drop() {
         local_meta.needs_dropping = true;
+        // TODO: should I set the meter ID??
     }
 
-    action set_session_downlink_buff() {
+    action set_session_downlink_buff(session_meter_id_t session_meter_id) {
         local_meta.needs_buffering = true;
+        local_meta.session_meter_id_internal = session_meter_id;
     }
 
     table sessions_uplink {
@@ -234,37 +251,39 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.terminations_hit = true;
     }
 
-    action uplink_term_fwd(counter_index_t ctr_idx, tc_t tc) {
+    action uplink_term_fwd_no_tc(counter_index_t ctr_idx, app_meter_id_t app_meter_id) {
         common_term(ctr_idx);
-        local_meta.tc = tc;
+        local_meta.app_meter_id_internal = app_meter_id;
     }
 
-    action uplink_term_fwd_no_tc(counter_index_t ctr_idx) {
-        common_term(ctr_idx);
+    action uplink_term_fwd(counter_index_t ctr_idx, tc_t tc, app_meter_id_t app_meter_id) {
+        uplink_term_fwd_no_tc(ctr_idx, app_meter_id);
+        local_meta.tc = tc;
     }
 
     action uplink_term_drop(counter_index_t ctr_idx) {
         common_term(ctr_idx);
         local_meta.needs_dropping = true;
+        // TODO: set app meter id??
+    }
+
+    action downlink_term_fwd_no_tc(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, app_meter_id_t app_meter_id) {
+        common_term(ctr_idx);
+        local_meta.tunnel_out_teid = teid;
+        local_meta.tunnel_out_qfi = qfi;
+        local_meta.app_meter_id_internal = app_meter_id;
     }
 
     // QFI = 0 for 4G traffic
-    action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, tc_t tc) {
-        common_term(ctr_idx);
-        local_meta.tunnel_out_teid = teid;
-        local_meta.tunnel_out_qfi = qfi;
+    action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, tc_t tc, app_meter_id_t app_meter_id) {
+        downlink_term_fwd_no_tc(ctr_idx, teid, qfi, app_meter_id);
         local_meta.tc = tc;
-    }
-
-    action downlink_term_fwd_no_tc(counter_index_t ctr_idx, teid_t teid, qfi_t qfi) {
-        common_term(ctr_idx);
-        local_meta.tunnel_out_teid = teid;
-        local_meta.tunnel_out_qfi = qfi;
     }
 
     action downlink_term_drop(counter_index_t ctr_idx) {
         common_term(ctr_idx);
         local_meta.needs_dropping = true;
+        // TODO: set app meter id??
     }
 
     table terminations_uplink {
@@ -422,6 +441,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     // INGRESS APPLY BLOCK
     //----------------------------------------
     apply {
+        _initialize_metadata();
         if (hdr.packet_out.isValid()) {
             // All packet-outs should be routed like regular packets, without UPF processing. This
             // is used for sending GTP End Marker to base stations, and for other packets
@@ -469,6 +489,16 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                     pre_qos_counter.count(local_meta.ctr_idx);
                 }
 
+                app_meter.execute_meter<MeterColor>(local_meta.app_meter_id_internal, local_meta.app_color);
+                if (local_meta.app_color == MeterColor.RED) {
+                    local_meta.needs_dropping = true;
+                } else {
+                    session_meter.execute_meter<MeterColor>(local_meta.session_meter_id_internal, local_meta.session_color);
+                    if (local_meta.session_color == MeterColor.RED) {
+                        local_meta.needs_dropping = true;
+                    }
+                }
+
                 // Perform whatever header removal the matching in
                 // sessions_* and terminations_* required.
                 if (local_meta.needs_gtpu_decap) {
@@ -509,7 +539,7 @@ control PostQosPipe (inout parsed_headers_t hdr,
                      inout standard_metadata_t std_meta) {
 
 
-    counter(MAX_PDRS, CounterType.packets_and_bytes) post_qos_counter;
+    counter<counter_index_t>(MAX_PDRS, CounterType.packets_and_bytes) post_qos_counter;
 
     apply {
         // Count packets that made it through QoS and were not dropped,
@@ -522,7 +552,7 @@ control PostQosPipe (inout parsed_headers_t hdr,
             // Add packet_in header and set relevant fields, such as the
             // switch ingress port where the packet was received.
             hdr.packet_in.setValid();
-            hdr.packet_in.ingress_port = std_meta.ingress_port;
+            hdr.packet_in.ingress_port = local_meta.preserved_ingress_port;
             // Exit the pipeline here.
             exit;
         }

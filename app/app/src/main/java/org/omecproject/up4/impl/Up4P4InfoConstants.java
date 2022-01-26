@@ -127,6 +127,8 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.Routing.drop");
     public static final PiActionId PRE_QOS_PIPE__ROUTING_ROUTE =
             PiActionId.of("PreQosPipe.Routing.route");
+    public static final PiActionId PRE_QOS_PIPE__INITIALIZE_METADATA =
+            PiActionId.of("PreQosPipe._initialize_metadata");
     public static final PiActionId PRE_QOS_PIPE_DO_DROP =
             PiActionId.of("PreQosPipe.do_drop");
     public static final PiActionId PRE_QOS_PIPE_DO_GTPU_TUNNEL =
@@ -163,6 +165,8 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.uplink_term_fwd_no_tc");
     // Action Param IDs
     public static final PiActionParamId APP_ID = PiActionParamId.of("app_id");
+    public static final PiActionParamId APP_METER_ID =
+            PiActionParamId.of("app_meter_id");
     public static final PiActionParamId CTR_IDX = PiActionParamId.of("ctr_idx");
     public static final PiActionParamId DIRECTION =
             PiActionParamId.of("direction");
@@ -173,6 +177,8 @@ public final class Up4P4InfoConstants {
             PiActionParamId.of("egress_port");
     public static final PiActionParamId PORT = PiActionParamId.of("port");
     public static final PiActionParamId QFI = PiActionParamId.of("qfi");
+    public static final PiActionParamId SESSION_METER_ID =
+            PiActionParamId.of("session_meter_id");
     public static final PiActionParamId SLICE_ID =
             PiActionParamId.of("slice_id");
     public static final PiActionParamId SPORT = PiActionParamId.of("sport");
@@ -195,4 +201,9 @@ public final class Up4P4InfoConstants {
     public static final PiPacketMetadataId RESERVED =
             PiPacketMetadataId.of("reserved");
     public static final int RESERVED_BITWIDTH = 8;
+    // Meter IDs
+    public static final PiMeterId PRE_QOS_PIPE_APP_METER =
+            PiMeterId.of("PreQosPipe.app_meter");
+    public static final PiMeterId PRE_QOS_PIPE_SESSION_METER =
+            PiMeterId.of("PreQosPipe.session_meter");
 }

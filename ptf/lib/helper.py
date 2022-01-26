@@ -308,6 +308,19 @@ class P4InfoHelper(object):
 
         return table_entry
 
+    def build_meter_entry(self, meter_name, id, cir=None, cburst=None, pir=None, pburst=None):
+        meter_entry = p4runtime_pb2.MeterEntry()
+        meter_entry.meter_id = self.get_meters_id(meter_name)
+
+        meter_entry.index.index = id
+        # configure Meter Config only if we have all the required fields
+        if cir is not None and cburst is not None and pir is not None and pburst is not None:
+            meter_entry.config.cir = cir
+            meter_entry.config.cburst = cburst
+            meter_entry.config.pir = pir
+            meter_entry.config.pburst = pburst
+        return meter_entry
+
     def build_action(self, action_name, action_params=None):
         action = p4runtime_pb2.Action()
         action.action_id = self.get_actions_id(action_name)
