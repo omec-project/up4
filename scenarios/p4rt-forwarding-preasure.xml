@@ -1,0 +1,68 @@
+<!--
+ ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="p4rt-forwarding-preasure" description="Forwarding test with large number of UE using p4runtime messages">
+    <group name="P4rt-Forwarding-Preasure">
+        <step name="Check-Up4-No-Flows-No-Fwd-Preasure"
+                exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
+        <group name="Check-Traffic-Drop-Preasure" requires="Check-Up4-No-Flows-No-Fwd-Preasure">
+            <parallel var="${ENODEB#}">
+                <!-- Downlink -->
+                <step name="Downlink-Enb-No-Fwd-Preasure-${#}"
+                      exec="mn-cmd ${ENODEB#} traffic.py recv-none -t 10"/>
+                <step name="Downlink-Pdn-No-Fwd-Preasure-${#}" delay="5"
+                      exec="mn-cmd pdn traffic.py send-udp --flow-count 10 -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <!-- Uplink -->
+                <step name="Uplink-Pdn-No-Fwd-Preasure-${#}"
+                      requires="Downlink-Enb-No-Fwd-Preasure-${#},Downlink-Pdn-No-Fwd-Preasure-${#}"
+                      exec="mn-cmd pdn traffic.py recv-none -t 10"/>
+                <step name="Uplink-Enb-No-Fwd-Preasure-${#}" delay="5"
+                      requires="Downlink-Enb-No-Fwd-Preasure-${#},Downlink-Pdn-No-Fwd-Preasure-${#}"
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp --flow-count 10 -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+            </parallel>
+        </group>
+        <group name="P4rt-Program-Preasure" requires="Check-Traffic-Drop-Preasure">
+            <group name="Push-Up4-Flows-Preasure">
+                <sequential var="${ENODEB#}"
+                            starts="P4rt-Set-Fwd-Preasure-${#}"
+                            ends="P4rt-Set-Fwd-Preasure-${#-1}">
+                    <step name="P4rt-Set-Fwd-Preasure-${#}"
+                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --ue-count ${P4RT_UP4_FLOWS_PREASURE} --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                </sequential>
+            </group>
+            <step name="Check-Up4-Flows-Fwd-Preasure" requires="Push-Up4-Flows-Preasure"
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${P4RT_UP4_FLOWS_PREASURE}, DL flows=${P4RT_UP4_FLOWS_PREASURE}'"/>
+            <step name="Check-Flow-Rules-Fwd-Preasure" requires="^" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+        <group name="Check-Traffic-Fwd-Preasure" requires="P4rt-Program-Preasure">
+            <parallel var="${ENODEB#}">
+                <!-- Downlink -->
+                <step name="Downlink-Enb-Recv-Gtp-Fwd-Preasure-${#}" requires="P4rt-Program-Preasure"
+                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp --flow-count 10 -t 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <step name="Downlink-Pdn-Send-Udp-Fwd-Preasure-${#}" requires="P4rt-Program-Preasure" delay="5"
+                      exec="mn-cmd pdn traffic.py send-udp --flow-count 10 -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <!-- Uplink -->
+                <step name="Uplink-Pdn-Recv-Udp-Fwd-Preasure-${#}" requires="P4rt-Program-Preasure"
+                      exec="mn-cmd pdn traffic.py recv-udp --flow-count 10 -t 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <step name="Uplink-Enb-Send-Gtp-Fwd-Preasure-${#}" requires="P4rt-Program-Preasure" delay="5"
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp --flow-count 10 -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+            </parallel>
+        </group>
+        <group name="P4rt-Clear-Fwd-Preasure" requires="~Check-Traffic-Fwd-Preasure">
+            <group name="Clear-Up4-Flows-Preasure">
+                <sequential var="${ENODEB#}"
+                            starts="P4rt-Unset-Fwd-Preasure-${#}"
+                            ends="P4rt-Unset-Fwd-Preasure-${#-1}">
+                    <step name="P4rt-Unset-Fwd-Preasure-${#}" requires="~Check-Traffic-Fwd-Preasure"
+                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows clear --ue-count ${P4RT_UP4_FLOWS_PREASURE} --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                </sequential>
+            </group>
+            <step name="Check-Up4-Flows-Fwd-Preasure-Cleared" requires="Clear-Up4-Flows-Preasure"
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
+            <step name="Check-Flow-Rules-Fwd-Preasure-Cleared" requires="^" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+    </group>
+</scenario>
