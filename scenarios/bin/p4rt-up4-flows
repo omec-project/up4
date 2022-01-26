@@ -163,7 +163,7 @@ def main():
     # Assign 2 TEIDs to UE, one for uplink, one for downlink
     teid_gen = iter(
         range(args.base if args.base else args.teid_base,
-              (args.base if args.base else args.teid_base) + args.ue_count * 2), 2)
+              (args.base if args.base else args.teid_base) + args.ue_count * 2, 2))
     ctr_id_gen = iter(
         range(args.ctr_base if args.ctr_base is not None else args.base,
               (args.ctr_base if args.ctr_base is not None else args.base) + rule_count))
