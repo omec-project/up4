@@ -134,7 +134,7 @@ pipeline {
     success {
       script {
         if (!params.ghprbPullId?.trim()) {
-          setBuildStatus("Build succeeded", "SUCCESS", "${env.GITHUB_URL}")
+          setBuildStatus("Build succeeded", "SUCCESS", "${env.GITHUB_URL}", "${env.JOB_NAME}")
         }
       }
     }
@@ -181,11 +181,11 @@ void exportArtifactsScenarios(String topo) {
   }
 }
 
-void setBuildStatus(String message, String state, String url) {
+void setBuildStatus(String message, String state, String url, String context) {
   step([
       $class: "GitHubCommitStatusSetter",
       reposSource: [$class: "ManuallyEnteredRepositorySource", url: url],
-      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: "up4-postmerge"],
+      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: context],
       statusResultSource: [ $class: "ConditionalStatusResultSource", results: [[$class: "AnyBuildResult", message: message, state: state]] ]
   ]);
 }

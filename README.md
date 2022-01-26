@@ -6,6 +6,8 @@ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
 # UP4
 
 [![codecov](https://codecov.io/gh/omec-project/up4/branch/master/graph/badge.svg?token=ZJ1RZ6CFXK)](https://codecov.io/gh/omec-project/up4)
+[![Build Status](https://jenkins.opencord.org/buildStatus/icon?job=up4-postmerge&subject=up4-postmerge)](https://jenkins.opencord.org/job/up4-postmerge/)
+[![Build Status](https://jenkins.opencord.org/buildStatus/icon?job=up4-devel-nightly&subject=up4-devel-nightly)](https://jenkins.opencord.org/job/up4-devel-nightly/)
 
 This project provides a reference P4 implementation of the mobile core user plane forwarding model. The initial focus is the 4G SPGW-u, but eventually, the same P4 program will evolve to support the 5G UPF.
 The project also provides testing for the reference P4 implementation, and an ONOS app for abstracting supported physical devices as the reference implementation.

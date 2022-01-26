@@ -341,6 +341,12 @@ public class Up4NorthComponentTest {
         readTest(TestImplConstants.UP4_UPLINK_INTERFACE);
     }
 
+    @Test
+    public void applicationFilteringReadTest() throws Exception {
+        mockUp4Service.apply(TestImplConstants.APPLICATION_FILTERING);
+        readTest(TestImplConstants.UP4_APPLICATION_FILTERING);
+    }
+
     // ------------------- INSERTION TESTS -------------------------------------
 
     @Test
@@ -391,6 +397,13 @@ public class Up4NorthComponentTest {
         assertThat(mockUp4Service.readAll(UpfEntityType.INTERFACE).size(), equalTo(1));
     }
 
+    @Test
+    public void applicationFilteringInsertionTest() throws Exception {
+        PiTableEntry entry = TestImplConstants.UP4_APPLICATION_FILTERING;
+        insertionTest(entry);
+        assertThat(mockUp4Service.readAll(UpfEntityType.APPLICATION).size(), equalTo(1));
+    }
+
     // ------------------- DELETION TESTS --------------------------------------
 
     @Test
@@ -433,6 +446,13 @@ public class Up4NorthComponentTest {
         mockUp4Service.apply(TestImplConstants.UPLINK_INTERFACE);
         deletionTest(TestImplConstants.UP4_UPLINK_INTERFACE);
         assertTrue(mockUp4Service.readAll(UpfEntityType.INTERFACE).isEmpty());
+    }
+
+    @Test
+    public void applicationFilteringDeletionTest() throws Exception {
+        mockUp4Service.apply(TestImplConstants.APPLICATION_FILTERING);
+        deletionTest(TestImplConstants.UP4_APPLICATION_FILTERING);
+        assertTrue(mockUp4Service.readAll(UpfEntityType.APPLICATION).isEmpty());
     }
 
     public void doArbitration(StreamObserver<P4RuntimeOuterClass.StreamMessageRequest> requestObserver) {

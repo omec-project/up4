@@ -18,8 +18,7 @@ import org.onosproject.net.behaviour.upf.SessionDownlink;
  */
 @Service
 @Command(scope = "up4", name = "session-dl",
-        description = "Insert (or delete) a downlink UE Session into the UP4 dataplane," +
-                " specifying TEID and tunnel peer means it's a DL UE session")
+        description = "Insert (or delete) a downlink UE Session into the UP4 dataplane")
 public class SessionDownlinkCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "ue-addr",
@@ -27,7 +26,7 @@ public class SessionDownlinkCommand extends AbstractShellCommand {
             required = true)
     String ueAddr = null;
 
-    @Argument(index = 3, name = "tunnel-peer",
+    @Argument(index = 1, name = "tunnel-peer",
             description = "ID of the GTP Tunnel Peer",
             required = false)
     byte tunnelPeer = -1;
