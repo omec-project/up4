@@ -4,7 +4,30 @@
   -->
 <scenario name="p4rt-forwarding" description="Forwarding test using p4runtime messages">
     <group name="P4rt-Forwarding">
-        <group name="P4rt-Program">
+        <group name="P4rt-Program-Drop-UL">
+            <group name="Push-Up4-Flows-Drop-UL">
+                <sequential var="${ENODEB#}"
+                            starts="P4rt-Set-Fwd-Drop-UL-${#}"
+                            ends="P4rt-Set-Fwd-Drop-UL-${#-1}">
+                    <step name="P4rt-Set-Fwd-Drop-UL-${#}"
+                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --base ${#}0 --drop-ul true --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                </sequential>
+            </group>
+            <step name="Check-Up4-Flows-Drop-UL" requires="Push-Up4-Flows-Drop-UL"
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${P4RT_UP4_FLOWS}, DL flows=${P4RT_UP4_FLOWS}'"/>
+            <step name="Check-Flow-Rules-Drop-UL" requires="^" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+        <group name="Check-UL-Dropped" requires="P4rt-Program-Drop-UL">
+            <parallel var="${ENODEB#}">
+                <!-- Uplink -->
+                <step name="Uplink-Pdn-Recv-Dropped-${#}" requires="P4rt-Program-Drop-UL"
+                      exec="mn-cmd pdn traffic.py recv-none -t 10"/>
+                <step name="Uplink-Enb-Send-Gtp-Drop-UL-${#}" requires="P4rt-Program-Drop-UL" delay="5"
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+            </parallel>
+        </group>
+        <group name="P4rt-Program" requires="Check-UL-Dropped">
             <group name="Push-Up4-Flows">
                 <sequential var="${ENODEB#}"
                             starts="P4rt-Set-Fwd-${#}"
