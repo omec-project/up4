@@ -4,8 +4,8 @@
  */
 package org.omecproject.up4.impl;
 
-import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
-import org.onosproject.net.behaviour.upf.SessionDownlink;
+import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
+import org.onosproject.net.behaviour.upf.UpfSessionDownlink;
 import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
 
@@ -15,13 +15,13 @@ import static com.google.common.base.Preconditions.checkArgument;
  * Helper class primarily intended for printing downlink UPF flows.
  */
 public final class DownlinkUpfFlow {
-    private final SessionDownlink sess;
+    private final UpfSessionDownlink sess;
     private final UpfTerminationDownlink term;
-    private final GtpTunnelPeer tunnelPeer;
+    private final UpfGtpTunnelPeer tunnelPeer;
     private final UpfCounter counter;
 
-    private DownlinkUpfFlow(SessionDownlink sess, UpfTerminationDownlink term,
-                            GtpTunnelPeer tunnelPeer, UpfCounter counter) {
+    private DownlinkUpfFlow(UpfSessionDownlink sess, UpfTerminationDownlink term,
+                            UpfGtpTunnelPeer tunnelPeer, UpfCounter counter) {
         this.sess = sess;
         this.term = term;
         this.tunnelPeer = tunnelPeer;
@@ -33,7 +33,7 @@ public final class DownlinkUpfFlow {
      *
      * @return the downlink UE session
      */
-    public SessionDownlink getSession() {
+    public UpfSessionDownlink getSession() {
         return sess;
     }
 
@@ -51,7 +51,7 @@ public final class DownlinkUpfFlow {
      *
      * @return the GTP tunnel peer
      */
-    public GtpTunnelPeer getTunnelPeer() {
+    public UpfGtpTunnelPeer getTunnelPeer() {
         return this.tunnelPeer;
     }
 
@@ -136,9 +136,9 @@ public final class DownlinkUpfFlow {
      * Builder of a downlink UPF flow.
      */
     public static class Builder {
-        private SessionDownlink sess = null;
+        private UpfSessionDownlink sess = null;
         private UpfTerminationDownlink term = null;
-        private GtpTunnelPeer tunnelPeer = null;
+        private UpfGtpTunnelPeer tunnelPeer = null;
         private UpfCounter counter = null;
 
         public Builder() {
@@ -152,7 +152,7 @@ public final class DownlinkUpfFlow {
          * @param sess the downlink UE session
          * @return this builder object
          */
-        public Builder withSessionDownlink(SessionDownlink sess) {
+        public Builder withSessionDownlink(UpfSessionDownlink sess) {
             this.sess = sess;
             return this;
         }
@@ -177,7 +177,7 @@ public final class DownlinkUpfFlow {
          * @param tunn the GTP tunnel peer
          * @return this builder object
          */
-        public Builder withTunnelPeer(GtpTunnelPeer tunn) {
+        public Builder withTunnelPeer(UpfGtpTunnelPeer tunn) {
             this.tunnelPeer = tunn;
             return this;
         }

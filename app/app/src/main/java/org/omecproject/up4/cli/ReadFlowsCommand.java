@@ -11,7 +11,7 @@ import org.omecproject.up4.impl.Up4AdminService;
 import org.omecproject.up4.impl.UplinkUpfFlow;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfApplication;
-import org.onosproject.net.behaviour.upf.SessionUplink;
+import org.onosproject.net.behaviour.upf.UpfSessionUplink;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 
@@ -56,7 +56,7 @@ public class ReadFlowsCommand extends AbstractShellCommand {
                 print("ERROR: Wrong uplink session: " + s);
                 continue;
             }
-            SessionUplink sess = (SessionUplink) s;
+            UpfSessionUplink sess = (UpfSessionUplink) s;
             print("n3_addr=" + sess.tunDstAddr() +
                           ", teid=" + sess.teid() +
                           (sess.needsDropping() ? ", drop()" : ", fwd()")

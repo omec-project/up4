@@ -13,6 +13,10 @@ public final class AppConstants {
     public static final String P4INFO_PATH = "/p4info.txt";
     public static final String SUPPORTED_PIPECONF_STRING = "fabric-spgw";
 
+    // Hard coding the mobile slice value, when supporting multiple slices, we
+    // will remove this, and get the slice id from the north.
+    public static final int SLICE_MOBILE = 0;
+
     // hide default constructor
     private AppConstants() {
     }

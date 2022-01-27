@@ -24,8 +24,8 @@ import org.onosproject.event.AbstractListenerManager;
 import org.onosproject.mastership.MastershipService;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
-import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
-import org.onosproject.net.behaviour.upf.SessionDownlink;
+import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
+import org.onosproject.net.behaviour.upf.UpfSessionDownlink;
 import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfDevice;
 import org.onosproject.net.behaviour.upf.UpfEntity;
@@ -78,6 +78,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL_DEFAULT;
 import static org.onlab.util.Tools.getLongProperty;
@@ -103,9 +104,6 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private static final long NO_UE_LIMIT = -1;
     public static final int GTP_PORT = 2152;
     public static final byte DBUF_TUNNEL_ID = 1;
-    // Hard coding the mobile slice value, when supporting multiple slices, we
-    // will remove this, and get the slice id from the north.
-    public static final byte SLICE_MOBILE = 0xF;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final AtomicBoolean upfInitialized = new AtomicBoolean(false);
@@ -163,7 +161,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private Up4Config config;
     private DbufClient dbufClient;
 
-    private GtpTunnelPeer dbufTunnel;
+    private UpfGtpTunnelPeer dbufTunnel;
 
     @Activate
     protected void activate() {
@@ -416,13 +414,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
      */
     private Collection<UpfInterface> configFileInterfaces() {
         Collection<UpfInterface> interfaces = new ArrayList<>();
-        interfaces.add(UpfInterface.createS1uFrom(config.s1uAddress()));
+        interfaces.add(UpfInterface.createS1uFrom(config.s1uAddress(), SLICE_MOBILE));
         for (Ip4Prefix uePool : config.uePools()) {
-            interfaces.add(UpfInterface.createUePoolFrom(uePool));
+            interfaces.add(UpfInterface.createUePoolFrom(uePool, SLICE_MOBILE));
         }
         Ip4Address dbufDrainAddr = config.dbufDrainAddr();
         if (dbufDrainAddr != null) {
-            interfaces.add(UpfInterface.createDbufReceiverFrom(dbufDrainAddr));
+            interfaces.add(UpfInterface.createDbufReceiverFrom(dbufDrainAddr, SLICE_MOBILE));
         }
         return interfaces;
     }
@@ -443,19 +441,19 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Override
     public Collection<DownlinkUpfFlow> getDownlinkFlows() throws UpfProgrammableException {
         Collection<DownlinkUpfFlow> downlinkFlows = Lists.newArrayList();
-        Map<Ip4Address, SessionDownlink> ueToSess = Maps.newHashMap();
-        Map<Byte, GtpTunnelPeer> idToTunn = Maps.newHashMap();
+        Map<Ip4Address, UpfSessionDownlink> ueToSess = Maps.newHashMap();
+        Map<Byte, UpfGtpTunnelPeer> idToTunn = Maps.newHashMap();
 
         Collection<? extends UpfEntity> downlinkTerm = this.adminReadAll(TERMINATION_DOWNLINK);
         this.adminReadAll(SESSION_DOWNLINK).forEach(
-                s -> ueToSess.put(((SessionDownlink) s).ueAddress(), (SessionDownlink) s));
+                s -> ueToSess.put(((UpfSessionDownlink) s).ueAddress(), (UpfSessionDownlink) s));
         this.adminReadAll(TUNNEL_PEER).forEach(
-                t -> idToTunn.put(((GtpTunnelPeer) t).tunPeerId(), (GtpTunnelPeer) t));
+                t -> idToTunn.put(((UpfGtpTunnelPeer) t).tunPeerId(), (UpfGtpTunnelPeer) t));
 
         for (UpfEntity t : downlinkTerm) {
             UpfTerminationDownlink term = (UpfTerminationDownlink) t;
-            SessionDownlink sess = ueToSess.getOrDefault(term.ueSessionId(), null);
-            GtpTunnelPeer tunn = null;
+            UpfSessionDownlink sess = ueToSess.getOrDefault(term.ueSessionId(), null);
+            UpfGtpTunnelPeer tunn = null;
             if (sess != null) {
                 tunn = idToTunn.getOrDefault(sess.tunPeerId(), null);
             }
@@ -571,7 +569,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private void updateDbufTunnel() {
         deleteDbufTunnel();
         if (dbufClient != null && configIsLoaded() && config.dbufDrainAddr() != null) {
-            this.dbufTunnel = GtpTunnelPeer.builder()
+            this.dbufTunnel = UpfGtpTunnelPeer.builder()
                     .withSrcAddr(config.dbufDrainAddr())
                     .withDstAddr(dbufClient.dataplaneIp4Addr())
                     .withSrcPort((short) GTP_PORT)
@@ -637,8 +635,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         up4Store.reset();
     }
 
-    private SessionDownlink convertToBuffering(SessionDownlink sess) {
-        SessionDownlink.Builder sessBuilder = SessionDownlink.builder()
+    private UpfSessionDownlink convertToBuffering(UpfSessionDownlink sess) {
+        UpfSessionDownlink.Builder sessBuilder = UpfSessionDownlink.builder()
                 .needsBuffering(true)
                 .withUeAddress(sess.ueAddress());
 
@@ -655,7 +653,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     public void apply(UpfEntity entity) throws UpfProgrammableException {
         switch (entity.type()) {
             case SESSION_DOWNLINK:
-                SessionDownlink sessDl = (SessionDownlink) entity;
+                UpfSessionDownlink sessDl = (UpfSessionDownlink) entity;
                 if (sessDl.needsBuffering()) {
                     // Override tunnel peer id with the DBUF
                     entity = convertToBuffering(sessDl);
@@ -691,7 +689,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 }
                 break;
             case TUNNEL_PEER:
-                GtpTunnelPeer tunnelPeer = (GtpTunnelPeer) entity;
+                UpfGtpTunnelPeer tunnelPeer = (UpfGtpTunnelPeer) entity;
                 if (tunnelPeer.tunPeerId() == DBUF_TUNNEL_ID) {
                     throw new UpfProgrammableException("Cannot apply the DBUF GTP Tunnel Peer");
                 }
@@ -702,7 +700,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         getLeaderUpfProgrammable().apply(entity);
         // Drain from DBUF if necessary
         if (entity.type().equals(SESSION_DOWNLINK)) {
-            SessionDownlink sess = (SessionDownlink) entity;
+            UpfSessionDownlink sess = (UpfSessionDownlink) entity;
             if (!sess.needsBuffering() && up4Store.forgetBufferingUe(sess.ueAddress())) {
                 // TODO: Should we wait for rules to be installed on all devices before
                 //   triggering drain?
@@ -753,9 +751,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     //  attachment and detachment of UEs.
                     // Map the DBUF entities back to be BUFFERING entities.
                     return entities.stream().map(e -> {
-                        SessionDownlink sess = (SessionDownlink) e;
+                        UpfSessionDownlink sess = (UpfSessionDownlink) e;
                         if (sess.tunPeerId() == DBUF_TUNNEL_ID) {
-                            return SessionDownlink.builder()
+                            return UpfSessionDownlink.builder()
                                     .needsBuffering(true)
                                     // Towards northbound, do not specify tunnel peer id
                                     .withUeAddress(sess.ueAddress())
@@ -771,7 +769,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 case TUNNEL_PEER:
                     // Don't expose DBUF GTP tunnel peer
                     return entities.stream()
-                            .filter(e -> ((GtpTunnelPeer) e).tunPeerId() != DBUF_TUNNEL_ID)
+                            .filter(e -> ((UpfGtpTunnelPeer) e).tunPeerId() != DBUF_TUNNEL_ID)
                             .collect(Collectors.toList());
                 default:
                     return entities;
@@ -818,7 +816,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     public void delete(UpfEntity entity) throws UpfProgrammableException {
         switch (entity.type()) {
             case SESSION_DOWNLINK:
-                SessionDownlink sess = (SessionDownlink) entity;
+                UpfSessionDownlink sess = (UpfSessionDownlink) entity;
                 if (sess.needsBuffering()) {
                     entity = convertToBuffering(sess);
                 }
@@ -830,7 +828,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 }
                 break;
             case TUNNEL_PEER:
-                GtpTunnelPeer tunnel = (GtpTunnelPeer) entity;
+                UpfGtpTunnelPeer tunnel = (UpfGtpTunnelPeer) entity;
                 if (tunnel.tunPeerId() == DBUF_TUNNEL_ID) {
                     throw new UpfProgrammableException("Cannot delete the DBUF GTP tunnel peer");
                 }
@@ -851,7 +849,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         // if it was used to be a buffer - we need to clean it as we will not see
         // the drain trigger
         if (entity.type().equals(SESSION_DOWNLINK)) {
-            up4Store.forgetBufferingUe(((SessionDownlink) entity).ueAddress());
+            up4Store.forgetBufferingUe(((UpfSessionDownlink) entity).ueAddress());
         }
     }
 
@@ -874,7 +872,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             case TUNNEL_PEER:
                 Collection<? extends UpfEntity> tunnels =
                         getLeaderUpfProgrammable().readAll(UpfEntityType.TUNNEL_PEER).stream()
-                                .filter(t -> ((GtpTunnelPeer) t).tunPeerId() != DBUF_TUNNEL_ID)
+                                .filter(t -> ((UpfGtpTunnelPeer) t).tunPeerId() != DBUF_TUNNEL_ID)
                                 .collect(Collectors.toList());
                 for (UpfEntity tun : tunnels) {
                     getLeaderUpfProgrammable().delete(tun);

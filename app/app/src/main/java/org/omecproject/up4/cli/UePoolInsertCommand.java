@@ -12,6 +12,8 @@ import org.onlab.packet.Ip4Prefix;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 
+import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
+
 /**
  * UP4 UE IPv4 address pool insertion command.
  */
@@ -30,7 +32,7 @@ public class UePoolInsertCommand extends AbstractShellCommand {
         Up4AdminService app = get(Up4AdminService.class);
         Ip4Prefix poolPrefix = Ip4Prefix.valueOf(this.poolPrefix);
         print("Adding UE IPv4 address pool prefix: %s", poolPrefix.toString());
-        app.adminApply(UpfInterface.createUePoolFrom(poolPrefix));
+        app.adminApply(UpfInterface.createUePoolFrom(poolPrefix, SLICE_MOBILE));
     }
 }
 
