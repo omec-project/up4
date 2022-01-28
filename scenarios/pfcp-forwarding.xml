@@ -8,7 +8,7 @@
             <group name="Pfcp-Push-Fwd-Create" delay="5">
                 <sequential var="${ENODEB#}"
                             starts="Pfcp-Session-Create-${#}"
-                            ends="Pfcp-Session-${#-1}">
+                            ends="Pfcp-Session-Create-${#-1}">
                     <step name="Pfcp-Session-Create-${#}"
                           exec="mock-smf-cmd create --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 </sequential>
