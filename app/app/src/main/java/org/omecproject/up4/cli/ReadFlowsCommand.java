@@ -44,7 +44,8 @@ public class ReadFlowsCommand extends AbstractShellCommand {
                 continue;
             }
             UpfApplication app = (UpfApplication) a;
-            print("ipv4_prefix=" + app.ip4Prefix() +
+            print("app_id=" + app.appId() +
+                          ", ipv4_prefix=" + app.ip4Prefix() +
                           ", l4_range=" + app.l4PortRange() +
                           ", ip_proto=" + app.ipProto()
             );
