@@ -13,7 +13,7 @@
         </group>
 
         <step name="AF-Check-Flows-1" requires="AF-Setup-Fwd" delay="2"
-              exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=2, DL flows=2'"/>
+              exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=1, DL flows=1'"/>
 
         <step name="AF-Restart-Agent" requires="^"
               exec="${DOCKER_COMPOSE_CMD} restart pfcp-agent"/>
