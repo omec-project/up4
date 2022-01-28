@@ -122,8 +122,10 @@ class Session:
             self.add_to_req_if_rule_new(request, pdr_down, self.downlink.pdr_id, "pdr")
 
         if add_fars:
-            far_up = craft_far(session=self, far_id=self.uplink.far_id, forward_flag=True,
-                               dst_iface=IFACE_CORE, tunnel=False)
+            # If it is session establishment, drop the traffic
+            uplink_drop = isinstance(request, pfcp.PFCPSessionEstablishmentRequest)
+            far_up = craft_far(session=self, far_id=self.uplink.far_id, forward_flag=not uplink_drop,
+                               drop_flag=uplink_drop, dst_iface=IFACE_CORE, tunnel=False)
             self.add_to_req_if_rule_new(request, far_up, self.uplink.far_id, "far")
             # The downlink FAR should only tunnel if this is an update message. Our PFCP agent does not support
             #  outer header creation on session establishment, only session modification
