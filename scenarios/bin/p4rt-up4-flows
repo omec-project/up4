@@ -24,6 +24,12 @@ TRAFFIC_CLASS = "1"
 
 DEFAULT_APP_ID = 0
 
+APP_PROTO_TO_ID = {
+    "UDP": 17,
+    "TCP": 6,
+    "ICMP": 1
+}
+
 
 def get_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -178,7 +184,7 @@ def main():
         if args.app_l4_port:
             entry.match["app_l4_port"] = str(args.app_l4_port) + ".." + str(args.app_l4_port)
         if args.app_proto:
-            entry.match["app_ip_proto"] = args.app_proto
+            entry.match["app_ip_proto"] = str(APP_PROTO_TO_ID[args.app_proto])
         entry.action["app_id"] = str(app_id)
         entry.priority = args.app_prio
         add_entry(entry, args.action)
