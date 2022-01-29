@@ -18,16 +18,16 @@
             <step name="Check-Flow-Rules-Fwd-Create" requires="Pfcp-Push-Fwd-Create" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
-        <group name="Check-Traffic-Drop-UL" requires="Pfcp-Setup-Fwd-Create" delay="5">
+        <group name="Check-Traffic-Drop-DL" requires="Pfcp-Setup-Fwd-Create" delay="5">
             <parallel var="${ENODEB#}">
-                <!-- Uplink -->
-                <step name="Uplink-Pdn-Recv-Udp-Fwd-Drop-UL-${#}" requires="Pfcp-Setup-Fwd-Create"
-                      exec="mn-cmd pdn traffic.py recv-none -t 10"/>
-                <step name="Uplink-Enb-Send-Gtp-Fwd-Drop-UL-${#}" requires="Pfcp-Setup-Fwd-Create" delay="5"
-                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                <!-- Downlink -->
+                <step name="Downlink-Enb-Recv-Gtp-Fwd-Drop-DL-${#}" requires="Pfcp-Setup-Fwd-Create"
+                      exec="mn-cmd ${ENODEB#} traffic.py recv-none -t 10"/>
+                <step name="Downlink-Pdn-Send-Udp-Fwd-Drop-DL-${#}" requires="Pfcp-Setup-Fwd-Create" delay="5"
+                      exec="mn-cmd pdn traffic.py send-udp -c 10 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
             </parallel>
         </group>
-        <group name="Pfcp-Setup-Fwd-Modify" requires="Check-Traffic-Drop-UL">
+        <group name="Pfcp-Setup-Fwd-Modify" requires="Check-Traffic-Drop-DL">
             <group name="Pfcp-Push-Fwd-Modify" delay="5">
                 <sequential var="${ENODEB#}"
                             starts="Pfcp-Session-Modify-${#}"
