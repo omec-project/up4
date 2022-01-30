@@ -1127,6 +1127,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if ((event.type() == FlowRuleEvent.Type.RULE_ADD_REQUESTED ||
                     event.type() == FlowRuleEvent.Type.RULE_REMOVE_REQUESTED) &&
                     event.subject().deviceId().equals(leaderUpfDevice)) {
+                // Create an expected failure here with 50% fail rate
+                // Should be recovered by reconciliation cycle
+                if (Math.random() > 0.5) {
+                    return;
+                }
                 try {
                     assertUpfIsReady();
                 } catch (IllegalStateException e) {

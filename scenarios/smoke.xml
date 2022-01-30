@@ -8,7 +8,7 @@
     <!-- <import file="./p4rt-forwarding-qos.xml"/> -->
     <import file="./p4rt-end-marker.xml"/>
     <import file="./pfcp-forwarding.xml"/>
-    <import file="./pfcp-buffering.xml"/>
+    <!-- <import file="./pfcp-buffering.xml"/> -->
     <import file="./teardown.xml"/>
     <import file="./smf-setup.xml"/>
     <import file="./smf-teardown.xml"/>
@@ -25,8 +25,8 @@
     <!-- FIXME: replace with equivalent scenario where mock smf sends end markers -->
     <dependency name="P4rt-End-Marker" requires="No-Forwarding"/>
     <dependency name="Pfcp-Forwarding" requires="Smf-Setup,P4rt-End-Marker"/>
-    <dependency name="Pfcp-Buffering" requires="Pfcp-Forwarding"/>
-    <dependency name="Pfcp-Agent-Failure" requires="Pfcp-Buffering"/>
+    <!-- <dependency name="Pfcp-Buffering" requires="Pfcp-Forwarding"/> -->
+    <dependency name="Pfcp-Agent-Failure" requires="Pfcp-Forwarding"/>
     <dependency name="Smf-Failure" requires="Pfcp-Agent-Failure"/>
     <dependency name="Smf-Teardown" requires="~Smf-Failure"/>
     <dependency name="Teardown" requires="~Smf-Teardown"/>
