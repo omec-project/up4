@@ -6,7 +6,7 @@
 // sha1 used for PRs, while commitHash is populated for postmerge
 def commitHash = params.commitHash ? params.commitHash : params.sha1
 def up4Env = params.up4Env ? "${params.up4Env}" : "stable"
-def up4Ctrl = params.hasProperty("up4Ctrl") ? "${params.up4Ctrl}" : "pfcp"
+def up4Ctrl = params.up4Ctrl ? "${params.up4Ctrl}" : "pfcp"
 
 pipeline {
 
@@ -19,6 +19,7 @@ pipeline {
 
   environment {
     UP4_ENV = "${up4Env}"
+    UP4_CTRL = "${up4Ctrl}"
     JAVA_HOME = "/usr/lib/jvm/java-11-amazon-corretto"
     GITHUB_URL = "ssh://git@github.com/omec-project/up4.git"
   }
