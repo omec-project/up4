@@ -8,6 +8,7 @@ import com.google.protobuf.ByteString;
 import com.google.rpc.Code;
 import com.google.rpc.Status;
 import io.grpc.stub.StreamObserver;
+import junit.framework.AssertionFailedError;
 import org.junit.Before;
 import org.junit.Test;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
@@ -17,6 +18,7 @@ import org.onosproject.net.pi.runtime.PiCounterCell;
 import org.onosproject.net.pi.runtime.PiCounterCellId;
 import org.onosproject.net.pi.runtime.PiEntity;
 import org.onosproject.net.pi.runtime.PiEntityType;
+import org.onosproject.net.pi.runtime.PiMeterCellConfig;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.p4runtime.ctl.codec.CodecException;
 import org.onosproject.p4runtime.ctl.codec.Codecs;
@@ -116,7 +118,19 @@ public class Up4NorthComponentTest {
         writeResponseObserver.assertErrorObserved();
     }
 
-    private void insertionTest(PiTableEntry entryToInsert) {
+    private void insertionTest(PiEntity entryToInsert) {
+        p4rtRequestTest(entryToInsert, P4RuntimeOuterClass.Update.Type.INSERT);
+    }
+
+    private void modificationTest(PiEntity entryToInsert) {
+        p4rtRequestTest(entryToInsert, P4RuntimeOuterClass.Update.Type.MODIFY);
+    }
+
+    private void deletionTest(PiEntity entryToDelete) {
+        p4rtRequestTest(entryToDelete, P4RuntimeOuterClass.Update.Type.DELETE);
+    }
+
+    private void p4rtRequestTest(PiEntity entryToInsert, P4RuntimeOuterClass.Update.Type type) {
         MockStreamObserver<P4RuntimeOuterClass.WriteResponse> responseObserver = new MockStreamObserver<>();
         P4RuntimeOuterClass.Entity entity;
         try {
@@ -130,7 +144,7 @@ public class Up4NorthComponentTest {
                 .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
                 .addUpdates(P4RuntimeOuterClass.Update.newBuilder()
                                     .setEntity(entity)
-                                    .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+                                    .setType(type)
                                     .build())
                 .build();
 
@@ -140,31 +154,7 @@ public class Up4NorthComponentTest {
         assertThat(response, equalTo(P4RuntimeOuterClass.WriteResponse.getDefaultInstance()));
     }
 
-    private void deletionTest(PiTableEntry entryToDelete) {
-        MockStreamObserver<P4RuntimeOuterClass.WriteResponse> responseObserver = new MockStreamObserver<>();
-        P4RuntimeOuterClass.Entity entity;
-        try {
-            entity = Codecs.CODECS.entity().encode(entryToDelete, null, pipeconf);
-        } catch (CodecException e) {
-            fail("Unable to encode UP4 entry into a p4runtime entity.");
-            return;
-        }
-
-        P4RuntimeOuterClass.WriteRequest request = P4RuntimeOuterClass.WriteRequest.newBuilder()
-                .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
-                .addUpdates(P4RuntimeOuterClass.Update.newBuilder()
-                                    .setEntity(entity)
-                                    .setType(P4RuntimeOuterClass.Update.Type.DELETE)
-                                    .build())
-                .build();
-
-        up4NorthService.write(request, responseObserver);
-
-        var response = responseObserver.lastResponse();
-        assertThat(response, equalTo(P4RuntimeOuterClass.WriteResponse.getDefaultInstance()));
-    }
-
-    private void readTest(PiTableEntry entryToRead) {
+    private void readTest(PiEntity entryToRead) {
         MockStreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver = new MockStreamObserver<>();
         P4RuntimeOuterClass.Entity entity;
         try {
@@ -347,6 +337,18 @@ public class Up4NorthComponentTest {
         readTest(TestImplConstants.UP4_APPLICATION_FILTERING);
     }
 
+    @Test
+    public void sessionMeterReadTest() throws Exception {
+        mockUp4Service.apply(TestImplConstants.SESSION_METER);
+        readTest(TestImplConstants.UP4_SESSION_METER);
+    }
+
+    @Test
+    public void appMeterReadTest() throws Exception {
+        mockUp4Service.apply(TestImplConstants.APP_METER);
+        readTest(TestImplConstants.UP4_APP_METER);
+    }
+
     // ------------------- INSERTION TESTS -------------------------------------
 
     @Test
@@ -404,6 +406,32 @@ public class Up4NorthComponentTest {
         assertThat(mockUp4Service.readAll(UpfEntityType.APPLICATION).size(), equalTo(1));
     }
 
+    @Test(expected = AssertionFailedError.class)
+    public void sessionMeterInsertionTestFail() throws Exception {
+        // Meter cannot be inserted!
+        PiMeterCellConfig meterEntry = TestImplConstants.UP4_SESSION_METER;
+        insertionTest(meterEntry);
+        assertThat(mockUp4Service.readAll(UpfEntityType.SESSION_METER).size(), equalTo(1));
+    }
+
+    // ------------------- MODIFICATION TESTS ----------------------------------
+
+    @Test
+    public void sessionMeterModification() throws Exception {
+        // Meter cannot be inserted!
+        PiMeterCellConfig meterEntry = TestImplConstants.UP4_SESSION_METER;
+        modificationTest(meterEntry);
+        assertThat(mockUp4Service.readAll(UpfEntityType.SESSION_METER).size(), equalTo(1));
+    }
+
+    @Test
+    public void appMeterModification() throws Exception {
+        // Meter cannot be inserted!
+        PiMeterCellConfig meterEntry = TestImplConstants.UP4_APP_METER;
+        modificationTest(meterEntry);
+        assertThat(mockUp4Service.readAll(UpfEntityType.APPLICATION_METER).size(), equalTo(1));
+    }
+
     // ------------------- DELETION TESTS --------------------------------------
 
     @Test
@@ -453,6 +481,14 @@ public class Up4NorthComponentTest {
         mockUp4Service.apply(TestImplConstants.APPLICATION_FILTERING);
         deletionTest(TestImplConstants.UP4_APPLICATION_FILTERING);
         assertTrue(mockUp4Service.readAll(UpfEntityType.APPLICATION).isEmpty());
+    }
+
+    @Test(expected = AssertionFailedError.class)
+    public void sessionMeterDeletionTestFail() throws Exception {
+        // Meter cannot be deleted!
+        mockUp4Service.apply(TestImplConstants.SESSION_METER);
+        deletionTest(TestImplConstants.UP4_SESSION_METER);
+        assertTrue(mockUp4Service.readAll(UpfEntityType.SESSION_METER).isEmpty());
     }
 
     public void doArbitration(StreamObserver<P4RuntimeOuterClass.StreamMessageRequest> requestObserver) {
@@ -616,7 +652,7 @@ public class Up4NorthComponentTest {
                 this.errorObserved = t;
                 assertThat(errorObserved.getClass(), equalTo(errorExpected.getClass()));
             } else {
-                fail("Stream observer shouldn't see any errors");
+                fail("Stream observer shouldn't see any errors: " + t.getMessage());
             }
         }
 

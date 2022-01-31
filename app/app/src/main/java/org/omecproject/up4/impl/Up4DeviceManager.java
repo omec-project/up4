@@ -911,6 +911,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             case TERMINATION_DOWNLINK:
             case SESSION_UPLINK:
             case SESSION_DOWNLINK:
+            case SESSION_METER:
+            case APPLICATION_METER:
                 if (isMaxUeSet()) {
                     return Math.min(config.maxUes(), entitySize);
                 }

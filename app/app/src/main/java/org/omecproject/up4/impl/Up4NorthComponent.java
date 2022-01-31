@@ -33,6 +33,7 @@ import org.onosproject.net.pi.model.PiPipelineModel;
 import org.onosproject.net.pi.runtime.PiCounterCell;
 import org.onosproject.net.pi.runtime.PiCounterCellId;
 import org.onosproject.net.pi.runtime.PiEntity;
+import org.onosproject.net.pi.runtime.PiMeterCellConfig;
 import org.onosproject.net.pi.runtime.PiTableAction;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.p4runtime.ctl.codec.CodecException;
@@ -70,9 +71,11 @@ import static java.lang.String.format;
 import static org.omecproject.up4.impl.AppConstants.PIPECONF_ID;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.DDN_DIGEST_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.POST_QOS_PIPE_POST_QOS_COUNTER;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APP_METER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_PRE_QOS_COUNTER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_DOWNLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_UPLINK;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSION_METER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_DOWNLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_UPLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TUNNEL_PEERS;
@@ -180,21 +183,34 @@ public class Up4NorthComponent {
     }
 
     /**
-     * Translate the given logical pipeline table entry to a Up4Service entry insertion call.
+     * Translate the given logical pipeline table entry or meter cell config
+     * to a Up4Service entry apply call.
      *
-     * @param entry The logical table entry to be inserted
-     * @throws StatusException if the entry fails translation or cannot be inserted
+     * @param entry The logical table entry or meter cell config to be applied
+     * @throws StatusException if the entry fails translation or cannot be applied
      */
-    private void translateEntryAndInsert(PiTableEntry entry) throws StatusException {
+    private void translateEntryAndApply(PiEntity entry) throws StatusException {
         log.debug("Translating UP4 write request to fabric entry.");
-        if (entry.action().type() != PiTableAction.Type.ACTION) {
-            log.warn("Action profile entry insertion not supported. Ignoring.");
-            throw UNIMPLEMENTED
-                    .withDescription("Action profile entries not supported by UP4.")
-                    .asException();
-        }
         try {
-            up4Service.apply(up4Translator.up4TableEntryToUpfEntity(entry));
+            switch (entry.piEntityType()) {
+                case TABLE_ENTRY:
+                    PiTableEntry tableEntry = (PiTableEntry) entry;
+                    if (tableEntry.action().type() != PiTableAction.Type.ACTION) {
+                        log.warn("Action profile entry insertion not supported. Ignoring.");
+                        throw UNIMPLEMENTED
+                                .withDescription("Action profile entries not supported by UP4.")
+                                .asException();
+                    }
+                    up4Service.apply(up4Translator.up4TableEntryToUpfEntity(tableEntry));
+                    break;
+                case METER_CELL_CONFIG:
+                    up4Service.apply(up4Translator.up4MeterEntryToUpfEntity((PiMeterCellConfig) entry));
+                    break;
+                default:
+                    throw UNIMPLEMENTED
+                            .withDescription("Unsupported entity type: " + entry.piEntityType())
+                            .asException();
+            }
         } catch (Up4Translator.Up4TranslationException e) {
             log.warn("Failed to parse entry from a write request: {}", e.getMessage());
             throw INVALID_ARGUMENT
@@ -221,25 +237,33 @@ public class Up4NorthComponent {
     }
 
     /**
-     * Find all table entries that match the requested entry, and translate them to p4runtime
-     * entities for responding to a read request.
+     * Find all table entries or meter entries that match the requested entry,
+     * and translate them to p4runtime entities for responding to a read request.
      *
      * @param requestedEntry the entry from a p4runtime read request
      * @return all entries that match the request, translated to p4runtime entities
      * @throws StatusException if the requested entry fails translation
      */
-    private List<P4RuntimeOuterClass.Entity> readEntriesAndTranslate(PiTableEntry requestedEntry)
+    private List<P4RuntimeOuterClass.Entity> readEntriesAndTranslate(PiEntity requestedEntry)
             throws StatusException {
         List<P4RuntimeOuterClass.Entity> translatedEntries = new ArrayList<>();
-        // Respond with all entries for the table of the requested entry, ignoring other requested properties
-        // TODO: return more specific responses
+        // Respond with all entries for the table or meter of the requested entry, ignoring other requested properties
+        // TODO: return more specific responses matching the requested entry
         try {
             UpfEntityType entityType = up4Translator.getEntityType(requestedEntry);
+            boolean isMeter = entityType.equals(UpfEntityType.SESSION_METER) ||
+                    entityType.equals(UpfEntityType.APPLICATION_METER);
             Collection<? extends UpfEntity> entities = up4Service.readAll(entityType);
             for (UpfEntity entity : entities) {
                 log.debug("Translating a {} entity for a read request: {}", entity.type(), entity);
-                P4RuntimeOuterClass.Entity responseEntity = Codecs.CODECS.entity().encode(
-                        up4Translator.entityToUp4TableEntry(entity), null, pipeconf);
+                P4RuntimeOuterClass.Entity responseEntity;
+                if (isMeter) {
+                    responseEntity = Codecs.CODECS.entity().encode(
+                            up4Translator.entityToUp4MeterEntry(entity), null, pipeconf);
+                } else {
+                    responseEntity = Codecs.CODECS.entity().encode(
+                            up4Translator.entityToUp4TableEntry(entity), null, pipeconf);
+                }
                 translatedEntries.add(responseEntity);
             }
         } catch (Up4Translator.Up4TranslationException | UpfProgrammableException | CodecException e) {
@@ -253,7 +277,7 @@ public class Up4NorthComponent {
     }
 
     /**
-     * Update the logical p4info with physical resource sizes. TODO: set table sizes as well
+     * Update the logical p4info with physical resource sizes.
      *
      * @param p4Info a logical UP4 switch's p4info
      * @return the same p4info, but with resource sizes set to the sizes from the physical switch
@@ -262,8 +286,11 @@ public class Up4NorthComponent {
     P4InfoOuterClass.P4Info setPhysicalSizes(P4InfoOuterClass.P4Info p4Info) {
         var newP4InfoBuilder = P4InfoOuterClass.P4Info.newBuilder(p4Info)
                 .clearCounters()
-                .clearTables();
+                .clearTables()
+                .clearMeters();
         long physicalCounterSize;
+        long physicalSessionMeterSize;
+        long physicalAppMeterSize;
         long physicalSessionsUlTableSize;
         long physicalSessionsDlTableSize;
         long physicalTerminationsUlTableSize;
@@ -271,6 +298,8 @@ public class Up4NorthComponent {
         long physicalTunnelPeerTableSize;
         try {
             physicalCounterSize = up4Service.tableSize(UpfEntityType.COUNTER);
+            physicalSessionMeterSize = up4Service.tableSize(UpfEntityType.SESSION_METER);
+            physicalAppMeterSize = up4Service.tableSize(UpfEntityType.APPLICATION_METER);
             physicalSessionsUlTableSize = up4Service.tableSize(UpfEntityType.SESSION_UPLINK);
             physicalSessionsDlTableSize = up4Service.tableSize(UpfEntityType.SESSION_DOWNLINK);
             physicalTerminationsUlTableSize = up4Service.tableSize(UpfEntityType.TERMINATION_UPLINK);
@@ -281,6 +310,8 @@ public class Up4NorthComponent {
         }
         int ingressPdrCounterId;
         int egressPdrCounterId;
+        int sessionMeterId;
+        int appMeterId;
         int sessionsUlTable;
         int sessionsDlTable;
         int terminationsUlTable;
@@ -290,6 +321,10 @@ public class Up4NorthComponent {
             P4InfoBrowser browser = PipeconfHelper.getP4InfoBrowser(pipeconf);
             ingressPdrCounterId = browser.counters()
                     .getByName(PRE_QOS_PIPE_PRE_QOS_COUNTER.id()).getPreamble().getId();
+            sessionMeterId = browser.meters()
+                    .getByName(PRE_QOS_PIPE_SESSION_METER.id()).getPreamble().getId();
+            appMeterId = browser.meters()
+                    .getByName(PRE_QOS_PIPE_APP_METER.id()).getPreamble().getId();
             egressPdrCounterId = browser.counters()
                     .getByName(POST_QOS_PIPE_POST_QOS_COUNTER.id()).getPreamble().getId();
             sessionsUlTable = browser.tables()
@@ -311,10 +346,24 @@ public class Up4NorthComponent {
                 // Change the sizes of the PDR counters
                 newP4InfoBuilder.addCounters(
                         P4InfoOuterClass.Counter.newBuilder(counter)
-                                .setSize((long) physicalCounterSize).build());
+                                .setSize(physicalCounterSize).build());
             } else {
                 // Any other counters go unchanged (for now)
                 newP4InfoBuilder.addCounters(counter);
+            }
+        });
+        p4Info.getMetersList().forEach(meter -> {
+            if (meter.getPreamble().getId() == sessionMeterId) {
+                newP4InfoBuilder.addMeters(
+                        P4InfoOuterClass.Meter.newBuilder(meter)
+                                .setSize(physicalSessionMeterSize)).build();
+            } else if (meter.getPreamble().getId() == appMeterId) {
+                newP4InfoBuilder.addMeters(
+                        P4InfoOuterClass.Meter.newBuilder(meter)
+                                .setSize(physicalAppMeterSize)).build();
+            } else {
+                // Any other meters go unchanged
+                newP4InfoBuilder.addMeters(meter);
             }
         });
         p4Info.getTablesList().forEach(table -> {
@@ -709,19 +758,38 @@ public class Up4NorthComponent {
                     case COUNTER_ENTRY:
                         // TODO: support counter cell writes, including wildcard writes
                         break;
-                    case TABLE_ENTRY:
-                        PiEntity piEntity;
+                    case METER_ENTRY:
+                        PiEntity piMeterEntity;
                         try {
-                            piEntity = Codecs.CODECS.entity().decode(requestEntity, null, pipeconf);
+                            piMeterEntity = Codecs.CODECS.entity().decode(requestEntity, null, pipeconf);
                         } catch (CodecException e) {
                             log.warn("Unable to decode p4runtime entity update message", e);
                             throw INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
                         }
-                        PiTableEntry entry = (PiTableEntry) piEntity;
+                        PiMeterCellConfig meterEntry = (PiMeterCellConfig) piMeterEntity;
+                        if (update.getType() == P4RuntimeOuterClass.Update.Type.MODIFY) {
+                            // The only operation supported for meters is MODIFY
+                            translateEntryAndApply(meterEntry);
+                        } else {
+                            log.error("Unsupported update type for meter entry!");
+                            throw INVALID_ARGUMENT
+                                    .withDescription("Unsupported update type")
+                                    .asException();
+                        }
+                        break;
+                    case TABLE_ENTRY:
+                        PiEntity piTableEntity;
+                        try {
+                            piTableEntity = Codecs.CODECS.entity().decode(requestEntity, null, pipeconf);
+                        } catch (CodecException e) {
+                            log.warn("Unable to decode p4runtime entity update message", e);
+                            throw INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
+                        }
+                        PiTableEntry entry = (PiTableEntry) piTableEntity;
                         switch (update.getType()) {
                             case INSERT:
                             case MODIFY:
-                                translateEntryAndInsert(entry);
+                                translateEntryAndApply(entry);
                                 break;
                             case DELETE:
                                 translateEntryAndDelete(entry);
@@ -777,10 +845,11 @@ public class Up4NorthComponent {
                                         .addAllEntities(readCountersAndTranslate(requestEntity.getCounterEntry()))
                                         .build());
                         break;
+                    case METER_ENTRY:
                     case TABLE_ENTRY:
-                        PiTableEntry requestEntry;
+                        PiEntity requestEntry;
                         try {
-                            requestEntry = (PiTableEntry) Codecs.CODECS.entity().decode(
+                            requestEntry = Codecs.CODECS.entity().decode(
                                     requestEntity, null, pipeconf);
                         } catch (CodecException e) {
                             log.warn("Unable to decode p4runtime read request entity", e);

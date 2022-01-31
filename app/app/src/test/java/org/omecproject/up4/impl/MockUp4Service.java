@@ -26,6 +26,8 @@ public class MockUp4Service implements Up4Service {
     final List<UpfEntity> tunnelPeers = new ArrayList<>();
     final List<UpfEntity> applications = new ArrayList<>();
     final List<UpfEntity> ifaces = new ArrayList<>();
+    final List<UpfEntity> sessionMeters = new ArrayList<>();
+    final List<UpfEntity> applicationMeters = new ArrayList<>();
     final List<ByteBuffer> sentPacketOuts = new ArrayList<>();
 
     public void hideState(boolean hideUpfProgrammable, boolean hideConfig) {
@@ -82,6 +84,12 @@ public class MockUp4Service implements Up4Service {
             case APPLICATION:
                 applications.add(entity);
                 break;
+            case SESSION_METER:
+                sessionMeters.add(entity);
+                break;
+            case APPLICATION_METER:
+                applicationMeters.add(entity);
+                break;
             default:
                 break;
         }
@@ -105,6 +113,10 @@ public class MockUp4Service implements Up4Service {
                 return tunnelPeers;
             case APPLICATION:
                 return applications;
+            case SESSION_METER:
+                return sessionMeters;
+            case APPLICATION_METER:
+                return applicationMeters;
             default:
                 break;
         }
@@ -170,6 +182,12 @@ public class MockUp4Service implements Up4Service {
             case APPLICATION:
                 entities = applications;
                 break;
+            case SESSION_METER:
+                entities = sessionMeters;
+                break;
+            case APPLICATION_METER:
+                entities = applicationMeters;
+                break;
             default:
                 return;
         }
@@ -203,6 +221,12 @@ public class MockUp4Service implements Up4Service {
             case APPLICATION:
                 applications.clear();
                 break;
+            case SESSION_METER:
+                sessionMeters.clear();
+                break;
+            case APPLICATION_METER:
+                applicationMeters.clear();
+                break;
             default:
                 break;
         }
@@ -225,6 +249,9 @@ public class MockUp4Service implements Up4Service {
                 return TestImplConstants.PHYSICAL_COUNTER_SIZE;
             case APPLICATION:
                 return TestImplConstants.PHYSICAL_APPLICATIONS_SIZE;
+            case SESSION_METER:
+            case APPLICATION_METER:
+                return TestImplConstants.PHYSICAL_MAX_METERS;
             default:
                 break;
         }
