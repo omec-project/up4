@@ -138,7 +138,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                     throw new Up4TranslationException(
                             "Attempting to translate an unsupported UP4 interface type! " + srcIfaceTypeInt);
                 }
-                // TODO: read slice_id from UP4 table entry
+                // TODO: read slice_id from UP4 table entry or netcfg https://jira.opennetworking.org/browse/SDFAB-985
                 Ip4Prefix prefix = Up4TranslatorUtil.getFieldPrefix(entry, HDR_IPV4_DST_PREFIX);
                 builder.setPrefix(prefix);
                 builder.setSliceId(SLICE_MOBILE);
