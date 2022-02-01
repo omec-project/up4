@@ -30,9 +30,11 @@ pipeline {
     stage("Environment Cleanup") {
       steps {
         step([$class: "WsCleanup"])
-        if (!params.ghprbPullId?.trim()) {
-          // Set PENDING build status
-          setBuildStatus("Build pending", "PENDING", "${env.GITHUB_URL}", "${env.JOB_NAME}")
+        script{
+            if (!params.ghprbPullId?.trim()) {
+              // Set PENDING build status
+              setBuildStatus("Build pending", "PENDING", "${env.GITHUB_URL}", "${env.JOB_NAME}")
+            }
         }
       }
     }
