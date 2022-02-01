@@ -6,6 +6,8 @@
 // sha1 used for PRs, while commitHash is populated for postmerge
 def commitHash = params.commitHash ? params.commitHash : params.sha1
 def up4Env = params.up4Env ? "${params.up4Env}" : "stable"
+// The type of control mode to use.
+// Can be either pfcp (uses a mock-smf with pfcp-agent) or p4rt (uses p4rt-shell directly).
 def up4Ctrl = params.up4Ctrl ? "${params.up4Ctrl}" : "pfcp"
 
 pipeline {
