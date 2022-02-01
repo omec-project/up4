@@ -30,6 +30,10 @@ pipeline {
     stage("Environment Cleanup") {
       steps {
         step([$class: "WsCleanup"])
+        if (!params.ghprbPullId?.trim()) {
+          // Set PENDING build status
+          setBuildStatus("Build pending", "PENDING", "${env.GITHUB_URL}", "${env.JOB_NAME}")
+        }
       }
     }
     stage("Checkout") {
@@ -152,7 +156,7 @@ pipeline {
               to: "${params.ghprbPullAuthorEmail}"
           )
         } else {
-          setBuildStatus("Build failed", "FAILURE", "${env.GITHUB_URL}")
+          setBuildStatus("Build failed", "FAILURE", "${env.GITHUB_URL}", "${env.JOB_NAME}"))
           // Post-merge, alert project maintainers
           emailext(
               subject: "[${env.JOB_NAME}] ${currentBuild.currentResult}: ${params.sha1}",
