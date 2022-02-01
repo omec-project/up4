@@ -112,7 +112,9 @@ pipeline {
       post {
         success {
           dir("${env.WORKSPACE}/up4/app") {
-            sh "bash ../.jenkins/codecov.sh"
+            withCredentials([string(credentialsId: 'codecov-up4', variable: 'CODECOV_TOKEN')]) {
+                sh "bash ../.jenkins/codecov.sh -t ${CODECOV_TOKEN}"
+            }
           }
         }
       }
