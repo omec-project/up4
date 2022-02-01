@@ -156,7 +156,7 @@ pipeline {
               to: "${params.ghprbPullAuthorEmail}"
           )
         } else {
-          setBuildStatus("Build failed", "FAILURE", "${env.GITHUB_URL}", "${env.JOB_NAME}"))
+          setBuildStatus("Build failed", "FAILURE", "${env.GITHUB_URL}", "${env.JOB_NAME}")
           // Post-merge, alert project maintainers
           emailext(
               subject: "[${env.JOB_NAME}] ${currentBuild.currentResult}: ${params.sha1}",
