@@ -19,7 +19,7 @@ import org.onosproject.net.device.DeviceServiceAdapter;
 import org.onosproject.net.flow.FlowRuleServiceAdapter;
 import org.onosproject.net.pi.PiPipeconfServiceAdapter;
 
-import static org.omecproject.up4.impl.TestImplConstants.MOBILE_SLICE;
+import static org.omecproject.up4.impl.AppConstants.DEFAULT_SLICE_ID;
 import static org.omecproject.up4.impl.Up4DeviceManager.DBUF_TUNNEL_ID;
 import static org.onosproject.net.NetTestTools.injectEventDispatcher;
 
@@ -31,7 +31,7 @@ public class Up4DeviceManagerTest {
     private Up4DeviceManager component;
 
     private final UpfInterface dbufInterface = UpfInterface.createDbufReceiverFrom(
-            Ip4Address.valueOf("10.0.0.1"), MOBILE_SLICE);
+            Ip4Address.valueOf("10.0.0.1"), DEFAULT_SLICE_ID);
     private final UpfGtpTunnelPeer dbufTunnelPeer = UpfGtpTunnelPeer.builder()
             .withTunnelPeerId(DBUF_TUNNEL_ID)
             .withSrcPort((short) 2152)

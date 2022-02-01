@@ -13,9 +13,13 @@ public final class AppConstants {
     public static final String P4INFO_PATH = "/p4info.txt";
     public static final String SUPPORTED_PIPECONF_STRING = "fabric-spgw";
 
-    // Hard coding the mobile slice value, when supporting multiple slices, we
-    // will remove this, and get the slice id from the north.
+    // TODO: SLICE_MOBILE should be configurable via netcfg or from the north.
+    //  See: https://jira.opennetworking.org/browse/SDFAB-985
+    //  We should use a slice ID different than the default, slice ID should be
+    //  one of the slices configured in the slicing manager via netcfg.
     public static final int SLICE_MOBILE = 0;
+    // Default slice id is required for traffic coming from DBUF.
+    public static final int DEFAULT_SLICE_ID = 0;
 
     // hide default constructor
     private AppConstants() {
