@@ -111,8 +111,15 @@ pipeline {
       }
       post {
         success {
-          dir("${env.WORKSPACE}/up4/app") {
-            sh "bash ../.jenkins/codecov.sh"
+          script {
+            dir("${env.WORKSPACE}/up4/app") {
+              withCredentials([string(credentialsId: 'codecov-up4', variable: 'CODECOV_TOKEN')]) {
+                if (env.UP4_CTRL == "pfcp") {
+                  // Upload codecov only once
+                  sh "bash ../.jenkins/codecov.sh -t ${CODECOV_TOKEN}"
+                }
+              }
+            }
           }
         }
       }
