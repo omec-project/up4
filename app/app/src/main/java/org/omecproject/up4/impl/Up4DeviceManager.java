@@ -24,15 +24,15 @@ import org.onosproject.event.AbstractListenerManager;
 import org.onosproject.mastership.MastershipService;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
-import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
-import org.onosproject.net.behaviour.upf.UpfSessionDownlink;
 import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfDevice;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
+import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfProgrammable;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
+import org.onosproject.net.behaviour.upf.UpfSessionDownlink;
 import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
 import org.onosproject.net.behaviour.upf.UpfTerminationUplink;
 import org.onosproject.net.config.ConfigFactory;
@@ -78,7 +78,6 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
-import static org.omecproject.up4.impl.AppConstants.DEFAULT_SLICE_ID;
 import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL_DEFAULT;
@@ -423,16 +422,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
         Ip4Address dbufDrainAddr = config.dbufDrainAddr();
         if (dbufDrainAddr != null) {
-            // We use the DEFAULT_SLICE_ID for the dbuf interface. Traffic from
-            // dbuf can be sent to the best effort traffic class in the default
-            // slice.
-            // This is particularly important when we add multi-slice support if
-            // a single dbuf is deployed. The current interfaces table is unable
-            // to distinguish traffic coming from the same dbuf instance but
-            // belonging to different slices, because we match only on outer headers.
-            // We could add this support by matching also on the inner IPv4 destination
-            // address (that should be the UE address, and thus allow to identify the slice).
-            interfaces.add(UpfInterface.createDbufReceiverFrom(dbufDrainAddr, DEFAULT_SLICE_ID));
+            // TODO: change slice ID when adding multi-slice support,
+            //  see: https://jira.opennetworking.org/browse/SDFAB-986
+            interfaces.add(UpfInterface.createDbufReceiverFrom(dbufDrainAddr, SLICE_MOBILE));
         }
         return interfaces;
     }
