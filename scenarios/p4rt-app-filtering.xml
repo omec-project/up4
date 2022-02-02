@@ -10,7 +10,7 @@
                             starts="P4rt-Set-Fwd-Drop-App-Filtering-${#}"
                             ends="P4rt-Set-Fwd-Allow-Default-App-Filtering-${#-1}">
                     <step name="P4rt-Set-Fwd-Drop-App-Filtering-${#}"
-                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --base ${#}0 --ctr-base ${#}5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --app-prio 100 --app-id ${#}0 --app-l4-port ${#}00 --drop-ul True --drop-dl True"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --base ${#}0 --ctr-base ${#}5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --app-prio 100 --app-id ${#}0 --app-l4-port ${#}00 --app-proto UDP --app-ipv4 140.0.200.1/24 --drop-ul True --drop-dl True"/>
                     <step name="P4rt-Set-Fwd-Allow-Default-App-Filtering-${#}" requires="P4rt-Set-Fwd-Drop-App-Filtering-${#}"
                         exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 </sequential>
@@ -57,7 +57,7 @@
                             starts="P4rt-Unset-Drop-App-Filtering-${#}"
                             ends="P4rt-Unset-Allow-Default-App-Filtering-${#-1}">
                     <step name="P4rt-Unset-Drop-App-Filtering-${#}" requires="~Check-Traffic-Fwd-App-Filtering-Negative,~Check-Traffic-Fwd-App-Filtering-Positive"
-                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows clear --base ${#}0 --ctr-base ${#}5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --app-prio 100 --app-id ${#}0 --app-l4-port ${#}00 --drop-ul True --drop-dl True"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows clear --base ${#}0 --ctr-base ${#}5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --app-prio 100 --app-id ${#}0 --app-l4-port ${#}00 --app-proto UDP --app-ipv4 140.0.200.1/24 --drop-ul True --drop-dl True"/>
                     <step name="P4rt-Unset-Allow-Default-App-Filtering-${#}" requires="~Check-Traffic-Fwd-App-Filtering-Negative,~Check-Traffic-Fwd-App-Filtering-Positive"
                           exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows clear --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 </sequential>

@@ -51,7 +51,7 @@ Download dependencies (do only once):
 
 Run the smoke scenario:
 
-    make smoke.xml
+    make pfcp-smoke.xml
 
 This scenario verifies UP4 app builds. It included a non-exhaustive set of tests that aim at
 ensuring that the most important functions work. Some functions tested in this scenario are:
@@ -166,7 +166,7 @@ These scenarios combine setup, single tests, and teardown all in one. Useful for
 * Combines the `setup.xml`, `net-setup.xml`, `p4rt-forwarding`, `p4rt-buffering`, and `teardown.xml`
 scenarios in one test
 
-**smoke.xml**
+**pfcp-smoke.xml**
 * Combines the `setup.xml`, `net-setup.xml`, `smf-setup`, `p4rt-forwarding-qos.xml`, 
   `p4rt-end-marker.xml`, `pfcp-forwarding`, `pfcp-buffering`, `pfcp-agent-failure`, 
   `smf-failure.xml`, `smf-teardown.xml`, and`teardown.xml` scenarios in one test
