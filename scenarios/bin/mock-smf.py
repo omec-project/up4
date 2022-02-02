@@ -309,7 +309,8 @@ def craft_pdr(session: Session, flow: UeFlow, src_iface: int, from_tunnel=False,
     # Add a fully wildcard SDF filter
     sdf = pfcp.IE_SDF_Filter()
     sdf.FD = 1
-    sdf.flow_description = "0.0.0.0/0 0.0.0.0/0 0 : 65535 0 : 65535 0x0/0x0"
+    # FIXME: the SDF Filter is not spec-compliant. We should fix it once SD-Core supports the spec-compliant format.
+    sdf.flow_description = "permit out udp from 140.0.200.1 to assigned 80-80"
     pdi.IE_list.append(sdf)
 
     pdr.IE_list.append(pdi)
