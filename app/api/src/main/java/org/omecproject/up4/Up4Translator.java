@@ -49,7 +49,7 @@ public interface Up4Translator {
      * @return the UP4 logical pipeline meter entry
      * @throws Up4TranslationException if the entry cannot be translated
      */
-    PiMeterCellConfig entityToUp4MeterEntry(UpfEntity entity) throws Up4TranslationException;
+    PiMeterCellConfig upfEntityToUp4MeterEntry(UpfEntity entity) throws Up4TranslationException;
 
     /**
      * Translates the given UPF entity into a UP4 logical pipeline entry.
@@ -58,7 +58,7 @@ public interface Up4Translator {
      * @return the UP4 logical pipeline table entry
      * @throws Up4TranslationException if the entry cannot be translated
      */
-    PiTableEntry entityToUp4TableEntry(UpfEntity entity) throws Up4TranslationException;
+    PiTableEntry upfEntityToUp4TableEntry(UpfEntity entity) throws Up4TranslationException;
 
 
     class Up4TranslationException extends Exception {

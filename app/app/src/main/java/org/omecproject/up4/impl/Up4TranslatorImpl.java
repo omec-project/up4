@@ -143,32 +143,44 @@ public class Up4TranslatorImpl implements Up4Translator {
     public UpfEntity up4MeterEntryToUpfEntity(PiMeterCellConfig meterEntry) throws Up4TranslationException {
         switch (getEntityType(meterEntry)) {
             case SESSION_METER: {
-                UpfMeter.Builder builder = UpfMeter.builder()
-                        .setSession()
-                        .setCellId((int) meterEntry.cellId().index());
-                if (meterEntry.isModifyConfig()) {
+                if (meterEntry.isDefaultConfig()) {
+                    return UpfMeter.resetSession((int) meterEntry.cellId().index());
+                } else {
                     // Session meter can only have peak bands, committed bands should be 0
                     PiMeterBand committedBand = meterEntry.committedBand();
-                    if (committedBand.rate() != 0 || committedBand.burst() != 0) {
+                    if (committedBand != null && (committedBand.rate() != 0 || committedBand.burst() != 0)) {
                         throw new Up4TranslationException(
                                 "Session meters supports only peak bands (committed = " + committedBand + ")");
                     }
                     PiMeterBand peakBand = meterEntry.peakBand();
-                    builder.setPeakBand(peakBand.rate(), peakBand.burst());
+                    if (peakBand == null) {
+                        throw new Up4TranslationException("Missing peak band");
+                    }
+                    return UpfMeter.builder()
+                            .setSession()
+                            .setCellId((int) meterEntry.cellId().index())
+                            .setPeakBand(peakBand.rate(), peakBand.burst())
+                            .build();
                 }
-                return builder.build();
             }
             case APPLICATION_METER: {
-                UpfMeter.Builder builder = UpfMeter.builder()
-                        .setApplication()
-                        .setCellId((int) meterEntry.cellId().index());
-                if (meterEntry.isModifyConfig()) {
+                if (meterEntry.isDefaultConfig()) {
+                    return UpfMeter.resetApplication((int) meterEntry.cellId().index());
+                } else {
                     PiMeterBand committedBand = meterEntry.committedBand();
                     PiMeterBand peakBand = meterEntry.peakBand();
-                    builder.setPeakBand(peakBand.rate(), peakBand.burst());
-                    builder.setCommittedBand(committedBand.rate(), committedBand.burst());
+                    if (committedBand == null || peakBand == null) {
+                        throw new Up4TranslationException(
+                                "Missing committed or peak band (committed=" + committedBand +
+                                        ", peak=" + peakBand + ")");
+                    }
+                    return UpfMeter.builder()
+                            .setApplication()
+                            .setCellId((int) meterEntry.cellId().index())
+                            .setPeakBand(peakBand.rate(), peakBand.burst())
+                            .setCommittedBand(committedBand.rate(), committedBand.burst())
+                            .build();
                 }
-                return builder.build();
             }
             default:
                 throw new Up4TranslationException(
@@ -177,7 +189,7 @@ public class Up4TranslatorImpl implements Up4Translator {
     }
 
     @Override
-    public PiMeterCellConfig entityToUp4MeterEntry(UpfEntity entity) throws Up4TranslationException {
+    public PiMeterCellConfig upfEntityToUp4MeterEntry(UpfEntity entity) throws Up4TranslationException {
         PiMeterId meterId;
         switch (entity.type()) {
             case SESSION_METER:
@@ -315,7 +327,7 @@ public class Up4TranslatorImpl implements Up4Translator {
     }
 
     @Override
-    public PiTableEntry entityToUp4TableEntry(UpfEntity entity) throws Up4TranslationException {
+    public PiTableEntry upfEntityToUp4TableEntry(UpfEntity entity) throws Up4TranslationException {
         PiTableEntry.Builder tableEntryBuilder = PiTableEntry.builder();
         PiAction.Builder actionBuilder = PiAction.builder();
         PiMatchKey.Builder matchBuilder = PiMatchKey.builder();

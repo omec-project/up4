@@ -259,10 +259,10 @@ public class Up4NorthComponent {
                 P4RuntimeOuterClass.Entity responseEntity;
                 if (isMeter) {
                     responseEntity = Codecs.CODECS.entity().encode(
-                            up4Translator.entityToUp4MeterEntry(entity), null, pipeconf);
+                            up4Translator.upfEntityToUp4MeterEntry(entity), null, pipeconf);
                 } else {
                     responseEntity = Codecs.CODECS.entity().encode(
-                            up4Translator.entityToUp4TableEntry(entity), null, pipeconf);
+                            up4Translator.upfEntityToUp4TableEntry(entity), null, pipeconf);
                 }
                 translatedEntries.add(responseEntity);
             }

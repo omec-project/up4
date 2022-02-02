@@ -202,7 +202,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
 
     action set_session_uplink_drop() {
         local_meta.needs_dropping = true;
-        // TODO: should I set the meter id?
     }
 
     action set_session_downlink(tunnel_peer_id_t tunnel_peer_id, session_meter_id_t session_meter_id) {
@@ -211,7 +210,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     }
     action set_session_downlink_drop() {
         local_meta.needs_dropping = true;
-        // TODO: should I set the meter ID??
     }
 
     action set_session_downlink_buff(session_meter_id_t session_meter_id) {
@@ -264,7 +262,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     action uplink_term_drop(counter_index_t ctr_idx) {
         common_term(ctr_idx);
         local_meta.needs_dropping = true;
-        // TODO: set app meter id??
     }
 
     action downlink_term_fwd_no_tc(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, app_meter_id_t app_meter_id) {
@@ -283,7 +280,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     action downlink_term_drop(counter_index_t ctr_idx) {
         common_term(ctr_idx);
         local_meta.needs_dropping = true;
-        // TODO: set app meter id??
     }
 
     table terminations_uplink {

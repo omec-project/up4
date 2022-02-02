@@ -4,17 +4,28 @@
  */
 package org.omecproject.up4.impl;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.omecproject.up4.Up4Translator;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.pi.runtime.PiEntity;
 import org.onosproject.net.pi.runtime.PiMeterCellConfig;
+import org.onosproject.net.pi.runtime.PiMeterCellId;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.omecproject.up4.impl.TestImplConstants.METER_ID;
+import static org.omecproject.up4.impl.TestImplConstants.PBURST;
+import static org.omecproject.up4.impl.TestImplConstants.PIR;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APP_METER;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSION_METER;
 
 public class Up4TranslatorImplTest {
+
+    @Rule
+    public ExpectedException exceptionRule = ExpectedException.none();
 
     private final Up4TranslatorImpl up4Translator = new Up4TranslatorImpl();
 
@@ -52,11 +63,11 @@ public class Up4TranslatorImplTest {
                 case TUNNEL_PEER:
                 case COUNTER:
                 case APPLICATION:
-                    translatedEntity = up4Translator.entityToUp4TableEntry(up4Entry);
+                    translatedEntity = up4Translator.upfEntityToUp4TableEntry(up4Entry);
                     break;
                 case SESSION_METER:
                 case APPLICATION_METER:
-                    translatedEntity = up4Translator.entityToUp4MeterEntry(up4Entry);
+                    translatedEntity = up4Translator.upfEntityToUp4MeterEntry(up4Entry);
                     break;
                 default:
                     assertThat("Unsupported UPF entity!", false);
@@ -155,6 +166,49 @@ public class Up4TranslatorImplTest {
     @Test
     public void up4MeterEntryToSessionMeterResetTest() {
         up4ToUpfEntity(TestImplConstants.SESSION_METER_RESET, TestImplConstants.UP4_SESSION_METER_RESET);
+    }
+
+    @Test
+    public void missingPeakBandToAppMeterTest() throws Exception {
+        exceptionRule.expect(Up4Translator.Up4TranslationException.class);
+        up4Translator.up4MeterEntryToUpfEntity(
+                PiMeterCellConfig.builder()
+                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_APP_METER, METER_ID))
+                        .withCommittedBand(1, 1)
+                        .build());
+    }
+
+    @Test
+    public void missingCommittedBandToAppMeterTest() throws Exception {
+        exceptionRule.expect(Up4Translator.Up4TranslationException.class);
+        up4Translator.up4MeterEntryToUpfEntity(
+                PiMeterCellConfig.builder()
+                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_APP_METER, METER_ID))
+                        .withPeakBand(1, 1)
+                        .build());
+    }
+
+    @Test
+    public void missingPeakBandToSessionMeterTest() throws Exception {
+        exceptionRule.expect(Up4Translator.Up4TranslationException.class);
+        up4Translator.up4MeterEntryToUpfEntity(
+                PiMeterCellConfig.builder()
+                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_ID))
+                        .withCommittedBand(1, 1)
+                        .build());
+    }
+
+    @Test
+    public void sessionMeterWithNonZeroCommitted() throws Exception {
+        exceptionRule.expect(Up4Translator.Up4TranslationException.class);
+        exceptionRule.expectMessage(
+                "Session meters supports only peak bands (committed = PiMeterBand{type=COMMITTED, rate=1, burst=1})");
+        up4Translator.up4MeterEntryToUpfEntity(
+                PiMeterCellConfig.builder()
+                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_ID))
+                        .withCommittedBand(1, 1)
+                        .withPeakBand(PIR, PBURST)
+                        .build());
     }
 
     // -------------------------------------------------------------------------
