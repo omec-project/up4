@@ -11,7 +11,7 @@ import org.onlab.packet.Ip4Address;
 import org.onosproject.cfg.ComponentConfigAdapter;
 import org.onosproject.common.event.impl.TestEventDispatcher;
 import org.onosproject.core.CoreServiceAdapter;
-import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
+import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 import org.onosproject.net.config.NetworkConfigRegistryAdapter;
@@ -19,6 +19,7 @@ import org.onosproject.net.device.DeviceServiceAdapter;
 import org.onosproject.net.flow.FlowRuleServiceAdapter;
 import org.onosproject.net.pi.PiPipeconfServiceAdapter;
 
+import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
 import static org.omecproject.up4.impl.Up4DeviceManager.DBUF_TUNNEL_ID;
 import static org.onosproject.net.NetTestTools.injectEventDispatcher;
 
@@ -29,8 +30,9 @@ public class Up4DeviceManagerTest {
 
     private Up4DeviceManager component;
 
-    private final UpfInterface dbufInterface = UpfInterface.createDbufReceiverFrom(Ip4Address.valueOf("10.0.0.1"));
-    private final GtpTunnelPeer dbufTunnelPeer = GtpTunnelPeer.builder()
+    private final UpfInterface dbufInterface = UpfInterface.createDbufReceiverFrom(
+            Ip4Address.valueOf("10.0.0.1"), SLICE_MOBILE);
+    private final UpfGtpTunnelPeer dbufTunnelPeer = UpfGtpTunnelPeer.builder()
             .withTunnelPeerId(DBUF_TUNNEL_ID)
             .withSrcPort((short) 2152)
             .withSrcAddr(Ip4Address.valueOf("10.0.0.1"))
