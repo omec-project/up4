@@ -207,6 +207,10 @@ public class Up4TranslatorImpl implements Up4Translator {
                 UpfApplication.Builder builder = UpfApplication.builder();
                 builder.withAppId(Up4TranslatorUtil.getParamByte(entry, APP_ID));
                 builder.withPriority(Up4TranslatorUtil.getPriority(entry));
+                if (entry.isDefaultAction()) {
+                    throw new Up4TranslationException(
+                            "Changing the default action of the applications table is not currently supported!");
+                }
                 if (Up4TranslatorUtil.fieldIsPresent(entry, HDR_APP_IP_ADDR)) {
                     builder.withIp4Prefix(Up4TranslatorUtil.getFieldPrefix(entry, HDR_APP_IP_ADDR));
                 }
