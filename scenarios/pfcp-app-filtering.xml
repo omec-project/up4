@@ -1,6 +1,6 @@
 <!--
- ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
- ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+ ~ SPDX-License-Identifier: Apache-2.0
+ ~ SPDX-FileCopyrightText: 2022-present Open Networking Foundation <info@opennetworking.org>
   -->
 <scenario name="pfcp-app-filtering" description="Set up and test application filtering with the PFCP client">
     <group name="Pfcp-App-Filtering">
