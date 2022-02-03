@@ -20,6 +20,7 @@ GTPU_EXT_PSC_TYPE_DL = 0  # Unused
 pkt_count = 0
 
 ue_addresses_expected = set()  # UE addresses that we expect to receive packets for/from
+downlink_teids_expected = set() # Downlink TEIDs that we expect to receive packets for
 
 
 def addrs_from_prefix(prefix: IPv4Network, count: int):
@@ -102,10 +103,14 @@ def handle_pkt(pkt: Packet, kind: str, exit_on_success: bool, qfi: int):
             print("Inner src %s, dst %s" %
                   (pkt[gtp.GTP_U_Header][IP].src, pkt[gtp.GTP_U_Header][IP].dst))
             ue_addr = IPv4Address(pkt[gtp.GTP_U_Header][IP].dst)
+            teid = pkt[gtp.GTP_U_Header].teid
 
         if exp_gtp_encap == is_gtp_encap:
             print("Received an expected packet with UE address %s!" % str(ue_addr))
             ue_addresses_expected.discard(ue_addr)
+            if is_gtp_encap:
+                print("With TEID %s!" % str(teid))
+                downlink_teids_expected.discard(teid)
         else:
             if exp_gtp_encap:
                 print("Expected a GTP encapped packet but received non-encapped!")
@@ -121,7 +126,7 @@ def handle_pkt(pkt: Packet, kind: str, exit_on_success: bool, qfi: int):
             else:
                 print("Expected a GTP with PSC but received packet without PSC!")
 
-        if len(ue_addresses_expected) == 0:
+        if len(ue_addresses_expected) == 0 and len(downlink_teids_expected) == 0:
             print("Received packets for/from all UEs!")
             exit(0)
 
@@ -179,11 +184,18 @@ def sniff_stuff(args: argparse.Namespace, kind: str):
     # Add UE addresses for which we expect to receive packets to the global set
     for ue_addr in addrs_from_prefix(args.ue_pool, args.flow_count):
         ue_addresses_expected.add(IPv4Address(ue_addr))
+    # Add downlink TEIDs for which we expect to receive packets to the global set
+    if kind == 'gtp':
+        for teid in range(args.teid_base, args.teid_base + args.flow_count * 2, 2):
+            # We assign 2 TEIDs to a UE and the second one is for downlink
+            downlink_teids_expected.add(teid + 1)
 
     print("Will print a line for each UDP packet received...")
 
     if kind == 'udp' or kind == 'gtp':
         print("Expecting packets for/from the following UEs:", list(ue_addresses_expected))
+        if kind == 'gtp':
+            print("With downlink TEIDs:", list(downlink_teids_expected))
         if args.qfi is not None:
             print("With the following QFI: ", args.qfi)
         prn = lambda x: handle_pkt(x, kind, exit_on_success, args.qfi)
@@ -196,8 +208,12 @@ def sniff_stuff(args: argparse.Namespace, kind: str):
 
 
 def handle_timeout(signum, frame):
-    print("Timeout! Did not receive expected packets for the following addresses:",
-          ue_addresses_expected)
+    if len(ue_addresses_expected) != 0:
+        print("Timeout! Did not receive expected packets for the following addresses:",
+                ue_addresses_expected)
+    if len(downlink_teids_expected) != 0:
+        print("Timeout! Did not receive expected packets for the following TEID:",
+                downlink_teids_expected)
     exit(1)
 
 
