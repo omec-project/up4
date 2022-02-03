@@ -26,7 +26,7 @@
             <parallel var="${ENODEB#}">
                 <!-- Check Downlink only -->
                 <step name="Downlink-Pdn-Send-Udp-Buff-${#}"
-                      exec="mn-cmd pdn traffic.py send-udp -c 5 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="mn-cmd pdn traffic.py send-udp -c 50 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <!-- FIXME: grep log tail to allow running scenarios in development where there can be
                         many FIRST_BUFFER in the log  -->
                 <step name="Verify-First-Buffer-${#}" requires="^"
@@ -35,7 +35,7 @@
                 <step name="Downlink-Enb-Recv-Gtp-Buff-${#}" requires="Verify-First-Buffer-${#}"
                       exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 60 --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <step name="Pfcp-Set-Fwd-After-Buff-${#}" requires="Verify-First-Buffer-${#}" delay="5"
-                      exec="mock-smf-cmd modify --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="mock-smf-cmd modify --session-count 5 --sleep-time 1 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <step name="Check-Drain-Started-${#}" requires="Pfcp-Set-Fwd-After-Buff-${#}" delay="5"
                       exec="docker-log-grep ${ODI} 'Started dbuf drain for 17.0.${#-1}' 5"/>
                 <step name="Check-Drain-Completed-${#}" requires="Pfcp-Set-Fwd-After-Buff-${#}" delay="5"
