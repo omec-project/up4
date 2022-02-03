@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
-# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+# SPDX-License-Identifier: Apache-2.0
 import sys
 
 sys.path.append('/p4runtime-sh/')
@@ -24,11 +24,7 @@ TRAFFIC_CLASS = "1"
 
 DEFAULT_APP_ID = 0
 
-APP_PROTO_TO_ID = {
-    "UDP": 17,
-    "TCP": 6,
-    "ICMP": 1
-}
+APP_PROTO_TO_ID = {"UDP": 17, "TCP": 6, "ICMP": 1}
 
 
 def get_args():

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
 #
-# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+# SPDX-License-Identifier: Apache-2.0
 
 CURRENT_UID              := $(shell id -u)
 CURRENT_GID              := $(shell id -g)
