@@ -1,5 +1,5 @@
 <!--
- ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-License-Identifier: Apache-2.0
  ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
   -->
 <scenario name="p4rt-forwarding-qos" description="QoS based Forwarding test using p4runtime messages">

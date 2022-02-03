@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-License-Identifier: Apache-2.0
  ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
   -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
