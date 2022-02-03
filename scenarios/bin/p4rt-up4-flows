@@ -24,11 +24,7 @@ TRAFFIC_CLASS = "1"
 
 DEFAULT_APP_ID = 0
 
-APP_PROTO_TO_ID = {
-    "UDP": 17,
-    "TCP": 6,
-    "ICMP": 1
-}
+APP_PROTO_TO_ID = {"UDP": 17, "TCP": 6, "ICMP": 1}
 
 
 def get_args():
