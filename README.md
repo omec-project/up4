@@ -22,11 +22,14 @@ pipeline". Such P4 program doesn't run on switches, but it's used as the schema
 to define the content of the P4Runtime messages that can be exchanged with the
 UP4 app.
 
-To learn more about the UP4 capabilitites, including integration with standard
-3GPP interfaces such as PFCP, please refer to the official SD-Fabric
-documentation:
+To learn about the architecture, capabilitites, and instructions, including
+integration with standard 3GPP interfaces such as PFCP, please refer to the
+official [SD-Fabric documentation][sdfab-docs].
 
-<https://docs.sd-fabric.org/master/advanced/upf.html>
+To learn about the origins of the UP4 project and the rationale behind it,
+check the paper:
+
+*R. MacDavid et al. [A P4-based 5G User Plane Function][up4-sosr21], SOSR 2021*
 
 ## Requirements
 
@@ -104,5 +107,7 @@ a Mininet-based emulated network of BMv2 switches controlled by ONOS and UP4.
 
 Check the included [README](scenarios/docs/README.md) for more information.
 
+[sdfab-docs]: https://docs.sd-fabric.org/master/advanced/upf.html
+[up4-sosr21]: https://www.cs.princeton.edu/~jrex/papers/up4-sosr21.pdf
 [bmv2]: https://github.com/p4lang/behavioral-model
 [stratum]: https://github.com/stratum/stratum
