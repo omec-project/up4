@@ -1,5 +1,5 @@
 <!--
- ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-License-Identifier: Apache-2.0
  ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
   -->
 <scenario name="pfcp-forwarding" description="Set up and test UE data forwarding with the PFCP client">
@@ -20,17 +20,31 @@
             <step name="Check-Flow-Rules-Fwd" requires="Pfcp-Push-Fwd" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
-        <group name="Check-Traffic-Fwd" requires="Pfcp-Setup-Fwd" delay="5">
+        <group name="Check-Traffic-Fwd-App-Filtering-Negative" requires="Pfcp-Setup-Fwd" delay="5">
             <parallel var="${ENODEB#}">
                 <!-- Downlink -->
-                <step name="Downlink-Enb-Recv-Gtp-Fwd-${#}" requires="Pfcp-Setup-Fwd"
+                <step name="Downlink-Enb-Recv-Gtp-Drop-App-Filtering-${#}" requires="Pfcp-Setup-Fwd" env="!"
+                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port ${#}00"/>
+                <step name="Downlink-Pdn-Send-Udp-Drop-App-Filtering-${#}" requires="Pfcp-Setup-Fwd" delay="5"
+                      exec="mn-cmd pdn traffic.py send-udp -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port ${#}00"/>
+                <!-- Uplink -->
+                <step name="Uplink-Pdn-Recv-Udp-Drop-App-Filtering-${#}" requires="Pfcp-Setup-Fwd" env="!"
+                      exec="mn-cmd pdn traffic.py recv-udp -t 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port ${#}00"/>
+                <step name="Uplink-Enb-Send-Gtp-Drop-App-Filtering-${#}" requires="Pfcp-Setup-Fwd" delay="5"
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port ${#}00"/>
+            </parallel>
+        </group>
+        <group name="Check-Traffic-Fwd" requires="~Check-Traffic-Fwd-App-Filtering-Negative" delay="5">
+            <parallel var="${ENODEB#}">
+                <!-- Downlink -->
+                <step name="Downlink-Enb-Recv-Gtp-Fwd-${#}" requires="~Check-Traffic-Fwd-App-Filtering-Negative"
                       exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 10 --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
-                <step name="Downlink-Pdn-Send-Udp-Fwd-${#}" requires="Pfcp-Setup-Fwd" delay="5"
+                <step name="Downlink-Pdn-Send-Udp-Fwd-${#}" requires="~Check-Traffic-Fwd-App-Filtering-Negative" delay="5"
                       exec="mn-cmd pdn traffic.py send-udp -c 10 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <!-- Uplink -->
-                <step name="Uplink-Pdn-Recv-Udp-Fwd-${#}" requires="Pfcp-Setup-Fwd"
+                <step name="Uplink-Pdn-Recv-Udp-Fwd-${#}" requires="~Check-Traffic-Fwd-App-Filtering-Negative"
                       exec="mn-cmd pdn traffic.py recv-udp -t 10 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
-                <step name="Uplink-Enb-Send-Gtp-Fwd-${#}" requires="Pfcp-Setup-Fwd" delay="5"
+                <step name="Uplink-Enb-Send-Gtp-Fwd-${#}" requires="~Check-Traffic-Fwd-App-Filtering-Negative" delay="5"
                       exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
             </parallel>
         </group>

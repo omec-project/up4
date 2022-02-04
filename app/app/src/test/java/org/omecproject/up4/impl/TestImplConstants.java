@@ -1,5 +1,5 @@
 /*
- SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ SPDX-License-Identifier: Apache-2.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4.impl;
@@ -11,11 +11,11 @@ import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.DefaultApplicationId;
 import org.onosproject.net.DeviceId;
-import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
-import org.onosproject.net.behaviour.upf.SessionDownlink;
-import org.onosproject.net.behaviour.upf.SessionUplink;
 import org.onosproject.net.behaviour.upf.UpfApplication;
+import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfSessionDownlink;
+import org.onosproject.net.behaviour.upf.UpfSessionUplink;
 import org.onosproject.net.behaviour.upf.UpfMeter;
 import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
 import org.onosproject.net.behaviour.upf.UpfTerminationUplink;
@@ -38,7 +38,6 @@ import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_DOWNLINK;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_UPLINK;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.IFACE_ACCESS;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.IFACE_CORE;
-import static org.omecproject.up4.impl.Up4DeviceManager.SLICE_MOBILE;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.CTR_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DST_ADDR;
@@ -127,6 +126,8 @@ public final class TestImplConstants {
     public static final long PBURST = 500;
     public static final int METER_ID = 300;
 
+    public static final int MOBILE_SLICE = 0;
+
     public static final GtpTunnelPeer TUNNEL_PEER = GtpTunnelPeer.builder()
             .withTunnelPeerId(GTP_TUNNEL_ID)
             .withSrcAddr(S1U_ADDR)
@@ -134,7 +135,7 @@ public final class TestImplConstants {
             .withSrcPort(TUNNEL_SPORT)
             .build();
 
-    public static final SessionUplink UPLINK_SESSION = SessionUplink.builder()
+    public static final UpfSessionUplink UPLINK_SESSION = UpfSessionUplink.builder()
             .withTeid(TEID)
             .withTunDstAddr(S1U_ADDR)
             .build();
@@ -157,12 +158,12 @@ public final class TestImplConstants {
             .needsDropping(true)
             .build();
 
-    public static final SessionDownlink DOWNLINK_SESSION = SessionDownlink.builder()
+    public static final UpfSessionDownlink DOWNLINK_SESSION = UpfSessionDownlink.builder()
             .withUeAddress(UE_ADDR)
             .withGtpTunnelPeerId(GTP_TUNNEL_ID)
             .build();
 
-    public static final SessionDownlink DOWNLINK_SESSION_DBUF = SessionDownlink.builder()
+    public static final UpfSessionDownlink DOWNLINK_SESSION_DBUF = UpfSessionDownlink.builder()
             .withUeAddress(UE_ADDR)
             .needsBuffering(true)
             .build();
@@ -189,9 +190,9 @@ public final class TestImplConstants {
             .needsDropping(true)
             .build();
 
-    public static final UpfInterface UPLINK_INTERFACE = UpfInterface.createS1uFrom(S1U_ADDR);
+    public static final UpfInterface UPLINK_INTERFACE = UpfInterface.createS1uFrom(S1U_ADDR, MOBILE_SLICE);
 
-    public static final UpfInterface DOWNLINK_INTERFACE = UpfInterface.createUePoolFrom(UE_POOL);
+    public static final UpfInterface DOWNLINK_INTERFACE = UpfInterface.createUePoolFrom(UE_POOL, MOBILE_SLICE);
 
     public static final UpfApplication APPLICATION_FILTERING = UpfApplication.builder()
             .withAppId(APP_FILTER_ID)
@@ -199,6 +200,7 @@ public final class TestImplConstants {
             .withL4PortRange(APP_L4_RANGE)
             .withIpProto(APP_IP_PROTO)
             .withPriority(APP_FILTER_PRIORITY)
+            .withSliceId(MOBILE_SLICE)
             .build();
 
     public static final UpfMeter SESSION_METER = UpfMeter.builder()
@@ -426,7 +428,7 @@ public final class TestImplConstants {
                                 .withParameters(Arrays.asList(
                                         new PiActionParam(SRC_IFACE, IFACE_ACCESS),
                                         new PiActionParam(DIRECTION, DIRECTION_UPLINK),
-                                        new PiActionParam(SLICE_ID, SLICE_MOBILE)
+                                        new PiActionParam(SLICE_ID, (byte) MOBILE_SLICE)
                                 ))
                                 .build()).build();
 
@@ -443,7 +445,7 @@ public final class TestImplConstants {
                                 .withParameters(Arrays.asList(
                                         new PiActionParam(SRC_IFACE, IFACE_CORE),
                                         new PiActionParam(DIRECTION, DIRECTION_DOWNLINK),
-                                        new PiActionParam(SLICE_ID, SLICE_MOBILE)
+                                        new PiActionParam(SLICE_ID, (byte) MOBILE_SLICE)
                                 ))
                                 .build()).build();
 
@@ -461,8 +463,8 @@ public final class TestImplConstants {
                                   .addFieldMatch(new PiTernaryFieldMatch(
                                           HDR_APP_IP_PROTO,
                                           ImmutableByteSequence.copyFrom(APP_IP_PROTO),
-                                          ImmutableByteSequence.ofOnes(1)
-                                  )).build()
+                                          ImmutableByteSequence.ofOnes(1)))
+                                  .build()
             )
             .withAction(PiAction.builder()
                                 .withId(PRE_QOS_PIPE_SET_APP_ID)

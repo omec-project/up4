@@ -1,5 +1,5 @@
 /*
- SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ SPDX-License-Identifier: Apache-2.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4.cli;
@@ -11,6 +11,8 @@ import org.omecproject.up4.impl.Up4AdminService;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfInterface;
+
+import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
 
 /**
  * UP4 S1U Interface insertion command.
@@ -32,7 +34,7 @@ public class InterfaceInsertCommand extends AbstractShellCommand {
         Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
 
         print("Adding S1U interface address: %s", s1uAddr.toString());
-        app.adminApply(UpfInterface.createS1uFrom(s1uAddr));
+        app.adminApply(UpfInterface.createS1uFrom(s1uAddr, SLICE_MOBILE));
     }
 }
 

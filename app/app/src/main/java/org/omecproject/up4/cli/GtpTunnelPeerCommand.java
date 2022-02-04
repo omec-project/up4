@@ -1,5 +1,5 @@
 /*
- SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ SPDX-License-Identifier: Apache-2.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4.cli;
@@ -11,7 +11,7 @@ import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.impl.Up4AdminService;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
-import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
+import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
 
 /**
  * UP4 GTP Tunnel Peer command.
@@ -49,7 +49,7 @@ public class GtpTunnelPeerCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() throws Exception {
         Up4AdminService app = get(Up4AdminService.class);
-        GtpTunnelPeer.Builder tunnelPeerBuilder = GtpTunnelPeer.builder()
+        UpfGtpTunnelPeer.Builder tunnelPeerBuilder = UpfGtpTunnelPeer.builder()
                 .withTunnelPeerId(tunnelPeer)
                 .withSrcAddr(Ip4Address.valueOf(srcAddr))
                 .withDstAddr(Ip4Address.valueOf(dstAddr));

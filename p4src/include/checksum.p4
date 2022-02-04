@@ -1,5 +1,5 @@
 /*
- * SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ * SPDX-License-Identifier: Apache-2.0
  * SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 
@@ -81,8 +81,8 @@ control ComputeChecksumImpl(inout parsed_headers_t hdr,
             hdr.ipv4.checksum,
             HashAlgorithm.csum16
         );
-        
-        // Outer UDP checksum currently remains 0, 
+
+        // Outer UDP checksum currently remains 0,
         // which is legal for IPv4
 
         // Compute IPv4 checksum

@@ -1,5 +1,5 @@
 <!--
- ~ SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ ~ SPDX-License-Identifier: Apache-2.0
  ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
   -->
 <scenario name="smf-failure"
@@ -13,7 +13,7 @@
         </group>
 
         <step name="SF-Check-Flows-1" requires="SF-Setup-Fwd-1" delay="2"
-              exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=2, DL flows=2'"/>
+              exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=1, DL flows=1'"/>
 
         <step name="SF-Kill-Smf" requires="^"
               exec="mock-smf-cmd kill"/>
@@ -36,7 +36,7 @@
         </group>
 
         <step name="SF-Check-Flows-3" requires="SF-Setup-Fwd-2" delay="2"
-              exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=2, DL flows=2'"/>
+              exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=1, DL flows=1'"/>
 
         <group name="SF-Check-Fwding" requires="SF-Check-Flows-3">
             <!-- Downlink -->

@@ -1,5 +1,5 @@
 /*
- SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ SPDX-License-Identifier: Apache-2.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4.cli;
@@ -11,7 +11,7 @@ import org.omecproject.up4.impl.Up4AdminService;
 import org.omecproject.up4.impl.UplinkUpfFlow;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfApplication;
-import org.onosproject.net.behaviour.upf.SessionUplink;
+import org.onosproject.net.behaviour.upf.UpfSessionUplink;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 
@@ -44,7 +44,8 @@ public class ReadFlowsCommand extends AbstractShellCommand {
                 continue;
             }
             UpfApplication app = (UpfApplication) a;
-            print("ipv4_prefix=" + app.ip4Prefix() +
+            print("app_id=" + app.appId() +
+                          ", ipv4_prefix=" + app.ip4Prefix() +
                           ", l4_range=" + app.l4PortRange() +
                           ", ip_proto=" + app.ipProto()
             );
@@ -56,7 +57,7 @@ public class ReadFlowsCommand extends AbstractShellCommand {
                 print("ERROR: Wrong uplink session: " + s);
                 continue;
             }
-            SessionUplink sess = (SessionUplink) s;
+            UpfSessionUplink sess = (UpfSessionUplink) s;
             print("n3_addr=" + sess.tunDstAddr() +
                           ", teid=" + sess.teid() +
                           (sess.needsDropping() ? ", drop()" : ", fwd()")

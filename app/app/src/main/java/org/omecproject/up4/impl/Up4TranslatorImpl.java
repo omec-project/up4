@@ -1,5 +1,5 @@
 /*
- SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ SPDX-License-Identifier: Apache-2.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4.impl;
@@ -8,14 +8,14 @@ import com.google.common.collect.Range;
 import org.omecproject.up4.Up4Translator;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
-import org.onosproject.net.behaviour.upf.GtpTunnelPeer;
-import org.onosproject.net.behaviour.upf.SessionDownlink;
-import org.onosproject.net.behaviour.upf.SessionUplink;
 import org.onosproject.net.behaviour.upf.UpfApplication;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
-import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.UpfMeter;
+import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfSessionDownlink;
+import org.onosproject.net.behaviour.upf.UpfSessionUplink;
 import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
 import org.onosproject.net.behaviour.upf.UpfTerminationUplink;
 import org.onosproject.net.meter.Band;
@@ -39,11 +39,11 @@ import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_DOWNLINK;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_UPLINK;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.IFACE_ACCESS;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.IFACE_CORE;
-import static org.omecproject.up4.impl.Up4DeviceManager.SLICE_MOBILE;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.APP_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.CTR_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
@@ -241,12 +241,14 @@ public class Up4TranslatorImpl implements Up4Translator {
                     throw new Up4TranslationException(
                             "Attempting to translate an unsupported UP4 interface type! " + srcIfaceTypeInt);
                 }
+                // TODO: read slice_id from UP4 table entry or netcfg https://jira.opennetworking.org/browse/SDFAB-985
                 Ip4Prefix prefix = Up4TranslatorUtil.getFieldPrefix(entry, HDR_IPV4_DST_PREFIX);
                 builder.setPrefix(prefix);
+                builder.setSliceId(SLICE_MOBILE);
                 return builder.build();
             }
             case SESSION_UPLINK: {
-                SessionUplink.Builder builder = SessionUplink.builder();
+                UpfSessionUplink.Builder builder = UpfSessionUplink.builder();
                 builder.withTeid(Up4TranslatorUtil.getFieldInt(entry, HDR_TEID));
                 builder.withTunDstAddr(Up4TranslatorUtil.getFieldAddress(entry, HDR_N3_ADDRESS));
                 PiActionId actionId = ((PiAction) entry.action()).id();
@@ -254,7 +256,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 return builder.build();
             }
             case SESSION_DOWNLINK: {
-                SessionDownlink.Builder builder = SessionDownlink.builder();
+                UpfSessionDownlink.Builder builder = UpfSessionDownlink.builder();
                 builder.withUeAddress(Up4TranslatorUtil.getFieldAddress(entry, HDR_UE_ADDRESS));
                 PiActionId actionId = ((PiAction) entry.action()).id();
                 if (actionId.equals(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_DROP)) {
@@ -297,7 +299,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 return builder.build();
             }
             case TUNNEL_PEER: {
-                GtpTunnelPeer.Builder builder = GtpTunnelPeer.builder();
+                UpfGtpTunnelPeer.Builder builder = UpfGtpTunnelPeer.builder();
                 builder.withTunnelPeerId(Up4TranslatorUtil.getFieldByte(entry, HDR_TUNNEL_PEER_ID));
                 builder.withSrcAddr(Up4TranslatorUtil.getParamAddress(entry, SRC_ADDR));
                 builder.withDstAddr(Up4TranslatorUtil.getParamAddress(entry, DST_ADDR));
@@ -317,7 +319,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 if (Up4TranslatorUtil.fieldIsPresent(entry, HDR_APP_IP_PROTO)) {
                     builder.withIpProto(Up4TranslatorUtil.getFieldByte(entry, HDR_APP_IP_PROTO));
                 }
-
+                builder.withSliceId(SLICE_MOBILE);
                 return builder.build();
             }
             default:
@@ -350,7 +352,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 }
                 actionBuilder.withParameter(new PiActionParam(SRC_IFACE, srcIface))
                         .withParameter(new PiActionParam(DIRECTION, direction))
-                        .withParameter(new PiActionParam(SLICE_ID, SLICE_MOBILE));
+                        .withParameter(new PiActionParam(SLICE_ID, (byte) SLICE_MOBILE));
                 matchBuilder.addFieldMatch(new PiLpmFieldMatch(
                         HDR_IPV4_DST_PREFIX,
                         ImmutableByteSequence.copyFrom(upfIntf.prefix().address().toOctets()),
@@ -359,7 +361,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 break;
             case SESSION_UPLINK:
                 tableEntryBuilder.forTable(PRE_QOS_PIPE_SESSIONS_UPLINK);
-                SessionUplink sessionUplink = (SessionUplink) entity;
+                UpfSessionUplink sessionUplink = (UpfSessionUplink) entity;
                 matchBuilder
                         .addFieldMatch(new PiExactFieldMatch(
                                 HDR_N3_ADDRESS,
@@ -377,7 +379,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 break;
             case SESSION_DOWNLINK:
                 tableEntryBuilder.forTable(PRE_QOS_PIPE_SESSIONS_DOWNLINK);
-                SessionDownlink sessionDownlink = (SessionDownlink) entity;
+                UpfSessionDownlink sessionDownlink = (UpfSessionDownlink) entity;
                 matchBuilder.addFieldMatch(
                         new PiExactFieldMatch(
                                 HDR_UE_ADDRESS,
@@ -451,7 +453,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 break;
             case TUNNEL_PEER:
                 tableEntryBuilder.forTable(PRE_QOS_PIPE_TUNNEL_PEERS);
-                GtpTunnelPeer gtpTunnelPeer = (GtpTunnelPeer) entity;
+                UpfGtpTunnelPeer gtpTunnelPeer = (UpfGtpTunnelPeer) entity;
                 matchBuilder.addFieldMatch(
                         new PiExactFieldMatch(
                                 HDR_TUNNEL_PEER_ID,

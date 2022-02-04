@@ -1,5 +1,5 @@
 /*
- SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+ SPDX-License-Identifier: Apache-2.0
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4.cli;
@@ -11,7 +11,7 @@ import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
-import org.onosproject.net.behaviour.upf.SessionDownlink;
+import org.onosproject.net.behaviour.upf.UpfSessionDownlink;
 
 /**
  * UP4 UE session command.
@@ -50,7 +50,7 @@ public class SessionDownlinkCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
-        SessionDownlink.Builder sessBuilder = SessionDownlink.builder()
+        UpfSessionDownlink.Builder sessBuilder = UpfSessionDownlink.builder()
                 .needsBuffering(buff)
                 .needsDropping(drop)
                 .withUeAddress(Ip4Address.valueOf(ueAddr));

@@ -1,11 +1,14 @@
 // SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
-// SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+// SPDX-License-Identifier: Apache-2.0
 
 // To validate: ./jflint.sh Jenkinsfile
 
 // sha1 used for PRs, while commitHash is populated for postmerge
 def commitHash = params.commitHash ? params.commitHash : params.sha1
 def up4Env = params.up4Env ? "${params.up4Env}" : "stable"
+// The type of control mode to use.
+// Can be either pfcp (uses a mock-smf with pfcp-agent) or p4rt (uses p4rt-shell directly).
+def up4Ctrl = params.up4Ctrl ? "${params.up4Ctrl}" : "pfcp"
 
 pipeline {
 
@@ -18,6 +21,7 @@ pipeline {
 
   environment {
     UP4_ENV = "${up4Env}"
+    UP4_CTRL = "${up4Ctrl}"
     JAVA_HOME = "/usr/lib/jvm/java-11-amazon-corretto"
     GITHUB_URL = "ssh://git@github.com/omec-project/up4.git"
   }
@@ -26,6 +30,12 @@ pipeline {
     stage("Environment Cleanup") {
       steps {
         step([$class: "WsCleanup"])
+        script{
+            if (!params.ghprbPullId?.trim()) {
+              // Set PENDING build status
+              setBuildStatus("Build pending", "PENDING", "${env.GITHUB_URL}", "${env.JOB_NAME}")
+            }
+        }
       }
     }
     stage("Checkout") {
@@ -101,8 +111,15 @@ pipeline {
       }
       post {
         success {
-          dir("${env.WORKSPACE}/up4/app") {
-            sh "bash ../.jenkins/codecov.sh"
+          script {
+            dir("${env.WORKSPACE}/up4/app") {
+              withCredentials([string(credentialsId: 'codecov-up4', variable: 'CODECOV_TOKEN')]) {
+                if (env.UP4_CTRL == "pfcp") {
+                  // Upload codecov only once
+                  sh "bash ../.jenkins/codecov.sh -t ${CODECOV_TOKEN}"
+                }
+              }
+            }
           }
         }
       }
@@ -148,7 +165,7 @@ pipeline {
               to: "${params.ghprbPullAuthorEmail}"
           )
         } else {
-          setBuildStatus("Build failed", "FAILURE", "${env.GITHUB_URL}")
+          setBuildStatus("Build failed", "FAILURE", "${env.GITHUB_URL}", "${env.JOB_NAME}")
           // Post-merge, alert project maintainers
           emailext(
               subject: "[${env.JOB_NAME}] ${currentBuild.currentResult}: ${params.sha1}",
@@ -164,9 +181,7 @@ pipeline {
 void runSTCSmokeTest(String topo) {
   dir("${env.WORKSPACE}/up4/scenarios") {
     sh "make reset"
-    // FIXME: restore smoke.xml tests, using P4RT based until we update PFCP agent
-    //  to support the new UP4 logical pipeline.
-    sh "TOPO=${topo} make p4rt-smoke.xml stcColor=false stcDumpLogs=true"
+    sh "TOPO=${topo} make ${env.UP4_CTRL}-smoke.xml stcColor=false stcDumpLogs=true"
   }
 }
 

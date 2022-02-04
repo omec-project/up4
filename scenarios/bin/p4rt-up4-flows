@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
-# SPDX-License-Identifier: LicenseRef-ONF-Member-1.0
+# SPDX-License-Identifier: Apache-2.0
 import sys
 
 sys.path.append('/p4runtime-sh/')
@@ -23,6 +23,8 @@ SLICE_MOBILE = "15"
 TRAFFIC_CLASS = "1"
 
 DEFAULT_APP_ID = 0
+
+APP_PROTO_TO_ID = {"UDP": 17, "TCP": 6, "ICMP": 1}
 
 
 def get_args():
@@ -178,7 +180,7 @@ def main():
         if args.app_l4_port:
             entry.match["app_l4_port"] = str(args.app_l4_port) + ".." + str(args.app_l4_port)
         if args.app_proto:
-            entry.match["app_ip_proto"] = args.app_proto
+            entry.match["app_ip_proto"] = str(APP_PROTO_TO_ID[args.app_proto]) + "&&&0xFF"
         entry.action["app_id"] = str(app_id)
         entry.priority = args.app_prio
         add_entry(entry, args.action)
