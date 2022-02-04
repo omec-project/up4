@@ -14,9 +14,9 @@ import org.onosproject.net.DeviceId;
 import org.onosproject.net.behaviour.upf.UpfApplication;
 import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfMeter;
 import org.onosproject.net.behaviour.upf.UpfSessionDownlink;
 import org.onosproject.net.behaviour.upf.UpfSessionUplink;
-import org.onosproject.net.behaviour.upf.UpfMeter;
 import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
 import org.onosproject.net.behaviour.upf.UpfTerminationUplink;
 import org.onosproject.net.pi.runtime.PiAction;
@@ -128,7 +128,7 @@ public final class TestImplConstants {
 
     public static final int MOBILE_SLICE = 0;
 
-    public static final GtpTunnelPeer TUNNEL_PEER = GtpTunnelPeer.builder()
+    public static final UpfGtpTunnelPeer TUNNEL_PEER = UpfGtpTunnelPeer.builder()
             .withTunnelPeerId(GTP_TUNNEL_ID)
             .withSrcAddr(S1U_ADDR)
             .withDstAddr(ENB_ADDR)
