@@ -44,9 +44,9 @@
         <step name="Fabric-TNA-Check-Pipeconf-Simple"
               requires="Onos-Wait-For-Ready"
               exec="docker-log-grep ${ODI} 'New pipeconf registered: org.stratumproject.fabric.bmv2'"/>
-        <step name="Fabric-TNA-Check-Pipeconf-SPGW"
+        <step name="Fabric-TNA-Check-Pipeconf-UPF"
               requires="Onos-Wait-For-Ready"
-              exec="docker-log-grep ${ODI} 'New pipeconf registered: org.stratumproject.fabric-spgw.bmv2'"/>
+              exec="docker-log-grep ${ODI} 'New pipeconf registered: org.stratumproject.fabric-upf.bmv2'"/>
 
         <!-- remove pre-installed up4, install local build -->
         <step name="Up4-App-Uninstall" requires="Onos-Wait-For-Ready"
