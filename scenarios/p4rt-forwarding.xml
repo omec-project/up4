@@ -4,7 +4,30 @@
   -->
 <scenario name="p4rt-forwarding" description="Forwarding test using p4runtime messages">
     <group name="P4rt-Forwarding">
-        <group name="P4rt-Program">
+        <group name="P4rt-Program-Drop-DL">
+            <group name="Push-Up4-Flows-Drop-DL">
+                <sequential var="${ENODEB#}"
+                            starts="P4rt-Set-Fwd-Drop-DL-${#}"
+                            ends="P4rt-Set-Fwd-Drop-DL-${#-1}">
+                <step name="P4rt-Set-Fwd-Drop-DL-${#}"
+                        exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --base ${#}0 --drop-dl true --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                </sequential>
+            </group>
+            <step name="Check-Up4-Flows-Drop-DL" requires="Push-Up4-Flows-Drop-DL"
+                    exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${P4RT_UP4_FLOWS}, DL flows=${P4RT_UP4_FLOWS}'"/>
+            <step name="Check-Flow-Rules-Drop-DL" requires="^" delay="5"
+                    exec="onos-check-flows ${OCI}"/>
+        </group>
+        <group name="Check-DL-Dropped" requires="P4rt-Program-Drop-DL">
+            <parallel var="${ENODEB#}">
+                <!-- Downlink -->
+                <step name="Downlink-Enb-Recv-Dropped-${#}" requires="P4rt-Program-Drop-DL"
+                        exec="mn-cmd ${ENODEB#} traffic.py recv-none -t 10"/>
+                <step name="Downlink-Pdn-Send-Udp-Drop-DL-${#}" requires="P4rt-Program-Drop-DL" delay="5"
+                        exec="mn-cmd pdn traffic.py send-udp -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+            </parallel>
+        </group>
+        <group name="P4rt-Program" requires="Check-DL-Dropped">
             <group name="Push-Up4-Flows">
                 <sequential var="${ENODEB#}"
                             starts="P4rt-Set-Fwd-${#}"
