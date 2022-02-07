@@ -48,6 +48,15 @@ import org.onosproject.net.flow.FlowRuleEvent;
 import org.onosproject.net.flow.FlowRuleListener;
 import org.onosproject.net.flow.FlowRuleOperations;
 import org.onosproject.net.flow.FlowRuleService;
+import org.onosproject.net.meter.DefaultMeterRequest;
+import org.onosproject.net.meter.Meter;
+import org.onosproject.net.meter.MeterCellId;
+import org.onosproject.net.meter.MeterEvent;
+import org.onosproject.net.meter.MeterListener;
+import org.onosproject.net.meter.MeterRequest;
+import org.onosproject.net.meter.MeterScope;
+import org.onosproject.net.meter.MeterService;
+import org.onosproject.net.pi.runtime.PiMeterCellId;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
 import org.onosproject.net.pi.service.PiPipeconfService;
@@ -130,6 +139,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowRuleService flowRuleService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected MeterService meterService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
@@ -154,6 +165,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private InternalConfigListener netCfgListener;
     private PiPipeconfListener piPipeconfListener;
     private FlowRuleListener flowRuleListener;
+    private MeterListener meterListener;
 
     private Map<DeviceId, UpfProgrammable> upfProgrammables;
     private Set<DeviceId> upfDevices;
@@ -173,6 +185,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         netCfgListener = new InternalConfigListener();
         piPipeconfListener = new InternalPiPipeconfListener();
         flowRuleListener = new InternalFlowRuleListener();
+        meterListener = new InternalMeterListener();
         upfProgrammables = Maps.newConcurrentMap();
         upfDevices = Sets.newConcurrentHashSet();
         eventExecutor = newSingleThreadScheduledExecutor(groupedThreads(
@@ -181,6 +194,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 "omec/up4/reconcile", "executor", log));
 
         flowRuleService.addListener(flowRuleListener);
+        meterService.addListener(meterListener);
         netCfgService.addListener(netCfgListener);
         netCfgService.registerConfigFactory(up4ConfigFactory);
         netCfgService.registerConfigFactory(dbufConfigFactory);
@@ -234,6 +248,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         netCfgService.unregisterConfigFactory(dbufConfigFactory);
         eventDispatcher.removeSink(Up4Event.class);
         piPipeconfService.removeListener(piPipeconfListener);
+        meterService.removeListener(meterListener);
         flowRuleService.removeListener(flowRuleListener);
 
         eventExecutor.shutdownNow();
@@ -1171,6 +1186,67 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         return flowRuleBuilder.build();
     }
 
+    private class InternalMeterListener implements MeterListener {
+
+        @Override
+        public void event(MeterEvent event) {
+            eventExecutor.execute(() -> internalEventHandler(event));
+        }
+
+        private void internalEventHandler(MeterEvent event) {
+            if (event.type().equals(MeterEvent.Type.METER_ADDED) ||
+                    event.type().equals(MeterEvent.Type.METER_REMOVED)) {
+                try {
+                    assertUpfIsReady();
+                } catch (IllegalStateException e) {
+                    log.warn("While handling even type {}: {}", event.type(), e.getMessage());
+                    return;
+                }
+                Meter m = event.subject();
+                if (m.meterCellId().type().equals(MeterCellId.MeterCellType.PIPELINE_INDEPENDENT) &&
+                        upfProgrammables.get(leaderUpfDevice).fromThisUpf(m)) {
+                    List<MeterRequest> meters = Lists.newArrayList();
+                    PiMeterCellId piMeterCellId = (PiMeterCellId) m.meterCellId();
+                    boolean add = event.type().equals(MeterEvent.Type.METER_ADDED);
+                    // Partition work based on the follower master instance
+                    upfProgrammables.keySet().stream()
+                            .filter(deviceId -> !deviceId.equals(leaderUpfDevice))
+                            .filter(mastershipService::isLocalMaster)
+                            .forEach(deviceId -> meters.add(meterToMeterRequestForDevice(m, deviceId, add)));
+                    switch (event.type()) {
+                        case METER_ADDED:
+                            meters.forEach(meterService::submit);
+                            break;
+                        case METER_REMOVED:
+                            meters.forEach(mReq -> meterService.withdraw(mReq, piMeterCellId));
+                            break;
+                        default:
+                            log.error("I should never reach this point on {}", event);
+                    }
+                }
+
+            }
+        }
+    }
+
+    private MeterRequest meterToMeterRequestForDevice(Meter meter, DeviceId deviceId, boolean add) {
+        assert meter.meterCellId().type().equals(MeterCellId.MeterCellType.PIPELINE_INDEPENDENT);
+
+        PiMeterCellId piMeterCellId = (PiMeterCellId) meter.meterCellId();
+        MeterScope meterScope = MeterScope.of(piMeterCellId.meterId().id());
+        MeterRequest.Builder mRequestBuilder = DefaultMeterRequest.builder()
+                .forDevice(deviceId)
+                .fromApp(meter.appId())
+                .withUnit(meter.unit())
+                .withScope(meterScope)
+                .withBands(meter.bands())
+                .withIndex(piMeterCellId.index());
+        if (add) {
+            return mRequestBuilder.add();
+        }
+        return mRequestBuilder.remove();
+    }
+
     private class ReconcileUpfDevices implements Runnable {
 
         @Override
@@ -1183,6 +1259,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
 
         private void checkStateAndReconcile() throws UpfProgrammableException {
+            // TODO: reconcile meters!!
             log.trace("Running reconciliation task...");
             assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
 

@@ -45,6 +45,7 @@ import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_UPLINK;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.IFACE_ACCESS;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.IFACE_CORE;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.APP_ID;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.APP_METER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.CTR_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DST_ADDR;
@@ -83,6 +84,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TE
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.QFI;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.SESSION_METER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SLICE_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SPORT;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SRC_ADDR;
@@ -252,7 +254,12 @@ public class Up4TranslatorImpl implements Up4Translator {
                 builder.withTeid(Up4TranslatorUtil.getFieldInt(entry, HDR_TEID));
                 builder.withTunDstAddr(Up4TranslatorUtil.getFieldAddress(entry, HDR_N3_ADDRESS));
                 PiActionId actionId = ((PiAction) entry.action()).id();
-                builder.needsDropping(actionId.equals(PRE_QOS_PIPE_SET_SESSION_UPLINK_DROP));
+                if (actionId.equals(PRE_QOS_PIPE_SET_SESSION_UPLINK_DROP)) {
+                    builder.needsDropping(true);
+                } else {
+                    // TODO: should I verify SESSION_METER_ID is in parameters?
+                    builder.withSessionMeterIdx(Up4TranslatorUtil.getParamShort(entry, SESSION_METER_ID));
+                }
                 return builder.build();
             }
             case SESSION_DOWNLINK: {
@@ -261,10 +268,14 @@ public class Up4TranslatorImpl implements Up4Translator {
                 PiActionId actionId = ((PiAction) entry.action()).id();
                 if (actionId.equals(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_DROP)) {
                     builder.needsDropping(true);
-                } else if (actionId.equals(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF)) {
-                    builder.needsBuffering(true);
                 } else {
-                    builder.withGtpTunnelPeerId(Up4TranslatorUtil.getParamByte(entry, TUNNEL_PEER_ID));
+                    // TODO: should I verify SESSION_METER_ID is in parameters?
+                    builder.withSessionMeterIdx(Up4TranslatorUtil.getParamShort(entry, SESSION_METER_ID));
+                    if (actionId.equals(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF)) {
+                        builder.needsBuffering(true);
+                    } else {
+                        builder.withGtpTunnelPeerId(Up4TranslatorUtil.getParamByte(entry, TUNNEL_PEER_ID));
+                    }
                 }
                 return builder.build();
             }
@@ -278,6 +289,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                     builder.needsDropping(true);
                 } else if (actionId.equals(PRE_QOS_PIPE_UPLINK_TERM_FWD)) {
                     builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
+                    builder.withAppMeterIdx(Up4TranslatorUtil.getParamShort(entry, APP_METER_ID));
                 }
                 return builder.build();
             }
@@ -292,6 +304,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 } else {
                     builder.withTeid(Up4TranslatorUtil.getParamInt(entry, TEID));
                     builder.withQfi(Up4TranslatorUtil.getParamByte(entry, QFI));
+                    builder.withAppMeterIdx(Up4TranslatorUtil.getParamShort(entry, APP_METER_ID));
                     if (actionId.equals(PRE_QOS_PIPE_DOWNLINK_TERM_FWD)) {
                         builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
                     }
@@ -375,6 +388,8 @@ public class Up4TranslatorImpl implements Up4Translator {
                     actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_UPLINK_DROP);
                 } else {
                     actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_UPLINK);
+                    actionBuilder.withParameter(
+                            new PiActionParam(SESSION_METER_ID, (short) sessionUplink.sessionMeterIdx()));
                 }
                 break;
             case SESSION_DOWNLINK:
@@ -389,16 +404,22 @@ public class Up4TranslatorImpl implements Up4Translator {
                 if (sessionDownlink.needsDropping() && sessionDownlink.needsBuffering()) {
                     log.error("We don't support DROP + BUFF on the UP4 northbound! Defaulting to only BUFF");
                     actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF);
+                    actionBuilder.withParameter(
+                            new PiActionParam(SESSION_METER_ID, (short) sessionDownlink.sessionMeterIdx()));
                 } else if (sessionDownlink.needsDropping()) {
                     actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_DROP);
-                } else if (sessionDownlink.needsBuffering()) {
-                    actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF);
                 } else {
-                    actionBuilder.withParameter(new PiActionParam(
-                            TUNNEL_PEER_ID,
-                            ImmutableByteSequence.copyFrom(sessionDownlink.tunPeerId()))
-                    );
-                    actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK);
+                    actionBuilder.withParameter(
+                            new PiActionParam(SESSION_METER_ID, (short) sessionDownlink.sessionMeterIdx()));
+                    if (sessionDownlink.needsBuffering()) {
+                        actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF);
+                    } else {
+                        actionBuilder.withParameter(new PiActionParam(
+                                TUNNEL_PEER_ID,
+                                ImmutableByteSequence.copyFrom(sessionDownlink.tunPeerId()))
+                        );
+                        actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK);
+                    }
                 }
                 break;
             case TERMINATION_UPLINK:
@@ -423,6 +444,8 @@ public class Up4TranslatorImpl implements Up4Translator {
                     } else {
                         actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC);
                     }
+                    actionBuilder.withParameter(
+                            new PiActionParam(APP_METER_ID, (short) upfTerminationUl.appMeterIdx()));
                 }
                 break;
             case TERMINATION_DOWNLINK:
@@ -449,6 +472,8 @@ public class Up4TranslatorImpl implements Up4Translator {
                     } else {
                         actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC);
                     }
+                    actionBuilder.withParameter(
+                            new PiActionParam(APP_METER_ID, (short) upfTerminationDl.appMeterIdx()));
                 }
                 break;
             case TUNNEL_PEER:

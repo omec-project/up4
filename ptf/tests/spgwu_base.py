@@ -436,11 +436,14 @@ class GtpuBaseTest(P4RuntimeTest):
                     meter_name, meter_id,
                 ))
         else:
+            pir = int(max_bitrate / 8)
+            pburst = int((max_bitrate / 8) * BURST_DURATION_MS * 0.001)
             self.modify(
                 self.helper.build_meter_entry(
                     meter_name, meter_id,
-                    cir=0, cburst=0,
-                    pir=int(max_bitrate * 8), pburst=int(max_bitrate * 8 * BURST_DURATION_MS * 0.001)
+                    cir=1, cburst=1,
+                    pir=pir if pir > 0 else 1,
+                    pburst=pburst if pburst > 0 else 1,
                 ))
 
     def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id,
@@ -492,7 +495,10 @@ class GtpuBaseTest(P4RuntimeTest):
             app_id=app_id,
             app_meter_id=app_meter_id
         )
-        self.add_qer_meters(session_meter_id, session_meter_max_bitrate, app_meter_id, app_meter_max_bitrate)
+        if app_meter_max_bitrate is not None:
+            self.add_app_meter(app_meter_id, app_meter_max_bitrate)
+        if session_meter_max_bitrate is not None:
+            self.add_session_meter(session_meter_id, session_meter_max_bitrate)
         # Add routing entry even if drop, SPGW drop should be perfomed before routing
         self.add_routing_entry(
             ip_prefix=exp_pkt[IP].dst + '/32',
@@ -564,7 +570,10 @@ class GtpuBaseTest(P4RuntimeTest):
             app_id=app_id,
             app_meter_id=app_meter_id,
         )
-        self.add_qer_meters(session_meter_id, session_meter_max_bitrate, app_meter_id, app_meter_max_bitrate)
+        if app_meter_max_bitrate is not None:
+            self.add_app_meter(app_meter_id, app_meter_max_bitrate)
+        if session_meter_max_bitrate is not None:
+            self.add_session_meter(session_meter_id, session_meter_max_bitrate)
         # Add routing entry even if drop, SPGW drop should be perfomed before routing
         self.add_routing_entry(
             ip_prefix=exp_pkt[IP].dst + '/32',
@@ -573,9 +582,11 @@ class GtpuBaseTest(P4RuntimeTest):
             egress_port=outport,
         )
 
-    def add_qer_meters(self, session_meter_id, session_meter_max_bitrate, app_meter_id, app_meter_max_bitrate):
-        self.__add_meter_helper("PreQosPipe.session_meter", session_meter_id, session_meter_max_bitrate)
+    def add_app_meter(self, app_meter_id, app_meter_max_bitrate):
         self.__add_meter_helper("PreQosPipe.app_meter", app_meter_id, app_meter_max_bitrate)
+
+    def add_session_meter(self, session_meter_id, session_meter_max_bitrate):
+        self.__add_meter_helper("PreQosPipe.session_meter", session_meter_id, session_meter_max_bitrate)
 
     def set_up_ddn_digest(self, ack_timeout_ns):
         # No timeout, not batching. Not recommended for production.

@@ -24,7 +24,7 @@ from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
 
 from convert import encode
 from spgwu_base import GtpuBaseTest, UDP_GTP_PORT, GTPU_EXT_PSC_TYPE_DL, \
-    GTPU_EXT_PSC_TYPE_UL
+    GTPU_EXT_PSC_TYPE_UL, DEFAULT_SESSION_METER_ID, DEFAULT_APP_METER_ID
 
 CPU_CLONE_SESSION_ID = 99
 UE_ADDR_BITWIDTH = 32
@@ -37,6 +37,7 @@ SWITCH_MAC = "AA:AA:AA:00:00:01"
 ENODEB_MAC = "BB:BB:BB:00:00:01"
 PDN_MAC = "CC:CC:CC:00:00:01"
 
+ONE_GBPS = 1000000000
 
 @group("gtpu")
 class GtpuDecapUplinkTest(GtpuBaseTest):
@@ -49,22 +50,17 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
             for app_filtering in [False, True]:
                 # Verify that default TC behaves in the same way as when we specify TC
                 for tc in [0, None]:
-                    for app_bitrate in [0, 10000]:
-                        for session_bitrate in [0, 10000]:
-                            if app_bitrate == 0 and session_bitrate == 0:
-                                # Skip when both bitrates are 0
-                                continue
-                            print(" %s, tc=%s, app_filtering=%s, app_bitrate=%s, session_bitrate=%s... " % (pkt_type, tc, app_filtering, app_bitrate, session_bitrate))
-                            pkt = getattr(testutils,
-                                          "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC,
-                                                                         eth_dst=SWITCH_MAC, ip_src=UE_IPV4,
-                                                                         ip_dst=PDN_IPV4)
-                            pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
+                    print(" %s, tc=%s, app_filtering=%s... " % (pkt_type, tc, app_filtering))
+                    pkt = getattr(testutils,
+                                  "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC,
+                                                                 eth_dst=SWITCH_MAC, ip_src=UE_IPV4,
+                                                                 ip_dst=PDN_IPV4)
+                    pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
 
-                            self.testPacket(pkt, app_filtering, tc, app_bitrate, session_bitrate)
+                    self.testPacket(pkt, app_filtering, tc)
 
     @autocleanup
-    def testPacket(self, pkt, app_filtering, tc, app_bitrate, session_bitrate):
+    def testPacket(self, pkt, app_filtering, tc, app_bitrate=None, session_bitrate=None):
 
         if gtp.GTP_U_Header not in pkt:
             raise AssertionError("Packet given to decap test is not encapsulated!")
@@ -79,8 +75,12 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
         # UPF counter ID
         ctr_id = self.new_counter_id()
         # Meter IDs
-        app_meter_id = self.unique_rule_id()
-        session_meter_id = self.unique_rule_id()
+        app_meter_id = DEFAULT_APP_METER_ID
+        session_meter_id = DEFAULT_SESSION_METER_ID
+        if app_bitrate is not None:
+            app_meter_id = self.unique_rule_id()
+        if session_bitrate is not None:
+            session_meter_id = self.unique_rule_id()
 
         # program all the tables
         self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, tc=tc,
@@ -111,6 +111,25 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
 
 
 @group("gtpu")
+class GtpuDecapUplinkTestMeters(GtpuDecapUplinkTest):
+
+    def runTest(self):
+        # Test with only UDP traffic and default TC
+        for app_bitrate in [None, 0, ONE_GBPS]:
+            for session_bitrate in [None, 0, ONE_GBPS]:
+                if app_bitrate == 0 and session_bitrate == 0:
+                    # Skip when both bitrates are 0
+                    continue
+                print(" udp, app_filtering=True, tc=None, app_bitrate=%s, session_bitrate=%s... " % (app_bitrate, session_bitrate))
+                pkt = getattr(testutils,"simple_udp_packet")(eth_src=ENODEB_MAC,
+                                                             eth_dst=SWITCH_MAC, ip_src=UE_IPV4,
+                                                             ip_dst=PDN_IPV4)
+                pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
+
+                self.testPacket(pkt, True, None, app_bitrate, session_bitrate)
+
+
+@group("gtpu")
 class GtpuEncapDownlinkTest(GtpuBaseTest):
     """ Tests that a packet received from the internet/core gets encapsulated and forwarded.
     """
@@ -121,20 +140,15 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
             for app_filtering in [False, True]:
                 # Verify that default TC behaves in the same way as when we specify TC
                 for tc in [0, None]:
-                    for app_bitrate in [0, 10000]:
-                        for session_bitrate in [0, 10000]:
-                            if app_bitrate == 0 and session_bitrate == 0:
-                                # Skip when both bitrates are 0
-                                continue
-                            print(" %s, tc=%s, app_filtering=%s, app_bitrate=%s, session_bitrate=%s... " % (pkt_type, tc, app_filtering, app_bitrate, session_bitrate))
-                            pkt = getattr(testutils,
-                                          "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC,
-                                                                         eth_dst=SWITCH_MAC,
-                                                                         ip_src=PDN_IPV4, ip_dst=UE_IPV4)
-                            self.testPacket(pkt, app_filtering, tc, app_bitrate, session_bitrate)
+                    print(" %s, tc=%s, app_filtering=%s... " % (pkt_type, tc, app_filtering))
+                    pkt = getattr(testutils,
+                                  "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC,
+                                                                 eth_dst=SWITCH_MAC,
+                                                                 ip_src=PDN_IPV4, ip_dst=UE_IPV4)
+                    self.testPacket(pkt, app_filtering, tc)
 
     @autocleanup
-    def testPacket(self, pkt, app_filtering, tc, app_bitrate, session_bitrate):
+    def testPacket(self, pkt, app_filtering, tc, app_bitrate=None, session_bitrate=None):
         # build the expected encapsulated packet
         exp_pkt = pkt.copy()
         dst_mac = ENODEB_MAC
@@ -150,8 +164,12 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         # UPF counter ID
         ctr_id = self.new_counter_id()
         # Meter IDs
-        app_meter_id = self.unique_rule_id()
-        session_meter_id = self.unique_rule_id()
+        app_meter_id = DEFAULT_APP_METER_ID
+        session_meter_id = DEFAULT_SESSION_METER_ID
+        if app_bitrate is not None:
+            app_meter_id = self.unique_rule_id()
+        if session_bitrate is not None:
+            session_meter_id = self.unique_rule_id()
 
         # program all the tables
         self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, tc=tc,
@@ -180,6 +198,23 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
             post_qos_bytes = len(pkt)
         self.verify_counters_increased(ctr_id, 1, len(pkt), post_qos_pkts, post_qos_bytes)
 
+
+@group("gtpu")
+class GtpuEncapDownlinkTestMeters(GtpuEncapDownlinkTest):
+
+    def runTest(self):
+        # Test with only UDP traffic and default TC
+        for app_bitrate in [None, 0, ONE_GBPS]:
+            for session_bitrate in [None, 0, ONE_GBPS]:
+                if app_bitrate == 0 and session_bitrate == 0:
+                    # Skip when both bitrates are 0
+                    continue
+                print(" udp, app_filtering=True, tc=None, app_bitrate=%s, session_bitrate=%s... " % (app_bitrate, session_bitrate))
+                pkt = getattr(testutils,"simple_udp_packet")(eth_src=PDN_MAC,
+                                                             eth_dst=SWITCH_MAC,
+                                                             ip_src=PDN_IPV4, ip_dst=UE_IPV4)
+
+                self.testPacket(pkt, True, None, app_bitrate, session_bitrate)
 
 @group("gtpu")
 class GtpuDropUplinkTest(GtpuBaseTest):

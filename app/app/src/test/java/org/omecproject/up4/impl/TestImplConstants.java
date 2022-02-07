@@ -38,6 +38,7 @@ import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_DOWNLINK;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_UPLINK;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.IFACE_ACCESS;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.IFACE_CORE;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.APP_METER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.CTR_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DST_ADDR;
@@ -72,6 +73,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TE
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.QFI;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.SESSION_METER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SLICE_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SPORT;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SRC_ADDR;
@@ -124,7 +126,9 @@ public final class TestImplConstants {
     public static final long CBURST = 1000;
     public static final long PIR = 50000;
     public static final long PBURST = 500;
-    public static final int METER_ID = 300;
+    public static final short METER_ID = 300;
+    public static final short DEFAULT_APP_METER_IDX = 0;
+    public static final short DEFAULT_SESSION_METER_IDX = 0;
 
     public static final int MOBILE_SLICE = 0;
 
@@ -138,6 +142,7 @@ public final class TestImplConstants {
     public static final UpfSessionUplink UPLINK_SESSION = UpfSessionUplink.builder()
             .withTeid(TEID)
             .withTunDstAddr(S1U_ADDR)
+            .withSessionMeterIdx(METER_ID)
             .build();
 
     public static final UpfTerminationUplink UPLINK_TERMINATION = UpfTerminationUplink.builder()
@@ -145,6 +150,7 @@ public final class TestImplConstants {
             .withApplicationId(APP_FILTER_ID)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
             .withTrafficClass(TRAFFIC_CLASS_UL)
+            .withAppMeterIdx(METER_ID)
             .build();
 
     public static final UpfTerminationUplink UPLINK_TERMINATION_NO_TC = UpfTerminationUplink.builder()
@@ -161,11 +167,13 @@ public final class TestImplConstants {
     public static final UpfSessionDownlink DOWNLINK_SESSION = UpfSessionDownlink.builder()
             .withUeAddress(UE_ADDR)
             .withGtpTunnelPeerId(GTP_TUNNEL_ID)
+            .withSessionMeterIdx(METER_ID)
             .build();
 
     public static final UpfSessionDownlink DOWNLINK_SESSION_DBUF = UpfSessionDownlink.builder()
             .withUeAddress(UE_ADDR)
             .needsBuffering(true)
+            .withSessionMeterIdx(METER_ID)
             .build();
 
     public static final UpfTerminationDownlink DOWNLINK_TERMINATION = UpfTerminationDownlink.builder()
@@ -175,6 +183,7 @@ public final class TestImplConstants {
             .withQfi(DOWNLINK_QFI)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
             .withTrafficClass(TRAFFIC_CLASS_DL)
+            .withAppMeterIdx(METER_ID)
             .build();
 
     public static final UpfTerminationDownlink DOWNLINK_TERMINATION_NO_TC = UpfTerminationDownlink.builder()
@@ -259,6 +268,7 @@ public final class TestImplConstants {
             .withAction(
                     PiAction.builder()
                             .withId(PRE_QOS_PIPE_SET_SESSION_UPLINK)
+                            .withParameter(new PiActionParam(SESSION_METER_ID, METER_ID))
                             .build()
             )
             .build();
@@ -275,6 +285,7 @@ public final class TestImplConstants {
                     PiAction.builder()
                             .withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK)
                             .withParameter(new PiActionParam(TUNNEL_PEER_ID, GTP_TUNNEL_ID))
+                            .withParameter(new PiActionParam(SESSION_METER_ID, METER_ID))
                             .build()
             )
             .build();
@@ -290,6 +301,7 @@ public final class TestImplConstants {
             .withAction(
                     PiAction.builder()
                             .withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF)
+                            .withParameter(new PiActionParam(SESSION_METER_ID, METER_ID))
                             .build()
             )
             .build();
@@ -310,6 +322,7 @@ public final class TestImplConstants {
                             .withId(PRE_QOS_PIPE_UPLINK_TERM_FWD)
                             .withParameter(new PiActionParam(CTR_IDX, UPLINK_COUNTER_CELL_ID))
                             .withParameter(new PiActionParam(TC, TRAFFIC_CLASS_UL))
+                            .withParameter(new PiActionParam(APP_METER_ID, METER_ID))
                             .build()
             )
             .build();
@@ -329,6 +342,7 @@ public final class TestImplConstants {
                     PiAction.builder()
                             .withId(PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC)
                             .withParameter(new PiActionParam(CTR_IDX, UPLINK_COUNTER_CELL_ID))
+                            .withParameter(new PiActionParam(APP_METER_ID, DEFAULT_APP_METER_IDX))
                             .build()
             )
             .build();
@@ -370,6 +384,7 @@ public final class TestImplConstants {
                             .withParameter(new PiActionParam(Up4P4InfoConstants.TEID, TEID))
                             .withParameter(new PiActionParam(QFI, DOWNLINK_QFI))
                             .withParameter(new PiActionParam(TC, TRAFFIC_CLASS_DL))
+                            .withParameter(new PiActionParam(APP_METER_ID, METER_ID))
                             .build()
             )
             .build();
@@ -391,6 +406,7 @@ public final class TestImplConstants {
                             .withParameter(new PiActionParam(CTR_IDX, DOWNLINK_COUNTER_CELL_ID))
                             .withParameter(new PiActionParam(Up4P4InfoConstants.TEID, TEID))
                             .withParameter(new PiActionParam(QFI, DOWNLINK_QFI))
+                            .withParameter(new PiActionParam(APP_METER_ID, DEFAULT_APP_METER_IDX))
                             .build()
             )
             .build();
