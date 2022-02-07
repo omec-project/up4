@@ -3,7 +3,7 @@
 #
 
 # ------------------------------------------------------------------------------
-# SPGWU BASE TEST
+# UPF BASE TEST
 #
 # No actual tests are located here. Tests will inherit GtpuBaseTest
 # ------------------------------------------------------------------------------
@@ -499,7 +499,7 @@ class GtpuBaseTest(P4RuntimeTest):
             self.add_app_meter(app_meter_id, app_meter_max_bitrate)
         if session_meter_max_bitrate is not None:
             self.add_session_meter(session_meter_id, session_meter_max_bitrate)
-        # Add routing entry even if drop, SPGW drop should be perfomed before routing
+        # Add routing entry even if drop, UPF drop should be perfomed before routing
         self.add_routing_entry(
             ip_prefix=exp_pkt[IP].dst + '/32',
             src_mac=exp_pkt[Ether].src,
@@ -574,7 +574,7 @@ class GtpuBaseTest(P4RuntimeTest):
             self.add_app_meter(app_meter_id, app_meter_max_bitrate)
         if session_meter_max_bitrate is not None:
             self.add_session_meter(session_meter_id, session_meter_max_bitrate)
-        # Add routing entry even if drop, SPGW drop should be perfomed before routing
+        # Add routing entry even if drop, UPF drop should be perfomed before routing
         self.add_routing_entry(
             ip_prefix=exp_pkt[IP].dst + '/32',
             src_mac=exp_pkt[Ether].src,

@@ -11,7 +11,7 @@ public final class AppConstants {
     public static final PiPipeconfId PIPECONF_ID = new PiPipeconfId(APP_NAME);
     public static final int GRPC_SERVER_PORT = 51001;
     public static final String P4INFO_PATH = "/p4info.txt";
-    public static final String SUPPORTED_PIPECONF_STRING = "fabric-spgw";
+    public static final String SUPPORTED_PIPECONF_STRING = "fabric-upf";
 
     // TODO: SLICE_MOBILE should be configurable via netcfg or from the north.
     //  See: https://jira.opennetworking.org/browse/SDFAB-985

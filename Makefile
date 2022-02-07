@@ -29,7 +29,7 @@ clean:
 	-rm -rf app/app/target
 	-rm -rf app/api/target
 
-# Required by tost build scripts - do not remove!
+# Required by sdfabric-onos build scripts - do not remove!
 _prepare_app_build:
 	cd app && make _build_resources
 
