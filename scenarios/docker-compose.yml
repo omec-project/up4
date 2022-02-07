@@ -26,8 +26,8 @@ services:
     container_name: mock-smf
     tty: true
     stdin_open: true
-    expose:
-      - 54321 # default gRPC server listen port
+    ports:
+      - 54321:54321 # default gRPC server listen port
     volumes:
       - ./tmp:/tmp
       - ./topo:/topo
