@@ -18,18 +18,23 @@ services:
     expose:
       - 8805
   mock-smf:
-    build:
-      context: ./topo
-      dockerfile: Dockerfile.scapy
+    image: pfcpsim:0.1.0-dev
+    # build:
+    #   context: ./topo
+    #   dockerfile: Dockerfile.scapy
     hostname: mock-smf
     container_name: mock-smf
     tty: true
     stdin_open: true
+    expose:
+      - 54321 # default gRPC server listen port
     volumes:
       - ./tmp:/tmp
       - ./topo:/topo
       - ./bin:/up4/bin
     entrypoint: "/bin/sh"
+    command: >
+      -c "/bin/pfcpsim  -u 140.0.0.1 -r pfcp-agent -g 140.0.100.1"
   p4rt:
     build:
       context: ./topo
