@@ -18,14 +18,16 @@ services:
     expose:
       - 8805
   mock-smf:
-    image: pfcpsim:0.1.0-dev
+    image: ${PFCPSIM_IMAGE}
     # build:
     #   context: ./topo
-    #   dockerfile: Dockerfile.scapy
+    #   dockerfile: Dockerfile.mock-smf
     hostname: mock-smf
     container_name: mock-smf
     tty: true
     stdin_open: true
+    profiles:
+      - start-mock-smf
     ports:
       - 54321:54321 # default gRPC server listen port
     volumes:

@@ -5,11 +5,9 @@
 <scenario name="smf-setup" description="Mock SMF setup">
     <group name="Smf-Setup">
         <step name="Mock-Smf-Start"
-              exec="mock-smf-cmd start"/>
-        <step name="Check-Mock-Smf-Survived-Start" requires="^"
-              exec="mock-smf-cmd check"/>
+              exec="${DOCKER_COMPOSE_CMD} --profile start-mock-smf up -d"/>
         <step name="Mock-Smf-Associate" requires="^"
-              exec="mock-smf-cmd associate"/>
+              exec="${DOCKER_COMPOSE_CMD} run --rm --entrypoint /bin/pfcpsimctl ${PFCPSIM_IMAGE} -c associate"/>
         <step name="Check-Pfcp-Agent-Survived-Start" requires="^" delay="1"
               exec="pfcp-agent-check-alive"/>
     </group>
