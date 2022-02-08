@@ -53,7 +53,7 @@
                 starts="Clear-App-Filtering-${#}"
                 ends="Clear-App-Filtering-${#-1}">
                 <step name="Clear-App-Filtering-${#}" requires="~Check-Traffic-App-Filtering-Negative,~Check-Traffic-App-Filtering-Positive"
-                      exec="mock-smf-cmd delete --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="mock-smf-cmd delete --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --no-wildcard"/>
             </sequential>
         </group>
     </group>
