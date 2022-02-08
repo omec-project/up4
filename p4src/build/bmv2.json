@@ -36,8 +36,8 @@
         ["userMetadata.tunnel_out_udp_sport", 16, false],
         ["userMetadata.tunnel_out_teid", 32, false],
         ["userMetadata.tunnel_out_qfi", 6, false],
-        ["userMetadata.session_meter_id_internal", 16, false],
-        ["userMetadata.app_meter_id_internal", 16, false],
+        ["userMetadata.session_meter_id_internal", 32, false],
+        ["userMetadata.app_meter_id_internal", 32, false],
         ["userMetadata.session_color", 2, false],
         ["userMetadata.app_color", 2, false],
         ["userMetadata.preserved_ingress_port", 9, false],
@@ -2045,7 +2045,7 @@
             },
             {
               "type" : "hexstr",
-              "value" : "0x0000"
+              "value" : "0x00000000"
             }
           ],
           "source_info" : {
@@ -2064,7 +2064,7 @@
             },
             {
               "type" : "hexstr",
-              "value" : "0x0000"
+              "value" : "0x00000000"
             }
           ],
           "source_info" : {
@@ -2615,7 +2615,7 @@
       "runtime_data" : [
         {
           "name" : "session_meter_id",
-          "bitwidth" : 16
+          "bitwidth" : 32
         }
       ],
       "primitives" : [
@@ -2715,7 +2715,7 @@
         },
         {
           "name" : "session_meter_id",
-          "bitwidth" : 16
+          "bitwidth" : 32
         }
       ],
       "primitives" : [
@@ -2801,7 +2801,7 @@
       "runtime_data" : [
         {
           "name" : "session_meter_id",
-          "bitwidth" : 16
+          "bitwidth" : 32
         }
       ],
       "primitives" : [
@@ -2865,7 +2865,7 @@
         },
         {
           "name" : "app_meter_id",
-          "bitwidth" : 16
+          "bitwidth" : 32
         }
       ],
       "primitives" : [
@@ -2952,7 +2952,7 @@
         },
         {
           "name" : "app_meter_id",
-          "bitwidth" : 16
+          "bitwidth" : 32
         }
       ],
       "primitives" : [
@@ -3151,7 +3151,7 @@
         },
         {
           "name" : "app_meter_id",
-          "bitwidth" : 16
+          "bitwidth" : 32
         }
       ],
       "primitives" : [
@@ -3284,7 +3284,7 @@
         },
         {
           "name" : "app_meter_id",
-          "bitwidth" : 16
+          "bitwidth" : 32
         }
       ],
       "primitives" : [

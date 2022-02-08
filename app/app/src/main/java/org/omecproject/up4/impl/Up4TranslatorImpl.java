@@ -389,7 +389,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 } else {
                     actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_UPLINK);
                     actionBuilder.withParameter(
-                            new PiActionParam(SESSION_METER_ID, (short) sessionUplink.sessionMeterIdx()));
+                            new PiActionParam(SESSION_METER_ID, sessionUplink.sessionMeterIdx()));
                 }
                 break;
             case SESSION_DOWNLINK:
@@ -405,12 +405,12 @@ public class Up4TranslatorImpl implements Up4Translator {
                     log.error("We don't support DROP + BUFF on the UP4 northbound! Defaulting to only BUFF");
                     actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF);
                     actionBuilder.withParameter(
-                            new PiActionParam(SESSION_METER_ID, (short) sessionDownlink.sessionMeterIdx()));
+                            new PiActionParam(SESSION_METER_ID, sessionDownlink.sessionMeterIdx()));
                 } else if (sessionDownlink.needsDropping()) {
                     actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_DROP);
                 } else {
                     actionBuilder.withParameter(
-                            new PiActionParam(SESSION_METER_ID, (short) sessionDownlink.sessionMeterIdx()));
+                            new PiActionParam(SESSION_METER_ID, sessionDownlink.sessionMeterIdx()));
                     if (sessionDownlink.needsBuffering()) {
                         actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF);
                     } else {
@@ -445,7 +445,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                         actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC);
                     }
                     actionBuilder.withParameter(
-                            new PiActionParam(APP_METER_ID, (short) upfTerminationUl.appMeterIdx()));
+                            new PiActionParam(APP_METER_ID, upfTerminationUl.appMeterIdx()));
                 }
                 break;
             case TERMINATION_DOWNLINK:
@@ -473,7 +473,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                         actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC);
                     }
                     actionBuilder.withParameter(
-                            new PiActionParam(APP_METER_ID, (short) upfTerminationDl.appMeterIdx()));
+                            new PiActionParam(APP_METER_ID, upfTerminationDl.appMeterIdx()));
                 }
                 break;
             case TUNNEL_PEER:

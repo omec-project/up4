@@ -126,9 +126,9 @@ public final class TestImplConstants {
     public static final long CBURST = 1000;
     public static final long PIR = 50000;
     public static final long PBURST = 500;
-    public static final short METER_ID = 300;
-    public static final short DEFAULT_APP_METER_IDX = 0;
-    public static final short DEFAULT_SESSION_METER_IDX = 0;
+    public static final int METER_ID = 300;
+    public static final int DEFAULT_APP_METER_IDX = 0;
+    public static final int DEFAULT_SESSION_METER_IDX = 0;
 
     public static final int MOBILE_SLICE = 0;
 

@@ -56,8 +56,8 @@ typedef bit<32> teid_t;
 typedef bit<6> qfi_t;
 typedef bit<32> counter_index_t;
 typedef bit<8> tunnel_peer_id_t;
-typedef bit<16> app_meter_id_t;
-typedef bit<16> session_meter_id_t;
+typedef bit<32> app_meter_id_t;
+typedef bit<32> session_meter_id_t;
 
 typedef bit<SLICE_ID_WIDTH> slice_id_t;
 typedef bit<TC_WIDTH> tc_t; // Traffic Class (for QoS) within a slice
