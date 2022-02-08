@@ -78,6 +78,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static java.util.concurrent.Executors.newScheduledThreadPool;
 import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL_DEFAULT;
@@ -140,6 +141,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Store up4Store;
 
+    private ScheduledExecutorService testExecutor;
+
     private ExecutorService eventExecutor;
     private ScheduledExecutorService reconciliationExecutor;
     private Future<?> reconciliationTask;
@@ -175,6 +178,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         flowRuleListener = new InternalFlowRuleListener();
         upfProgrammables = Maps.newConcurrentMap();
         upfDevices = Sets.newConcurrentHashSet();
+        testExecutor = newScheduledThreadPool(10);
         eventExecutor = newSingleThreadScheduledExecutor(groupedThreads(
                 "omec/up4", "event-%d", log));
         reconciliationExecutor = newSingleThreadScheduledExecutor(groupedThreads(
@@ -205,7 +209,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     reconciliationTask.cancel(false);
                     if (upfInitialized.get()) {
                         reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
-                                new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
+                                new ReconcileUpfDevices(), 0, 10, TimeUnit.SECONDS);
                     }
                 }
             }
@@ -236,6 +240,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         piPipeconfService.removeListener(piPipeconfListener);
         flowRuleService.removeListener(flowRuleListener);
 
+        testExecutor.shutdown();
         eventExecutor.shutdownNow();
         reconciliationExecutor.shutdown();
 
@@ -711,27 +716,29 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 // by an inbound rpc that completes faster than the drain call
                 Ip4Address ueAddr = sess.ueAddress();
                 Context ctx = Context.current().fork();
-                ctx.run(() -> {
-                    if (dbufClient == null) {
-                        log.error("Cannot start dbuf drain for {}, dbufClient is null", ueAddr);
-                        return;
-                    }
-                    if (config == null || config.dbufDrainAddr() == null) {
-                        log.error("Cannot start dbuf drain for {}, dbufDrainAddr is null", ueAddr);
-                        return;
-                    }
-                    log.info("Started dbuf drain for {}", ueAddr);
-                    dbufClient.drain(ueAddr, config.dbufDrainAddr(), GTP_PORT)
-                            .whenComplete((result, ex) -> {
-                                if (ex != null) {
-                                    log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
-                                } else if (result) {
-                                    log.info("Dbuf drain completed for {}", ueAddr);
-                                } else {
-                                    log.warn("Unknown error while draining dbuf for {}", ueAddr);
-                                }
-                            });
-                });
+                testExecutor.schedule(() -> {
+                    ctx.run(() -> {
+                        if (dbufClient == null) {
+                            log.error("Cannot start dbuf drain for {}, dbufClient is null", ueAddr);
+                            return;
+                        }
+                        if (config == null || config.dbufDrainAddr() == null) {
+                            log.error("Cannot start dbuf drain for {}, dbufDrainAddr is null", ueAddr);
+                            return;
+                        }
+                        log.info("Started dbuf drain for {}", ueAddr);
+                        dbufClient.drain(ueAddr, config.dbufDrainAddr(), GTP_PORT)
+                                .whenComplete((result, ex) -> {
+                                    if (ex != null) {
+                                        log.error("Exception while draining dbuf for {}: {}", ueAddr, ex);
+                                    } else if (result) {
+                                        log.info("Dbuf drain completed for {}", ueAddr);
+                                    } else {
+                                        log.warn("Unknown error while draining dbuf for {}", ueAddr);
+                                    }
+                                });
+                    });
+                }, 15, TimeUnit.SECONDS);
             }
         }
     }
@@ -1128,6 +1135,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     event.type() == FlowRuleEvent.Type.RULE_REMOVE_REQUESTED) &&
                     event.subject().deviceId().equals(leaderUpfDevice)) {
                 try {
+                    if (Math.random() > 0.01) {
+                        return;
+                    }
                     assertUpfIsReady();
                 } catch (IllegalStateException e) {
                     log.warn("While handling event type {}: {}", event.type(), e.getMessage());

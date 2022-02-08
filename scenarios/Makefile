@@ -18,7 +18,7 @@ UP4_ENV ?= stable
 STC_VERSION ?= 2.6-SNAPSHOT
 
 # Define the topology, it can be leafspine or singlepair
-TOPO ?= leafspine
+TOPO ?= singlepair
 
 STC_ENV := .env.stc-${TOPO}
 TOPO_NETCFG := ${UP4_ROOT}/scenarios/topo/netcfg-${TOPO}.json

@@ -215,7 +215,7 @@
           "device:leaf2"
         ],
         "s1uAddr": "140.0.0.1",
-        "maxUes": 32,
+        "maxUes": 1100,
         "uePools": [
           "17.0.0.0/16"
         ],
