@@ -397,7 +397,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             log.warn("Failed to read interface: {}", e.getMessage());
             return;
         }
-        for (UpfInterface iface : configFileInterfaces()) {
+        for (UpfInterface iface : configInterfaces()) {
             if (!installedInterfaces.contains(iface)) {
                 log.warn("{} is missing from leader device! Installing", iface);
                 try {
@@ -410,7 +410,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
-    public Collection<UpfInterface> configFileInterfaces() {
+    public Collection<UpfInterface> configInterfaces() {
         Collection<UpfInterface> interfaces = new ArrayList<>();
         interfaces.add(UpfInterface.createS1uFrom(config.s1uAddress(), SLICE_MOBILE));
         for (Ip4Prefix uePool : config.uePools()) {

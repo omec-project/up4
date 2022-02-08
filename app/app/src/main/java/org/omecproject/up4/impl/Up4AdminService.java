@@ -47,12 +47,12 @@ public interface Up4AdminService {
     void installUpfEntities();
 
     /**
-     * Gets the UPF interfaces present in the UP4 config file.
+     * Gets the UPF interfaces present in the UP4 netcfg.
      * This method doesn't query the UPF data plane.
      *
-     * @return a collection of UPF interfaces configured via UP4 config file.
+     * @return a collection of UPF interfaces configured via UP4 netcfg.
      */
-    Collection<UpfInterface> configFileInterfaces();
+    Collection<UpfInterface> configInterfaces();
 
     /**
      * Applies the given UPF entity to the UPF data plane, without filtering

@@ -29,7 +29,8 @@ public class Up4Config extends Config<ApplicationId> {
     public static final String MAX_UES = "maxUes";
     public static final String DEVICE_ID = "deviceId"; // TODO: remove this field after all configs updated
     public static final String DEVICES = "devices";
-    public static final String UE_POOLS = "uePools"; // Optional, if not provided PFCPiface is free to install UE pools.
+    // Optional, if not provided pfcpiface is free to install the corresponding interface entry.
+    public static final String UE_POOLS = "uePools";
     public static final String S1U_PREFIX = "s1uPrefix";  // TODO: remove this field after all configs updated
     public static final String S1U_ADDR = "s1uAddr";
     public static final String DBUF_DRAIN_ADDR = "dbufDrainAddr";

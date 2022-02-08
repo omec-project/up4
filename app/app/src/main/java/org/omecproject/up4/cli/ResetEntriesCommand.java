@@ -34,7 +34,7 @@ public class ResetEntriesCommand extends AbstractShellCommand {
         app.adminDeleteAll(UpfEntityType.TERMINATION_DOWNLINK);
         app.adminDeleteAll(UpfEntityType.TUNNEL_PEER);
         app.adminReadAll(UpfEntityType.INTERFACE);
-        Collection<UpfInterface> configInterfaces = app.configFileInterfaces();
+        Collection<UpfInterface> configInterfaces = app.configInterfaces();
         // Remove only the interfaces from UP4 config
         for (UpfInterface upfInterface : configInterfaces) {
             app.adminDelete(upfInterface);
