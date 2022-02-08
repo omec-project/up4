@@ -21,7 +21,7 @@
                       requires="Docker-Compose-Up"/>
                 <!-- sdfabric-onos image should come with up4 pre-installed -->
                 <step name="Up4-App-Wait-For-Pre-Installed-${#}" requires="Onos-Wait-For-Start-${#}"
-                      exec="docker-log-grep ${ODI} 'Application org.omecproject.up4 has been installed'"/>
+                      exec="docker-log-grep ${OD#} 'Application org.omecproject.up4 has been installed'"/>
                 <!-- Add current users key for passwordless SSH access to the ONOS CLI
                 required by most onos-* commands -->
                 <step name="Onos-User-Key-${#}" exec="onos-user-key ${OD#}"

@@ -5,6 +5,7 @@
 <scenario name="smoke" description="UP4 smoke test">
     <import file="./setup.xml"/>
     <import file="./net-setup.xml"/>
+    <import file="./p4rt-uepool-config.xml"/>
     <!-- <import file="./p4rt-forwarding-qos.xml"/> -->
     <import file="./p4rt-end-marker.xml"/>
     <import file="./pfcp-forwarding.xml"/>
@@ -16,7 +17,9 @@
     <import file="./pfcp-agent-failure.xml"/>
     <import file="./smf-failure.xml"/>
     <dependency name="Net-Setup" requires="Setup"/>
-    <dependency name="No-Forwarding" requires="Net-Setup"/>
+    <!-- Remove P4rt-Uepool-Config when PFCP-agent will push the UE Pool interface -->
+    <dependency name="P4rt-Uepool-Config" requires="Net-Setup"/>
+    <dependency name="No-Forwarding" requires="P4rt-Uepool-Config"/>
     <dependency name="Smf-Setup" requires="Net-Setup"/>
     <!-- FIXME: replace with equivalent scenario where mock smf sends qos rules -->
     <!-- FIXME: uncomment P4rt-Forwarding-Qos and set it as requirement of 'P4rt-End-Marker',
