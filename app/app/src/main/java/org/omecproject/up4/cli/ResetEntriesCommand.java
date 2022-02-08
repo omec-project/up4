@@ -8,7 +8,9 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.impl.Up4AdminService;
 import org.onosproject.cli.AbstractShellCommand;
+import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
+import org.onosproject.net.behaviour.upf.UpfMeter;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 
 /**
@@ -31,6 +33,12 @@ public class ResetEntriesCommand extends AbstractShellCommand {
         app.adminDeleteAll(UpfEntityType.TERMINATION_DOWNLINK);
         app.adminDeleteAll(UpfEntityType.TUNNEL_PEER);
         app.adminDeleteAll(UpfEntityType.INTERFACE);
+        for (UpfEntity e : app.adminReadAll(UpfEntityType.SESSION_METER)) {
+            app.adminApply(UpfMeter.resetSession(((UpfMeter) e).cellId()));
+        }
+        for (UpfEntity e : app.adminReadAll(UpfEntityType.APPLICATION_METER)) {
+            app.adminApply(UpfMeter.resetApplication(((UpfMeter) e).cellId()));
+        }
         print("Reinstalling UP4 interfaces and DBUF GTP Tunnel from app configuration.");
         app.installUpfEntities();
     }

@@ -8,7 +8,9 @@ import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.onosproject.cli.AbstractShellCommand;
+import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
+import org.onosproject.net.behaviour.upf.UpfMeter;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 
 /**
@@ -30,6 +32,12 @@ public class ClearFlowsCommand extends AbstractShellCommand {
         app.deleteAll(UpfEntityType.TERMINATION_DOWNLINK);
         app.deleteAll(UpfEntityType.TERMINATION_UPLINK);
         app.deleteAll(UpfEntityType.TUNNEL_PEER);
+        for (UpfEntity e : app.readAll(UpfEntityType.SESSION_METER)) {
+            app.apply(UpfMeter.resetSession(((UpfMeter) e).cellId()));
+        }
+        for (UpfEntity e : app.readAll(UpfEntityType.APPLICATION_METER)) {
+            app.apply(UpfMeter.resetApplication(((UpfMeter) e).cellId()));
+        }
     }
 }
 

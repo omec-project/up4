@@ -27,13 +27,13 @@ public class UpfSessionMeterCommand extends AbstractShellCommand {
 
     @Argument(index = 1, name = "pir",
             description = "Peak information rate",
-            required = true)
-    long pir = -1;
+            required = false)
+    Long pir = null;
 
     @Argument(index = 2, name = "pburst",
             description = "Peak burst",
-            required = true)
-    long pburst = -1;
+            required = false)
+    Long pburst = null;
 
     @Option(name = "--delete", aliases = "-d",
             description = "Delete the given session meter",
@@ -43,14 +43,18 @@ public class UpfSessionMeterCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
-        UpfMeter sessionMeter = UpfMeter.builder()
-                .setCellId(cellId)
-                .setPeakBand(pir, pburst)
-                .setSession()
-                .build();
         if (delete) {
-            app.delete(sessionMeter);
+            app.apply(UpfMeter.resetSession(cellId));
         } else {
+            if (pir == null || pburst == null) {
+                print("PIR and PBURST must be provided when creating a meter");
+                return;
+            }
+            UpfMeter sessionMeter = UpfMeter.builder()
+                    .setCellId(cellId)
+                    .setPeakBand(pir, pburst)
+                    .setSession()
+                    .build();
             app.apply(sessionMeter);
         }
     }

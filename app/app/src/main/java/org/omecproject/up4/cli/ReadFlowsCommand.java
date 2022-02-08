@@ -29,12 +29,15 @@ public class ReadFlowsCommand extends AbstractShellCommand {
 
     @Override
     protected void doExecute() throws Exception {
+        // TODO: improve UpfFlow objects to include meters and app filtering rules
         Up4AdminService adminService = get(Up4AdminService.class);
 
         Collection<DownlinkUpfFlow> dlUpfFlow = adminService.getDownlinkFlows();
         Collection<UplinkUpfFlow> ulUpfFlow = adminService.getUplinkFlows();
         Collection<? extends UpfEntity> ulSess = adminService.adminReadAll(UpfEntityType.SESSION_UPLINK);
         Collection<? extends UpfEntity> appFilters = adminService.adminReadAll(UpfEntityType.APPLICATION);
+        Collection<? extends UpfEntity> sessMeters = adminService.adminReadAll(UpfEntityType.SESSION_METER);
+        Collection<? extends UpfEntity> appMeters = adminService.adminReadAll(UpfEntityType.APPLICATION_METER);
 
         print(SEPARATOR);
         print(appFilters.size() + " Applications");
@@ -49,6 +52,26 @@ public class ReadFlowsCommand extends AbstractShellCommand {
                           ", l4_range=" + app.l4PortRange() +
                           ", ip_proto=" + app.ipProto()
             );
+        }
+        print(SEPARATOR);
+        print(sessMeters.size() + " Session Meters");
+        for (UpfEntity sm : sessMeters) {
+            if (!sm.type().equals(UpfEntityType.SESSION_METER)) {
+                print("ERROR: Wrong session meter: " + sm);
+                continue;
+            }
+            // TODO: improve to string
+            print(sm.toString());
+        }
+        print(SEPARATOR);
+        print(appMeters.size() + " Application Meters");
+        for (UpfEntity am : appMeters) {
+            if (!am.type().equals(UpfEntityType.APPLICATION_METER)) {
+                print("ERROR: Wrong application meter: " + am);
+                continue;
+            }
+            // TODO: improve to string
+            print(am.toString());
         }
         print(SEPARATOR);
         print(ulSess.size() + " Uplink Sessions");

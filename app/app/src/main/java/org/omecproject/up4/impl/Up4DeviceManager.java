@@ -1205,23 +1205,27 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 Meter m = event.subject();
                 if (m.meterCellId().type().equals(MeterCellId.MeterCellType.PIPELINE_INDEPENDENT) &&
                         upfProgrammables.get(leaderUpfDevice).fromThisUpf(m)) {
-                    List<MeterRequest> meters = Lists.newArrayList();
-                    PiMeterCellId piMeterCellId = (PiMeterCellId) m.meterCellId();
-                    boolean add = event.type().equals(MeterEvent.Type.METER_ADDED);
+                    final List<MeterRequest> meters = Lists.newArrayList();
+                    final PiMeterCellId piMeterCellId = (PiMeterCellId) m.meterCellId();
+                    final boolean add = event.type().equals(MeterEvent.Type.METER_ADDED);
                     // Partition work based on the follower master instance
                     upfProgrammables.keySet().stream()
                             .filter(deviceId -> !deviceId.equals(leaderUpfDevice))
                             .filter(mastershipService::isLocalMaster)
                             .forEach(deviceId -> meters.add(meterToMeterRequestForDevice(m, deviceId, add)));
-                    switch (event.type()) {
-                        case METER_ADDED:
-                            meters.forEach(meterService::submit);
-                            break;
-                        case METER_REMOVED:
-                            meters.forEach(mReq -> meterService.withdraw(mReq, piMeterCellId));
-                            break;
-                        default:
-                            log.error("I should never reach this point on {}", event);
+                    if (meters.size() > 0) {
+                        switch (event.type()) {
+                            case METER_ADDED:
+                                log.debug("Adding " + meters.size() + " meters: " + meters);
+                                meters.forEach(meterService::submit);
+                                break;
+                            case METER_REMOVED:
+                                log.debug("Removing " + meters.size() + " meters: " + meters);
+                                meters.forEach(mReq -> meterService.withdraw(mReq, piMeterCellId));
+                                break;
+                            default:
+                                log.error("I should never reach this point on {}", event);
+                        }
                     }
                 }
 

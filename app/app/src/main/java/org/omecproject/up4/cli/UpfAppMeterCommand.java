@@ -27,23 +27,23 @@ public class UpfAppMeterCommand extends AbstractShellCommand {
 
     @Argument(index = 1, name = "pir",
             description = "Peak information rate",
-            required = true)
-    long pir = -1;
+            required = false)
+    Long pir = null;
 
     @Argument(index = 2, name = "pburst",
             description = "Peak burst",
-            required = true)
-    long pburst = -1;
+            required = false)
+    Long pburst = null;
 
-    @Argument(index = 1, name = "cir",
+    @Argument(index = 3, name = "cir",
             description = "Committed information rate",
             required = false)
-    long cir = -1;
+    Long cir = 1L;
 
-    @Argument(index = 2, name = "cburst",
+    @Argument(index = 4, name = "cburst",
             description = "Committed burst",
-            required = true)
-    long cburst = -1;
+            required = false)
+    Long cburst = 1L;
 
     @Option(name = "--delete", aliases = "-d",
             description = "Delete the given app meter",
@@ -53,16 +53,18 @@ public class UpfAppMeterCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
-        UpfMeter.Builder appMeterBuilder = UpfMeter.builder()
-                .setCellId(cellId)
-                .setPeakBand(pir, pburst)
-                .setApplication();
-        if (cir != -1 && cburst != -1) {
-            appMeterBuilder.setCommittedBand(cir, cburst);
-        }
         if (delete) {
-            app.delete(appMeterBuilder.build());
+            app.apply(UpfMeter.resetApplication(cellId));
         } else {
+            if (pir == null || pburst == null) {
+                print("PIR and PBURST must be provided when creating a meter");
+                return;
+            }
+            UpfMeter.Builder appMeterBuilder = UpfMeter.builder()
+                    .setCellId(cellId)
+                    .setPeakBand(pir, pburst)
+                    .setApplication()
+                    .setCommittedBand(cir, cburst);
             app.apply(appMeterBuilder.build());
         }
     }
