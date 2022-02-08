@@ -29,7 +29,7 @@ public class Up4Config extends Config<ApplicationId> {
     public static final String MAX_UES = "maxUes";
     public static final String DEVICE_ID = "deviceId"; // TODO: remove this field after all configs updated
     public static final String DEVICES = "devices";
-    public static final String UE_POOLS = "uePools";
+    public static final String UE_POOLS = "uePools"; // Optional, if not provided PFCPiface is free to install UE pools.
     public static final String S1U_PREFIX = "s1uPrefix";  // TODO: remove this field after all configs updated
     public static final String S1U_ADDR = "s1uAddr";
     public static final String DBUF_DRAIN_ADDR = "dbufDrainAddr";
@@ -42,9 +42,7 @@ public class Up4Config extends Config<ApplicationId> {
                              DBUF_DRAIN_ADDR, MAX_UES, PSC_ENCAP_ENABLED) &&
                 // Mandatory fields.
                 (hasField(DEVICE_ID) || hasField(DEVICES)) &&
-                hasField(UE_POOLS) &&
                 (hasField(S1U_ADDR) || hasField(S1U_PREFIX)) &&
-                !uePools().isEmpty() &&
                 !upfDeviceIds().isEmpty() &&
                 isDbufConfigValid();
     }
@@ -114,13 +112,13 @@ public class Up4Config extends Config<ApplicationId> {
     }
 
     /**
-     * Gets the list of UE IPv4 address pools assigned to the device. Or null if not configured.
+     * Gets the list of UE IPv4 address pools assigned to the device.
      *
-     * @return UE IPv4 address pools assigned to the device
+     * @return UE IPv4 address pools assigned to the device or empty list if not configured
      */
     public List<Ip4Prefix> uePools() {
         if (!object.has(UE_POOLS)) {
-            return null;
+            return ImmutableList.of();
         }
         List<Ip4Prefix> uePools = new ArrayList<>();
         ArrayNode uePoolsNode = (ArrayNode) object.path(UE_POOLS);

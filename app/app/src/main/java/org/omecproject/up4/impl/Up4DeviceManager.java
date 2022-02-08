@@ -409,12 +409,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
     }
 
-    /**
-     * Gets the collection of interfaces present in the UP4 config file.
-     *
-     * @return an interface collection
-     */
-    private Collection<UpfInterface> configFileInterfaces() {
+    @Override
+    public Collection<UpfInterface> configFileInterfaces() {
         Collection<UpfInterface> interfaces = new ArrayList<>();
         interfaces.add(UpfInterface.createS1uFrom(config.s1uAddress(), SLICE_MOBILE));
         for (Ip4Prefix uePool : config.uePools()) {
