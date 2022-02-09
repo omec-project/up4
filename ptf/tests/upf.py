@@ -24,7 +24,7 @@ from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
 
 from convert import encode
 from upf_base import GtpuBaseTest, UDP_GTP_PORT, GTPU_EXT_PSC_TYPE_DL, \
-    GTPU_EXT_PSC_TYPE_UL, DEFAULT_SESSION_METER_ID, DEFAULT_APP_METER_ID
+    GTPU_EXT_PSC_TYPE_UL, DEFAULT_SESSION_METER_IDX, DEFAULT_APP_METER_IDX
 
 CPU_CLONE_SESSION_ID = 99
 UE_ADDR_BITWIDTH = 32
@@ -75,18 +75,18 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
         # UPF counter ID
         ctr_id = self.new_counter_id()
         # Meter IDs
-        app_meter_id = DEFAULT_APP_METER_ID
-        session_meter_id = DEFAULT_SESSION_METER_ID
+        app_meter_idx = DEFAULT_APP_METER_IDX
+        session_meter_idx = DEFAULT_SESSION_METER_IDX
         if app_bitrate is not None:
-            app_meter_id = self.unique_rule_id()
+            app_meter_idx = self.unique_rule_id()
         if session_bitrate is not None:
-            session_meter_id = self.unique_rule_id()
+            session_meter_idx = self.unique_rule_id()
 
         # program all the tables
         self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, tc=tc,
-                                        app_meter_id=app_meter_id,
+                                        app_meter_idx=app_meter_idx,
                                         app_meter_max_bitrate=app_bitrate,
-                                        session_meter_id=session_meter_id,
+                                        session_meter_idx=session_meter_idx,
                                         session_meter_max_bitrate=session_bitrate,
                                         drop=False, app_filtering=app_filtering)
 
@@ -164,18 +164,18 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         # UPF counter ID
         ctr_id = self.new_counter_id()
         # Meter IDs
-        app_meter_id = DEFAULT_APP_METER_ID
-        session_meter_id = DEFAULT_SESSION_METER_ID
+        app_meter_idx = DEFAULT_APP_METER_IDX
+        session_meter_idx = DEFAULT_SESSION_METER_IDX
         if app_bitrate is not None:
-            app_meter_id = self.unique_rule_id()
+            app_meter_idx = self.unique_rule_id()
         if session_bitrate is not None:
-            session_meter_id = self.unique_rule_id()
+            session_meter_idx = self.unique_rule_id()
 
         # program all the tables
         self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, tc=tc,
-                                          app_meter_id=app_meter_id,
+                                          app_meter_idx=app_meter_idx,
                                           app_meter_max_bitrate=app_bitrate,
-                                          session_meter_id=session_meter_id,
+                                          session_meter_idx=session_meter_idx,
                                           session_meter_max_bitrate=session_bitrate,
                                           app_filtering=app_filtering, drop=False)
 
@@ -210,7 +210,7 @@ class GtpuEncapDownlinkTestMeters(GtpuEncapDownlinkTest):
                     # Skip when both bitrates are 0
                     continue
                 print(" udp, app_filtering=True, tc=None, app_bitrate=%s, session_bitrate=%s... " % (app_bitrate, session_bitrate))
-                pkt = getattr(testutils,"simple_udp_packet")(eth_src=PDN_MAC,
+                pkt = getattr(testutils, "simple_udp_packet")(eth_src=PDN_MAC,
                                                              eth_dst=SWITCH_MAC,
                                                              ip_src=PDN_IPV4, ip_dst=UE_IPV4)
 

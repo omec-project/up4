@@ -9,9 +9,7 @@ import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
 import org.omecproject.up4.impl.Up4AdminService;
 import org.onosproject.cli.AbstractShellCommand;
-import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
-import org.onosproject.net.behaviour.upf.UpfMeter;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 
 /**

@@ -33,8 +33,8 @@ MOBILE_SLICE = 15
 APP_ID_UNKNOWN = 0
 APP_ID = 10
 
-DEFAULT_SESSION_METER_ID = 0
-DEFAULT_APP_METER_ID = 0
+DEFAULT_SESSION_METER_IDX = 0
+DEFAULT_APP_METER_IDX = 0
 
 BURST_DURATION_MS = 100
 
@@ -293,7 +293,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
         # yapf: enable
 
-    def add_session_uplink(self, n3_addr, teid, session_meter_id=DEFAULT_SESSION_METER_ID, drop=False):
+    def add_session_uplink(self, n3_addr, teid, session_meter_idx=DEFAULT_SESSION_METER_IDX, drop=False):
         match_fields = {
             "n3_address": n3_addr,
             "teid": teid,
@@ -303,7 +303,7 @@ class GtpuBaseTest(P4RuntimeTest):
             action_params = {}
         else:
             action_name = "PreQosPipe.set_session_uplink"
-            action_params = {"session_meter_id": session_meter_id}
+            action_params = {"session_meter_idx": session_meter_idx}
         self.insert(
             self.helper.build_table_entry(
                 table_name="PreQosPipe.sessions_uplink",
@@ -312,12 +312,12 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params=action_params,
             ))
 
-    def add_session_downlink(self, ue_addr, session_meter_id=DEFAULT_SESSION_METER_ID,
+    def add_session_downlink(self, ue_addr, session_meter_idx=DEFAULT_SESSION_METER_IDX,
                              tunnel_peer_id=None, buffer=False, drop=False):
         match_fields = {
             "ue_address": ue_addr,
         }
-        action_params = {"session_meter_id": session_meter_id}
+        action_params = {"session_meter_idx": session_meter_idx}
         if buffer:
             action_name = "PreQosPipe.set_session_downlink_buff"
         elif drop:
@@ -334,7 +334,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params=action_params,
             ))
 
-    def add_terminations_uplink(self, ue_address, ctr_idx, app_meter_id=DEFAULT_APP_METER_ID,
+    def add_terminations_uplink(self, ue_address, ctr_idx, app_meter_idx=DEFAULT_APP_METER_IDX,
                                 tc=None, drop=False, app_id=APP_ID_UNKNOWN):
         match_fields = {
             "ue_address": ue_address,
@@ -344,7 +344,7 @@ class GtpuBaseTest(P4RuntimeTest):
         if drop:
             action_name = "PreQosPipe.uplink_term_drop"
         else:
-            action_params["app_meter_id"] = app_meter_id
+            action_params["app_meter_idx"] = app_meter_idx
             if tc is None:
                 action_name = "PreQosPipe.uplink_term_fwd_no_tc"
             else:
@@ -358,7 +358,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params=action_params,
             ))
 
-    def add_terminations_downlink(self, ue_address, ctr_idx, app_meter_id=DEFAULT_APP_METER_ID,
+    def add_terminations_downlink(self, ue_address, ctr_idx, app_meter_idx=DEFAULT_APP_METER_IDX,
                                   tc=None, teid=None, qfi=None,
                                   drop=False, app_id=APP_ID_UNKNOWN):
         match_fields = {
@@ -371,7 +371,7 @@ class GtpuBaseTest(P4RuntimeTest):
         else:
             action_params["teid"] = teid
             action_params["qfi"] = qfi
-            action_params["app_meter_id"] = app_meter_id
+            action_params["app_meter_idx"] = app_meter_idx
             if tc:
                 action_params["tc"] = tc
                 action_name = "PreQosPipe.downlink_term_fwd"
@@ -447,9 +447,9 @@ class GtpuBaseTest(P4RuntimeTest):
                 ))
 
     def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id,
-                                   session_meter_id=DEFAULT_SESSION_METER_ID,
+                                   session_meter_idx=DEFAULT_SESSION_METER_IDX,
                                    session_meter_max_bitrate=None,
-                                   app_meter_id=DEFAULT_APP_METER_ID,
+                                   app_meter_idx=DEFAULT_APP_METER_IDX,
                                    app_meter_max_bitrate=None,
                                    tc=0, app_filtering=False, drop=False):
         """ Add all table entries required for the given uplink packet to flow through the UPF
@@ -475,7 +475,7 @@ class GtpuBaseTest(P4RuntimeTest):
         self.add_session_uplink(
             n3_addr=pkt[IP].dst,
             teid=pkt[gtp.GTP_U_Header].teid,
-            session_meter_id=session_meter_id,
+            session_meter_idx=session_meter_idx,
         )
 
         app_id = APP_ID_UNKNOWN
@@ -493,12 +493,12 @@ class GtpuBaseTest(P4RuntimeTest):
             tc=tc,
             drop=drop,
             app_id=app_id,
-            app_meter_id=app_meter_id
+            app_meter_idx=app_meter_idx
         )
         if app_meter_max_bitrate is not None:
-            self.add_app_meter(app_meter_id, app_meter_max_bitrate)
+            self.add_app_meter(app_meter_idx, app_meter_max_bitrate)
         if session_meter_max_bitrate is not None:
-            self.add_session_meter(session_meter_id, session_meter_max_bitrate)
+            self.add_session_meter(session_meter_idx, session_meter_max_bitrate)
         # Add routing entry even if drop, UPF drop should be perfomed before routing
         self.add_routing_entry(
             ip_prefix=exp_pkt[IP].dst + '/32',
@@ -508,9 +508,9 @@ class GtpuBaseTest(P4RuntimeTest):
         )
 
     def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id,
-                                     session_meter_id=DEFAULT_SESSION_METER_ID,
+                                     session_meter_idx=DEFAULT_SESSION_METER_IDX,
                                      session_meter_max_bitrate=None,
-                                     app_meter_id=DEFAULT_APP_METER_ID,
+                                     app_meter_idx=DEFAULT_APP_METER_IDX,
                                      app_meter_max_bitrate=None,
                                      drop=False, buffer=False, tun_id=None, qfi=0, tc=0, push_qfi=False,
                                      app_filtering=False):
@@ -542,7 +542,7 @@ class GtpuBaseTest(P4RuntimeTest):
             tunnel_peer_id=tun_id,
             buffer=buffer,
             drop=buffer and drop,
-            session_meter_id=session_meter_id,
+            session_meter_idx=session_meter_idx,
         )
 
         self.add_tunnel_peer(
@@ -568,12 +568,12 @@ class GtpuBaseTest(P4RuntimeTest):
             qfi=qfi if push_qfi else 0,
             drop=drop,
             app_id=app_id,
-            app_meter_id=app_meter_id,
+            app_meter_idx=app_meter_idx,
         )
         if app_meter_max_bitrate is not None:
-            self.add_app_meter(app_meter_id, app_meter_max_bitrate)
+            self.add_app_meter(app_meter_idx, app_meter_max_bitrate)
         if session_meter_max_bitrate is not None:
-            self.add_session_meter(session_meter_id, session_meter_max_bitrate)
+            self.add_session_meter(session_meter_idx, session_meter_max_bitrate)
         # Add routing entry even if drop, UPF drop should be perfomed before routing
         self.add_routing_entry(
             ip_prefix=exp_pkt[IP].dst + '/32',
@@ -582,11 +582,11 @@ class GtpuBaseTest(P4RuntimeTest):
             egress_port=outport,
         )
 
-    def add_app_meter(self, app_meter_id, app_meter_max_bitrate):
-        self.__add_meter_helper("PreQosPipe.app_meter", app_meter_id, app_meter_max_bitrate)
+    def add_app_meter(self, app_meter_idx, app_meter_max_bitrate):
+        self.__add_meter_helper("PreQosPipe.app_meter", app_meter_idx, app_meter_max_bitrate)
 
-    def add_session_meter(self, session_meter_id, session_meter_max_bitrate):
-        self.__add_meter_helper("PreQosPipe.session_meter", session_meter_id, session_meter_max_bitrate)
+    def add_session_meter(self, session_meter_idx, session_meter_max_bitrate):
+        self.__add_meter_helper("PreQosPipe.session_meter", session_meter_idx, session_meter_max_bitrate)
 
     def set_up_ddn_digest(self, ack_timeout_ns):
         # No timeout, not batching. Not recommended for production.

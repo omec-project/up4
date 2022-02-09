@@ -128,12 +128,12 @@ control PreQosPipe (inout parsed_headers_t    hdr,
 
 
     counter<counter_index_t>(MAX_PDRS, CounterType.packets_and_bytes) pre_qos_counter;
-    meter<app_meter_id_t>(MAX_APP_METERS, MeterType.bytes) app_meter;
-    meter<session_meter_id_t>(MAX_SESSION_METERS, MeterType.bytes) session_meter;
+    meter<app_meter_idx_t>(MAX_APP_METERS, MeterType.bytes) app_meter;
+    meter<session_meter_idx_t>(MAX_SESSION_METERS, MeterType.bytes) session_meter;
 
     action _initialize_metadata() {
-        local_meta.session_meter_id_internal = DEFAULT_SESSION_METER_ID;
-        local_meta.app_meter_id_internal = DEFAULT_APP_METER_ID;
+        local_meta.session_meter_idx_internal = DEFAULT_SESSION_METER_IDX;
+        local_meta.app_meter_idx_internal = DEFAULT_APP_METER_IDX;
         local_meta.application_id = APP_ID_UNKNOWN;
         local_meta.preserved_ingress_port = std_meta.ingress_port;
     }
@@ -195,26 +195,26 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         exit;
     }
 
-    action set_session_uplink(session_meter_id_t session_meter_id) {
+    action set_session_uplink(session_meter_idx_t session_meter_idx) {
         local_meta.needs_gtpu_decap = true;
-        local_meta.session_meter_id_internal = session_meter_id;
+        local_meta.session_meter_idx_internal = session_meter_idx;
     }
 
     action set_session_uplink_drop() {
         local_meta.needs_dropping = true;
     }
 
-    action set_session_downlink(tunnel_peer_id_t tunnel_peer_id, session_meter_id_t session_meter_id) {
+    action set_session_downlink(tunnel_peer_id_t tunnel_peer_id, session_meter_idx_t session_meter_idx) {
         local_meta.tunnel_peer_id = tunnel_peer_id;
-        local_meta.session_meter_id_internal = session_meter_id;
+        local_meta.session_meter_idx_internal = session_meter_idx;
     }
     action set_session_downlink_drop() {
         local_meta.needs_dropping = true;
     }
 
-    action set_session_downlink_buff(session_meter_id_t session_meter_id) {
+    action set_session_downlink_buff(session_meter_idx_t session_meter_idx) {
         local_meta.needs_buffering = true;
-        local_meta.session_meter_id_internal = session_meter_id;
+        local_meta.session_meter_idx_internal = session_meter_idx;
     }
 
     table sessions_uplink {
@@ -249,13 +249,13 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.terminations_hit = true;
     }
 
-    action uplink_term_fwd_no_tc(counter_index_t ctr_idx, app_meter_id_t app_meter_id) {
+    action uplink_term_fwd_no_tc(counter_index_t ctr_idx, app_meter_idx_t app_meter_idx) {
         common_term(ctr_idx);
-        local_meta.app_meter_id_internal = app_meter_id;
+        local_meta.app_meter_idx_internal = app_meter_idx;
     }
 
-    action uplink_term_fwd(counter_index_t ctr_idx, tc_t tc, app_meter_id_t app_meter_id) {
-        uplink_term_fwd_no_tc(ctr_idx, app_meter_id);
+    action uplink_term_fwd(counter_index_t ctr_idx, tc_t tc, app_meter_idx_t app_meter_idx) {
+        uplink_term_fwd_no_tc(ctr_idx, app_meter_idx);
         local_meta.tc = tc;
     }
 
@@ -264,16 +264,16 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.needs_dropping = true;
     }
 
-    action downlink_term_fwd_no_tc(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, app_meter_id_t app_meter_id) {
+    action downlink_term_fwd_no_tc(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, app_meter_idx_t app_meter_idx) {
         common_term(ctr_idx);
         local_meta.tunnel_out_teid = teid;
         local_meta.tunnel_out_qfi = qfi;
-        local_meta.app_meter_id_internal = app_meter_id;
+        local_meta.app_meter_idx_internal = app_meter_idx;
     }
 
     // QFI = 0 for 4G traffic
-    action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, tc_t tc, app_meter_id_t app_meter_id) {
-        downlink_term_fwd_no_tc(ctr_idx, teid, qfi, app_meter_id);
+    action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, tc_t tc, app_meter_idx_t app_meter_idx) {
+        downlink_term_fwd_no_tc(ctr_idx, teid, qfi, app_meter_idx);
         local_meta.tc = tc;
     }
 
@@ -485,11 +485,11 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                     pre_qos_counter.count(local_meta.ctr_idx);
                 }
 
-                app_meter.execute_meter<MeterColor>(local_meta.app_meter_id_internal, local_meta.app_color);
+                app_meter.execute_meter<MeterColor>(local_meta.app_meter_idx_internal, local_meta.app_color);
                 if (local_meta.app_color == MeterColor.RED) {
                     local_meta.needs_dropping = true;
                 } else {
-                    session_meter.execute_meter<MeterColor>(local_meta.session_meter_id_internal, local_meta.session_color);
+                    session_meter.execute_meter<MeterColor>(local_meta.session_meter_idx_internal, local_meta.session_color);
                     if (local_meta.session_color == MeterColor.RED) {
                         local_meta.needs_dropping = true;
                     }

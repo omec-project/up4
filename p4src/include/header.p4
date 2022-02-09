@@ -169,8 +169,8 @@ struct local_metadata_t {
     teid_t      tunnel_out_teid;
     qfi_t       tunnel_out_qfi;
 
-    session_meter_id_t session_meter_id_internal;
-    app_meter_id_t app_meter_id_internal;
+    session_meter_idx_t session_meter_idx_internal;
+    app_meter_idx_t app_meter_idx_internal;
     MeterColor session_color;
     MeterColor app_color;
 
