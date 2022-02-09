@@ -48,6 +48,7 @@ import org.onosproject.net.flow.FlowRuleEvent;
 import org.onosproject.net.flow.FlowRuleListener;
 import org.onosproject.net.flow.FlowRuleOperations;
 import org.onosproject.net.flow.FlowRuleService;
+import org.onosproject.net.flow.FlowEntry.FlowEntryState;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
 import org.onosproject.net.pi.service.PiPipeconfService;
@@ -1207,6 +1208,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 Set<FlowRule> leaderRules =
                     StreamSupport.stream(flowRuleService.getFlowEntries(leaderUpfDevice).spliterator(), false)
                         .filter(r -> getLeaderUpfProgrammable().fromThisUpf(r))
+                        .filter(r -> r.state() == FlowEntryState.PENDING_ADD || r.state() == FlowEntryState.ADDED)
                         .collect(Collectors.toSet());
 
                 // Replace the follower's device id with leader's id,
@@ -1214,6 +1216,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 Set<FlowRule> followerRules =
                     StreamSupport.stream(flowRuleService.getFlowEntries(deviceId).spliterator(), false)
                         .filter(r -> upfProg.fromThisUpf(r))
+                        .filter(r -> r.state() == FlowEntryState.PENDING_ADD || r.state() == FlowEntryState.ADDED)
                         .map(r -> copyFlowRuleForDevice(r, leaderUpfDevice))
                         .collect(Collectors.toSet());
 
