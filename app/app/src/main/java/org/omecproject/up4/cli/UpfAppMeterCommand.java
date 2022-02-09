@@ -38,12 +38,12 @@ public class UpfAppMeterCommand extends AbstractShellCommand {
     @Argument(index = 3, name = "cir",
             description = "Committed information rate",
             required = false)
-    Long cir = 1L;
+    Long cir = null;
 
     @Argument(index = 4, name = "cburst",
             description = "Committed burst",
             required = false)
-    Long cburst = 1L;
+    Long cburst = null;
 
     @Option(name = "--delete", aliases = "-d",
             description = "Delete the given app meter",
@@ -58,6 +58,10 @@ public class UpfAppMeterCommand extends AbstractShellCommand {
         } else {
             if (pir == null || pburst == null) {
                 print("PIR and PBURST must be provided when creating a meter");
+                return;
+            }
+            if (cir == null || cburst == null) {
+                print("CIR and CBURST must be provided when creating a meter");
                 return;
             }
             UpfMeter.Builder appMeterBuilder = UpfMeter.builder()

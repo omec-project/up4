@@ -11,11 +11,16 @@ import org.omecproject.up4.impl.Up4AdminService;
 import org.omecproject.up4.impl.UplinkUpfFlow;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfApplication;
-import org.onosproject.net.behaviour.upf.UpfSessionUplink;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
+import org.onosproject.net.behaviour.upf.UpfMeter;
+import org.onosproject.net.behaviour.upf.UpfSessionUplink;
 
 import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static org.omecproject.up4.impl.Up4Utils.ppUpfMeter;
 
 /**
  * UP4 UE session read command.
@@ -29,14 +34,17 @@ public class ReadFlowsCommand extends AbstractShellCommand {
 
     @Override
     protected void doExecute() throws Exception {
-        // TODO: improve UpfFlow objects to include meters and app filtering rules
         Up4AdminService adminService = get(Up4AdminService.class);
 
         Collection<DownlinkUpfFlow> dlUpfFlow = adminService.getDownlinkFlows();
         Collection<UplinkUpfFlow> ulUpfFlow = adminService.getUplinkFlows();
         Collection<? extends UpfEntity> ulSess = adminService.adminReadAll(UpfEntityType.SESSION_UPLINK);
         Collection<? extends UpfEntity> appFilters = adminService.adminReadAll(UpfEntityType.APPLICATION);
+        // Get session and app meter only to show the number of meters
         Collection<? extends UpfEntity> sessMeters = adminService.adminReadAll(UpfEntityType.SESSION_METER);
+        Map<Integer, UpfMeter> sessMeterMap = sessMeters.stream()
+                .map(m -> (UpfMeter) m)
+                .collect(Collectors.toMap(UpfMeter::cellId, m -> m));
         Collection<? extends UpfEntity> appMeters = adminService.adminReadAll(UpfEntityType.APPLICATION_METER);
 
         print(SEPARATOR);
@@ -54,26 +62,6 @@ public class ReadFlowsCommand extends AbstractShellCommand {
             );
         }
         print(SEPARATOR);
-        print(sessMeters.size() + " Session Meters");
-        for (UpfEntity sm : sessMeters) {
-            if (!sm.type().equals(UpfEntityType.SESSION_METER)) {
-                print("ERROR: Wrong session meter: " + sm);
-                continue;
-            }
-            // TODO: improve to string
-            print(sm.toString());
-        }
-        print(SEPARATOR);
-        print(appMeters.size() + " Application Meters");
-        for (UpfEntity am : appMeters) {
-            if (!am.type().equals(UpfEntityType.APPLICATION_METER)) {
-                print("ERROR: Wrong application meter: " + am);
-                continue;
-            }
-            // TODO: improve to string
-            print(am.toString());
-        }
-        print(SEPARATOR);
         print(ulSess.size() + " Uplink Sessions");
         for (UpfEntity s : ulSess) {
             if (!s.type().equals(UpfEntityType.SESSION_UPLINK)) {
@@ -83,8 +71,15 @@ public class ReadFlowsCommand extends AbstractShellCommand {
             UpfSessionUplink sess = (UpfSessionUplink) s;
             print("n3_addr=" + sess.tunDstAddr() +
                           ", teid=" + sess.teid() +
-                          (sess.needsDropping() ? ", drop()" : ", fwd()")
+                          (sess.needsDropping() ? ", drop()" :
+                                  ", fwd(" + "sess_meter_idx=" + sess.sessionMeterIdx() + ")")
             );
+            UpfMeter sessMeter = sessMeterMap.getOrDefault(sess.sessionMeterIdx(), null);
+            if (sessMeter == null) {
+                print("    NO SESSION METER (sess_meter_idx=" + sess.sessionMeterIdx() + ")");
+            } else {
+                print("    Application meter: " + ppUpfMeter(sessMeter));
+            }
         }
         print(SEPARATOR);
         print(ulUpfFlow.size() + " Uplink Flows");

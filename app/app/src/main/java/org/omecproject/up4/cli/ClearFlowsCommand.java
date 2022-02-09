@@ -7,6 +7,7 @@ package org.omecproject.up4.cli;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
 import org.omecproject.up4.Up4Service;
+import org.omecproject.up4.impl.Up4AdminService;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
@@ -24,6 +25,7 @@ public class ClearFlowsCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() throws UpfProgrammableException {
         Up4Service app = get(Up4Service.class);
+        Up4AdminService adminApp = get(Up4AdminService.class);
 
         print("Clearing all currently installed UE sessions.");
         app.deleteAll(UpfEntityType.APPLICATION);
@@ -32,12 +34,8 @@ public class ClearFlowsCommand extends AbstractShellCommand {
         app.deleteAll(UpfEntityType.TERMINATION_DOWNLINK);
         app.deleteAll(UpfEntityType.TERMINATION_UPLINK);
         app.deleteAll(UpfEntityType.TUNNEL_PEER);
-        for (UpfEntity e : app.readAll(UpfEntityType.SESSION_METER)) {
-            app.apply(UpfMeter.resetSession(((UpfMeter) e).cellId()));
-        }
-        for (UpfEntity e : app.readAll(UpfEntityType.APPLICATION_METER)) {
-            app.apply(UpfMeter.resetApplication(((UpfMeter) e).cellId()));
-        }
+        adminApp.resetAllSessionMeters();
+        adminApp.resetAllApplicationMeters();
     }
 }
 

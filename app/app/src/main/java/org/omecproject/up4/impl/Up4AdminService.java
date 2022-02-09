@@ -93,4 +93,18 @@ public interface Up4AdminService {
      * and if the given device is not a UPF programmable.
      */
     UpfCounter readCounter(int counterIdx, DeviceId device) throws UpfProgrammableException;
+
+    /**
+     * Resets all installed session meters.
+     *
+     * @throws UpfProgrammableException propagate the exception from the UPF data plane.
+     */
+    void resetAllSessionMeters() throws UpfProgrammableException;
+
+    /**
+     * Resets all installed application meters.
+     *
+     * @throws UpfProgrammableException propagate the exception from the UPF data plane.
+     */
+    void resetAllApplicationMeters() throws UpfProgrammableException;
 }

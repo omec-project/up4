@@ -5,11 +5,13 @@
 package org.omecproject.up4.impl;
 
 import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
+import org.onosproject.net.behaviour.upf.UpfMeter;
 import org.onosproject.net.behaviour.upf.UpfSessionDownlink;
 import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.omecproject.up4.impl.Up4Utils.ppUpfMeter;
 
 /**
  * Helper class primarily intended for printing downlink UPF flows.
@@ -19,13 +21,18 @@ public final class DownlinkUpfFlow {
     private final UpfTerminationDownlink term;
     private final UpfGtpTunnelPeer tunnelPeer;
     private final UpfCounter counter;
+    private final UpfMeter sessMeter;
+    private final UpfMeter appMeter;
 
     private DownlinkUpfFlow(UpfSessionDownlink sess, UpfTerminationDownlink term,
-                            UpfGtpTunnelPeer tunnelPeer, UpfCounter counter) {
+                            UpfGtpTunnelPeer tunnelPeer, UpfCounter counter,
+                            UpfMeter sessMeter, UpfMeter appMeter) {
         this.sess = sess;
         this.term = term;
         this.tunnelPeer = tunnelPeer;
         this.counter = counter;
+        this.sessMeter = sessMeter;
+        this.appMeter = appMeter;
     }
 
     /**
@@ -64,6 +71,24 @@ public final class DownlinkUpfFlow {
         return this.counter;
     }
 
+    /**
+     * Gets the session meter of this UE flow.
+     *
+     * @return the session meter if any, null otherwise
+     */
+    public UpfMeter getSessMeter() {
+        return this.sessMeter;
+    }
+
+    /**
+     * Gets the application meter of this UE flow.
+     *
+     * @return the application meter if any, null otherwise
+     */
+    public UpfMeter getAppMeter() {
+        return appMeter;
+    }
+
     @Override
     public String toString() {
         String strTermSess = "NO SESSION AND NO TERMINATION!";
@@ -80,8 +105,8 @@ public final class DownlinkUpfFlow {
                 strTermSess += "fwd";
                 strTermSess += "(" +
                         "teid=" + term.teid() +
-                        " qfi=" + term.qfi() +
-                        " tc=" + term.trafficClass() +
+                        ", qfi=" + term.qfi() +
+                        ", tc=" + term.trafficClass() +
                         ")";
             }
         } else if (term != null) {
@@ -96,7 +121,7 @@ public final class DownlinkUpfFlow {
                         ")";
             }
         } else if (sess != null) {
-            strTermSess = "NO_TERM, ue_addr=" + sess.ueAddress() + ", app_id=" + term.applicationId() + ", ";
+            strTermSess = "NO_TERM, ue_addr=" + sess.ueAddress() + ", ";
             if (sess.needsBuffering() && sess.needsDropping()) {
                 strTermSess += "drop_buff()";
             } else {
@@ -113,6 +138,22 @@ public final class DownlinkUpfFlow {
                     ")";
         }
 
+        String strSessMeter = "NO SESSION METER";
+        if (sess != null) {
+            strSessMeter += " (sess_meter_idx=" + sess.sessionMeterIdx() + ")";
+        }
+        if (sessMeter != null) {
+            strSessMeter = "Session meter: " + ppUpfMeter(sessMeter);
+        }
+
+        String strAppMeter = "NO APPLICATION METER";
+        if (term != null) {
+            strAppMeter += " (app_meter_idx=" + term.appMeterIdx() + ")";
+        }
+        if (appMeter != null) {
+            strAppMeter = "Application meter: " + ppUpfMeter(appMeter);
+        }
+
         String statString = "NO STATISTICS!";
         if (counter != null) {
             statString = String.format(
@@ -120,7 +161,10 @@ public final class DownlinkUpfFlow {
                     counter.getIngressPkts(), counter.getEgressPkts()
             );
         }
-        return strTermSess + strTunn + ", " + statString;
+        return strTermSess + strTunn +
+                "\n    " + strSessMeter +
+                "\n    " + strAppMeter +
+                "\n    " + statString;
     }
 
     /**
@@ -140,6 +184,8 @@ public final class DownlinkUpfFlow {
         private UpfTerminationDownlink term = null;
         private UpfGtpTunnelPeer tunnelPeer = null;
         private UpfCounter counter = null;
+        private UpfMeter sessMeter = null;
+        private UpfMeter appMeter = null;
 
         public Builder() {
         }
@@ -194,6 +240,30 @@ public final class DownlinkUpfFlow {
             return this;
         }
 
+        /**
+         * Adds the UPF session meter. The meter cell id should match the session
+         * meter index in the downlink UPF session.
+         *
+         * @param meter the UPF session meter
+         * @return this builder object
+         */
+        public Builder withSessionMeter(UpfMeter meter) {
+            this.sessMeter = meter;
+            return this;
+        }
+
+        /**
+         * Adds the UPF app meter. The meter cell id should match the app
+         * meter index in the downlink UPF termination.
+         *
+         * @param meter the UPF app meter
+         * @return this builder object
+         */
+        public Builder withAppMeter(UpfMeter meter) {
+            this.appMeter = meter;
+            return this;
+        }
+
         public DownlinkUpfFlow build() {
             if (sess != null && term != null) {
                 checkArgument(sess.ueAddress().equals(term.ueSessionId()),
@@ -207,7 +277,15 @@ public final class DownlinkUpfFlow {
                 checkArgument(term.counterId() == counter.getCellId(),
                               "UPF Counter must refer to the given UPF Termination");
             }
-            return new DownlinkUpfFlow(sess, term, tunnelPeer, counter);
+            if (term != null && appMeter != null) {
+                checkArgument(term.appMeterIdx() == appMeter.cellId(),
+                              "UPF app meter must refer to the given UPF termination");
+            }
+            if (sess != null && sessMeter != null) {
+                checkArgument(sess.sessionMeterIdx() == sessMeter.cellId(),
+                              "UPF session meter must refer to the given UPF termination");
+            }
+            return new DownlinkUpfFlow(sess, term, tunnelPeer, counter, sessMeter, appMeter);
         }
     }
 }

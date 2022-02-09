@@ -30,6 +30,7 @@ import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfMeter;
 import org.onosproject.net.behaviour.upf.UpfProgrammable;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 import org.onosproject.net.behaviour.upf.UpfSessionDownlink;
@@ -92,8 +93,10 @@ import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTER
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL_DEFAULT;
 import static org.onlab.util.Tools.getLongProperty;
 import static org.onlab.util.Tools.groupedThreads;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.APPLICATION_METER;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.COUNTER;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_DOWNLINK;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_METER;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_DOWNLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_UPLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TUNNEL_PEER;
@@ -448,10 +451,15 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     public Collection<UplinkUpfFlow> getUplinkFlows() throws UpfProgrammableException {
         Collection<UplinkUpfFlow> uplinkFlows = Lists.newArrayList();
         Collection<? extends UpfEntity> uplinkTerm = this.adminReadAll(TERMINATION_UPLINK);
+        Map<Integer, UpfMeter> appMeters = Maps.newHashMap();
+        this.adminReadAll(APPLICATION_METER).forEach(
+                am -> appMeters.put(((UpfMeter) am).cellId(), (UpfMeter) am));
+
         for (UpfEntity t : uplinkTerm) {
             UpfTerminationUplink term = (UpfTerminationUplink) t;
             uplinkFlows.add(UplinkUpfFlow.builder().withTerminationUplink(term)
                                     .withCounter(this.readCounter(term.counterId()))
+                                    .withAppMeter(appMeters.getOrDefault(term.appMeterIdx(), null))
                                     .build());
         }
         return uplinkFlows;
@@ -462,25 +470,37 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         Collection<DownlinkUpfFlow> downlinkFlows = Lists.newArrayList();
         Map<Ip4Address, UpfSessionDownlink> ueToSess = Maps.newHashMap();
         Map<Byte, UpfGtpTunnelPeer> idToTunn = Maps.newHashMap();
+        Map<Integer, UpfMeter> sessMeters = Maps.newHashMap();
+        Map<Integer, UpfMeter> appMeters = Maps.newHashMap();
 
         Collection<? extends UpfEntity> downlinkTerm = this.adminReadAll(TERMINATION_DOWNLINK);
         this.adminReadAll(SESSION_DOWNLINK).forEach(
                 s -> ueToSess.put(((UpfSessionDownlink) s).ueAddress(), (UpfSessionDownlink) s));
         this.adminReadAll(TUNNEL_PEER).forEach(
                 t -> idToTunn.put(((UpfGtpTunnelPeer) t).tunPeerId(), (UpfGtpTunnelPeer) t));
+        this.adminReadAll(SESSION_METER).forEach(
+                sm -> sessMeters.put(((UpfMeter) sm).cellId(), (UpfMeter) sm));
+        this.adminReadAll(APPLICATION_METER).forEach(
+                am -> appMeters.put(((UpfMeter) am).cellId(), (UpfMeter) am));
 
         for (UpfEntity t : downlinkTerm) {
             UpfTerminationDownlink term = (UpfTerminationDownlink) t;
             UpfSessionDownlink sess = ueToSess.getOrDefault(term.ueSessionId(), null);
             UpfGtpTunnelPeer tunn = null;
+            UpfMeter sMeter = null;
+            UpfMeter aMeter = null;
             if (sess != null) {
                 tunn = idToTunn.getOrDefault(sess.tunPeerId(), null);
+                sMeter = sessMeters.getOrDefault(sess.sessionMeterIdx(), null);
             }
+            aMeter = appMeters.getOrDefault(term.appMeterIdx(), null);
             downlinkFlows.add(DownlinkUpfFlow.builder()
                                       .withTerminationDownlink(term)
                                       .withSessionDownlink(sess)
                                       .withTunnelPeer(tunn)
                                       .withCounter(this.readCounter(term.counterId()))
+                                      .withAppMeter(aMeter)
+                                      .withSessionMeter(sMeter)
                                       .build());
 
         }
@@ -920,6 +940,20 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
+    public void resetAllSessionMeters() throws UpfProgrammableException {
+        for (UpfEntity e : this.readAll(UpfEntityType.SESSION_METER)) {
+            this.apply(UpfMeter.resetSession(((UpfMeter) e).cellId()));
+        }
+    }
+
+    @Override
+    public void resetAllApplicationMeters() throws UpfProgrammableException {
+        for (UpfEntity e : this.readAll(APPLICATION_METER)) {
+            this.apply(UpfMeter.resetSession(((UpfMeter) e).cellId()));
+        }
+    }
+
+    @Override
     public long tableSize(UpfEntityType entityType) throws UpfProgrammableException {
         long entitySize = getLeaderUpfProgrammable().tableSize(entityType);
         switch (entityType) {
@@ -1214,17 +1248,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                             .filter(mastershipService::isLocalMaster)
                             .forEach(deviceId -> meters.add(meterToMeterRequestForDevice(m, deviceId, add)));
                     if (meters.size() > 0) {
-                        switch (event.type()) {
-                            case METER_ADDED:
-                                log.debug("Adding " + meters.size() + " meters: " + meters);
-                                meters.forEach(meterService::submit);
-                                break;
-                            case METER_REMOVED:
-                                log.debug("Removing " + meters.size() + " meters: " + meters);
-                                meters.forEach(mReq -> meterService.withdraw(mReq, piMeterCellId));
-                                break;
-                            default:
-                                log.error("I should never reach this point on {}", event);
+                        if (add) {
+                            log.debug("Adding " + meters.size() + " meters: " + meters);
+                            meters.forEach(meterService::submit);
+                        } else {
+                            log.debug("Removing " + meters.size() + " meters: " + meters);
+                            meters.forEach(mReq -> meterService.withdraw(mReq, piMeterCellId));
                         }
                     }
                 }

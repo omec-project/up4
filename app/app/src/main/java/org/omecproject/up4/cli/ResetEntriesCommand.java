@@ -33,12 +33,8 @@ public class ResetEntriesCommand extends AbstractShellCommand {
         app.adminDeleteAll(UpfEntityType.TERMINATION_DOWNLINK);
         app.adminDeleteAll(UpfEntityType.TUNNEL_PEER);
         app.adminDeleteAll(UpfEntityType.INTERFACE);
-        for (UpfEntity e : app.adminReadAll(UpfEntityType.SESSION_METER)) {
-            app.adminApply(UpfMeter.resetSession(((UpfMeter) e).cellId()));
-        }
-        for (UpfEntity e : app.adminReadAll(UpfEntityType.APPLICATION_METER)) {
-            app.adminApply(UpfMeter.resetApplication(((UpfMeter) e).cellId()));
-        }
+        app.resetAllSessionMeters();
+        app.resetAllApplicationMeters();
         print("Reinstalling UP4 interfaces and DBUF GTP Tunnel from app configuration.");
         app.installUpfEntities();
     }
