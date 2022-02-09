@@ -368,7 +368,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     applyPscEncap();
                     // Start reconcile thread only when UPF data plane is initialized
                     reconciliationTask = reconciliationExecutor.scheduleAtFixedRate(
-                            new ReconcileUpfDevices(), 0, upfReconcileInterval, TimeUnit.SECONDS);
+                            new ReconcileUpfDevices(), 0, 10, TimeUnit.SECONDS);
                     log.info("UPF data plane setup successful!");
                 }
             }
