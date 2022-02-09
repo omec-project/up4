@@ -1,3 +1,7 @@
+/*
+ SPDX-License-Identifier: Apache-2.0
+ SPDX-FileCopyrightText: 2022-present Open Networking Foundation <info@opennetworking.org>
+ */
 package org.omecproject.up4.impl;
 
 import org.onosproject.net.behaviour.upf.UpfMeter;
