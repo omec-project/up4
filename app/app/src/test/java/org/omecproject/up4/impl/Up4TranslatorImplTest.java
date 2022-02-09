@@ -16,7 +16,7 @@ import org.onosproject.net.pi.runtime.PiTableEntry;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.omecproject.up4.impl.TestImplConstants.METER_ID;
+import static org.omecproject.up4.impl.TestImplConstants.METER_IDX;
 import static org.omecproject.up4.impl.TestImplConstants.PBURST;
 import static org.omecproject.up4.impl.TestImplConstants.PIR;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APP_METER;
@@ -173,7 +173,7 @@ public class Up4TranslatorImplTest {
         exceptionRule.expect(Up4Translator.Up4TranslationException.class);
         up4Translator.up4MeterEntryToUpfEntity(
                 PiMeterCellConfig.builder()
-                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_APP_METER, METER_ID))
+                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_APP_METER, METER_IDX))
                         .withCommittedBand(10, 10)
                         .build());
     }
@@ -183,7 +183,7 @@ public class Up4TranslatorImplTest {
         exceptionRule.expect(Up4Translator.Up4TranslationException.class);
         up4Translator.up4MeterEntryToUpfEntity(
                 PiMeterCellConfig.builder()
-                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_APP_METER, METER_ID))
+                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_APP_METER, METER_IDX))
                         .withPeakBand(10, 10)
                         .build());
     }
@@ -193,7 +193,7 @@ public class Up4TranslatorImplTest {
         exceptionRule.expect(Up4Translator.Up4TranslationException.class);
         up4Translator.up4MeterEntryToUpfEntity(
                 PiMeterCellConfig.builder()
-                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_ID))
+                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_IDX))
                         .withCommittedBand(10, 10)
                         .build());
     }
@@ -209,7 +209,7 @@ public class Up4TranslatorImplTest {
                 "Session meters supports only peak bands (committed = PiMeterBand{type=COMMITTED, rate=10, burst=10})");
         up4Translator.up4MeterEntryToUpfEntity(
                 PiMeterCellConfig.builder()
-                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_ID))
+                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_IDX))
                         .withCommittedBand(10, 10)
                         .withPeakBand(PIR, PBURST)
                         .build());

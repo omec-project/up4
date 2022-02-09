@@ -429,24 +429,24 @@ class GtpuBaseTest(P4RuntimeTest):
                     "sport": sport,
                 }))
 
-    def __add_meter_helper(self, meter_name, meter_id, max_bitrate):
+    def __add_meter_helper(self, meter_name, meter_idx, max_bitrate):
         if max_bitrate is None:
             self.modify(
                 self.helper.build_meter_entry(
-                    meter_name, meter_id,
+                    meter_name, meter_idx,
                 ))
         else:
             pir = int(max_bitrate / 8)
             pburst = int((max_bitrate / 8) * BURST_DURATION_MS * 0.001)
             self.modify(
                 self.helper.build_meter_entry(
-                    meter_name, meter_id,
+                    meter_name, meter_idx,
                     cir=1, cburst=1,
                     pir=pir if pir > 0 else 1,
                     pburst=pburst if pburst > 0 else 1,
                 ))
 
-    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id,
+    def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_idx,
                                    session_meter_idx=DEFAULT_SESSION_METER_IDX,
                                    session_meter_max_bitrate=None,
                                    app_meter_idx=DEFAULT_APP_METER_IDX,
@@ -489,7 +489,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
         self.add_terminations_uplink(
             ue_address=inner_pkt[IP].src,
-            ctr_idx=ctr_id,
+            ctr_idx=ctr_idx,
             tc=tc,
             drop=drop,
             app_id=app_id,
@@ -507,7 +507,7 @@ class GtpuBaseTest(P4RuntimeTest):
             egress_port=outport,
         )
 
-    def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_id,
+    def add_entries_for_downlink_pkt(self, pkt, exp_pkt, inport, outport, ctr_idx,
                                      session_meter_idx=DEFAULT_SESSION_METER_IDX,
                                      session_meter_max_bitrate=None,
                                      app_meter_idx=DEFAULT_APP_METER_IDX,
@@ -562,7 +562,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
         self.add_terminations_downlink(
             ue_address=pkt[IP].dst,
-            ctr_idx=ctr_id,
+            ctr_idx=ctr_idx,
             tc=tc,
             teid=exp_pkt[gtp.GTP_U_Header].teid,
             qfi=qfi if push_qfi else 0,

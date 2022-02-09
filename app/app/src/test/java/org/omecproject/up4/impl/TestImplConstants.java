@@ -126,7 +126,7 @@ public final class TestImplConstants {
     public static final long CBURST = 1000;
     public static final long PIR = 50000;
     public static final long PBURST = 500;
-    public static final int METER_ID = 300;
+    public static final int METER_IDX = 300;
     public static final int DEFAULT_APP_METER_IDX = 0;
     public static final int DEFAULT_SESSION_METER_IDX = 0;
 
@@ -142,7 +142,7 @@ public final class TestImplConstants {
     public static final UpfSessionUplink UPLINK_SESSION = UpfSessionUplink.builder()
             .withTeid(TEID)
             .withTunDstAddr(S1U_ADDR)
-            .withSessionMeterIdx(METER_ID)
+            .withSessionMeterIdx(METER_IDX)
             .build();
 
     public static final UpfTerminationUplink UPLINK_TERMINATION = UpfTerminationUplink.builder()
@@ -150,7 +150,7 @@ public final class TestImplConstants {
             .withApplicationId(APP_FILTER_ID)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
             .withTrafficClass(TRAFFIC_CLASS_UL)
-            .withAppMeterIdx(METER_ID)
+            .withAppMeterIdx(METER_IDX)
             .build();
 
     public static final UpfTerminationUplink UPLINK_TERMINATION_NO_TC = UpfTerminationUplink.builder()
@@ -167,13 +167,13 @@ public final class TestImplConstants {
     public static final UpfSessionDownlink DOWNLINK_SESSION = UpfSessionDownlink.builder()
             .withUeAddress(UE_ADDR)
             .withGtpTunnelPeerId(GTP_TUNNEL_ID)
-            .withSessionMeterIdx(METER_ID)
+            .withSessionMeterIdx(METER_IDX)
             .build();
 
     public static final UpfSessionDownlink DOWNLINK_SESSION_DBUF = UpfSessionDownlink.builder()
             .withUeAddress(UE_ADDR)
             .needsBuffering(true)
-            .withSessionMeterIdx(METER_ID)
+            .withSessionMeterIdx(METER_IDX)
             .build();
 
     public static final UpfTerminationDownlink DOWNLINK_TERMINATION = UpfTerminationDownlink.builder()
@@ -183,7 +183,7 @@ public final class TestImplConstants {
             .withQfi(DOWNLINK_QFI)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
             .withTrafficClass(TRAFFIC_CLASS_DL)
-            .withAppMeterIdx(METER_ID)
+            .withAppMeterIdx(METER_IDX)
             .build();
 
     public static final UpfTerminationDownlink DOWNLINK_TERMINATION_NO_TC = UpfTerminationDownlink.builder()
@@ -214,25 +214,25 @@ public final class TestImplConstants {
 
     public static final UpfMeter SESSION_METER = UpfMeter.builder()
             .setSession()
-            .setCellId(METER_ID)
+            .setCellId(METER_IDX)
             .setPeakBand(PIR, PBURST)
             .build();
 
     public static final UpfMeter SESSION_METER_RESET = UpfMeter.builder()
             .setSession()
-            .setCellId(METER_ID)
+            .setCellId(METER_IDX)
             .build();
 
     public static final UpfMeter APP_METER = UpfMeter.builder()
             .setApplication()
-            .setCellId(METER_ID)
+            .setCellId(METER_IDX)
             .setCommittedBand(CIR, CBURST)
             .setPeakBand(PIR, PBURST)
             .build();
 
     public static final UpfMeter APP_METER_RESET = UpfMeter.builder()
             .setApplication()
-            .setCellId(METER_ID)
+            .setCellId(METER_IDX)
             .build();
 
     public static final PiTableEntry UP4_TUNNEL_PEER = PiTableEntry.builder()
@@ -268,7 +268,7 @@ public final class TestImplConstants {
             .withAction(
                     PiAction.builder()
                             .withId(PRE_QOS_PIPE_SET_SESSION_UPLINK)
-                            .withParameter(new PiActionParam(SESSION_METER_IDX, METER_ID))
+                            .withParameter(new PiActionParam(SESSION_METER_IDX, METER_IDX))
                             .build()
             )
             .build();
@@ -285,7 +285,7 @@ public final class TestImplConstants {
                     PiAction.builder()
                             .withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK)
                             .withParameter(new PiActionParam(TUNNEL_PEER_ID, GTP_TUNNEL_ID))
-                            .withParameter(new PiActionParam(SESSION_METER_IDX, METER_ID))
+                            .withParameter(new PiActionParam(SESSION_METER_IDX, METER_IDX))
                             .build()
             )
             .build();
@@ -301,7 +301,7 @@ public final class TestImplConstants {
             .withAction(
                     PiAction.builder()
                             .withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF)
-                            .withParameter(new PiActionParam(SESSION_METER_IDX, METER_ID))
+                            .withParameter(new PiActionParam(SESSION_METER_IDX, METER_IDX))
                             .build()
             )
             .build();
@@ -322,7 +322,7 @@ public final class TestImplConstants {
                             .withId(PRE_QOS_PIPE_UPLINK_TERM_FWD)
                             .withParameter(new PiActionParam(CTR_IDX, UPLINK_COUNTER_CELL_ID))
                             .withParameter(new PiActionParam(TC, TRAFFIC_CLASS_UL))
-                            .withParameter(new PiActionParam(APP_METER_IDX, METER_ID))
+                            .withParameter(new PiActionParam(APP_METER_IDX, METER_IDX))
                             .build()
             )
             .build();
@@ -384,7 +384,7 @@ public final class TestImplConstants {
                             .withParameter(new PiActionParam(Up4P4InfoConstants.TEID, TEID))
                             .withParameter(new PiActionParam(QFI, DOWNLINK_QFI))
                             .withParameter(new PiActionParam(TC, TRAFFIC_CLASS_DL))
-                            .withParameter(new PiActionParam(APP_METER_IDX, METER_ID))
+                            .withParameter(new PiActionParam(APP_METER_IDX, METER_IDX))
                             .build()
             )
             .build();
@@ -494,20 +494,20 @@ public final class TestImplConstants {
     public static final PiMeterCellConfig UP4_SESSION_METER = PiMeterCellConfig.builder()
             .withMeterBand(new PiMeterBand(PiMeterBandType.PEAK, PIR, PBURST))
             .withMeterBand(new PiMeterBand(PiMeterBandType.COMMITTED, 1, 1))
-            .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_ID))
+            .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_IDX))
             .build();
 
     public static final PiMeterCellConfig UP4_SESSION_METER_RESET = PiMeterCellConfig
-            .reset(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_ID));
+            .reset(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_IDX));
 
     public static final PiMeterCellConfig UP4_APP_METER = PiMeterCellConfig.builder()
             .withMeterBand(new PiMeterBand(PiMeterBandType.PEAK, PIR, PBURST))
             .withMeterBand(new PiMeterBand(PiMeterBandType.COMMITTED, CIR, CBURST))
-            .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_APP_METER, METER_ID))
+            .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_APP_METER, METER_IDX))
             .build();
 
     public static final PiMeterCellConfig UP4_APP_METER_RESET = PiMeterCellConfig
-            .reset(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_APP_METER, METER_ID));
+            .reset(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_APP_METER, METER_IDX));
 
     /**
      * Hidden constructor for utility class.
