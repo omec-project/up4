@@ -40,6 +40,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
+import static org.omecproject.up4.impl.AppConstants.ZERO_BAND_RATE;
+import static org.omecproject.up4.impl.AppConstants.ZERO_BAND_BURST;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_DOWNLINK;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_UPLINK;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.IFACE_ACCESS;
@@ -148,9 +150,10 @@ public class Up4TranslatorImpl implements Up4Translator {
                 if (meterEntry.isDefaultConfig()) {
                     return UpfMeter.resetSession((int) meterEntry.cellId().index());
                 } else {
-                    // Session meter can only have peak bands, committed bands should be 0
+                    // Session meter can only have peak bands, committed bands should be 1
                     PiMeterBand committedBand = meterEntry.committedBand();
-                    if (committedBand != null && (committedBand.rate() != 0 || committedBand.burst() != 0)) {
+                    if (committedBand != null &&
+                            (committedBand.rate() != ZERO_BAND_RATE || committedBand.burst() != ZERO_BAND_BURST)) {
                         throw new Up4TranslationException(
                                 "Session meters supports only peak bands (committed = " + committedBand + ")");
                     }
@@ -209,10 +212,18 @@ public class Up4TranslatorImpl implements Up4Translator {
         if (upfMeter.isReset()) {
             return PiMeterCellConfig.reset(piMeterCellId);
         }
-        Band peakBand = upfMeter.peakBand().orElse(
-                DefaultBand.builder().burstSize(0L).burstSize(0L).ofType(Band.Type.MARK_RED).build());
-        Band commitedBand = upfMeter.committedBand().orElse(
-                DefaultBand.builder().burstSize(0L).burstSize(0L).ofType(Band.Type.MARK_YELLOW).build());
+        Band peakBand = upfMeter.peakBand()
+                .orElse(DefaultBand.builder()
+                                .withRate(ZERO_BAND_RATE)
+                                .burstSize(ZERO_BAND_BURST)
+                                .ofType(Band.Type.MARK_RED)
+                                .build());
+        Band commitedBand = upfMeter.committedBand()
+                .orElse(DefaultBand.builder()
+                                .withRate(ZERO_BAND_RATE)
+                                .burstSize(ZERO_BAND_BURST)
+                                .ofType(Band.Type.MARK_YELLOW)
+                                .build());
         return PiMeterCellConfig.builder()
                 .withMeterBand(new PiMeterBand(
                         PiMeterBandType.PEAK,

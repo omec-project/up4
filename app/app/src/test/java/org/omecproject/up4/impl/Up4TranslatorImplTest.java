@@ -174,7 +174,7 @@ public class Up4TranslatorImplTest {
         up4Translator.up4MeterEntryToUpfEntity(
                 PiMeterCellConfig.builder()
                         .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_APP_METER, METER_ID))
-                        .withCommittedBand(1, 1)
+                        .withCommittedBand(10, 10)
                         .build());
     }
 
@@ -184,7 +184,7 @@ public class Up4TranslatorImplTest {
         up4Translator.up4MeterEntryToUpfEntity(
                 PiMeterCellConfig.builder()
                         .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_APP_METER, METER_ID))
-                        .withPeakBand(1, 1)
+                        .withPeakBand(10, 10)
                         .build());
     }
 
@@ -194,19 +194,23 @@ public class Up4TranslatorImplTest {
         up4Translator.up4MeterEntryToUpfEntity(
                 PiMeterCellConfig.builder()
                         .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_ID))
-                        .withCommittedBand(1, 1)
+                        .withCommittedBand(10, 10)
                         .build());
     }
 
     @Test
-    public void sessionMeterWithNonZeroCommitted() throws Exception {
+    public void sessionMeterWithNonUnspecifiedCommitted() throws Exception {
+        /**
+         * Unspecified Rate: {@link AppConstants#ZERO_BAND_RATE)
+         * Unspecified Burst: {@link AppConstants#ZERO_BAND_BURST)
+         */
         exceptionRule.expect(Up4Translator.Up4TranslationException.class);
         exceptionRule.expectMessage(
-                "Session meters supports only peak bands (committed = PiMeterBand{type=COMMITTED, rate=1, burst=1})");
+                "Session meters supports only peak bands (committed = PiMeterBand{type=COMMITTED, rate=10, burst=10})");
         up4Translator.up4MeterEntryToUpfEntity(
                 PiMeterCellConfig.builder()
                         .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_ID))
-                        .withCommittedBand(1, 1)
+                        .withCommittedBand(10, 10)
                         .withPeakBand(PIR, PBURST)
                         .build());
     }

@@ -493,7 +493,7 @@ public final class TestImplConstants {
 
     public static final PiMeterCellConfig UP4_SESSION_METER = PiMeterCellConfig.builder()
             .withMeterBand(new PiMeterBand(PiMeterBandType.PEAK, PIR, PBURST))
-            .withMeterBand(new PiMeterBand(PiMeterBandType.COMMITTED, 0, 0))
+            .withMeterBand(new PiMeterBand(PiMeterBandType.COMMITTED, 1, 1))
             .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_ID))
             .build();
 

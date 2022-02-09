@@ -99,5 +99,6 @@ public class ReadFlowsCommand extends AbstractShellCommand {
         print(SEPARATOR);
         print("Apps=%d, UL sess=%d, UL flows=%d, DL flows=%s",
               appFilters.size(), ulSess.size(), ulUpfFlow.size(), dlUpfFlow.size());
+        print("App meters=%d, Sess meters=%d", appMeters.size(), sessMeters.size());
     }
 }
