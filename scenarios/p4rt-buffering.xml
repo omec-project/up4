@@ -32,8 +32,9 @@
                 <step name="Verify-First-Buffer-${#}" requires="^"
                       exec="docker-log-grep ${ODI} 'Received FIRST_BUFFER: ueAddress=17.0.${#-1}.1'"/>
                 <!-- -t 30 to wait enough time for packets to be released after P4rt-Set-Fwd-After-Buff -->
+                <!-- Not going to verify TEID in buffering test -->
                 <step name="Downlink-Enb-Recv-Gtp-Buff-${#}" requires="Verify-First-Buffer-${#}"
-                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 30 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 30 --verify-teid false --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <step name="P4rt-Set-Fwd-After-Buff-${#}" requires="Verify-First-Buffer-${#}" delay="5"
                       exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <step name="Check-Drain-Started-${#}" requires="P4rt-Set-Fwd-After-Buff-${#}"

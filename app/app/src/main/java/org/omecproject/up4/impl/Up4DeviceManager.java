@@ -707,6 +707,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if (!sess.needsBuffering() && up4Store.forgetBufferingUe(sess.ueAddress())) {
                 // TODO: Should we wait for rules to be installed on all devices before
                 //   triggering drain?
+                //   When a fwd FAR is changed to buff FAR,
+                //   both session_downlink & downlink_termination rules are updated.
+                //   If the drain action starts immediately right after applying session_downlink,
+                //   the downlink_termination rule may not be updated,
+                //   thus, the TEID may wrong in such case.
                 // Run the outbound rpc in a forked context so it doesn't cancel if it was called
                 // by an inbound rpc that completes faster than the drain call
                 Ip4Address ueAddr = sess.ueAddress();
