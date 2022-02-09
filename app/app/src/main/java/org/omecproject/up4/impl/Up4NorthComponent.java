@@ -196,7 +196,7 @@ public class Up4NorthComponent {
                 case TABLE_ENTRY:
                     PiTableEntry tableEntry = (PiTableEntry) entry;
                     if (tableEntry.action().type() != PiTableAction.Type.ACTION) {
-                        log.warn("Action profile entry insertion not supported. Ignoring.");
+                        log.warn("Action profile entry insertion not supported.");
                         throw UNIMPLEMENTED
                                 .withDescription("Action profile entries not supported by UP4.")
                                 .asException();
