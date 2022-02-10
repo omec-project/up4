@@ -25,8 +25,7 @@
         <group name="Check-Traffic-Buff" requires="Pfcp-Set-Buff" delay="5">
             <parallel var="${ENODEB#}">
                 <!-- Check Downlink only -->
-                <!-- delay="11" to wait reconciliation cycle -->
-                <step name="Downlink-Pdn-Send-Udp-Buff-${#}" delay="11"
+                <step name="Downlink-Pdn-Send-Udp-Buff-${#}"
                       exec="mn-cmd pdn traffic.py send-udp -c 5 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <!-- FIXME: grep log tail to allow running scenarios in development where there can be
                         many FIRST_BUFFER in the log  -->

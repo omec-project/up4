@@ -13,9 +13,9 @@
                           exec="mock-smf-cmd create --session-count 500 --base ${#}0000 --ue-pool 17.${#-1}.0.0/16 --enb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
-            <step name="Check-Up4-Flows-Fwd-Create" requires="Pfcp-Push-Fwd-Create" delay="75"
+            <step name="Check-Up4-Flows-Fwd-Create" requires="Pfcp-Push-Fwd-Create" delay="60"
                   exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${PFCP_UP4_FLOWS_TEST}, DL flows=${PFCP_UP4_FLOWS_TEST}'"/>
-            <step name="Check-Flow-Rules-Fwd-Create" requires="Pfcp-Push-Fwd-Create" delay="75"
+            <step name="Check-Flow-Rules-Fwd-Create" requires="Pfcp-Push-Fwd-Create" delay="60"
                   exec="onos-check-flows ${OCI}"/>
         </group>
         <group name="Check-Traffic-Drop-DL" requires="Pfcp-Setup-Fwd-Create" delay="5">
@@ -36,9 +36,9 @@
                            exec="mock-smf-cmd modify --session-count 500 --base ${#}0000 --ue-pool 17.${#-1}.0.0/16 --enb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
-            <step name="Check-Up4-Flows-Fwd-Modify" requires="Pfcp-Push-Fwd-Modify" delay="75"
+            <step name="Check-Up4-Flows-Fwd-Modify" requires="Pfcp-Push-Fwd-Modify" delay="60"
                   exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${PFCP_UP4_FLOWS_TEST}, DL flows=${PFCP_UP4_FLOWS_TEST}'"/>
-            <step name="Check-Flow-Rules-Fwd-Modify" requires="Pfcp-Push-Fwd-Modify" delay="75"
+            <step name="Check-Flow-Rules-Fwd-Modify" requires="Pfcp-Push-Fwd-Modify" delay="60"
                   exec="onos-check-flows ${OCI}"/>
         </group>
         <group name="Check-Traffic-Fwd-App-Filtering-Negative" requires="Pfcp-Setup-Fwd-Modify" delay="5">
@@ -77,9 +77,9 @@
                       exec="mock-smf-cmd delete --session-count 500 --base ${#}0000 --ue-pool 17.${#-1}.0.0/16 --enb-addr 140.0.10${#-1}.1"/>
             </sequential>
         </group>
-        <step name="Check-Up4-Flows-Fwd-Clear" requires="Pfcp-Clear-Fwd" delay="75"
+        <step name="Check-Up4-Flows-Fwd-Clear" requires="Pfcp-Clear-Fwd" delay="60"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
-        <step name="Check-Flow-Rules-Fwd-Clear" requires="Pfcp-Clear-Fwd" delay="75"
+        <step name="Check-Flow-Rules-Fwd-Clear" requires="Pfcp-Clear-Fwd" delay="60"
               exec="onos-check-flows ${OCI}"/>
     </group>
 </scenario>
