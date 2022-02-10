@@ -53,7 +53,7 @@ Run the smoke scenario:
 
     make pfcp-smoke.xml
 
-This scenario verifies UP4 app builds. It included a non-exhaustive set of tests that aim at
+This scenario verifies UP4 app builds. It includes a non-exhaustive set of tests that aim at
 ensuring that the most important functions work. Some functions tested in this scenario are:
 * UP4 app install and activation
 * UP4 northbound APIs (via P4Runtime calls received either from the PFCP agent or a mock controller)
