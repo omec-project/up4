@@ -34,9 +34,7 @@ services:
       - ./tmp:/tmp
       - ./topo:/topo
       - ./bin:/up4/bin
-    entrypoint: "/bin/sh"
-    command: >
-      -c "/bin/pfcpsim  -u 140.0.0.1 -r pfcp-agent -g 140.0.100.1"
+    entrypoint: "/bin/pfcpsim"
   p4rt:
     build:
       context: ./topo

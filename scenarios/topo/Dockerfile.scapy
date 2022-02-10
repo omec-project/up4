@@ -1,6 +1,0 @@
-# SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
-# SPDX-License-Identifier: Apache-2.0
-
-FROM python:3.9.0-slim-buster
-RUN apt-get update && apt-get install -y git net-tools tcpdump vim iputils-ping screen
-RUN pip3 install ifcfg git+https://github.com/secdev/scapy

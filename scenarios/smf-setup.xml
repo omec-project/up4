@@ -6,8 +6,18 @@
     <group name="Smf-Setup">
         <step name="Mock-Smf-Start"
               exec="${DOCKER_COMPOSE_CMD} --profile start-mock-smf up -d"/>
-        <step name="Mock-Smf-Associate" requires="^"
-              exec="${DOCKER_COMPOSE_CMD} run --rm --entrypoint /bin/pfcpsimctl ${PFCPSIM_IMAGE} -c associate"/>
+
+      <!-- <step name="Mock-Smf-Start-gRPC" requires="Mock-Smf-Start"
+              exec="${DOCKER_COMPOSE_CMD} exec -dt mock-smf /bin/pfcpsim"/> -->
+
+      <step name="Mock-Smf-Configure" requires="^"
+              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c configure --n3-addr 140.0.0.1 --remote-peer pfcp-agent"/>
+
+      <step name="Mock-Smf-Connect" requires="Mock-Smf-Configure"
+              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c connect-remote"/>
+
+      <step name="Mock-Smf-Associate" requires="Mock-Smf-Connect"
+              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c associate"/>
         <step name="Check-Pfcp-Agent-Survived-Start" requires="^" delay="1"
               exec="pfcp-agent-check-alive"/>
     </group>
