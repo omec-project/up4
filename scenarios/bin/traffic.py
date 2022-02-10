@@ -185,7 +185,7 @@ def sniff_stuff(args: argparse.Namespace, kind: str):
     for ue_addr in addrs_from_prefix(args.ue_pool, args.flow_count):
         ue_addresses_expected.add(IPv4Address(ue_addr))
     # Add downlink TEIDs for which we expect to receive packets to the global set
-    if kind == 'gtp' and args.no_verify_teid:
+    if kind == 'gtp' and not args.no_verify_teid:
         for teid in range(args.teid_base, args.teid_base + args.flow_count * 2, 2):
             # We assign 2 TEIDs to a UE and the second one is for downlink
             downlink_teids_expected.add(teid + 1)
@@ -194,7 +194,7 @@ def sniff_stuff(args: argparse.Namespace, kind: str):
 
     if kind == 'udp' or kind == 'gtp':
         print("Expecting packets for/from the following UEs:", list(ue_addresses_expected))
-        if kind == 'gtp' and args.verify_teid:
+        if kind == 'gtp' and not args.no_verify_teid:
             print("With downlink TEIDs:", list(downlink_teids_expected))
         if args.qfi is not None:
             print("With the following QFI: ", args.qfi)
