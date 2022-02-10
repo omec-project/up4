@@ -9,7 +9,6 @@ UP4_ROOT           := $(abspath $(CURRENT_DIR)/..)
 ONOS_TEST          := $(CURRENT_DIR)/onos-test
 SCENARIOS          := *.xml
 DOCKER_COMPOSE_CMD := docker-compose --env-file ./tmp/.env.docker
-DOCKER_CMD         := docker --env-file ./tmp/emv.docker
 CURRENT_USER       := $(shell id -u):$(shell id -g)
 
 # Set to devel to use in-development versions of components
