@@ -15,26 +15,27 @@ import org.onosproject.net.behaviour.upf.UpfInterface;
 import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
 
 /**
- * UP4 S1U interface deletion command.
+ * UP4 N3 interface deletion command.
  */
 @Service
-@Command(scope = "up4", name = "s1u-delete",
-        description = "Delete a S1U interface address from the UP4 dataplane")
+@Command(scope = "up4", name = "n3-delete",
+        description = "Delete a N3 interface address from the UP4 dataplane")
 public class InterfaceDeleteCommand extends AbstractShellCommand {
 
-    @Argument(index = 0, name = "s1u-addr",
-            description = "Address of the S1U interface",
+    @Argument(index = 0, name = "n3-addr",
+            description = "Address of the N3 interface",
             required = true)
-    String s1uAddr = null;
+    String n3Addr = null;
 
     @Override
     protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
 
-        Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
+        Ip4Address n3Addr = Ip4Address.valueOf(this.n3Addr);
 
-        print("Removing S1U interface address %s", s1uAddr.toString());
-        app.delete(UpfInterface.createS1uFrom(s1uAddr, SLICE_MOBILE));
+        print("Removing N3 interface address %s", n3Addr.toString());
+        // TODO: Update UpfInterface to use N3 instead of S1U
+        app.delete(UpfInterface.createS1uFrom(n3Addr, SLICE_MOBILE));
     }
 }
 

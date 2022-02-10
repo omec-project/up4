@@ -15,26 +15,27 @@ import org.onosproject.net.behaviour.upf.UpfInterface;
 import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
 
 /**
- * UP4 S1U Interface insertion command.
+ * UP4 N3 Interface insertion command.
  */
 @Service
-@Command(scope = "up4", name = "s1u-insert",
-        description = "Insert a S1U interface address into the UP4 dataplane")
+@Command(scope = "up4", name = "n3-insert",
+        description = "Insert a N3 interface address into the UP4 dataplane")
 public class InterfaceInsertCommand extends AbstractShellCommand {
 
-    @Argument(index = 0, name = "s1u-addr",
-            description = "Address of the S1U interface",
+    @Argument(index = 0, name = "n3-addr",
+            description = "Address of the N3 interface",
             required = true)
-    String s1uAddr = null;
+    String n3Addr = null;
 
     @Override
     protected void doExecute() throws Exception {
         Up4AdminService app = get(Up4AdminService.class);
 
-        Ip4Address s1uAddr = Ip4Address.valueOf(this.s1uAddr);
+        Ip4Address n3Addr = Ip4Address.valueOf(this.n3Addr);
 
-        print("Adding S1U interface address: %s", s1uAddr.toString());
-        app.adminApply(UpfInterface.createS1uFrom(s1uAddr, SLICE_MOBILE));
+        print("Adding N3 interface address: %s", n3Addr.toString());
+        // TODO: Update UpfInterface to use N3 instead of S1U
+        app.adminApply(UpfInterface.createS1uFrom(n3Addr, SLICE_MOBILE));
     }
 }
 

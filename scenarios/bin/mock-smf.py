@@ -114,7 +114,7 @@ class Session:
                              add_fars=True, add_urrs=True, add_qers=True):
         if add_pdrs:
             pdr_up = craft_pdr(session=self, flow=self.uplink, src_iface=IFACE_ACCESS,
-                               from_tunnel=True, tunnel_dst=args.s1u_addr,
+                               from_tunnel=True, tunnel_dst=args.n3_addr,
                                precedence=args.pdr_precedence)
             self.add_to_req_if_rule_new(request, pdr_up, self.uplink.pdr_id, "pdr")
             pdr_down = craft_pdr(session=self, flow=self.downlink, src_iface=IFACE_CORE,
@@ -671,8 +671,8 @@ def handle_user_input(input_file: Optional[IO] = None, output_file: Optional[IO]
         help="If this argument is present, downlink FARs will have the notify CP flag set to true")
     parser.add_argument("--ue-pool", type=IPv4Network, default=IPv4Network("17.0.0.0/24"),
                         help="The IPv4 prefix from which UE addresses will be drawn.")
-    parser.add_argument("--s1u-addr", type=IPv4Address, default=IPv4Address("140.0.0.1"),
-                        help="The IPv4 address of the UPF's S1U interface")
+    parser.add_argument("--n3-addr", type=IPv4Address, default=IPv4Address("140.0.0.1"),
+                        help="The IPv4 address of the UPF's N3 interface")
     parser.add_argument("--enb-addr", type=IPv4Address, default=IPv4Address("140.0.100.1"),
                         help="The IPv4 address of the eNodeB")
     parser.add_argument(
