@@ -39,6 +39,7 @@ PDN_MAC = "CC:CC:CC:00:00:01"
 
 ONE_GBPS = 1000000000
 
+
 @group("gtpu")
 class GtpuDecapUplinkTest(GtpuBaseTest):
     """ Tests that a packet received from a UE gets decapsulated and routed.
@@ -87,8 +88,8 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
                                         app_meter_idx=app_meter_idx,
                                         app_meter_max_bitrate=app_bitrate,
                                         session_meter_idx=session_meter_idx,
-                                        session_meter_max_bitrate=session_bitrate,
-                                        drop=False, app_filtering=app_filtering)
+                                        session_meter_max_bitrate=session_bitrate, drop=False,
+                                        app_filtering=app_filtering)
 
         # read pre and post-QoS packet and byte counters
         self.read_upf_counters(ctr_idx)
@@ -120,10 +121,11 @@ class GtpuDecapUplinkTestMeters(GtpuDecapUplinkTest):
                 if app_bitrate == 0 and session_bitrate == 0:
                     # Skip when both bitrates are 0
                     continue
-                print(" udp, app_filtering=True, tc=None, app_bitrate=%s, session_bitrate=%s... " % (app_bitrate, session_bitrate))
-                pkt = getattr(testutils,"simple_udp_packet")(eth_src=ENODEB_MAC,
-                                                             eth_dst=SWITCH_MAC, ip_src=UE_IPV4,
-                                                             ip_dst=PDN_IPV4)
+                print(" udp, app_filtering=True, tc=None, app_bitrate=%s, session_bitrate=%s... " %
+                      (app_bitrate, session_bitrate))
+                pkt = getattr(testutils,
+                              "simple_udp_packet")(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
+                                                   ip_src=UE_IPV4, ip_dst=PDN_IPV4)
                 pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
 
                 self.testPacket(pkt, True, None, app_bitrate, session_bitrate)
@@ -209,12 +211,13 @@ class GtpuEncapDownlinkTestMeters(GtpuEncapDownlinkTest):
                 if app_bitrate == 0 and session_bitrate == 0:
                     # Skip when both bitrates are 0
                     continue
-                print(" udp, app_filtering=True, tc=None, app_bitrate=%s, session_bitrate=%s... " % (app_bitrate, session_bitrate))
-                pkt = getattr(testutils, "simple_udp_packet")(eth_src=PDN_MAC,
-                                                             eth_dst=SWITCH_MAC,
-                                                             ip_src=PDN_IPV4, ip_dst=UE_IPV4)
+                print(" udp, app_filtering=True, tc=None, app_bitrate=%s, session_bitrate=%s... " %
+                      (app_bitrate, session_bitrate))
+                pkt = getattr(testutils, "simple_udp_packet")(eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
+                                                              ip_src=PDN_IPV4, ip_dst=UE_IPV4)
 
                 self.testPacket(pkt, True, None, app_bitrate, session_bitrate)
+
 
 @group("gtpu")
 class GtpuDropUplinkTest(GtpuBaseTest):
@@ -341,7 +344,8 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         ctr_idx = self.new_counter_id()
 
         # Program all the tables.
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_idx, buffer=True)
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_idx,
+                                          buffer=True)
 
         # Read pre and post-QoS packet and byte counters.
         self.read_upf_counters(ctr_idx)

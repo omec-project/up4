@@ -293,7 +293,8 @@ class GtpuBaseTest(P4RuntimeTest):
 
         # yapf: enable
 
-    def add_session_uplink(self, n3_addr, teid, session_meter_idx=DEFAULT_SESSION_METER_IDX, drop=False):
+    def add_session_uplink(self, n3_addr, teid, session_meter_idx=DEFAULT_SESSION_METER_IDX,
+                           drop=False):
         match_fields = {
             "n3_address": n3_addr,
             "teid": teid,
@@ -359,8 +360,7 @@ class GtpuBaseTest(P4RuntimeTest):
             ))
 
     def add_terminations_downlink(self, ue_address, ctr_idx, app_meter_idx=DEFAULT_APP_METER_IDX,
-                                  tc=None, teid=None, qfi=None,
-                                  drop=False, app_id=APP_ID_UNKNOWN):
+                                  tc=None, teid=None, qfi=None, drop=False, app_id=APP_ID_UNKNOWN):
         match_fields = {
             "ue_address": ue_address,
             "app_id": app_id,
@@ -431,17 +431,19 @@ class GtpuBaseTest(P4RuntimeTest):
 
     def __add_meter_helper(self, meter_name, meter_idx, max_bitrate):
         if max_bitrate is None:
-            self.modify(
-                self.helper.build_meter_entry(
-                    meter_name, meter_idx,
-                ))
+            self.modify(self.helper.build_meter_entry(
+                meter_name,
+                meter_idx,
+            ))
         else:
             pir = int(max_bitrate / 8)
             pburst = int((max_bitrate / 8) * BURST_DURATION_MS * 0.001)
             self.modify(
                 self.helper.build_meter_entry(
-                    meter_name, meter_idx,
-                    cir=1, cburst=1,
+                    meter_name,
+                    meter_idx,
+                    cir=1,
+                    cburst=1,
                     pir=pir if pir > 0 else 1,
                     pburst=pburst if pburst > 0 else 1,
                 ))
@@ -449,8 +451,7 @@ class GtpuBaseTest(P4RuntimeTest):
     def add_entries_for_uplink_pkt(self, pkt, exp_pkt, inport, outport, ctr_idx,
                                    session_meter_idx=DEFAULT_SESSION_METER_IDX,
                                    session_meter_max_bitrate=None,
-                                   app_meter_idx=DEFAULT_APP_METER_IDX,
-                                   app_meter_max_bitrate=None,
+                                   app_meter_idx=DEFAULT_APP_METER_IDX, app_meter_max_bitrate=None,
                                    tc=0, app_filtering=False, drop=False):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
@@ -487,14 +488,8 @@ class GtpuBaseTest(P4RuntimeTest):
                 direction=DIRECTION_UPLINK,
             )
 
-        self.add_terminations_uplink(
-            ue_address=inner_pkt[IP].src,
-            ctr_idx=ctr_idx,
-            tc=tc,
-            drop=drop,
-            app_id=app_id,
-            app_meter_idx=app_meter_idx
-        )
+        self.add_terminations_uplink(ue_address=inner_pkt[IP].src, ctr_idx=ctr_idx, tc=tc,
+                                     drop=drop, app_id=app_id, app_meter_idx=app_meter_idx)
         if app_meter_max_bitrate is not None:
             self.add_app_meter(app_meter_idx, app_meter_max_bitrate)
         if session_meter_max_bitrate is not None:
@@ -511,9 +506,8 @@ class GtpuBaseTest(P4RuntimeTest):
                                      session_meter_idx=DEFAULT_SESSION_METER_IDX,
                                      session_meter_max_bitrate=None,
                                      app_meter_idx=DEFAULT_APP_METER_IDX,
-                                     app_meter_max_bitrate=None,
-                                     drop=False, buffer=False, tun_id=None, qfi=0, tc=0, push_qfi=False,
-                                     app_filtering=False):
+                                     app_meter_max_bitrate=None, drop=False, buffer=False,
+                                     tun_id=None, qfi=0, tc=0, push_qfi=False, app_filtering=False):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -586,7 +580,8 @@ class GtpuBaseTest(P4RuntimeTest):
         self.__add_meter_helper("PreQosPipe.app_meter", app_meter_idx, app_meter_max_bitrate)
 
     def add_session_meter(self, session_meter_idx, session_meter_max_bitrate):
-        self.__add_meter_helper("PreQosPipe.session_meter", session_meter_idx, session_meter_max_bitrate)
+        self.__add_meter_helper("PreQosPipe.session_meter", session_meter_idx,
+                                session_meter_max_bitrate)
 
     def set_up_ddn_digest(self, ack_timeout_ns):
         # No timeout, not batching. Not recommended for production.
