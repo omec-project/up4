@@ -32,6 +32,9 @@ def get_args():
     parser.add_argument(
         "--add-ifaces", action='store_true',
         help="If this argument is present, interface table entries will be installed.")
+    parser.add_argument(
+        "--add-iface-uepool", action='store_true',
+        help="If this argument is present, IP UE pool interface table entry will be installed.")
     parser.add_argument("--buffer", action='store_true',
                         help="If this argument is present, downlink session will buffer traffic")
     parser.add_argument("--ue-count", type=int, default=1,
@@ -128,7 +131,7 @@ def main():
         if args.base == 0 or (not args.base and args.app_id == 0):
             print("APP ID must be different from 0, when doing application filtering")
             exit(1)
-    if not args.ctr_base and not args.base:
+    if args.ue_count > 0 and not args.ctr_base and not args.base:
         print('Either "ctr-base" or "base" arguments must be provided')
         exit(1)
 
@@ -152,6 +155,7 @@ def main():
         entry.action['direction'] = DIR_UPLINK
         add_entry(entry, args.action)
 
+    if args.add_iface_uepool or args.add_ifaces:
         # Downlink
         entry = sh.TableEntry('PreQosPipe.interfaces')(action='PreQosPipe.set_source_iface')
         entry.match['ipv4_dst_prefix'] = str(args.ue_pool)
@@ -173,6 +177,18 @@ def main():
         range(args.base if args.base else args.ctr_base,
               (args.base if args.base else args.ctr_base) + rule_count))
     app_id = args.app_id
+    if args.ue_count > 0:
+        rule_count = args.ue_count * 2
+        ue_addr_gen = get_addresses_from_prefix(args.ue_pool, args.ue_count)
+        teid_gen = iter(
+            range(args.base if args.base else args.teid_base,
+                  (args.base if args.base else args.teid_base) + args.ue_count))
+        ctr_id_gen = iter(
+            range(args.ctr_base if args.ctr_base is not None else args.base,
+                  (args.ctr_base if args.ctr_base is not None else args.base) + rule_count))
+        tunnel_peer_gen = iter(
+            range(args.base if args.base else args.ctr_base,
+                  (args.base if args.base else args.ctr_base) + rule_count))
 
     if app_filtering:
         entry = sh.TableEntry('PreQosPipe.applications')(action='PreQosPipe.set_app_id')
