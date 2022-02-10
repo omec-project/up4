@@ -3,7 +3,7 @@
 #
 
 # ------------------------------------------------------------------------------
-# SPGWU BASE TEST
+# UPF BASE TEST
 #
 # No actual tests are located here. Tests will inherit GtpuBaseTest
 # ------------------------------------------------------------------------------
@@ -461,7 +461,7 @@ class GtpuBaseTest(P4RuntimeTest):
             drop=drop,
             app_id=app_id,
         )
-        # Add routing entry even if drop, SPGW drop should be perfomed before routing
+        # Add routing entry even if drop, UPF drop should be perfomed before routing
         self.add_routing_entry(
             ip_prefix=exp_pkt[IP].dst + '/32',
             src_mac=exp_pkt[Ether].src,
@@ -526,7 +526,7 @@ class GtpuBaseTest(P4RuntimeTest):
             drop=drop,
             app_id=app_id,
         )
-        # Add routing entry even if drop, SPGW drop should be perfomed before routing
+        # Add routing entry even if drop, UPF drop should be perfomed before routing
         self.add_routing_entry(
             ip_prefix=exp_pkt[IP].dst + '/32',
             src_mac=exp_pkt[Ether].src,

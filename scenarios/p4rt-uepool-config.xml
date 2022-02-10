@@ -1,0 +1,14 @@
+<!--
+ ~ SPDX-License-Identifier: Apache-2.0
+ ~ SPDX-FileCopyrightText: 2022-present Open Networking Foundation <info@opennetworking.org>
+  -->
+<scenario name="p4rt-uepool-config" description="Configure UE pool on the UP4 interfaces table">
+    <group name="P4rt-Uepool-Config">
+        <step name="P4rt-Uepool-Config-Push"
+              exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --add-iface-uepool --ue-pool 17.0.0.0/16 --ue-count 0"/>
+        <step name="P4rt-Uepool-Config-Check" requires="^"
+              exec="onos-cli-grep ${OCI} up4:read-interfaces 'UpfInterface(type=CORE, prefix=17.0.0.0/16'"/>
+        <step name="P4rt-Uepool-Config-Check-Flows" requires="^" delay="5"
+              exec="onos-check-flows ${OCI}"/>
+    </group>
+</scenario>

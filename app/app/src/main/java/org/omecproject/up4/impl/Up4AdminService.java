@@ -10,6 +10,7 @@ import org.onosproject.net.DeviceId;
 import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
+import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 
 import java.util.Collection;
@@ -44,6 +45,14 @@ public interface Up4AdminService {
      * tunnel peer.
      */
     void installUpfEntities();
+
+    /**
+     * Gets the UPF interfaces present in the UP4 netcfg.
+     * This method doesn't query the UPF data plane.
+     *
+     * @return a collection of UPF interfaces configured via UP4 netcfg.
+     */
+    Collection<UpfInterface> configInterfaces();
 
     /**
      * Applies the given UPF entity to the UPF data plane, without filtering

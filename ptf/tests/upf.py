@@ -2,16 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # ------------------------------------------------------------------------------
-# SPGWU TESTS
+# UPF TESTS
 #
 # To run all tests:
-#     make check TEST=spgwu
+#     make check TEST=upf
 #
 # To run a specific test case:
-#     make check TEST=spgwu.<TEST CLASS NAME>
+#     make check TEST=upf.<TEST CLASS NAME>
 #
 # For example:
-#     make check TEST=spgwu.GtpuEncapDownlinkTest
+#     make check TEST=upf.GtpuEncapDownlinkTest
 # ------------------------------------------------------------------------------
 from time import sleep
 
@@ -23,7 +23,7 @@ from scapy.contrib import gtp
 from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
 
 from convert import encode
-from spgwu_base import GtpuBaseTest, UDP_GTP_PORT, GTPU_EXT_PSC_TYPE_DL, \
+from upf_base import GtpuBaseTest, UDP_GTP_PORT, GTPU_EXT_PSC_TYPE_DL, \
     GTPU_EXT_PSC_TYPE_UL
 
 CPU_CLONE_SESSION_ID = 99

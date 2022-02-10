@@ -4,7 +4,7 @@
       "basic": {
         "managementAddress": "grpc://mininet:50001?device_id=1",
         "driver": "stratum-bmv2",
-        "pipeconf": "org.stratumproject.fabric-spgw.bmv2",
+        "pipeconf": "org.stratumproject.fabric-upf.bmv2",
         "locType": "grid",
         "gridX": 200,
         "gridY": 600
@@ -22,7 +22,7 @@
       "basic": {
         "managementAddress": "grpc://mininet:50002?device_id=1",
         "driver": "stratum-bmv2",
-        "pipeconf": "org.stratumproject.fabric-spgw.bmv2",
+        "pipeconf": "org.stratumproject.fabric-upf.bmv2",
         "locType": "grid",
         "gridX": 800,
         "gridY": 600
@@ -161,9 +161,6 @@
         ],
         "s1uAddr": "140.0.0.1",
         "maxUes": 32,
-        "uePools": [
-          "17.0.0.0/24"
-        ],
         "dbufDrainAddr": "140.0.0.2",
         "pscEncapEnabled": false
       }
