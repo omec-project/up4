@@ -170,7 +170,7 @@ pipeline {
           emailext(
               subject: "[${env.JOB_NAME}] ${currentBuild.currentResult}: ${params.sha1}",
               body: "Check results at ${env.BUILD_URL}",
-              to: "carmelo@opennetworking.org"
+              to: "daniele@opennetworking.org"
           )
         }
       }
