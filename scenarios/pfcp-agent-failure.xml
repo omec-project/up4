@@ -7,9 +7,9 @@
     <group name="Pfcp-Agent-Failure">
         <group name="AF-Setup-Fwd">
             <step name="AF-Create-Session"
-                  exec="mock-smf-cmd create"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c create"/>
             <step name="AF-Modify-Session" requires="^" delay="1"
-                  exec="mock-smf-cmd modify"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c modify"/>
         </group>
 
         <step name="AF-Check-Flows-1" requires="AF-Setup-Fwd" delay="2"
@@ -27,11 +27,9 @@
         <!-- Reboot SMF because it probably doesn't react well to failures -->
         <group name="AF-Restart-Smf" requires="~AF-Check-Flows-2">
             <step name="AF-Kill-Smf"
-                  exec="mock-smf-cmd kill"/>
-            <step name="AF-Start-Smf" requires="^"
-                  exec="mock-smf-cmd start"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c interrupt"/>
             <step name="AF-Associate-Smf" requires="^" delay="1"
-                  exec="mock-smf-cmd associate"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c associate"/>
         </group>
     </group>
 </scenario>
