@@ -125,7 +125,7 @@ class GtpuDecapUplinkTestMeters(GtpuDecapUplinkTest):
                 pkt = getattr(testutils,
                               "simple_udp_packet")(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
                                                    ip_src=UE_IPV4, ip_dst=PDN_IPV4)
-                pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
+                pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=N3_IPV4)
 
                 self.testPacket(pkt, True, None, app_bitrate, session_bitrate)
 
