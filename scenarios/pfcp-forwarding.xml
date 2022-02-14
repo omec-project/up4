@@ -10,9 +10,9 @@
                             starts="Pfcp-Session-Create-${#}"
                             ends="Pfcp-Session-${#-1}">
                     <step name="Pfcp-Session-Create-${#}"
-                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c create --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --nb-addr 140.0.10${#-1}.1"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --nb-addr 140.0.10${#-1}.1"/>
                     <step name="Pfcp-Session-${#}" requires="^"
-                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --nb-addr 140.0.10${#-1}.1"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --nb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-Fwd" requires="Pfcp-Push-Fwd" delay="5"
@@ -53,7 +53,7 @@
                 starts="Clear-Fwd-${#}"
                 ends="Clear-Fwd-${#-1}">
                 <step name="Clear-Fwd-${#}" requires="~Check-Traffic-Fwd"
-                      exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c delete --count 5 --baseID ${#}0"/>
+                      exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c delete --count 5 --baseID ${#}0"/>
             </sequential>
         </group>
     </group>

@@ -8,10 +8,10 @@
               exec="${DOCKER_COMPOSE_CMD} --profile start-mock-smf up -d"/>
 
       <step name="Mock-Smf-Configure" requires="Mock-Smf-Start"
-              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c configure --n3-addr 140.0.0.1 --remote-peer pfcp-agent"/>
+              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c configure --n3-addr 140.0.0.1 --remote-peer pfcp-agent"/>
 
       <step name="Mock-Smf-Associate" requires="Mock-Smf-Configure"
-              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c associate"/>
+              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c associate"/>
 
         <step name="Check-Pfcp-Agent-Survived-Start" requires="^" delay="1"
               exec="pfcp-agent-check-alive"/>

@@ -7,28 +7,28 @@
     <group name="Smf-Failure">
         <group name="SF-Setup-Fwd-1">
             <step name="SF-Create-Session-1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c create --count 1 --baseID 1 --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --count 1 --baseID 1 --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
             <step name="SF-Modify-Session-1" requires="^" delay="1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c modify --count 1 --baseID 1 --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 1 --baseID 1 --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
         </group>
 
         <step name="SF-Check-Flows-1" requires="SF-Setup-Fwd-1" delay="2"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=1, DL flows=1'"/>
 
         <step name="SF-Kill-Smf" requires="^"
-              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c interrupt"/>
+              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c interrupt"/>
 
         <step name="SF-Check-Flows-2" requires="^" delay="10"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
 
       <step name="SF-Revive-Smf" requires="SF-Check-Flows-2" delay="1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c associate"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c associate"/>
 
         <group name="SF-Setup-Fwd-2" requires="SF-Revive-Smf">
             <step name="SF-Create-Session-2"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c create --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
             <step name="SF-Modify-Session-2" requires="^" delay="1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c modify --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
         </group>
 
         <step name="SF-Check-Flows-3" requires="SF-Setup-Fwd-2" delay="2"
@@ -48,7 +48,7 @@
         </group>
 
         <step name="SF-Clear-Flows" requires="~SF-Check-Fwding"
-              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c delete"/>
+              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c delete"/>
 
         <step name="SF-Check-Flows-4" requires="^" delay="2"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>

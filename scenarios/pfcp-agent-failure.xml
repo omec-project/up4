@@ -7,9 +7,9 @@
     <group name="Pfcp-Agent-Failure">
         <group name="AF-Setup-Fwd">
             <step name="AF-Create-Session"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c create --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
             <step name="AF-Modify-Session" requires="^" delay="1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c modify --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
         </group>
 
         <step name="AF-Check-Flows-1" requires="AF-Setup-Fwd" delay="2"
@@ -27,7 +27,7 @@
         <!-- Reboot SMF because it probably doesn't react well to failures -->
         <group name="AF-Restart-Smf" requires="~AF-Check-Flows-2">
             <step name="AF-Associate-Smf" requires="^" delay="1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf /bin/pfcpsimctl -c disassociate"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c disassociate"/>
         </group>
     </group>
 </scenario>
