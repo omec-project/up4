@@ -75,9 +75,9 @@ def get_args():
     parser.add_argument("--drop-dl", type=bool, default=False,
                         help="Drop traffic in downlink direction")
     parser.add_argument("--app-bw-meter", type=int, default=None,
-                        help="App meter max bitrate")
+                        help="App meter max bitrate (bps)")
     parser.add_argument("--sess-bw-meter", type=int, default=None,
-                        help="Session meter max bitrate")
+                        help="Session meter max bitrate (bps)")
     parser.add_argument("--server", type=str, default="onos1:51001",
                         help="Address and port of the p4runtime server.")
     parser.add_argument("action", choices=["program", "clear", "dry"])
@@ -131,7 +131,7 @@ def mod_meter(name, index, max_bw, action):
         meter.cir = 1
         meter.cburst = 1
         meter.pir = max_bw // 8
-        meter.pburst = int((max_bw / 8) * BURST_DURATION_MS * 0.001)
+        meter.pburst = int(meter.pir * BURST_DURATION_MS * 0.001)
     if action == "dry":
         print(meter)
     else:
