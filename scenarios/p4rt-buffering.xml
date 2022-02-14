@@ -57,7 +57,7 @@
             <step name="Check-Flow-Rules-Buff-Buffer" requires="^" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
-        <group name="Check-Traffic-Buff" requires="P4rt-Program-Buff-Buffer" delay="5">
+        <group name="Check-Traffic-Buff" requires="P4rt-Program-Buff-Buffer">
             <step name="P4rt-Stream-Recv-Digest" requires="P4rt-Program-Buff-Buffer"
                   exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-stream-recv -t 30 --count ${ENODEBS} --type digest"/>
             <parallel var="${ENODEB#}">
