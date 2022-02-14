@@ -12,5 +12,11 @@
               exec="mock-smf-cmd associate"/>
         <step name="Check-Pfcp-Agent-Survived-Start" requires="^" delay="1"
               exec="pfcp-agent-check-alive"/>
+        <step name="Check-Up4-N3-Interface" requires="^"
+              exec="onos-cli-grep ${OCI} up4:read-interfaces 'UpfInterface(type=ACCESS, prefix=140.0.0.1/32'"/>
+        <step name="Check-Up4-Uepool-Interface" requires="^"
+              exec="onos-cli-grep ${OCI} up4:read-interfaces 'UpfInterface(type=CORE, prefix=17.0.0.0/16'"/>
+        <step name="Check-Flows-Ifaces-Onos" requires="^" delay="5"
+              exec="onos-check-flows ${OCI}"/>
     </group>
 </scenario>

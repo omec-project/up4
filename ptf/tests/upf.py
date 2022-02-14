@@ -30,8 +30,7 @@ CPU_CLONE_SESSION_ID = 99
 UE_ADDR_BITWIDTH = 32
 UE_IPV4 = "17.0.0.1"
 ENODEB_IPV4 = "140.0.100.1"
-S1U_IPV4 = "140.0.100.2"
-SGW_IPV4 = "140.0.200.2"
+N3_IPV4 = "140.0.100.2"
 PDN_IPV4 = "140.0.200.1"
 SWITCH_MAC = "AA:AA:AA:00:00:01"
 ENODEB_MAC = "BB:BB:BB:00:00:01"
@@ -54,7 +53,7 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
                                   "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC,
                                                                  eth_dst=SWITCH_MAC, ip_src=UE_IPV4,
                                                                  ip_dst=PDN_IPV4)
-                    pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
+                    pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=N3_IPV4)
 
                     self.testPacket(pkt, app_filtering, tc)
 
@@ -114,7 +113,7 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         dst_mac = ENODEB_MAC
 
         # Should be encapped too obv.
-        exp_pkt = self.gtpu_encap(exp_pkt, ip_src=S1U_IPV4, ip_dst=ENODEB_IPV4)
+        exp_pkt = self.gtpu_encap(exp_pkt, ip_src=N3_IPV4, ip_dst=ENODEB_IPV4)
 
         # Expected pkt should have routed MAC addresses and decremented hop
         # limit (TTL).
@@ -151,7 +150,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
             pkt = getattr(testutils,
                           "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
                                                          ip_src=UE_IPV4, ip_dst=PDN_IPV4)
-            pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4)
+            pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=N3_IPV4)
 
             self.testPacket(pkt)
 
@@ -256,7 +255,7 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         # Build the expected encapsulated pkt that we would receive as output without buffering.
         # The actual pkt will be dropped, but we still need it to populate tables with tunneling info.
         exp_pkt = pkt.copy()
-        exp_pkt = self.gtpu_encap(exp_pkt, ip_src=S1U_IPV4, ip_dst=ENODEB_IPV4)
+        exp_pkt = self.gtpu_encap(exp_pkt, ip_src=N3_IPV4, ip_dst=ENODEB_IPV4)
         pkt_route(exp_pkt, ENODEB_MAC)
         pkt_decrement_ttl(exp_pkt)
 
@@ -305,9 +304,9 @@ class GtpEndMarkerPacketOutTest(GtpuBaseTest):
     def runTest(self):
         # gtp_type=254 -> end marker
         pkt = Ether(src=0x0, dst=0x0) / \
-               IP(src=S1U_IPV4, dst=ENODEB_IPV4) / \
-               UDP(sport=UDP_GTP_PORT, dport=UDP_GTP_PORT, chksum=0) / \
-               gtp.GTPHeader(gtp_type=254, teid=1)
+              IP(src=N3_IPV4, dst=ENODEB_IPV4) / \
+              UDP(sport=UDP_GTP_PORT, dport=UDP_GTP_PORT, chksum=0) / \
+              gtp.GTPHeader(gtp_type=254, teid=1)
 
         # Expect routed packet
         exp_pkt = pkt.copy()
@@ -380,7 +379,7 @@ class GtpuEncapPscDownlinkTest(GtpuBaseTest):
         dst_mac = ENODEB_MAC
 
         # Encap with PSC ext header and given QFI
-        exp_pkt = self.gtpu_encap(exp_pkt, ip_src=S1U_IPV4, ip_dst=ENODEB_IPV4,
+        exp_pkt = self.gtpu_encap(exp_pkt, ip_src=N3_IPV4, ip_dst=ENODEB_IPV4,
                                   ext_psc_type=GTPU_EXT_PSC_TYPE_DL, ext_psc_qfi=1)
 
         # Expected pkt should have routed MAC addresses and decremented hop
@@ -420,7 +419,7 @@ class GtpuDecapPscUplinkTest(GtpuBaseTest):
                 pkt = getattr(testutils,
                               "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
                                                              ip_src=UE_IPV4, ip_dst=PDN_IPV4)
-                pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=S1U_IPV4,
+                pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=N3_IPV4,
                                       ext_psc_type=GTPU_EXT_PSC_TYPE_UL, ext_psc_qfi=1)
 
                 self.testPacket(pkt, app_filtering)
