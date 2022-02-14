@@ -433,7 +433,8 @@ def craft_pfcp_association_setup_packet() -> scapy.Packet:
     setup_request.IE_list.append(ie1)
     ie2 = pfcp.IE_RecoveryTimeStamp()
     setup_request.IE_list.append(ie2)
-    return IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port, dport=peer_port) / pfcp_header / setup_request
+    return IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port,
+                                                 dport=peer_port) / pfcp_header / setup_request
 
 
 def craft_pfcp_association_release_packet() -> scapy.Packet:
@@ -445,7 +446,8 @@ def craft_pfcp_association_release_packet() -> scapy.Packet:
     ie1 = pfcp.IE_NodeId()
     ie1.ipv4 = our_addr
     release_request.IE_list.append(ie1)
-    return IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port, dport=peer_port) / pfcp_header / release_request
+    return IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port,
+                                                 dport=peer_port) / pfcp_header / release_request
 
 
 def craft_pfcp_session_est_packet(args: argparse.Namespace, session: Session) -> scapy.Packet:
@@ -470,7 +472,8 @@ def craft_pfcp_session_est_packet(args: argparse.Namespace, session: Session) ->
 
     session.add_rules_to_request(args=args, request=establishment_request)
 
-    return IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port, dport=peer_port) / pfcp_header / establishment_request
+    return IP(src=our_addr, dst=peer_addr) / UDP(
+        sport=our_port, dport=peer_port) / pfcp_header / establishment_request
 
 
 def craft_pfcp_session_modify_packet(args: argparse.Namespace, session: Session) -> scapy.Packet:
@@ -491,7 +494,8 @@ def craft_pfcp_session_modify_packet(args: argparse.Namespace, session: Session)
     session.add_rules_to_request(args, modification_request, add_pdrs=False, add_urrs=False,
                                  add_qers=False)
 
-    return IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port, dport=peer_port) / pfcp_header / modification_request
+    return IP(src=our_addr, dst=peer_addr) / UDP(
+        sport=our_port, dport=peer_port) / pfcp_header / modification_request
 
 
 def craft_pfcp_session_delete_packet(session: Session) -> scapy.Packet:
@@ -508,7 +512,8 @@ def craft_pfcp_session_delete_packet(session: Session) -> scapy.Packet:
     fseid = craft_fseid(session.our_seid, our_addr)
     deletion_request.IE_list.append(fseid)
 
-    delete_pkt = IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port, dport=peer_port) / pfcp_header / deletion_request
+    delete_pkt = IP(src=our_addr, dst=peer_addr) / UDP(
+        sport=our_port, dport=peer_port) / pfcp_header / deletion_request
     return delete_pkt
 
 
@@ -619,7 +624,8 @@ def send_pfcp_heartbeats() -> None:
         heartbeat.version = 1
         heartbeat.IE_list.append(pfcp.IE_RecoveryTimeStamp())
 
-        pkt = IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port, dport=peer_port) / pfcp_header / heartbeat
+        pkt = IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port,
+                                                    dport=peer_port) / pfcp_header / heartbeat
         send_recv_pfcp(pkt, MSG_TYPES["heartbeat_response"], session=None, verbosity_override=0)
 
 
@@ -755,8 +761,10 @@ def main():
         "--pcap-file",
         help="File in which to write sent/received PFCP packets. Default is no capture")
     parser.add_argument('--verbose', '-v', action='count', default=0)
-    parser.add_argument("--sport", help="The local UDP port to send PFCP messages from. Defaults to 8805")
-    parser.add_argument("--dport", help="The remote UDP port to send PFCP messages to. Defaults to 8805")
+    parser.add_argument("--sport",
+                        help="The local UDP port to send PFCP messages from. Defaults to 8805")
+    parser.add_argument("--dport",
+                        help="The remote UDP port to send PFCP messages to. Defaults to 8805")
     args = parser.parse_args()
     input_file: Optional[IO] = None
     output_file: Optional[IO] = None
