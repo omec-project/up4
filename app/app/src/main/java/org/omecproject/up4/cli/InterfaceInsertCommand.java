@@ -35,7 +35,7 @@ public class InterfaceInsertCommand extends AbstractShellCommand {
 
         print("Adding N3 interface address: %s", n3Addr.toString());
         // TODO: Update UpfInterface to use N3 instead of S1U
-        app.adminApply(UpfInterface.createS1uFrom(n3Addr, SLICE_MOBILE));
+        app.adminApply(UpfInterface.createN3From(n3Addr, SLICE_MOBILE));
     }
 }
 

@@ -35,7 +35,7 @@ public class InterfaceDeleteCommand extends AbstractShellCommand {
 
         print("Removing N3 interface address %s", n3Addr.toString());
         // TODO: Update UpfInterface to use N3 instead of S1U
-        app.delete(UpfInterface.createS1uFrom(n3Addr, SLICE_MOBILE));
+        app.delete(UpfInterface.createN3From(n3Addr, SLICE_MOBILE));
     }
 }
 

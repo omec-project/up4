@@ -414,7 +414,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     public Collection<UpfInterface> configInterfaces() {
         Collection<UpfInterface> interfaces = new ArrayList<>();
         if (config.n3Address().isPresent()) {
-            interfaces.add(UpfInterface.createS1uFrom(config.n3Address().get(), SLICE_MOBILE));
+            interfaces.add(UpfInterface.createN3From(config.n3Address().get(), SLICE_MOBILE));
         }
         for (Ip4Prefix uePool : config.uePools()) {
             interfaces.add(UpfInterface.createUePoolFrom(uePool, SLICE_MOBILE));

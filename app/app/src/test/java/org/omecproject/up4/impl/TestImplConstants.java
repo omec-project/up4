@@ -176,7 +176,7 @@ public final class TestImplConstants {
             .needsDropping(true)
             .build();
 
-    public static final UpfInterface UPLINK_INTERFACE = UpfInterface.createS1uFrom(N3_ADDR, MOBILE_SLICE);
+    public static final UpfInterface UPLINK_INTERFACE = UpfInterface.createN3From(N3_ADDR, MOBILE_SLICE);
 
     public static final UpfInterface DOWNLINK_INTERFACE = UpfInterface.createUePoolFrom(UE_POOL, MOBILE_SLICE);
 
