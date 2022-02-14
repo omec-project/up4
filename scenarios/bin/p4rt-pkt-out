@@ -11,11 +11,11 @@ from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
 
 GTP_UDP_PORT = 2152
 ENB_IPV4 = "140.0.100.1"
-S1U_IPV4 = "140.0.0.1"
+N3_IPV4 = "140.0.0.1"
 
 PKTS = {
     'end-marker': Ether(src=0x0, dst=0x0) / \
-                  IP(src=S1U_IPV4, dst=ENB_IPV4) / \
+                  IP(src=N3_IPV4, dst=ENB_IPV4) / \
                   UDP(sport=GTP_UDP_PORT, dport=GTP_UDP_PORT, chksum=0) / \
                   gtp.GTPHeader(gtp_type=254, teid=1)
 }
