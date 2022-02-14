@@ -35,14 +35,17 @@ def get_args():
     parser.add_argument(
         "--add-iface-uepool", action='store_true',
         help="If this argument is present, IP UE pool interface table entry will be installed.")
+    parser.add_argument(
+        "--add-iface-n3addr", action='store_true',
+        help="If this argument is present, N3 IPv4 address interface table entry will be installed.")
     parser.add_argument("--buffer", action='store_true',
                         help="If this argument is present, downlink session will buffer traffic")
     parser.add_argument("--ue-count", type=int, default=1,
                         help="The number of UE flows for which table entries should be created.")
     parser.add_argument("--ue-pool", type=IPv4Network, default=IPv4Network("17.0.0.0/24"),
                         help="The IPv4 prefix from which UE addresses will be drawn.")
-    parser.add_argument("--s1u-addr", type=IPv4Address, default=IPv4Address("140.0.0.1"),
-                        help="The IPv4 address of the UPF's S1U interface")
+    parser.add_argument("--n3-addr", type=IPv4Address, default=IPv4Address("140.0.0.1"),
+                        help="The IPv4 address of the UPF's N3 interface")
     parser.add_argument("--enb-addr", type=IPv4Address, default=IPv4Address("140.0.100.1"),
                         help="The IPv4 address of the eNodeB")
     parser.add_argument(
@@ -147,10 +150,10 @@ def main():
     #  Filter entries are now installed when the netconfig is loaded,
     #  and do not need to be installed via P4RT.
     # ========================#
-    if args.add_ifaces:
+    if args.add_iface_n3addr or args.add_ifaces:
         # Uplink
         entry = sh.TableEntry('PreQosPipe.interfaces')(action='PreQosPipe.set_source_iface')
-        entry.match['ipv4_dst_prefix'] = str(args.s1u_addr) + '/32'
+        entry.match['ipv4_dst_prefix'] = str(args.n3_addr) + '/32'
         entry.action['src_iface'] = IFACE_ACCESS
         entry.action['direction'] = DIR_UPLINK
         add_entry(entry, args.action)
@@ -206,7 +209,7 @@ def main():
         ## Uplink
         entry = sh.TableEntry('PreQosPipe.sessions_uplink')(action='PreQosPipe.set_session_uplink')
         # Match fields
-        entry.match['n3_address'] = str(args.s1u_addr)
+        entry.match['n3_address'] = str(args.n3_addr)
         entry.match['teid'] = str(teid)
         if args.qfi is not None:
             print("QFI match currently unsupported!!")
@@ -263,7 +266,7 @@ def main():
         # Match fields
         entry.match['tunnel_peer_id'] = str(tunnel_peer_id)
         # Action params
-        entry.action['src_addr'] = str(args.s1u_addr)
+        entry.action['src_addr'] = str(args.n3_addr)
         entry.action['dst_addr'] = str(args.enb_addr)
         entry.action['sport'] = TUNNEL_SPORT
         add_entry(entry, args.action)
