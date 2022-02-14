@@ -48,6 +48,11 @@
               requires="Onos-Wait-For-Ready"
               exec="docker-log-grep ${ODI} 'New pipeconf registered: org.stratumproject.fabric-upf.bmv2'"/>
 
+        <!-- BUG in onos-cfg, we need to specify POST and not post in the curl to do an actual post -->
+        <step name="Change-Metermanager-Index-Cfg" requires="^"
+              exec="curl -v -sSL --user karaf:karaf -X POST -H 'Content-Type:application/json' http://localhost:8181/onos/v1/configuration/org.onosproject.net.meter.impl.MeterManager -d@./topo/metermngr_cfg.json"
+        />
+
         <!-- remove pre-installed up4, install local build -->
         <step name="Up4-App-Uninstall" requires="Onos-Wait-For-Ready"
               exec="onos-app ${OCI} uninstall org.omecproject.up4"/>
@@ -57,6 +62,7 @@
               exec="test -f ${UP4_ROOT}/app/app/target/up4-app-1.1.0-SNAPSHOT.oar"/>
         <step name="Up4-App-Install-Local-Build" requires="^" delay="5"
               exec="onos-app ${OCI} reinstall! ${UP4_ROOT}/app/app/target/up4-app-1.1.0-SNAPSHOT.oar"/>
+
 
         <parallel var="${OD#}">
             <!-- FIXME: ${OC#} pointing to the same instance localhost, should we use a container that can resolve onos1/2/3 hostnames? -->
