@@ -249,7 +249,7 @@ def main():
 
         ## Uplink
         entry = sh.TableEntry('PreQosPipe.sessions_uplink')(action='PreQosPipe.set_session_uplink')
-        entry.action["session_meter_id"] = str(sess_meter_idx_ul)
+        entry.action["session_meter_idx"] = str(sess_meter_idx_ul)
         # Match fields
         entry.match['n3_address'] = str(args.n3_addr)
         entry.match['teid'] = str(teid)
@@ -265,7 +265,7 @@ def main():
         else:
             entry = sh.TableEntry('PreQosPipe.sessions_downlink')(
                 action='PreQosPipe.set_session_downlink_buff')
-        entry.action["session_meter_id"] = str(sess_meter_idx_dl)
+        entry.action["session_meter_idx"] = str(sess_meter_idx_dl)
         # Match fields
         entry.match['ue_address'] = str(ue_addr)
         add_entry(entry, args.action)
@@ -279,7 +279,7 @@ def main():
             entry = sh.TableEntry('PreQosPipe.terminations_uplink')(
                 action='PreQosPipe.uplink_term_fwd')
             entry.action['tc'] = TRAFFIC_CLASS
-            entry.action["app_meter_id"] = str(app_meter_idx_ul)
+            entry.action["app_meter_idx"] = str(app_meter_idx_ul)
         else:
             entry = sh.TableEntry('PreQosPipe.terminations_uplink')(
                 action='PreQosPipe.uplink_term_drop')
@@ -295,7 +295,7 @@ def main():
             entry.action['tc'] = TRAFFIC_CLASS
             entry.action['qfi'] = str(args.qfi) if args.qfi else "0"
             entry.action['teid'] = str(teid)
-            entry.action['app_meter_id'] = str(app_meter_idx_dl)
+            entry.action['app_meter_idx'] = str(app_meter_idx_dl)
         else:
             entry = sh.TableEntry('PreQosPipe.terminations_downlink')(
                 action='PreQosPipe.downlink_term_drop')

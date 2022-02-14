@@ -15,7 +15,7 @@
             </group>
             <step name="Check-Up4-Flows-1-Fwd" requires="Push-Up4-Flows"
                   exec="onos-cli-grep ${OCI} up4:read-flows 'Apps=0, UL sess=${P4RT_UP4_FLOWS}, UL flows=${P4RT_UP4_FLOWS}, DL flows=${P4RT_UP4_FLOWS}'"/>
-            <step name="Check-Up4-Flows-1-Fwd" requires="^"
+            <step name="Check-Up4-Flows-2-Fwd" requires="^"
                   exec="onos-cli-grep ${OCI} up4:read-flows 'App meters=${P4RT_UP4_METERS}, Sess meters=${P4RT_UP4_METERS}'"/>
             <step name="Check-Flow-Rules-Fwd" requires="^" delay="5"
                   exec="onos-check-flows ${OCI}"/>
