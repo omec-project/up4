@@ -52,7 +52,7 @@ View ONOS logs
 
 Using the ONOS CLI, install table entries for uplink packets:
 
-    onos> up4:s1u-insert 140.0.100.254  
+    onos> up4:n3-insert 140.0.100.254  
     onos> up4:pdr-insert 1 17.0.0.1 1 255 140.0.100.254  
     onos> up4:far-insert 1 1
 
