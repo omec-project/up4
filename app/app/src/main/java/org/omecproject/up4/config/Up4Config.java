@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Class that represents the config expected from a UPF network configuration JSON block.
@@ -29,22 +30,22 @@ public class Up4Config extends Config<ApplicationId> {
     public static final String MAX_UES = "maxUes";
     public static final String DEVICE_ID = "deviceId"; // TODO: remove this field after all configs updated
     public static final String DEVICES = "devices";
-    public static final String UE_POOLS = "uePools";
-    public static final String S1U_PREFIX = "s1uPrefix";  // TODO: remove this field after all configs updated
-    public static final String S1U_ADDR = "s1uAddr";
     public static final String DBUF_DRAIN_ADDR = "dbufDrainAddr";
     public static final String PSC_ENCAP_ENABLED = "pscEncapEnabled";
+
+    // Optional fields, if not provided pfcpiface is free to install the corresponding interface entry.
+    // TODO: remove these fields?
+    public static final String UE_POOLS = "uePools";
+    public static final String S1U_ADDR = "s1uAddr";
+    public static final String N3_ADDR = "n3Addr";
 
 
     @Override
     public boolean isValid() {
-        return hasOnlyFields(DEVICE_ID, DEVICES, UE_POOLS, S1U_ADDR, S1U_PREFIX,
+        return hasOnlyFields(DEVICE_ID, DEVICES, UE_POOLS, S1U_ADDR, N3_ADDR,
                              DBUF_DRAIN_ADDR, MAX_UES, PSC_ENCAP_ENABLED) &&
                 // Mandatory fields.
                 (hasField(DEVICE_ID) || hasField(DEVICES)) &&
-                hasField(UE_POOLS) &&
-                (hasField(S1U_ADDR) || hasField(S1U_PREFIX)) &&
-                !uePools().isEmpty() &&
                 !upfDeviceIds().isEmpty() &&
                 isDbufConfigValid();
     }
@@ -83,44 +84,30 @@ public class Up4Config extends Config<ApplicationId> {
     }
 
     /**
-     * Get the S1U IPv4 address assigned to the device. Or null if not properly configured.
+     * Get the N3 IPv4 address assigned to the device.
      *
-     * @return The S1U IPv4 address assigned to the device
+     * @return The N3 IPv4 address assigned to the device or emtpy if not configured.
      */
-    public Ip4Address s1uAddress() {
+    public Optional<Ip4Address> n3Address() {
         if (hasField(S1U_ADDR)) {
             String addr = get(S1U_ADDR, null);
-            return addr != null ? Ip4Address.valueOf(addr) : null;
-        } else if (hasField(S1U_PREFIX)) {
-            // TODO: remove this whole block after all network configs have been updated
-            log.warn("UP4 config field {} has been replaced by {}, please update your config!",
-                     S1U_PREFIX, S1U_ADDR);
-            String prefix = get(S1U_PREFIX, null);
-            if (prefix == null) {
-                return null;
-            }
-            try {
-                // Try converting to a prefix just to check that the format is correct
-                Ip4Prefix.valueOf(prefix);
-            } catch (Exception e) {
-                return null;
-            }
-            // We can't do Ip4Prefix.address() because it masks off the host bits
-            String[] pieces = prefix.split("/");
-            return Ip4Address.valueOf(pieces[0]);
-        } else {
-            return null;
+            return addr != null ? Optional.of(Ip4Address.valueOf(addr)) : Optional.empty();
         }
+        if (hasField(N3_ADDR)) {
+            String addr = get(N3_ADDR, null);
+            return addr != null ? Optional.of(Ip4Address.valueOf(addr)) : Optional.empty();
+        }
+        return Optional.empty();
     }
 
     /**
-     * Gets the list of UE IPv4 address pools assigned to the device. Or null if not configured.
+     * Gets the list of UE IPv4 address pools assigned to the device.
      *
-     * @return UE IPv4 address pools assigned to the device
+     * @return UE IPv4 address pools assigned to the device or empty list if not configured
      */
     public List<Ip4Prefix> uePools() {
         if (!object.has(UE_POOLS)) {
-            return null;
+            return ImmutableList.of();
         }
         List<Ip4Prefix> uePools = new ArrayList<>();
         ArrayNode uePoolsNode = (ArrayNode) object.path(UE_POOLS);

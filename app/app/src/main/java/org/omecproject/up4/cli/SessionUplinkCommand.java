@@ -22,7 +22,7 @@ import org.onosproject.net.behaviour.upf.UpfSessionUplink;
 public class SessionUplinkCommand extends AbstractShellCommand {
 
     @Argument(index = 0, name = "n3-addr",
-            description = "Address of the N3/S1U interface for which this UE Session applies",
+            description = "Address of the N3 interface for which this UE Session applies",
             required = true)
     String n3Addr = null;
 

@@ -48,6 +48,7 @@ import org.onosproject.net.flow.FlowRuleEvent;
 import org.onosproject.net.flow.FlowRuleListener;
 import org.onosproject.net.flow.FlowRuleOperations;
 import org.onosproject.net.flow.FlowRuleService;
+import org.onosproject.net.flow.FlowEntry.FlowEntryState;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
 import org.onosproject.net.pi.service.PiPipeconfService;
@@ -397,7 +398,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             log.warn("Failed to read interface: {}", e.getMessage());
             return;
         }
-        for (UpfInterface iface : configFileInterfaces()) {
+        for (UpfInterface iface : configInterfaces()) {
             if (!installedInterfaces.contains(iface)) {
                 log.warn("{} is missing from leader device! Installing", iface);
                 try {
@@ -409,14 +410,12 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
     }
 
-    /**
-     * Gets the collection of interfaces present in the UP4 config file.
-     *
-     * @return an interface collection
-     */
-    private Collection<UpfInterface> configFileInterfaces() {
+    @Override
+    public Collection<UpfInterface> configInterfaces() {
         Collection<UpfInterface> interfaces = new ArrayList<>();
-        interfaces.add(UpfInterface.createS1uFrom(config.s1uAddress(), SLICE_MOBILE));
+        if (config.n3Address().isPresent()) {
+            interfaces.add(UpfInterface.createN3From(config.n3Address().get(), SLICE_MOBILE));
+        }
         for (Ip4Prefix uePool : config.uePools()) {
             interfaces.add(UpfInterface.createUePoolFrom(uePool, SLICE_MOBILE));
         }
@@ -707,6 +706,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if (!sess.needsBuffering() && up4Store.forgetBufferingUe(sess.ueAddress())) {
                 // TODO: Should we wait for rules to be installed on all devices before
                 //   triggering drain?
+                //   When a fwd FAR is changed to buff FAR,
+                //   both session_downlink & downlink_termination rules are updated.
+                //   If the drain action starts immediately right after applying session_downlink,
+                //   the downlink_termination rule may not be updated,
+                //   thus, the TEID may wrong in such case.
                 // Run the outbound rpc in a forked context so it doesn't cancel if it was called
                 // by an inbound rpc that completes faster than the drain call
                 Ip4Address ueAddr = sess.ueAddress();
@@ -1197,6 +1201,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 Set<FlowRule> leaderRules =
                     StreamSupport.stream(flowRuleService.getFlowEntries(leaderUpfDevice).spliterator(), false)
                         .filter(r -> getLeaderUpfProgrammable().fromThisUpf(r))
+                        .filter(r -> r.state() == FlowEntryState.PENDING_ADD || r.state() == FlowEntryState.ADDED)
                         .collect(Collectors.toSet());
 
                 // Replace the follower's device id with leader's id,
@@ -1204,6 +1209,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 Set<FlowRule> followerRules =
                     StreamSupport.stream(flowRuleService.getFlowEntries(deviceId).spliterator(), false)
                         .filter(r -> upfProg.fromThisUpf(r))
+                        .filter(r -> r.state() == FlowEntryState.PENDING_ADD || r.state() == FlowEntryState.ADDED)
                         .map(r -> copyFlowRuleForDevice(r, leaderUpfDevice))
                         .collect(Collectors.toSet());
 
