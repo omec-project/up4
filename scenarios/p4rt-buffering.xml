@@ -60,13 +60,15 @@
         <group name="Check-Traffic-Buff" requires="P4rt-Program-Buff-Buffer">
             <step name="P4rt-Stream-Recv-Digest" requires="P4rt-Program-Buff-Buffer"
                   exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-stream-recv -t 30 --count ${ENODEBS} --type digest"/>
-            <parallel var="${ENODEB#}">
+            <sequential var="${ENODEB#}"
+                        starts="Downlink-Pdn-Send-Udp-Buff-${#}"
+                        ends="Check-Drain-Completed-${#-1},Check-Drain-Started-${#-1},Downlink-Enb-Recv-Gtp-Buff-${#-1}">
                 <!-- Check Downlink only -->
                 <step name="Downlink-Pdn-Send-Udp-Buff-${#}" requires="P4rt-Program-Buff-Buffer" delay="5"
                       exec="mn-cmd pdn traffic.py send-udp -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <!-- FIXME: grep log tail to allow running scenarios in development where there can be
                         many FIRST_BUFFER in the log  -->
-                <step name="Verify-First-Buffer-${#}" requires="^"
+                <step name="Verify-First-Buffer-${#}" requires="Downlink-Pdn-Send-Udp-Buff-${#}"
                       exec="docker-log-grep ${ODI} 'Received FIRST_BUFFER: ueAddress=17.0.${#-1}.1'"/>
                 <!-- -t 30 to wait enough time for packets to be released after P4rt-Set-Fwd-After-Buff -->
                 <!-- Not going to verify TEID in buffering test -->
@@ -78,7 +80,7 @@
                       exec="docker-log-grep ${ODI} 'Started dbuf drain for 17.0.${#-1}.1'"/>
                 <step name="Check-Drain-Completed-${#}" requires="P4rt-Set-Fwd-After-Buff-${#}"
                       exec="docker-log-grep ${ODI} 'Dbuf drain completed for 17.0.${#-1}.1'"/>
-            </parallel>
+            </sequential>
         </group>
         <group name="P4rt-Clear-Buff" requires="~Check-Traffic-Buff">
             <group name="Clear-Up4-Flows-Buff">
