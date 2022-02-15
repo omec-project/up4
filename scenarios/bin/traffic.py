@@ -20,7 +20,7 @@ GTPU_EXT_PSC_TYPE_DL = 0  # Unused
 pkt_count = 0
 
 ue_addresses_expected = set()  # UE addresses that we expect to receive packets for/from
-downlink_teids_expected = set() # Downlink TEIDs that we expect to receive packets for
+downlink_teids_expected = set()  # Downlink TEIDs that we expect to receive packets for
 
 
 def addrs_from_prefix(prefix: IPv4Network, count: int):
@@ -210,10 +210,10 @@ def sniff_stuff(args: argparse.Namespace, kind: str):
 def handle_timeout(signum, frame):
     if len(ue_addresses_expected) != 0:
         print("Timeout! Did not receive expected packets for the following addresses:",
-                ue_addresses_expected)
+              ue_addresses_expected)
     if len(downlink_teids_expected) != 0:
         print("Timeout! Did not receive expected packets for the following TEID:",
-                downlink_teids_expected)
+              downlink_teids_expected)
     exit(1)
 
 

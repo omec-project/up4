@@ -251,7 +251,7 @@ def main():
                 action='PreQosPipe.downlink_term_fwd')
             entry.action['tc'] = TRAFFIC_CLASS
             entry.action['qfi'] = str(args.qfi) if args.qfi else "0"
-            entry.action['teid'] = str(teid+1)
+            entry.action['teid'] = str(teid + 1)
         else:
             entry = sh.TableEntry('PreQosPipe.terminations_downlink')(
                 action='PreQosPipe.downlink_term_drop')
