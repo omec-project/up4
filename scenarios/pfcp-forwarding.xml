@@ -4,33 +4,54 @@
   -->
 <scenario name="pfcp-forwarding" description="Set up and test UE data forwarding with the PFCP client">
     <group name="Pfcp-Forwarding">
-        <group name="Pfcp-Setup-Fwd">
-            <group name="Pfcp-Push-Fwd" delay="5">
+        <group name="Pfcp-Setup-Fwd-Create">
+            <group name="Pfcp-Push-Fwd-Create" delay="5">
                 <sequential var="${ENODEB#}"
                             starts="Pfcp-Session-Create-${#}"
-                            ends="Pfcp-Session-${#-1}">
+                            ends="Pfcp-Session-Create-${#-1}">
                     <step name="Pfcp-Session-Create-${#}"
                           exec="mock-smf-cmd create --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
-                    <step name="Pfcp-Session-${#}" requires="^"
-                          exec="mock-smf-cmd modify --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
-            <step name="Check-Up4-Flows-Fwd" requires="Pfcp-Push-Fwd" delay="5"
+            <step name="Check-Up4-Flows-Fwd-Create" requires="Pfcp-Push-Fwd-Create" delay="5"
                   exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${PFCP_UP4_FLOWS}, DL flows=${PFCP_UP4_FLOWS}'"/>
-            <step name="Check-Flow-Rules-Fwd" requires="Pfcp-Push-Fwd" delay="5"
+            <step name="Check-Flow-Rules-Fwd-Create" requires="Pfcp-Push-Fwd-Create" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
-        <group name="Check-Traffic-Fwd-App-Filtering-Negative" requires="Pfcp-Setup-Fwd" delay="5">
+        <group name="Check-Traffic-Drop-DL" requires="Pfcp-Setup-Fwd-Create" delay="5">
             <parallel var="${ENODEB#}">
                 <!-- Downlink -->
-                <step name="Downlink-Enb-Recv-Gtp-Drop-App-Filtering-${#}" requires="Pfcp-Setup-Fwd" env="!"
+                <step name="Downlink-Enb-Recv-Gtp-Fwd-Drop-DL-${#}" requires="Pfcp-Setup-Fwd-Create"
+                      exec="mn-cmd ${ENODEB#} traffic.py recv-none -t 10"/>
+                <step name="Downlink-Pdn-Send-Udp-Fwd-Drop-DL-${#}" requires="Pfcp-Setup-Fwd-Create" delay="5"
+                      exec="mn-cmd pdn traffic.py send-udp -c 10 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+            </parallel>
+        </group>
+        <group name="Pfcp-Setup-Fwd-Modify" requires="Check-Traffic-Drop-DL">
+            <group name="Pfcp-Push-Fwd-Modify" delay="5">
+                <sequential var="${ENODEB#}"
+                            starts="Pfcp-Session-Modify-${#}"
+                            ends="Pfcp-Session-Modify-${#-1}">
+                    <step name="Pfcp-Session-Modify-${#}"
+                           exec="mock-smf-cmd modify --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                </sequential>
+            </group>
+            <step name="Check-Up4-Flows-Fwd-Modify" requires="Pfcp-Push-Fwd-Modify" delay="5"
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${PFCP_UP4_FLOWS}, DL flows=${PFCP_UP4_FLOWS}'"/>
+            <step name="Check-Flow-Rules-Fwd-Modify" requires="Pfcp-Push-Fwd-Modify" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+        <group name="Check-Traffic-Fwd-App-Filtering-Negative" requires="Pfcp-Setup-Fwd-Modify" delay="5">
+            <parallel var="${ENODEB#}">
+                <!-- Downlink -->
+                <step name="Downlink-Enb-Recv-Gtp-Drop-App-Filtering-${#}" requires="Pfcp-Setup-Fwd-Modify" env="!"
                       exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port ${#}00"/>
-                <step name="Downlink-Pdn-Send-Udp-Drop-App-Filtering-${#}" requires="Pfcp-Setup-Fwd" delay="5"
+                <step name="Downlink-Pdn-Send-Udp-Drop-App-Filtering-${#}" requires="Pfcp-Setup-Fwd-Modify" delay="5"
                       exec="mn-cmd pdn traffic.py send-udp -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port ${#}00"/>
                 <!-- Uplink -->
-                <step name="Uplink-Pdn-Recv-Udp-Drop-App-Filtering-${#}" requires="Pfcp-Setup-Fwd" env="!"
+                <step name="Uplink-Pdn-Recv-Udp-Drop-App-Filtering-${#}" requires="Pfcp-Setup-Fwd-Modify" env="!"
                       exec="mn-cmd pdn traffic.py recv-udp -t 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port ${#}00"/>
-                <step name="Uplink-Enb-Send-Gtp-Drop-App-Filtering-${#}" requires="Pfcp-Setup-Fwd" delay="5"
+                <step name="Uplink-Enb-Send-Gtp-Drop-App-Filtering-${#}" requires="Pfcp-Setup-Fwd-Modify" delay="5"
                       exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port ${#}00"/>
             </parallel>
         </group>

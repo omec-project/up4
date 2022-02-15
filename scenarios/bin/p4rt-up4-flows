@@ -41,7 +41,8 @@ def get_args():
         help="If this argument is present, IP UE pool interface table entry will be installed.")
     parser.add_argument(
         "--add-iface-n3addr", action='store_true',
-        help="If this argument is present, N3 IPv4 address interface table entry will be installed.")
+        help="If this argument is present, N3 IPv4 address interface table entry will be installed."
+    )
     parser.add_argument("--buffer", action='store_true',
                         help="If this argument is present, downlink session will buffer traffic")
     parser.add_argument("--ue-count", type=int, default=1,
@@ -197,7 +198,7 @@ def main():
         ue_addr_gen = get_addresses_from_prefix(args.ue_pool, args.ue_count)
         teid_gen = iter(
             range(args.base if args.base else args.teid_base,
-                  (args.base if args.base else args.teid_base) + args.ue_count))
+                  (args.base if args.base else args.teid_base) + args.ue_count * 2, 2))
         ctr_id_gen = iter(
             range(args.ctr_base if args.ctr_base is not None else args.base,
                   (args.ctr_base if args.ctr_base is not None else args.base) + rule_count))
@@ -294,7 +295,7 @@ def main():
                 action='PreQosPipe.downlink_term_fwd')
             entry.action['tc'] = TRAFFIC_CLASS
             entry.action['qfi'] = str(args.qfi) if args.qfi else "0"
-            entry.action['teid'] = str(teid)
+            entry.action['teid'] = str(teid + 1)
             entry.action['app_meter_idx'] = str(app_meter_idx_dl)
         else:
             entry = sh.TableEntry('PreQosPipe.terminations_downlink')(

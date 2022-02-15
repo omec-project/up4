@@ -6,41 +6,81 @@
     <group name="P4rt-Buffering">
         <step name="Push-Netcfg-Dbuf"
               exec="onos-netcfg ${OCI} ${UP4_ROOT}/scenarios/topo/netcfg-dbuf.json"/>
-        <group name="P4rt-Program-Buff" requires="Push-Netcfg-Dbuf">
-            <group name="Push-Up4-Flows-Buff" delay="5">
+        <group name="P4rt-Program-Buff-Drop-DL" requires="Push-Netcfg-Dbuf">
+            <group name="Push-Up4-Flows-Buff-Drop-DL" delay="5">
                 <sequential var="${ENODEB#}"
-                            starts="P4rt-Set-Buff-${#}"
-                            ends="P4rt-Set-Buff-${#-1}">
-                    <step name="P4rt-Set-Buff-${#}" requires="Push-Netcfg-Dbuf"
+                            starts="P4rt-Set-Buff-Drop-DL-${#}"
+                            ends="P4rt-Set-Buff-Drop-DL-${#-1}">
+                    <step name="P4rt-Set-Buff-Drop-DL-${#}" requires="Push-Netcfg-Dbuf" delay="5"
+                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --base ${#}0 --drop-dl true --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                </sequential>
+            </group>
+            <step name="Check-Up4-Flows-Buff-Drop-DL" requires="Push-Up4-Flows-Buff-Drop-DL" delay="5"
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${P4RT_UP4_FLOWS}, DL flows=${P4RT_UP4_FLOWS}'"/>
+            <step name="Check-Flow-Rules-Buff-Drop-DL" requires="^" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+        <group name="Check-Buff-DL-Dropped" requires="P4rt-Program-Buff-Drop-DL">
+            <parallel var="${ENODEB#}">
+                <!-- Downlink -->
+                <step name="Downlink-Enb-Recv-Buff-Dropped-${#}" requires="P4rt-Program-Buff-Drop-DL"
+                        exec="mn-cmd ${ENODEB#} traffic.py recv-none -t 10"/>
+                <step name="Downlink-Pdn-Send-Udp-Buff-Drop-DL-${#}" requires="P4rt-Program-Buff-Drop-DL" delay="5"
+                        exec="mn-cmd pdn traffic.py send-udp -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+            </parallel>
+        </group>
+        <group name="P4rt-Program-Buff-Fwd" requires="Check-Buff-DL-Dropped">
+            <group name="Push-Up4-Flows-Buff-Fwd" delay="5">
+                <sequential var="${ENODEB#}"
+                            starts="P4rt-Set-Buff-Fwd-${#}"
+                            ends="P4rt-Set-Buff-Fwd-${#-1}">
+                    <step name="P4rt-Set-Buff-Fwd-${#}" requires="Check-Buff-DL-Dropped" delay="5"
+                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                </sequential>
+            </group>
+            <step name="Check-Up4-Flows-Buff-Fwd" requires="Push-Up4-Flows-Buff-Fwd" delay="5"
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${P4RT_UP4_FLOWS}, DL flows=${P4RT_UP4_FLOWS}'"/>
+            <step name="Check-Flow-Rules-Buff-Fwd" requires="^" delay="5"
+                  exec="onos-check-flows ${OCI}"/>
+        </group>
+        <group name="P4rt-Program-Buff-Buffer" requires="P4rt-Program-Buff-Fwd">
+            <group name="Push-Up4-Flows-Buff-Buffer" delay="5">
+                <sequential var="${ENODEB#}"
+                            starts="P4rt-Set-Buff-Buffer-${#}"
+                            ends="P4rt-Set-Buff-Buffer-${#-1}">
+                    <step name="P4rt-Set-Buff-Buffer-${#}" requires="P4rt-Program-Buff-Fwd" delay="5"
                           exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows --buffer program --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
-            <step name="Check-Up4-Flows-Buff" requires="Push-Up4-Flows-Buff"
+            <step name="Check-Up4-Flows-Buff-Buffer" requires="Push-Up4-Flows-Buff-Buffer" delay="5"
                   exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${P4RT_UP4_FLOWS}, DL flows=${P4RT_UP4_FLOWS}'"/>
-            <step name="Check-Flow-Rules-Buff" requires="^" delay="5"
+            <step name="Check-Flow-Rules-Buff-Buffer" requires="^" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
-        <group name="Check-Traffic-Buff" requires="P4rt-Program-Buff">
-            <step name="P4rt-Stream-Recv-Digest" requires="P4rt-Program-Buff"
+        <group name="Check-Traffic-Buff" requires="P4rt-Program-Buff-Buffer">
+            <step name="P4rt-Stream-Recv-Digest" requires="P4rt-Program-Buff-Buffer"
                   exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-stream-recv -t 30 --count ${ENODEBS} --type digest"/>
-            <parallel var="${ENODEB#}">
+            <sequential var="${ENODEB#}"
+                        starts="Downlink-Pdn-Send-Udp-Buff-${#}"
+                        ends="Check-Drain-Completed-${#-1},Check-Drain-Started-${#-1},Downlink-Enb-Recv-Gtp-Buff-${#-1}">
                 <!-- Check Downlink only -->
-                <step name="Downlink-Pdn-Send-Udp-Buff-${#}" requires="P4rt-Program-Buff" delay="5"
+                <step name="Downlink-Pdn-Send-Udp-Buff-${#}" requires="P4rt-Program-Buff-Buffer" delay="5"
                       exec="mn-cmd pdn traffic.py send-udp -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <!-- FIXME: grep log tail to allow running scenarios in development where there can be
                         many FIRST_BUFFER in the log  -->
-                <step name="Verify-First-Buffer-${#}" requires="^"
+                <step name="Verify-First-Buffer-${#}" requires="Downlink-Pdn-Send-Udp-Buff-${#}"
                       exec="docker-log-grep ${ODI} 'Received FIRST_BUFFER: ueAddress=17.0.${#-1}.1'"/>
                 <!-- -t 30 to wait enough time for packets to be released after P4rt-Set-Fwd-After-Buff -->
+                <!-- Not going to verify TEID in buffering test -->
                 <step name="Downlink-Enb-Recv-Gtp-Buff-${#}" requires="Verify-First-Buffer-${#}"
-                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 30 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 30 --no-verify-teid --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <step name="P4rt-Set-Fwd-After-Buff-${#}" requires="Verify-First-Buffer-${#}" delay="5"
                       exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <step name="Check-Drain-Started-${#}" requires="P4rt-Set-Fwd-After-Buff-${#}"
                       exec="docker-log-grep ${ODI} 'Started dbuf drain for 17.0.${#-1}.1'"/>
                 <step name="Check-Drain-Completed-${#}" requires="P4rt-Set-Fwd-After-Buff-${#}"
                       exec="docker-log-grep ${ODI} 'Dbuf drain completed for 17.0.${#-1}.1'"/>
-            </parallel>
+            </sequential>
         </group>
         <group name="P4rt-Clear-Buff" requires="~Check-Traffic-Buff">
             <group name="Clear-Up4-Flows-Buff">
