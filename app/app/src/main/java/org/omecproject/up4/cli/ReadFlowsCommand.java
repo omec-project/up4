@@ -78,7 +78,7 @@ public class ReadFlowsCommand extends AbstractShellCommand {
             if (sessMeter == null) {
                 print("    NO SESSION METER (sess_meter_idx=" + sess.sessionMeterIdx() + ")");
             } else {
-                print("    Application meter: " + ppUpfMeter(sessMeter));
+                print("    Session meter: " + ppUpfMeter(sessMeter));
             }
         }
         print(SEPARATOR);

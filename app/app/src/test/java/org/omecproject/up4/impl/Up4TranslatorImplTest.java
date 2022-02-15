@@ -109,6 +109,14 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
+    public void up4EntryToUplinkTerminationDefaultMeterTest() {
+        up4ToUpfEntity(
+                TestImplConstants.UPLINK_TERMINATION_DEFAULT_METER,
+                TestImplConstants.UP4_UPLINK_TERMINATION_DEFAULT_METER
+        );
+    }
+
+    @Test
     public void up4EntryToUplinkTerminationNoTcTest() {
         up4ToUpfEntity(TestImplConstants.UPLINK_TERMINATION_NO_TC, TestImplConstants.UP4_UPLINK_TERMINATION_NO_TC);
     }
@@ -121,6 +129,14 @@ public class Up4TranslatorImplTest {
     @Test
     public void up4EntryToDownlinkTerminationTest() {
         up4ToUpfEntity(TestImplConstants.DOWNLINK_TERMINATION, TestImplConstants.UP4_DOWNLINK_TERMINATION);
+    }
+
+    @Test
+    public void up4EntryToDownlinkTerminationDefaultMeterTest() {
+        up4ToUpfEntity(
+                TestImplConstants.DOWNLINK_TERMINATION_DEFAULT_METER,
+                TestImplConstants.UP4_DOWNLINK_TERMINATION_DEFAULT_METER
+        );
     }
 
     @Test
@@ -253,6 +269,14 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
+    public void uplinkTerminationDefaultMeterToUp4EntryTest() {
+        upfEntityToUp4(
+                TestImplConstants.UP4_UPLINK_TERMINATION_DEFAULT_METER,
+                TestImplConstants.UPLINK_TERMINATION_DEFAULT_METER
+        );
+    }
+
+    @Test
     public void uplinkTerminationNoTcToUp4EntryTest() {
         upfEntityToUp4(TestImplConstants.UP4_UPLINK_TERMINATION_NO_TC, TestImplConstants.UPLINK_TERMINATION_NO_TC);
     }
@@ -265,6 +289,14 @@ public class Up4TranslatorImplTest {
     @Test
     public void downlinkTerminationToUp4EntryTest() {
         upfEntityToUp4(TestImplConstants.UP4_DOWNLINK_TERMINATION, TestImplConstants.DOWNLINK_TERMINATION);
+    }
+
+    @Test
+    public void downlinkTerminationDefaultMeterToUp4EntryTest() {
+        upfEntityToUp4(
+                TestImplConstants.UP4_DOWNLINK_TERMINATION_DEFAULT_METER,
+                TestImplConstants.DOWNLINK_TERMINATION_DEFAULT_METER
+        );
     }
 
     @Test

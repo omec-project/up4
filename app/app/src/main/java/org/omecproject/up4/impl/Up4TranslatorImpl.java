@@ -298,9 +298,11 @@ public class Up4TranslatorImpl implements Up4Translator {
                 PiActionId actionId = ((PiAction) entry.action()).id();
                 if (actionId.equals(PRE_QOS_PIPE_UPLINK_TERM_DROP)) {
                     builder.needsDropping(true);
-                } else if (actionId.equals(PRE_QOS_PIPE_UPLINK_TERM_FWD)) {
-                    builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
+                } else {
                     builder.withAppMeterIdx(Up4TranslatorUtil.getParamShort(entry, APP_METER_IDX));
+                    if (actionId.equals(PRE_QOS_PIPE_UPLINK_TERM_FWD)) {
+                        builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
+                    }
                 }
                 return builder.build();
             }
