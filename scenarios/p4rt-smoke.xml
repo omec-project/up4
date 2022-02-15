@@ -5,14 +5,14 @@
 <scenario name="p4rt-smoke" description="UP4 smoke test using P4runtime messages instead of PFCP">
     <import file="./setup.xml"/>
     <import file="./net-setup.xml"/>
-    <import file="./p4rt-uepool-config.xml"/>
+    <import file="./p4rt-ifaces-config.xml"/>
     <import file="./p4rt-forwarding.xml"/>
     <import file="./p4rt-buffering.xml"/>
     <import file="./p4rt-app-filtering.xml"/>
     <import file="./teardown.xml"/>
     <dependency name="Net-Setup" requires="Setup"/>
-    <dependency name="P4rt-Uepool-Config" requires="Net-Setup"/>
-    <dependency name="P4rt-Forwarding" requires="P4rt-Uepool-Config"/>
+    <dependency name="P4rt-Ifaces-Config" requires="Net-Setup"/>
+    <dependency name="P4rt-Forwarding" requires="P4rt-Ifaces-Config"/>
     <dependency name="P4rt-Buffering" requires="P4rt-Forwarding"/>
     <dependency name="P4rt-App-Filtering" requires="P4rt-Buffering"/>
     <dependency name="Teardown" requires="~P4rt-Forwarding,~P4rt-Buffering,~P4rt-App-Filtering"/>

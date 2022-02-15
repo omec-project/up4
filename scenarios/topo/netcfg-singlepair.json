@@ -214,7 +214,6 @@
           "device:leaf1",
           "device:leaf2"
         ],
-        "s1uAddr": "140.0.0.1",
         "maxUes": 32,
         "dbufDrainAddr": "140.0.0.2",
         "pscEncapEnabled": false

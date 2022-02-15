@@ -90,7 +90,7 @@ public final class TestImplConstants {
 
     public static final int TEID = 0xff;
     public static final Ip4Address UE_ADDR = Ip4Address.valueOf("17.0.0.1");
-    public static final Ip4Address S1U_ADDR = Ip4Address.valueOf("192.168.0.1");
+    public static final Ip4Address N3_ADDR = Ip4Address.valueOf("192.168.0.1");
     public static final Ip4Address ENB_ADDR = Ip4Address.valueOf("192.168.0.2");
     public static final Ip4Prefix UE_POOL = Ip4Prefix.valueOf("17.0.0.0/16");
     // TODO: tunnel source port currently not stored on writes, so all reads are 0
@@ -116,14 +116,14 @@ public final class TestImplConstants {
 
     public static final UpfGtpTunnelPeer TUNNEL_PEER = UpfGtpTunnelPeer.builder()
             .withTunnelPeerId(GTP_TUNNEL_ID)
-            .withSrcAddr(S1U_ADDR)
+            .withSrcAddr(N3_ADDR)
             .withDstAddr(ENB_ADDR)
             .withSrcPort(TUNNEL_SPORT)
             .build();
 
     public static final UpfSessionUplink UPLINK_SESSION = UpfSessionUplink.builder()
             .withTeid(TEID)
-            .withTunDstAddr(S1U_ADDR)
+            .withTunDstAddr(N3_ADDR)
             .build();
 
     public static final UpfTerminationUplink UPLINK_TERMINATION = UpfTerminationUplink.builder()
@@ -176,7 +176,7 @@ public final class TestImplConstants {
             .needsDropping(true)
             .build();
 
-    public static final UpfInterface UPLINK_INTERFACE = UpfInterface.createS1uFrom(S1U_ADDR, MOBILE_SLICE);
+    public static final UpfInterface UPLINK_INTERFACE = UpfInterface.createN3From(N3_ADDR, MOBILE_SLICE);
 
     public static final UpfInterface DOWNLINK_INTERFACE = UpfInterface.createUePoolFrom(UE_POOL, MOBILE_SLICE);
 
@@ -201,7 +201,7 @@ public final class TestImplConstants {
                     PiAction.builder()
                             .withId(PRE_QOS_PIPE_LOAD_TUNNEL_PARAM)
                             .withParameter(
-                                    new PiActionParam(SRC_ADDR, ImmutableByteSequence.copyFrom(S1U_ADDR.toOctets())))
+                                    new PiActionParam(SRC_ADDR, ImmutableByteSequence.copyFrom(N3_ADDR.toOctets())))
                             .withParameter(
                                     new PiActionParam(DST_ADDR, ImmutableByteSequence.copyFrom(ENB_ADDR.toOctets())))
                             .withParameter(
@@ -214,7 +214,7 @@ public final class TestImplConstants {
             .withMatchKey(
                     PiMatchKey.builder()
                             .addFieldMatch(new PiExactFieldMatch(
-                                    HDR_N3_ADDRESS, ImmutableByteSequence.copyFrom(S1U_ADDR.toOctets())))
+                                    HDR_N3_ADDRESS, ImmutableByteSequence.copyFrom(N3_ADDR.toOctets())))
                             .addFieldMatch(new PiExactFieldMatch(
                                     HDR_TEID, ImmutableByteSequence.copyFrom(TEID)))
                             .build()
@@ -383,7 +383,7 @@ public final class TestImplConstants {
             .withMatchKey(PiMatchKey.builder()
                                   .addFieldMatch(new PiLpmFieldMatch(
                                           HDR_IPV4_DST_PREFIX,
-                                          ImmutableByteSequence.copyFrom(S1U_ADDR.toOctets()),
+                                          ImmutableByteSequence.copyFrom(N3_ADDR.toOctets()),
                                           32))
                                   .build())
             .withAction(PiAction.builder()
