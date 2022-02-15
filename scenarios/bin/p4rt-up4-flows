@@ -37,7 +37,8 @@ def get_args():
         help="If this argument is present, IP UE pool interface table entry will be installed.")
     parser.add_argument(
         "--add-iface-n3addr", action='store_true',
-        help="If this argument is present, N3 IPv4 address interface table entry will be installed.")
+        help="If this argument is present, N3 IPv4 address interface table entry will be installed."
+    )
     parser.add_argument("--buffer", action='store_true',
                         help="If this argument is present, downlink session will buffer traffic")
     parser.add_argument("--ue-count", type=int, default=1,
