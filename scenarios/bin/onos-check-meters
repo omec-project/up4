@@ -1,0 +1,22 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: Apache-2.0
+# TODO: add in ONOS codebase so we can package it with onos-test tools.
+# -----------------------------------------------------------------------------
+# Checks ONOS summary data for meters, optionally filtering by device ID
+# -----------------------------------------------------------------------------
+
+aux=/tmp/stc/stc-$$.log
+trap "rm -f $aux 2>/dev/null" EXIT
+
+for i in {1..6}; do
+    onos ${1:-$OCI} "onos:meters ${2:-''}" > $aux
+    if grep "PENDING_" $aux; then
+        sleep 5
+    else
+        cat $aux
+        exit 0
+    fi
+done
+cat $aux
+exit 1

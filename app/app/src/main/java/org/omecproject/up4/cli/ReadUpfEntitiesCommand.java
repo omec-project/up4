@@ -68,6 +68,16 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
             required = false)
     boolean application = false;
 
+    @Option(name = "--app-meter", aliases = "-am",
+            description = "Include the UPF App Meters",
+            required = false)
+    boolean appMeters = false;
+
+    @Option(name = "--sess-meter", aliases = "-sm",
+            description = "Include the UPF Session Meters",
+            required = false)
+    boolean sessMeters = false;
+
 
     @Override
     protected void doExecute() {
@@ -84,6 +94,8 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                 printedTypes.add(UpfEntityType.TERMINATION_DOWNLINK);
                 printedTypes.add(UpfEntityType.TUNNEL_PEER);
                 printedTypes.add(UpfEntityType.INTERFACE);
+                printedTypes.add(UpfEntityType.SESSION_METER);
+                printedTypes.add(UpfEntityType.APPLICATION_METER);
                 filterCounters = true;
             } else if (ue) {
                 printedTypes.add(UpfEntityType.APPLICATION);
@@ -92,6 +104,8 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                 printedTypes.add(UpfEntityType.TERMINATION_UPLINK);
                 printedTypes.add(UpfEntityType.TERMINATION_DOWNLINK);
                 printedTypes.add(UpfEntityType.TUNNEL_PEER);
+                printedTypes.add(UpfEntityType.SESSION_METER);
+                printedTypes.add(UpfEntityType.APPLICATION_METER);
                 filterCounters = true;
             } else {
                 if (application) {
@@ -114,6 +128,12 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                 }
                 if (interfaces) {
                     printedTypes.add(UpfEntityType.INTERFACE);
+                }
+                if (appMeters) {
+                    printedTypes.add(UpfEntityType.APPLICATION_METER);
+                }
+                if (sessMeters) {
+                    printedTypes.add(UpfEntityType.SESSION_METER);
                 }
             }
             for (var type : printedTypes) {

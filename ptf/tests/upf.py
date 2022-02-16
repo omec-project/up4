@@ -24,7 +24,7 @@ from scapy.all import IP, IPv6, TCP, UDP, ICMP, Ether
 
 from convert import encode
 from upf_base import GtpuBaseTest, UDP_GTP_PORT, GTPU_EXT_PSC_TYPE_DL, \
-    GTPU_EXT_PSC_TYPE_UL
+    GTPU_EXT_PSC_TYPE_UL, DEFAULT_SESSION_METER_IDX, DEFAULT_APP_METER_IDX
 
 CPU_CLONE_SESSION_ID = 99
 UE_ADDR_BITWIDTH = 32
@@ -35,6 +35,8 @@ PDN_IPV4 = "140.0.200.1"
 SWITCH_MAC = "AA:AA:AA:00:00:01"
 ENODEB_MAC = "BB:BB:BB:00:00:01"
 PDN_MAC = "CC:CC:CC:00:00:01"
+
+ONE_GBPS = 1000000000
 
 
 @group("gtpu")
@@ -48,7 +50,7 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
             for app_filtering in [False, True]:
                 # Verify that default TC behaves in the same way as when we specify TC
                 for tc in [0, None]:
-                    print_inline("%s, tc=%s, app_filtering=%s... " % (pkt_type, tc, app_filtering))
+                    print(" %s, tc=%s, app_filtering=%s... " % (pkt_type, tc, app_filtering))
                     pkt = getattr(testutils,
                                   "simple_%s_packet" % pkt_type)(eth_src=ENODEB_MAC,
                                                                  eth_dst=SWITCH_MAC, ip_src=UE_IPV4,
@@ -58,7 +60,7 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
                     self.testPacket(pkt, app_filtering, tc)
 
     @autocleanup
-    def testPacket(self, pkt, app_filtering, tc):
+    def testPacket(self, pkt, app_filtering, tc, app_bitrate=None, session_bitrate=None):
 
         if gtp.GTP_U_Header not in pkt:
             raise AssertionError("Packet given to decap test is not encapsulated!")
@@ -70,22 +72,62 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
 
-        # UPF counter ID
-        ctr_id = self.new_counter_id()
+        # UPF counter index
+        ctr_idx = self.new_counter_id()
+        # Meter IDs
+        app_meter_idx = DEFAULT_APP_METER_IDX
+        session_meter_idx = DEFAULT_SESSION_METER_IDX
+        if app_bitrate is not None:
+            app_meter_idx = self.unique_rule_id()
+        if session_bitrate is not None:
+            session_meter_idx = self.unique_rule_id()
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, tc=tc,
-                                        drop=False, app_filtering=app_filtering)
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_idx, tc=tc,
+                                        app_meter_idx=app_meter_idx,
+                                        app_meter_max_bitrate=app_bitrate,
+                                        session_meter_idx=session_meter_idx,
+                                        session_meter_max_bitrate=session_bitrate, drop=False,
+                                        app_filtering=app_filtering)
 
         # read pre and post-QoS packet and byte counters
-        self.read_upf_counters(ctr_id)
+        self.read_upf_counters(ctr_idx)
 
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, pkt)
-        testutils.verify_packet(self, exp_pkt, self.port2)
+        if app_bitrate == 0 or session_bitrate == 0:
+            testutils.verify_no_other_packets(self)
+        else:
+            testutils.verify_packet(self, exp_pkt, self.port2)
 
         # Check if pre and post-QoS packet and byte counters incremented
-        self.verify_counters_increased(ctr_id, 1, len(pkt), 1, len(pkt))
+        if app_bitrate == 0 or session_bitrate == 0:
+            post_qos_pkts = 0
+            post_qos_bytes = 0
+        else:
+            post_qos_pkts = 1
+            post_qos_bytes = len(pkt)
+        self.verify_counters_increased(ctr_idx, 1, len(pkt), post_qos_pkts, post_qos_bytes)
+
+
+@group("gtpu")
+class GtpuDecapUplinkTestMeters(GtpuDecapUplinkTest):
+
+    def runTest(self):
+        # Test with only UDP traffic and default TC
+        for app_bitrate in [None, 0, ONE_GBPS]:
+            for session_bitrate in [None, 0, ONE_GBPS]:
+                if app_bitrate == 0 and session_bitrate == 0:
+                    # Skip when both bitrates are 0
+                    continue
+                print(" udp, app_filtering=True, tc=None, app_bitrate=%s, session_bitrate=%s... " %
+                      (app_bitrate, session_bitrate))
+                pkt = getattr(testutils,
+                              "simple_udp_packet")(eth_src=ENODEB_MAC, eth_dst=SWITCH_MAC,
+                                                   ip_src=UE_IPV4, ip_dst=PDN_IPV4)
+                pkt = self.gtpu_encap(pkt, ip_src=ENODEB_IPV4, ip_dst=N3_IPV4)
+
+                self.testPacket(pkt, True, None, app_bitrate, session_bitrate)
 
 
 @group("gtpu")
@@ -99,7 +141,7 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
             for app_filtering in [False, True]:
                 # Verify that default TC behaves in the same way as when we specify TC
                 for tc in [0, None]:
-                    print_inline("%s, tc=%s, app_filtering=%s... " % (pkt_type, tc, app_filtering))
+                    print(" %s, tc=%s, app_filtering=%s... " % (pkt_type, tc, app_filtering))
                     pkt = getattr(testutils,
                                   "simple_%s_packet" % pkt_type)(eth_src=PDN_MAC,
                                                                  eth_dst=SWITCH_MAC,
@@ -107,7 +149,7 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
                     self.testPacket(pkt, app_filtering, tc)
 
     @autocleanup
-    def testPacket(self, pkt, app_filtering, tc):
+    def testPacket(self, pkt, app_filtering, tc, app_bitrate=None, session_bitrate=None):
         # build the expected encapsulated packet
         exp_pkt = pkt.copy()
         dst_mac = ENODEB_MAC
@@ -120,22 +162,60 @@ class GtpuEncapDownlinkTest(GtpuBaseTest):
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
 
-        # UPF counter ID
-        ctr_id = self.new_counter_id()
+        # UPF counter index
+        ctr_idx = self.new_counter_id()
+        # Meter IDs
+        app_meter_idx = DEFAULT_APP_METER_IDX
+        session_meter_idx = DEFAULT_SESSION_METER_IDX
+        if app_bitrate is not None:
+            app_meter_idx = self.unique_rule_id()
+        if session_bitrate is not None:
+            session_meter_idx = self.unique_rule_id()
 
         # program all the tables
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, tc=tc,
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_idx, tc=tc,
+                                          app_meter_idx=app_meter_idx,
+                                          app_meter_max_bitrate=app_bitrate,
+                                          session_meter_idx=session_meter_idx,
+                                          session_meter_max_bitrate=session_bitrate,
                                           app_filtering=app_filtering, drop=False)
 
         # read pre and post-QoS packet and byte counters
-        self.read_upf_counters(ctr_id)
+        self.read_upf_counters(ctr_idx)
 
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, pkt)
-        testutils.verify_packet(self, exp_pkt, self.port2)
+        if app_bitrate == 0 or session_bitrate == 0:
+            testutils.verify_no_other_packets(self)
+        else:
+            testutils.verify_packet(self, exp_pkt, self.port2)
 
         # Check if pre and post-QoS packet and byte counters incremented
-        self.verify_counters_increased(ctr_id, 1, len(pkt), 1, len(pkt))
+        if app_bitrate == 0 or session_bitrate == 0:
+            post_qos_pkts = 0
+            post_qos_bytes = 0
+        else:
+            post_qos_pkts = 1
+            post_qos_bytes = len(pkt)
+        self.verify_counters_increased(ctr_idx, 1, len(pkt), post_qos_pkts, post_qos_bytes)
+
+
+@group("gtpu")
+class GtpuEncapDownlinkTestMeters(GtpuEncapDownlinkTest):
+
+    def runTest(self):
+        # Test with only UDP traffic and default TC
+        for app_bitrate in [None, 0, ONE_GBPS]:
+            for session_bitrate in [None, 0, ONE_GBPS]:
+                if app_bitrate == 0 and session_bitrate == 0:
+                    # Skip when both bitrates are 0
+                    continue
+                print(" udp, app_filtering=True, tc=None, app_bitrate=%s, session_bitrate=%s... " %
+                      (app_bitrate, session_bitrate))
+                pkt = getattr(testutils, "simple_udp_packet")(eth_src=PDN_MAC, eth_dst=SWITCH_MAC,
+                                                              ip_src=PDN_IPV4, ip_dst=UE_IPV4)
+
+                self.testPacket(pkt, True, None, app_bitrate, session_bitrate)
 
 
 @group("gtpu")
@@ -167,14 +247,14 @@ class GtpuDropUplinkTest(GtpuBaseTest):
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
 
-        # UPF counter ID
-        ctr_id = self.new_counter_id()
+        # UPF counter index
+        ctr_idx = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=True)
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_idx, drop=True)
 
         # read pre and post-QoS packet and byte counters
-        self.read_upf_counters(ctr_id)
+        self.read_upf_counters(ctr_idx)
 
         # send packet and verify it is dropped
         testutils.send_packet(self, self.port1, pkt)
@@ -182,7 +262,7 @@ class GtpuDropUplinkTest(GtpuBaseTest):
 
         # Check if pre-QoS packet and byte counters incremented,
         # and verify the post-QoS counters did not increment
-        self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
+        self.verify_counters_increased(ctr_idx, 1, len(pkt), 0, 0)
 
 
 @group("gtpu")
@@ -216,14 +296,14 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
 
-        # UPF counter ID
-        ctr_id = self.new_counter_id()
+        # UPF counter index
+        ctr_idx = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=True)
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_idx, drop=True)
 
         # read pre and post-QoS packet and byte counters
-        self.read_upf_counters(ctr_id)
+        self.read_upf_counters(ctr_idx)
 
         # send packet and verify it is dropped
         testutils.send_packet(self, self.port1, pkt)
@@ -231,7 +311,7 @@ class GtpuDropDownlinkTest(GtpuBaseTest):
 
         # Check if pre-QoS packet and byte counters incremented,
         # and verify the post-QoS counters did not increment
-        self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
+        self.verify_counters_increased(ctr_idx, 1, len(pkt), 0, 0)
 
 
 class GtpuDdnDigestTest(GtpuBaseTest):
@@ -259,36 +339,37 @@ class GtpuDdnDigestTest(GtpuBaseTest):
         pkt_route(exp_pkt, ENODEB_MAC)
         pkt_decrement_ttl(exp_pkt)
 
-        # UPF counter ID.
-        ctr_id = self.new_counter_id()
+        # UPF counter index
+        ctr_idx = self.new_counter_id()
 
         # Program all the tables.
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, buffer=True)
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_idx,
+                                          buffer=True)
 
         # Read pre and post-QoS packet and byte counters.
-        self.read_upf_counters(ctr_id)
+        self.read_upf_counters(ctr_idx)
 
         # Send 1st packet.
         testutils.send_packet(self, self.port1, pkt)
         # Only pre-QoS counters should increase
-        self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
+        self.verify_counters_increased(ctr_idx, 1, len(pkt), 0, 0)
         # Verify that we have received the DDN digest
         exp_digest_data = self.helper.build_p4data_struct(
             [self.helper.build_p4data_bitstring(encode(pkt[IP].dst, UE_ADDR_BITWIDTH))])
         self.verify_digest_list("ddn_digest_t", exp_digest_data)
 
         # Send 2nd packet immediately, verify counter increase but NO digest should be generated.
-        self.read_upf_counters(ctr_id)
+        self.read_upf_counters(ctr_idx)
         testutils.send_packet(self, self.port1, pkt)
-        self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
+        self.verify_counters_increased(ctr_idx, 1, len(pkt), 0, 0)
         self.verify_no_other_digest_list(timeout=1)
 
         # Send third packet after waiting at least ack_timeout_ns.
         # We should receive a new digest.
         sleep(1.1)
-        self.read_upf_counters(ctr_id)
+        self.read_upf_counters(ctr_idx)
         testutils.send_packet(self, self.port1, pkt)
-        self.verify_counters_increased(ctr_id, 1, len(pkt), 0, 0)
+        self.verify_counters_increased(ctr_idx, 1, len(pkt), 0, 0)
         self.verify_digest_list("ddn_digest_t", exp_digest_data)
 
         # All packets should have been buffered, not forwarded.
@@ -387,22 +468,22 @@ class GtpuEncapPscDownlinkTest(GtpuBaseTest):
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
 
-        # UPF counter ID
-        ctr_id = self.new_counter_id()
+        # UPF counter index
+        ctr_idx = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False,
+        self.add_entries_for_downlink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_idx, drop=False,
                                           qfi=1, push_qfi=True, app_filtering=app_filtering)
 
         # read pre and post-QoS packet and byte counters
-        self.read_upf_counters(ctr_id)
+        self.read_upf_counters(ctr_idx)
 
         # send packet and verify it is encapsulated and routed
         testutils.send_packet(self, self.port1, pkt)
         testutils.verify_packet(self, exp_pkt, self.port2)
 
         # Check if pre and post-QoS packet and byte counters incremented
-        self.verify_counters_increased(ctr_id, 1, len(pkt), 1, len(pkt))
+        self.verify_counters_increased(ctr_idx, 1, len(pkt), 1, len(pkt))
 
 
 @group("gtpu")
@@ -437,19 +518,19 @@ class GtpuDecapPscUplinkTest(GtpuBaseTest):
         pkt_route(exp_pkt, dst_mac)
         pkt_decrement_ttl(exp_pkt)
 
-        # UPF counter ID
-        ctr_id = self.new_counter_id()
+        # UPF counter index
+        ctr_idx = self.new_counter_id()
 
         # program all the tables
-        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_id, drop=False,
+        self.add_entries_for_uplink_pkt(pkt, exp_pkt, self.port1, self.port2, ctr_idx, drop=False,
                                         app_filtering=app_filtering)
 
         # read pre and post-QoS packet and byte counters
-        self.read_upf_counters(ctr_id)
+        self.read_upf_counters(ctr_idx)
 
         # send packet and verify it is decapsulated and routed
         testutils.send_packet(self, self.port1, pkt)
         testutils.verify_packet(self, exp_pkt, self.port2)
 
         # Check if pre and post-QoS packet and byte counters incremented
-        self.verify_counters_increased(ctr_id, 1, len(pkt), 1, len(pkt))
+        self.verify_counters_increased(ctr_idx, 1, len(pkt), 1, len(pkt))

@@ -12,12 +12,16 @@ import org.onosproject.net.behaviour.upf.UpfApplication;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
+import org.onosproject.net.behaviour.upf.UpfMeter;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfSessionDownlink;
 import org.onosproject.net.behaviour.upf.UpfSessionUplink;
 import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
 import org.onosproject.net.behaviour.upf.UpfTerminationUplink;
+import org.onosproject.net.meter.Band;
+import org.onosproject.net.meter.DefaultBand;
 import org.onosproject.net.pi.model.PiActionId;
+import org.onosproject.net.pi.model.PiMeterId;
 import org.onosproject.net.pi.runtime.PiAction;
 import org.onosproject.net.pi.runtime.PiActionParam;
 import org.onosproject.net.pi.runtime.PiCounterCell;
@@ -25,6 +29,10 @@ import org.onosproject.net.pi.runtime.PiEntity;
 import org.onosproject.net.pi.runtime.PiExactFieldMatch;
 import org.onosproject.net.pi.runtime.PiLpmFieldMatch;
 import org.onosproject.net.pi.runtime.PiMatchKey;
+import org.onosproject.net.pi.runtime.PiMeterBand;
+import org.onosproject.net.pi.runtime.PiMeterBandType;
+import org.onosproject.net.pi.runtime.PiMeterCellConfig;
+import org.onosproject.net.pi.runtime.PiMeterCellId;
 import org.onosproject.net.pi.runtime.PiRangeFieldMatch;
 import org.onosproject.net.pi.runtime.PiTableEntry;
 import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
@@ -32,11 +40,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
+import static org.omecproject.up4.impl.AppConstants.ZERO_BAND_RATE;
+import static org.omecproject.up4.impl.AppConstants.ZERO_BAND_BURST;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_DOWNLINK;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_UPLINK;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.IFACE_ACCESS;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.IFACE_CORE;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.APP_ID;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.APP_METER_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.CTR_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DIRECTION;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.DST_ADDR;
@@ -51,6 +62,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.POST_QOS_PIPE_POST_QOS_COUNTER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APPLICATIONS;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APP_METER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC;
@@ -59,6 +71,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_LOAD_TUNN
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_PRE_QOS_COUNTER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_DOWNLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_UPLINK;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSION_METER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_APP_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_DOWNLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF;
@@ -73,6 +86,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TE
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.QFI;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.SESSION_METER_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SLICE_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SPORT;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SRC_ADDR;
@@ -117,10 +131,112 @@ public class Up4TranslatorImpl implements Up4Translator {
                     return UpfEntityType.COUNTER;
                 }
                 break;
+            case METER_CELL_CONFIG:
+                PiMeterCellConfig meterCellConfig = (PiMeterCellConfig) entry;
+                if (meterCellConfig.cellId().meterId().equals(PRE_QOS_PIPE_SESSION_METER)) {
+                    return UpfEntityType.SESSION_METER;
+                } else if (meterCellConfig.cellId().meterId().equals(PRE_QOS_PIPE_APP_METER)) {
+                    return UpfEntityType.APPLICATION_METER;
+                }
             default:
                 break;
         }
         return null;
+    }
+
+    public UpfEntity up4MeterEntryToUpfEntity(PiMeterCellConfig meterEntry) throws Up4TranslationException {
+        switch (getEntityType(meterEntry)) {
+            case SESSION_METER: {
+                if (meterEntry.isDefaultConfig()) {
+                    return UpfMeter.resetSession((int) meterEntry.cellId().index());
+                } else {
+                    // Session meter can only have peak bands, committed bands should be 1
+                    PiMeterBand committedBand = meterEntry.committedBand();
+                    if (committedBand != null &&
+                            (committedBand.rate() != ZERO_BAND_RATE || committedBand.burst() != ZERO_BAND_BURST)) {
+                        throw new Up4TranslationException(
+                                "Session meters supports only peak bands (committed = " + committedBand + ")");
+                    }
+                    PiMeterBand peakBand = meterEntry.peakBand();
+                    if (peakBand == null) {
+                        throw new Up4TranslationException("Missing peak band");
+                    }
+                    return UpfMeter.builder()
+                            .setSession()
+                            .setCellId((int) meterEntry.cellId().index())
+                            .setPeakBand(peakBand.rate(), peakBand.burst())
+                            .build();
+                }
+            }
+            case APPLICATION_METER: {
+                if (meterEntry.isDefaultConfig()) {
+                    return UpfMeter.resetApplication((int) meterEntry.cellId().index());
+                } else {
+                    PiMeterBand committedBand = meterEntry.committedBand();
+                    PiMeterBand peakBand = meterEntry.peakBand();
+                    if (committedBand == null || peakBand == null) {
+                        throw new Up4TranslationException(
+                                "Missing committed or peak band (committed=" + committedBand +
+                                        ", peak=" + peakBand + ")");
+                    }
+                    return UpfMeter.builder()
+                            .setApplication()
+                            .setCellId((int) meterEntry.cellId().index())
+                            .setPeakBand(peakBand.rate(), peakBand.burst())
+                            .setCommittedBand(committedBand.rate(), committedBand.burst())
+                            .build();
+                }
+            }
+            default:
+                throw new Up4TranslationException(
+                        "Attempting to translate an unsupported UP4 meter entry! " + meterEntry);
+        }
+    }
+
+    @Override
+    public PiMeterCellConfig upfEntityToUp4MeterEntry(UpfEntity entity) throws Up4TranslationException {
+        PiMeterId meterId;
+        switch (entity.type()) {
+            case SESSION_METER:
+                meterId = PRE_QOS_PIPE_SESSION_METER;
+                break;
+            case APPLICATION_METER:
+                meterId = PRE_QOS_PIPE_APP_METER;
+                break;
+            default:
+                throw new Up4TranslationException(
+                        "Attempting to translate an unsupported UPF entity to a meter entry! " + entity);
+        }
+        UpfMeter upfMeter = (UpfMeter) entity;
+        PiMeterCellId piMeterCellId = PiMeterCellId.ofIndirect(meterId, upfMeter.cellId());
+        if (upfMeter.isReset()) {
+            return PiMeterCellConfig.reset(piMeterCellId);
+        }
+        Band peakBand = upfMeter.peakBand()
+                .orElse(DefaultBand.builder()
+                                .withRate(ZERO_BAND_RATE)
+                                .burstSize(ZERO_BAND_BURST)
+                                .ofType(Band.Type.MARK_RED)
+                                .build());
+        Band commitedBand = upfMeter.committedBand()
+                .orElse(DefaultBand.builder()
+                                .withRate(ZERO_BAND_RATE)
+                                .burstSize(ZERO_BAND_BURST)
+                                .ofType(Band.Type.MARK_YELLOW)
+                                .build());
+        return PiMeterCellConfig.builder()
+                .withMeterBand(new PiMeterBand(
+                        PiMeterBandType.PEAK,
+                        peakBand.rate(),
+                        peakBand.burst()
+                ))
+                .withMeterBand(new PiMeterBand(
+                        PiMeterBandType.COMMITTED,
+                        commitedBand.rate(),
+                        commitedBand.burst()
+                ))
+                .withMeterCellId(piMeterCellId)
+                .build();
     }
 
     @Override
@@ -149,7 +265,12 @@ public class Up4TranslatorImpl implements Up4Translator {
                 builder.withTeid(Up4TranslatorUtil.getFieldInt(entry, HDR_TEID));
                 builder.withTunDstAddr(Up4TranslatorUtil.getFieldAddress(entry, HDR_N3_ADDRESS));
                 PiActionId actionId = ((PiAction) entry.action()).id();
-                builder.needsDropping(actionId.equals(PRE_QOS_PIPE_SET_SESSION_UPLINK_DROP));
+                if (actionId.equals(PRE_QOS_PIPE_SET_SESSION_UPLINK_DROP)) {
+                    builder.needsDropping(true);
+                } else {
+                    // TODO: should I verify SESSION_METER_IDX is in parameters?
+                    builder.withSessionMeterIdx(Up4TranslatorUtil.getParamShort(entry, SESSION_METER_IDX));
+                }
                 return builder.build();
             }
             case SESSION_DOWNLINK: {
@@ -158,10 +279,14 @@ public class Up4TranslatorImpl implements Up4Translator {
                 PiActionId actionId = ((PiAction) entry.action()).id();
                 if (actionId.equals(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_DROP)) {
                     builder.needsDropping(true);
-                } else if (actionId.equals(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF)) {
-                    builder.needsBuffering(true);
                 } else {
-                    builder.withGtpTunnelPeerId(Up4TranslatorUtil.getParamByte(entry, TUNNEL_PEER_ID));
+                    // TODO: should I verify SESSION_METER_IDX is in parameters?
+                    builder.withSessionMeterIdx(Up4TranslatorUtil.getParamShort(entry, SESSION_METER_IDX));
+                    if (actionId.equals(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF)) {
+                        builder.needsBuffering(true);
+                    } else {
+                        builder.withGtpTunnelPeerId(Up4TranslatorUtil.getParamByte(entry, TUNNEL_PEER_ID));
+                    }
                 }
                 return builder.build();
             }
@@ -173,8 +298,11 @@ public class Up4TranslatorImpl implements Up4Translator {
                 PiActionId actionId = ((PiAction) entry.action()).id();
                 if (actionId.equals(PRE_QOS_PIPE_UPLINK_TERM_DROP)) {
                     builder.needsDropping(true);
-                } else if (actionId.equals(PRE_QOS_PIPE_UPLINK_TERM_FWD)) {
-                    builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
+                } else {
+                    builder.withAppMeterIdx(Up4TranslatorUtil.getParamShort(entry, APP_METER_IDX));
+                    if (actionId.equals(PRE_QOS_PIPE_UPLINK_TERM_FWD)) {
+                        builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
+                    }
                 }
                 return builder.build();
             }
@@ -189,6 +317,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 } else {
                     builder.withTeid(Up4TranslatorUtil.getParamInt(entry, TEID));
                     builder.withQfi(Up4TranslatorUtil.getParamByte(entry, QFI));
+                    builder.withAppMeterIdx(Up4TranslatorUtil.getParamShort(entry, APP_METER_IDX));
                     if (actionId.equals(PRE_QOS_PIPE_DOWNLINK_TERM_FWD)) {
                         builder.withTrafficClass(Up4TranslatorUtil.getParamByte(entry, TC));
                     }
@@ -230,7 +359,7 @@ public class Up4TranslatorImpl implements Up4Translator {
     }
 
     @Override
-    public PiTableEntry entityToUp4TableEntry(UpfEntity entity) throws Up4TranslationException {
+    public PiTableEntry upfEntityToUp4TableEntry(UpfEntity entity) throws Up4TranslationException {
         PiTableEntry.Builder tableEntryBuilder = PiTableEntry.builder();
         PiAction.Builder actionBuilder = PiAction.builder();
         PiMatchKey.Builder matchBuilder = PiMatchKey.builder();
@@ -276,6 +405,8 @@ public class Up4TranslatorImpl implements Up4Translator {
                     actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_UPLINK_DROP);
                 } else {
                     actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_UPLINK);
+                    actionBuilder.withParameter(
+                            new PiActionParam(SESSION_METER_IDX, sessionUplink.sessionMeterIdx()));
                 }
                 break;
             case SESSION_DOWNLINK:
@@ -290,16 +421,22 @@ public class Up4TranslatorImpl implements Up4Translator {
                 if (sessionDownlink.needsDropping() && sessionDownlink.needsBuffering()) {
                     log.error("We don't support DROP + BUFF on the UP4 northbound! Defaulting to only BUFF");
                     actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF);
+                    actionBuilder.withParameter(
+                            new PiActionParam(SESSION_METER_IDX, sessionDownlink.sessionMeterIdx()));
                 } else if (sessionDownlink.needsDropping()) {
                     actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_DROP);
-                } else if (sessionDownlink.needsBuffering()) {
-                    actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF);
                 } else {
-                    actionBuilder.withParameter(new PiActionParam(
-                            TUNNEL_PEER_ID,
-                            ImmutableByteSequence.copyFrom(sessionDownlink.tunPeerId()))
-                    );
-                    actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK);
+                    actionBuilder.withParameter(
+                            new PiActionParam(SESSION_METER_IDX, sessionDownlink.sessionMeterIdx()));
+                    if (sessionDownlink.needsBuffering()) {
+                        actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF);
+                    } else {
+                        actionBuilder.withParameter(new PiActionParam(
+                                TUNNEL_PEER_ID,
+                                ImmutableByteSequence.copyFrom(sessionDownlink.tunPeerId()))
+                        );
+                        actionBuilder.withId(PRE_QOS_PIPE_SET_SESSION_DOWNLINK);
+                    }
                 }
                 break;
             case TERMINATION_UPLINK:
@@ -324,6 +461,8 @@ public class Up4TranslatorImpl implements Up4Translator {
                     } else {
                         actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC);
                     }
+                    actionBuilder.withParameter(
+                            new PiActionParam(APP_METER_IDX, upfTerminationUl.appMeterIdx()));
                 }
                 break;
             case TERMINATION_DOWNLINK:
@@ -350,6 +489,8 @@ public class Up4TranslatorImpl implements Up4Translator {
                     } else {
                         actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC);
                     }
+                    actionBuilder.withParameter(
+                            new PiActionParam(APP_METER_IDX, upfTerminationDl.appMeterIdx()));
                 }
                 break;
             case TUNNEL_PEER:
@@ -394,6 +535,9 @@ public class Up4TranslatorImpl implements Up4Translator {
                     ));
                 }
                 break;
+            case SESSION_METER:
+            case APPLICATION_METER:
+            case COUNTER:
             default:
                 throw new Up4TranslationException(
                         "Attempting to translate an unsupported UPF entity to a table entry! " + entity);

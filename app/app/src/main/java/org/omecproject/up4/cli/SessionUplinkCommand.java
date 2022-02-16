@@ -31,6 +31,11 @@ public class SessionUplinkCommand extends AbstractShellCommand {
             required = true)
     int teid = -1;
 
+    @Argument(index = 2, name = "sess-meter-idx",
+            description = "Index of the session meter",
+            required = false)
+    int sessMeterIdx = -1;
+
     @Option(name = "--drop", aliases = "-b",
             description = "Drop traffic",
             required = false)
@@ -44,15 +49,17 @@ public class SessionUplinkCommand extends AbstractShellCommand {
     @Override
     protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
-        UpfSessionUplink session = UpfSessionUplink.builder()
+        UpfSessionUplink.Builder sessionBuilder = UpfSessionUplink.builder()
                 .needsDropping(drop)
                 .withTunDstAddr(Ip4Address.valueOf(n3Addr))
-                .withTeid(teid)
-                .build();
+                .withTeid(teid);
+        if (sessMeterIdx != -1) {
+            sessionBuilder.withSessionMeterIdx(sessMeterIdx);
+        }
         if (delete) {
-            app.delete(session);
+            app.delete(sessionBuilder.build());
         } else {
-            app.apply(session);
+            app.apply(sessionBuilder.build());
         }
     }
 }
