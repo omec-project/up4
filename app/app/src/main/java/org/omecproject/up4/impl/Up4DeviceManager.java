@@ -1391,8 +1391,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     continue;
                 }
                 Set<Meter> leaderMeters =
-                        meterService.getMeters(deviceId).stream()
-                                .filter(upfProg::fromThisUpf)
+                        meterService.getMeters(leaderUpfDevice).stream()
+                                .filter(getLeaderUpfProgrammable()::fromThisUpf)
                                 .filter(m -> m.state() == MeterState.PENDING_ADD || m.state() == MeterState.ADDED)
                                 .collect(Collectors.toSet());
                 Set<Meter> followerMeters =
@@ -1423,13 +1423,13 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                         .collect(Collectors.toSet());
 
                 unexpectedMeters.stream()
-                        .map(m -> Pair.of(meterToMeterRequestForDevice(m, m.deviceId(), false), m.meterCellId()))
+                        .map(m -> Pair.of(meterToMeterRequestForDevice(m, deviceId, false), m.meterCellId()))
                         .forEach(m -> meterService.withdraw(m.getLeft(), m.getRight()));
                 staleMeters.stream()
-                        .map(m -> meterToMeterRequestForDevice(m, m.deviceId(), true))
+                        .map(m -> meterToMeterRequestForDevice(m, deviceId, true))
                         .forEach(m -> meterService.submit(m));
                 missingMeters.stream()
-                        .map(m -> meterToMeterRequestForDevice(m, m.deviceId(), true))
+                        .map(m -> meterToMeterRequestForDevice(m, deviceId, true))
                         .forEach(m -> meterService.submit(m));
             }
         }
