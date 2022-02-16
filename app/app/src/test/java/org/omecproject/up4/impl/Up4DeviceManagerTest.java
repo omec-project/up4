@@ -17,6 +17,7 @@ import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 import org.onosproject.net.config.NetworkConfigRegistryAdapter;
 import org.onosproject.net.device.DeviceServiceAdapter;
 import org.onosproject.net.flow.FlowRuleServiceAdapter;
+import org.onosproject.net.meter.MeterServiceAdapter;
 import org.onosproject.net.pi.PiPipeconfServiceAdapter;
 
 import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
@@ -44,6 +45,7 @@ public class Up4DeviceManagerTest {
         component = new Up4DeviceManager();
         component.coreService = new CoreServiceAdapter();
         component.flowRuleService = new FlowRuleServiceAdapter();
+        component.meterService = new MeterServiceAdapter();
         component.deviceService = new DeviceServiceAdapter();
         component.piPipeconfService = new PiPipeconfServiceAdapter();
         component.netCfgService = new NetworkConfigRegistryAdapter();

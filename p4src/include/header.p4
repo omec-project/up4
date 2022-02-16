@@ -98,7 +98,7 @@ header packet_out_t {
 
 @controller_header("packet_in")
 header packet_in_t {
-    port_num_t  ingress_port;
+    PortId_t  ingress_port;
     bit<7>      _pad;
 }
 
@@ -168,6 +168,14 @@ struct local_metadata_t {
     l4_port_t   tunnel_out_udp_sport;
     teid_t      tunnel_out_teid;
     qfi_t       tunnel_out_qfi;
+
+    session_meter_idx_t session_meter_idx_internal;
+    app_meter_idx_t app_meter_idx_internal;
+    MeterColor session_color;
+    MeterColor app_color;
+
+    @field_list(0)
+    PortId_t preserved_ingress_port;
 }
 
 #endif
