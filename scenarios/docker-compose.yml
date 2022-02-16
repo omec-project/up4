@@ -19,9 +19,6 @@ services:
       - 8805
   mock-smf:
     image: ${PFCPSIM_IMAGE}
-    # build:
-    #   context: ./topo
-    #   dockerfile: Dockerfile.mock-smf
     hostname: mock-smf
     container_name: mock-smf
     tty: true
