@@ -6,23 +6,23 @@
     <group name="Pfcp-Buffering">
         <step name="Push-Netcfg-Dbuf"
               exec="onos-netcfg ${OCI} ${UP4_ROOT}/scenarios/topo/netcfg-dbuf.json"/>
-        <group name="Pfcp-Set-Buff" requires="Push-Netcfg-Dbuf">
-            <group name="Pfcp-Push-Buff">
+        <group name="Pfcp-Set-Buff-Create" requires="Push-Netcfg-Dbuf">
+            <group name="Pfcp-Push-Buff-Create">
                 <sequential var="${ENODEB#}"
                             starts="Pfcp-Buffer-Session-Create-${#}"
-                            ends="Pfcp-Buffer-Session-Modify-${#-1}">
+                            ends="Pfcp-Buffer-Session-Create-${#-1}">
                     <step name="Pfcp-Buffer-Session-Create-${#}" requires="Push-Netcfg-Dbuf" delay="5"
                           exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --nb-addr 140.0.10${#-1}.1"/>
                     <step name="Pfcp-Buffer-Session-Modify-${#}" requires="^" delay="5"
                           exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --buffer --notifycp --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --nb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
-            <step name="Check-Up4-Flows-Buff" requires="Pfcp-Push-Buff" delay="5"
+            <step name="Check-Up4-Flows-Buff-Buffer" requires="Pfcp-Push-Buff-Buffer" delay="5"
                   exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${PFCP_UP4_FLOWS}, DL flows=${PFCP_UP4_FLOWS}'"/>
-            <step name="Check-Flow-Rules-Buff" requires="Pfcp-Push-Buff" delay="5"
+            <step name="Check-Flow-Rules-Buff-Buffer" requires="Pfcp-Push-Buff-Buffer" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
-        <group name="Check-Traffic-Buff" requires="Pfcp-Set-Buff" delay="5">
+        <group name="Check-Traffic-Buff" requires="Pfcp-Set-Buff-Buffer" delay="5">
             <parallel var="${ENODEB#}">
                 <!-- Check Downlink only -->
                 <step name="Downlink-Pdn-Send-Udp-Buff-${#}"
@@ -32,8 +32,9 @@
                 <step name="Verify-First-Buffer-${#}" requires="^"
                       exec="docker-log-grep ${ODI} 'Received FIRST_BUFFER: ueAddress=17.0.${#-1}' 5"/>
                 <!-- -t 30 to wait enough time for packets to be released after Pfcp-Set-Fwd-After-Buff -->
+                <!-- Not going to verify TEID in buffering test -->
                 <step name="Downlink-Enb-Recv-Gtp-Buff-${#}" requires="Verify-First-Buffer-${#}"
-                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 60 --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 60 --no-verify-teid --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <step name="Pfcp-Set-Fwd-After-Buff-${#}" requires="Verify-First-Buffer-${#}" delay="5"
                       exec="mock-smf-cmd modify --session-count 5 --sleep-time 1 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <step name="Check-Drain-Started-${#}" requires="Pfcp-Set-Fwd-After-Buff-${#}" delay="5"

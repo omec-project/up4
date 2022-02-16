@@ -17,6 +17,8 @@
 
 // Table sizes to be tuned for hardware
 #define MAX_PDRS 1024
+#define MAX_APP_METERS 1024
+#define MAX_SESSION_METERS 1024
 #define MAX_ROUTES 1024
 
 
@@ -34,7 +36,6 @@
 const bit<4> IP_VERSION_4 = 4;
 const bit<8> DEFAULT_IPV4_TTL = 64;
 
-typedef bit<9>   port_num_t;
 typedef bit<48>  mac_addr_t;
 typedef bit<32>  ipv4_addr_t;
 typedef bit<16>  l4_port_t;
@@ -55,6 +56,8 @@ typedef bit<32> teid_t;
 typedef bit<6> qfi_t;
 typedef bit<32> counter_index_t;
 typedef bit<8> tunnel_peer_id_t;
+typedef bit<32> app_meter_idx_t;
+typedef bit<32> session_meter_idx_t;
 
 typedef bit<SLICE_ID_WIDTH> slice_id_t;
 typedef bit<TC_WIDTH> tc_t; // Traffic Class (for QoS) within a slice
@@ -63,6 +66,9 @@ const qfi_t DEFAULT_QFI = 0;
 
 // Signal that NO application ID has been set
 const bit<8> APP_ID_UNKNOWN = 0;
+
+const session_meter_idx_t DEFAULT_SESSION_METER_IDX = 0;
+const app_meter_idx_t DEFAULT_APP_METER_IDX = 0;
 
 //------------------------------------------------------------------------------
 // ENUMS
@@ -106,6 +112,12 @@ enum bit<8> InterfaceType {
 
 enum bit<4> Slice {
     DEFAULT = 0x0
+}
+
+enum bit<2> MeterColor {
+    GREEN = V1MODEL_METER_COLOR_GREEN,
+    YELLOW = V1MODEL_METER_COLOR_YELLOW,
+    RED = V1MODEL_METER_COLOR_RED
 }
 
 #endif

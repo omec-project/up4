@@ -31,6 +31,11 @@ public class SessionDownlinkCommand extends AbstractShellCommand {
             required = false)
     byte tunnelPeer = -1;
 
+    @Argument(index = 2, name = "sess-meter-idx",
+            description = "Index of the session meter",
+            required = false)
+    int sessMeterIdx = -1;
+
     @Option(name = "--buffer", aliases = "-b",
             description = "Buffering UE",
             required = false)
@@ -56,6 +61,9 @@ public class SessionDownlinkCommand extends AbstractShellCommand {
                 .withUeAddress(Ip4Address.valueOf(ueAddr));
         if (tunnelPeer != -1) {
             sessBuilder.withGtpTunnelPeerId(tunnelPeer);
+        }
+        if (sessMeterIdx != -1) {
+            sessBuilder.withSessionMeterIdx(sessMeterIdx);
         }
         if (delete) {
             app.delete(sessBuilder.build());

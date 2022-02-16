@@ -2,21 +2,48 @@
  ~ SPDX-License-Identifier: Apache-2.0
  ~ SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
   -->
-<scenario name="p4rt-forwarding" description="Forwarding test using p4runtime messages">
+<scenario name="p4rt-forwarding" description="Forwarding with meter config test using p4runtime messages">
     <group name="P4rt-Forwarding">
-        <group name="P4rt-Program">
+        <group name="P4rt-Program-Drop-DL">
+            <group name="Push-Up4-Flows-Drop-DL">
+                <sequential var="${ENODEB#}"
+                            starts="P4rt-Set-Fwd-Drop-DL-${#}"
+                            ends="P4rt-Set-Fwd-Drop-DL-${#-1}">
+                <step name="P4rt-Set-Fwd-Drop-DL-${#}"
+                        exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --base ${#}0 --drop-dl true --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                </sequential>
+            </group>
+            <step name="Check-Up4-Flows-Drop-DL" requires="Push-Up4-Flows-Drop-DL"
+                    exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${P4RT_UP4_FLOWS}, DL flows=${P4RT_UP4_FLOWS}'"/>
+            <step name="Check-Flow-Rules-Drop-DL" requires="^" delay="5"
+                    exec="onos-check-flows ${OCI}"/>
+        </group>
+        <group name="Check-DL-Dropped" requires="P4rt-Program-Drop-DL">
+            <parallel var="${ENODEB#}">
+                <!-- Downlink -->
+                <step name="Downlink-Enb-Recv-Dropped-${#}" requires="P4rt-Program-Drop-DL"
+                        exec="mn-cmd ${ENODEB#} traffic.py recv-none -t 10"/>
+                <step name="Downlink-Pdn-Send-Udp-Drop-DL-${#}" requires="P4rt-Program-Drop-DL" delay="5"
+                        exec="mn-cmd pdn traffic.py send-udp -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+            </parallel>
+        </group>
+        <group name="P4rt-Program" requires="Check-DL-Dropped">
             <group name="Push-Up4-Flows">
                 <sequential var="${ENODEB#}"
                             starts="P4rt-Set-Fwd-${#}"
                             ends="P4rt-Set-Fwd-${#-1}">
                     <step name="P4rt-Set-Fwd-${#}"
-                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows program --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --app-bw-meter 1000000 --sess-bw-meter 1000000"/>
                 </sequential>
             </group>
-            <step name="Check-Up4-Flows-Fwd" requires="Push-Up4-Flows"
-                  exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${P4RT_UP4_FLOWS}, DL flows=${P4RT_UP4_FLOWS}'"/>
+            <step name="Check-Up4-Flows-1-Fwd" requires="Push-Up4-Flows"
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'Apps=0, UL sess=${P4RT_UP4_FLOWS}, UL flows=${P4RT_UP4_FLOWS}, DL flows=${P4RT_UP4_FLOWS}'"/>
+            <step name="Check-Up4-Flows-2-Fwd" requires="^"
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'App meters=${P4RT_UP4_METERS}, Sess meters=${P4RT_UP4_METERS}'"/>
             <step name="Check-Flow-Rules-Fwd" requires="^" delay="5"
                   exec="onos-check-flows ${OCI}"/>
+            <step name="Check-Meters-Fwd" requires="^" delay="5"
+                  exec="onos-check-meters ${OCI}"/>
         </group>
         <group name="Check-Traffic-Fwd" requires="P4rt-Program">
             <parallel var="${ENODEB#}">
@@ -38,13 +65,17 @@
                             starts="P4rt-Unset-Fwd-${#}"
                             ends="P4rt-Unset-Fwd-${#-1}">
                     <step name="P4rt-Unset-Fwd-${#}" requires="~Check-Traffic-Fwd"
-                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows clear --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T p4rt p4rt-up4-flows clear --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --app-bw-meter 1000000 --sess-bw-meter 1000000"/>
                 </sequential>
             </group>
-            <step name="Check-Up4-Flows-Fwd-Cleared" requires="Clear-Up4-Flows"
-                  exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
+            <step name="Check-Up4-Flows-Fwd-1-Cleared" requires="Clear-Up4-Flows"
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'Apps=0, UL sess=0, UL flows=0, DL flows=0'"/>
+            <step name="Check-Up4-Flows-Fwd-2-Cleared" requires="^"
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'App meters=0, Sess meters=0'"/>
             <step name="Check-Flow-Rules-Fwd-Cleared" requires="^" delay="5"
                   exec="onos-check-flows ${OCI}"/>
+            <step name="Check-Meters-Fwd-Cleared" requires="^" delay="5"
+                  exec="onos-check-meters ${OCI}"/>
         </group>
     </group>
 </scenario>

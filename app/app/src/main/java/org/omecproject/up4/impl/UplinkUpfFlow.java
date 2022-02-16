@@ -5,9 +5,11 @@
 package org.omecproject.up4.impl;
 
 import org.onosproject.net.behaviour.upf.UpfCounter;
+import org.onosproject.net.behaviour.upf.UpfMeter;
 import org.onosproject.net.behaviour.upf.UpfTerminationUplink;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.omecproject.up4.impl.Up4Utils.ppUpfMeter;
 
 /**
  * Helper class primarily intended for printing uplink UPF flows.
@@ -15,10 +17,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 public final class UplinkUpfFlow {
     private final UpfTerminationUplink term;
     private final UpfCounter counter;
+    private final UpfMeter appMeter;
 
-    private UplinkUpfFlow(UpfTerminationUplink term, UpfCounter counter) {
+    private UplinkUpfFlow(UpfTerminationUplink term, UpfCounter counter, UpfMeter appMeter) {
         this.term = term;
         this.counter = counter;
+        this.appMeter = appMeter;
     }
 
     /**
@@ -51,6 +55,14 @@ public final class UplinkUpfFlow {
             }
         }
 
+        String strAppMeter = "NO APPLICATION METER";
+        if (term != null) {
+            strAppMeter += " (app_meter_idx=" + term.appMeterIdx() + ")";
+        }
+        if (appMeter != null) {
+            strAppMeter = "Application meter: " + ppUpfMeter(appMeter);
+        }
+
         String statString = "NO STATISTICS!";
         if (counter != null) {
             statString = String.format(
@@ -58,7 +70,9 @@ public final class UplinkUpfFlow {
                     counter.getIngressPkts(), counter.getEgressPkts()
             );
         }
-        return termString + ", " + statString;
+        return termString +
+                "\n    " + strAppMeter +
+                "\n    " + statString;
     }
 
     /**
@@ -76,6 +90,7 @@ public final class UplinkUpfFlow {
     public static class Builder {
         private UpfTerminationUplink term = null;
         private UpfCounter counter = null;
+        private UpfMeter appMeter = null;
 
         public Builder() {
         }
@@ -104,12 +119,28 @@ public final class UplinkUpfFlow {
             return this;
         }
 
+        /**
+         * Adds the UPF app meter. The meter cell id should match the app
+         * meter index in the uplink UPF termination.
+         *
+         * @param meter the UPF app meter
+         * @return this builder object
+         */
+        public Builder withAppMeter(UpfMeter meter) {
+            this.appMeter = meter;
+            return this;
+        }
+
         public UplinkUpfFlow build() {
             if (term != null && counter != null) {
                 checkArgument(term.counterId() == counter.getCellId(),
                               "UPF Counter must refer to the given UPF Termination");
             }
-            return new UplinkUpfFlow(term, counter);
+            if (term != null && appMeter != null) {
+                checkArgument(term.appMeterIdx() == appMeter.cellId(),
+                              "UPF app meter must refer to the given UPF termination");
+            }
+            return new UplinkUpfFlow(term, counter, appMeter);
         }
     }
 }

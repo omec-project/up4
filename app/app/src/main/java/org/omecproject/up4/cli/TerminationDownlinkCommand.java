@@ -17,7 +17,7 @@ import org.onosproject.net.behaviour.upf.UpfTerminationDownlink;
  * UP4 UPF termination command.
  */
 @Service
-@Command(scope = "up4", name = "termination",
+@Command(scope = "up4", name = "termination-dl",
         description = "Insert (or delete) a downlink UPF termination into the UP4 dataplane")
 public class TerminationDownlinkCommand extends AbstractShellCommand {
 
@@ -51,6 +51,11 @@ public class TerminationDownlinkCommand extends AbstractShellCommand {
             required = false)
     byte qfi = -1;
 
+    @Argument(index = 6, name = "app-meter-idx",
+            description = "Index of the application meter",
+            required = false)
+    int appMeterIdx = -1;
+
     @Option(name = "--drop", aliases = "-dd",
             description = "Drop traffic",
             required = false)
@@ -77,6 +82,9 @@ public class TerminationDownlinkCommand extends AbstractShellCommand {
         }
         if (qfi != -1) {
             termBuilder.withQfi(qfi);
+        }
+        if (appMeterIdx != -1) {
+            termBuilder.withAppMeterIdx(appMeterIdx);
         }
         if (delete) {
             app.delete(termBuilder.build());

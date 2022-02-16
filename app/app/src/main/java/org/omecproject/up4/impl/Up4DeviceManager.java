@@ -30,6 +30,7 @@ import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.UpfInterface;
+import org.onosproject.net.behaviour.upf.UpfMeter;
 import org.onosproject.net.behaviour.upf.UpfProgrammable;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 import org.onosproject.net.behaviour.upf.UpfSessionDownlink;
@@ -49,6 +50,15 @@ import org.onosproject.net.flow.FlowRuleListener;
 import org.onosproject.net.flow.FlowRuleOperations;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.FlowEntry.FlowEntryState;
+import org.onosproject.net.meter.DefaultMeterRequest;
+import org.onosproject.net.meter.Meter;
+import org.onosproject.net.meter.MeterCellId;
+import org.onosproject.net.meter.MeterEvent;
+import org.onosproject.net.meter.MeterListener;
+import org.onosproject.net.meter.MeterRequest;
+import org.onosproject.net.meter.MeterScope;
+import org.onosproject.net.meter.MeterService;
+import org.onosproject.net.pi.runtime.PiMeterCellId;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
 import org.onosproject.net.pi.service.PiPipeconfService;
@@ -84,8 +94,10 @@ import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTER
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL_DEFAULT;
 import static org.onlab.util.Tools.getLongProperty;
 import static org.onlab.util.Tools.groupedThreads;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.APPLICATION_METER;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.COUNTER;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_DOWNLINK;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_METER;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_DOWNLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_UPLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TUNNEL_PEER;
@@ -131,6 +143,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected FlowRuleService flowRuleService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected MeterService meterService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PiPipeconfService piPipeconfService;
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
@@ -155,6 +169,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private InternalConfigListener netCfgListener;
     private PiPipeconfListener piPipeconfListener;
     private FlowRuleListener flowRuleListener;
+    private MeterListener meterListener;
 
     private Map<DeviceId, UpfProgrammable> upfProgrammables;
     private Set<DeviceId> upfDevices;
@@ -174,6 +189,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         netCfgListener = new InternalConfigListener();
         piPipeconfListener = new InternalPiPipeconfListener();
         flowRuleListener = new InternalFlowRuleListener();
+        meterListener = new InternalMeterListener();
         upfProgrammables = Maps.newConcurrentMap();
         upfDevices = Sets.newConcurrentHashSet();
         eventExecutor = newSingleThreadScheduledExecutor(groupedThreads(
@@ -182,6 +198,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 "omec/up4/reconcile", "executor", log));
 
         flowRuleService.addListener(flowRuleListener);
+        meterService.addListener(meterListener);
         netCfgService.addListener(netCfgListener);
         netCfgService.registerConfigFactory(up4ConfigFactory);
         netCfgService.registerConfigFactory(dbufConfigFactory);
@@ -235,6 +252,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         netCfgService.unregisterConfigFactory(dbufConfigFactory);
         eventDispatcher.removeSink(Up4Event.class);
         piPipeconfService.removeListener(piPipeconfListener);
+        meterService.removeListener(meterListener);
         flowRuleService.removeListener(flowRuleListener);
 
         eventExecutor.shutdownNow();
@@ -432,10 +450,15 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     public Collection<UplinkUpfFlow> getUplinkFlows() throws UpfProgrammableException {
         Collection<UplinkUpfFlow> uplinkFlows = Lists.newArrayList();
         Collection<? extends UpfEntity> uplinkTerm = this.adminReadAll(TERMINATION_UPLINK);
+        Map<Integer, UpfMeter> appMeters = Maps.newHashMap();
+        this.adminReadAll(APPLICATION_METER).forEach(
+                am -> appMeters.put(((UpfMeter) am).cellId(), (UpfMeter) am));
+
         for (UpfEntity t : uplinkTerm) {
             UpfTerminationUplink term = (UpfTerminationUplink) t;
             uplinkFlows.add(UplinkUpfFlow.builder().withTerminationUplink(term)
                                     .withCounter(this.readCounter(term.counterId()))
+                                    .withAppMeter(appMeters.getOrDefault(term.appMeterIdx(), null))
                                     .build());
         }
         return uplinkFlows;
@@ -446,25 +469,37 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         Collection<DownlinkUpfFlow> downlinkFlows = Lists.newArrayList();
         Map<Ip4Address, UpfSessionDownlink> ueToSess = Maps.newHashMap();
         Map<Byte, UpfGtpTunnelPeer> idToTunn = Maps.newHashMap();
+        Map<Integer, UpfMeter> sessMeters = Maps.newHashMap();
+        Map<Integer, UpfMeter> appMeters = Maps.newHashMap();
 
         Collection<? extends UpfEntity> downlinkTerm = this.adminReadAll(TERMINATION_DOWNLINK);
         this.adminReadAll(SESSION_DOWNLINK).forEach(
                 s -> ueToSess.put(((UpfSessionDownlink) s).ueAddress(), (UpfSessionDownlink) s));
         this.adminReadAll(TUNNEL_PEER).forEach(
                 t -> idToTunn.put(((UpfGtpTunnelPeer) t).tunPeerId(), (UpfGtpTunnelPeer) t));
+        this.adminReadAll(SESSION_METER).forEach(
+                sm -> sessMeters.put(((UpfMeter) sm).cellId(), (UpfMeter) sm));
+        this.adminReadAll(APPLICATION_METER).forEach(
+                am -> appMeters.put(((UpfMeter) am).cellId(), (UpfMeter) am));
 
         for (UpfEntity t : downlinkTerm) {
             UpfTerminationDownlink term = (UpfTerminationDownlink) t;
             UpfSessionDownlink sess = ueToSess.getOrDefault(term.ueSessionId(), null);
             UpfGtpTunnelPeer tunn = null;
+            UpfMeter sMeter = null;
+            UpfMeter aMeter = null;
             if (sess != null) {
                 tunn = idToTunn.getOrDefault(sess.tunPeerId(), null);
+                sMeter = sessMeters.getOrDefault(sess.sessionMeterIdx(), null);
             }
+            aMeter = appMeters.getOrDefault(term.appMeterIdx(), null);
             downlinkFlows.add(DownlinkUpfFlow.builder()
                                       .withTerminationDownlink(term)
                                       .withSessionDownlink(sess)
                                       .withTunnelPeer(tunn)
                                       .withCounter(this.readCounter(term.counterId()))
+                                      .withAppMeter(aMeter)
+                                      .withSessionMeter(sMeter)
                                       .build());
 
         }
@@ -706,6 +741,11 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if (!sess.needsBuffering() && up4Store.forgetBufferingUe(sess.ueAddress())) {
                 // TODO: Should we wait for rules to be installed on all devices before
                 //   triggering drain?
+                //   When a fwd FAR is changed to buff FAR,
+                //   both session_downlink & downlink_termination rules are updated.
+                //   If the drain action starts immediately right after applying session_downlink,
+                //   the downlink_termination rule may not be updated,
+                //   thus, the TEID may wrong in such case.
                 // Run the outbound rpc in a forked context so it doesn't cancel if it was called
                 // by an inbound rpc that completes faster than the drain call
                 Ip4Address ueAddr = sess.ueAddress();
@@ -904,6 +944,20 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
+    public void resetAllSessionMeters() throws UpfProgrammableException {
+        for (UpfEntity e : this.readAll(UpfEntityType.SESSION_METER)) {
+            this.apply(UpfMeter.resetSession(((UpfMeter) e).cellId()));
+        }
+    }
+
+    @Override
+    public void resetAllApplicationMeters() throws UpfProgrammableException {
+        for (UpfEntity e : this.readAll(APPLICATION_METER)) {
+            this.apply(UpfMeter.resetSession(((UpfMeter) e).cellId()));
+        }
+    }
+
+    @Override
     public long tableSize(UpfEntityType entityType) throws UpfProgrammableException {
         long entitySize = getLeaderUpfProgrammable().tableSize(entityType);
         switch (entityType) {
@@ -911,6 +965,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             case TERMINATION_DOWNLINK:
             case SESSION_UPLINK:
             case SESSION_DOWNLINK:
+            case SESSION_METER:
+            case APPLICATION_METER:
                 if (isMaxUeSet()) {
                     return Math.min(config.maxUes(), entitySize);
                 }
@@ -1168,6 +1224,66 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         return flowRuleBuilder.build();
     }
 
+    private class InternalMeterListener implements MeterListener {
+
+        @Override
+        public void event(MeterEvent event) {
+            eventExecutor.execute(() -> internalEventHandler(event));
+        }
+
+        private void internalEventHandler(MeterEvent event) {
+            if (event.type().equals(MeterEvent.Type.METER_ADDED) ||
+                    event.type().equals(MeterEvent.Type.METER_REMOVED)) {
+                try {
+                    assertUpfIsReady();
+                } catch (IllegalStateException e) {
+                    log.warn("While handling even type {}: {}", event.type(), e.getMessage());
+                    return;
+                }
+                Meter m = event.subject();
+                if (m.meterCellId().type().equals(MeterCellId.MeterCellType.PIPELINE_INDEPENDENT) &&
+                        upfProgrammables.get(leaderUpfDevice).fromThisUpf(m)) {
+                    final List<MeterRequest> meters = Lists.newArrayList();
+                    final PiMeterCellId piMeterCellId = (PiMeterCellId) m.meterCellId();
+                    final boolean add = event.type().equals(MeterEvent.Type.METER_ADDED);
+                    // Partition work based on the follower master instance
+                    upfProgrammables.keySet().stream()
+                            .filter(deviceId -> !deviceId.equals(leaderUpfDevice))
+                            .filter(mastershipService::isLocalMaster)
+                            .forEach(deviceId -> meters.add(meterToMeterRequestForDevice(m, deviceId, add)));
+                    if (meters.size() > 0) {
+                        if (add) {
+                            log.debug("Adding " + meters.size() + " meters: " + meters);
+                            meters.forEach(meterService::submit);
+                        } else {
+                            log.debug("Removing " + meters.size() + " meters: " + meters);
+                            meters.forEach(mReq -> meterService.withdraw(mReq, piMeterCellId));
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+
+    private MeterRequest meterToMeterRequestForDevice(Meter meter, DeviceId deviceId, boolean add) {
+        assert meter.meterCellId().type().equals(MeterCellId.MeterCellType.PIPELINE_INDEPENDENT);
+
+        PiMeterCellId piMeterCellId = (PiMeterCellId) meter.meterCellId();
+        MeterScope meterScope = MeterScope.of(piMeterCellId.meterId().id());
+        MeterRequest.Builder mRequestBuilder = DefaultMeterRequest.builder()
+                .forDevice(deviceId)
+                .fromApp(meter.appId())
+                .withUnit(meter.unit())
+                .withScope(meterScope)
+                .withBands(meter.bands())
+                .withIndex(piMeterCellId.index());
+        if (add) {
+            return mRequestBuilder.add();
+        }
+        return mRequestBuilder.remove();
+    }
+
     private class ReconcileUpfDevices implements Runnable {
 
         @Override
@@ -1180,6 +1296,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
 
         private void checkStateAndReconcile() throws UpfProgrammableException {
+            // TODO: reconcile meters!!
             log.trace("Running reconciliation task...");
             assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
 
