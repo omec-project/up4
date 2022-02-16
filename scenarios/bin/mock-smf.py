@@ -130,8 +130,9 @@ class Session:
             #  outer header creation on session establishment, only session modification
             # If it is session establishment, drop the traffic
             downlink_drop = isinstance(request, pfcp.PFCPSessionEstablishmentRequest)
-            far_down = craft_far(session=self, far_id=self.downlink.far_id, forward_flag=not downlink_drop,
-                                 drop_flag=downlink_drop, dst_iface=IFACE_ACCESS,
+            far_down = craft_far(session=self, far_id=self.downlink.far_id,
+                                 forward_flag=not downlink_drop, drop_flag=downlink_drop,
+                                 dst_iface=IFACE_ACCESS,
                                  tunnel=self.is_created() if not downlink_drop else False,
                                  tunnel_dst=args.enb_addr, teid=self.downlink.teid,
                                  buffer_flag=args.buffer, notifycp_flag=args.notifycp)
