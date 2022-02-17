@@ -38,14 +38,14 @@
             <parallel var="${ENODEB#}">
                 <!-- Downlink -->
                 <step name="Downlink-Enb-Recv-Gtp-App-Filtering-${#}" requires="~Check-Traffic-App-Filtering-Negative"
-                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 10 --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 10 --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 81"/>
                 <step name="Downlink-Pdn-Send-Udp-App-Filtering-${#}" requires="~Check-Traffic-App-Filtering-Negative" delay="5"
-                      exec="mn-cmd pdn traffic.py send-udp -c 10 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="mn-cmd pdn traffic.py send-udp -c 10 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 81"/>
                 <!-- Uplink -->
                 <step name="Uplink-Pdn-Recv-Udp-App-Filtering-${#}" requires="~Check-Traffic-App-Filtering-Negative"
-                      exec="mn-cmd pdn traffic.py recv-udp -t 10 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="mn-cmd pdn traffic.py recv-udp -t 10 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 81"/>
                 <step name="Uplink-Enb-Send-Gtp-App-Filtering-${#}" requires="~Check-Traffic-App-Filtering-Negative" delay="5"
-                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 81"/>
             </parallel>
         </group>
         <group name="Pfcp-Clear-App-Filtering">

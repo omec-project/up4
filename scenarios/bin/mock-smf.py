@@ -327,7 +327,7 @@ def craft_pdr(session: Session, flow: UeFlow, src_iface: int, from_tunnel=False,
         sdf.flow_description = "permit out ip from 0.0.0.0/0 to assigned"
     else:
         # FIXME: the SDF Filter is not spec-compliant. We should fix it once SD-Core supports the spec-compliant format.
-        sdf.flow_description = "permit out udp from 140.0.200.1 to assigned 80-80"
+        sdf.flow_description = "permit out udp from 140.0.200.1 to assigned 81-81"
     pdi.IE_list.append(sdf)
 
     pdr.IE_list.append(pdi)
