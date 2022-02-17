@@ -70,7 +70,7 @@
                 <!-- Not going to verify TEID in buffering test -->
                 <step name="Downlink-Enb-Recv-Gtp-Buff-${#}" requires="Verify-First-Buffer-${#}"
                       exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 60 --no-verify-teid --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
-                <step name="Pfcp-Set-Fwd-After-Buff-${#}" requires="Verify-First-Buffer-${#}" delay="6"
+                <step name="Pfcp-Set-Fwd-After-Buff-${#}" requires="Verify-First-Buffer-${#}" delay="5"
                       exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --nb-addr 140.0.10${#-1}.1"/>
                 <step name="Check-Drain-Started-${#}" requires="Pfcp-Set-Fwd-After-Buff-${#}" delay="5"
                       exec="docker-log-grep ${ODI} 'Started dbuf drain for 17.0.${#-1}' 5"/>
