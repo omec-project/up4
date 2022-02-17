@@ -12,8 +12,6 @@ import org.onlab.packet.Ip4Prefix;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 
-import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
-
 /**
  * UP4 UE IPv4 address pool deletion command.
  */
@@ -27,12 +25,17 @@ public class UePoolDeleteCommand extends AbstractShellCommand {
             required = true)
     String poolPrefix = null;
 
+    @Argument(index = 1, name = "slice-id",
+            description = "Slice ID",
+            required = true)
+    Integer sliceId = null;
+
     @Override
     protected void doExecute() throws Exception {
         Up4AdminService app = get(Up4AdminService.class);
         Ip4Prefix poolPrefix = Ip4Prefix.valueOf(this.poolPrefix);
         print("Deleting UE IPv4 address pool prefix: %s", poolPrefix);
-        app.adminDelete(UpfInterface.createUePoolFrom(poolPrefix, SLICE_MOBILE));
+        app.adminDelete(UpfInterface.createUePoolFrom(poolPrefix, sliceId));
     }
 }
 
