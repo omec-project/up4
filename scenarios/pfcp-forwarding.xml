@@ -11,8 +11,6 @@
                             ends="Pfcp-Session-Create-${#-1}">
                     <step name="Pfcp-Session-Create-${#}"
                           exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --nb-addr 140.0.10${#-1}.1"/>
-                    <step name="Pfcp-Session-${#}" requires="^"
-                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --nb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-Fwd-Create" requires="Pfcp-Push-Fwd-Create" delay="5"
@@ -35,7 +33,7 @@
                             starts="Pfcp-Session-Modify-${#}"
                             ends="Pfcp-Session-Modify-${#-1}">
                     <step name="Pfcp-Session-Modify-${#}"
-                           exec="mock-smf-cmd modify --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                           exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --nb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-Fwd-Modify" requires="Pfcp-Push-Fwd-Modify" delay="5"
