@@ -1404,7 +1404,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
                 // Remove unexpected: Meter is in the follower but not in the leader
                 // Update stale: Meter is both on follower and leader but bands are different
-                // Add missing: Rule is in the leader but not in the follower
+                // Add missing: Meter is in the leader but not in the follower
 
                 Set<Meter> unexpectedMeters = followerMeters.stream()
                         .filter(fr -> leaderMeters.stream().noneMatch(lr -> lr.equals(fr)))
@@ -1413,7 +1413,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
                 Set<Meter> staleMeters = leaderMeters.stream()
                         .filter(lr -> followerMeters.stream().noneMatch(fr -> fr.equals(lr)
-                                && fr.bands().containsAll(lr.bands())))
+                                && fr.bands().size() == lr.bands().size() &&
+                                fr.bands().containsAll(lr.bands())))
                         .filter(lr -> followerMeters.stream().anyMatch(fr -> fr.equals(lr)))
                         .collect(Collectors.toSet());
                 leaderMeters.removeAll(staleMeters);
