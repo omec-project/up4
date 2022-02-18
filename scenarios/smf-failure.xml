@@ -16,7 +16,7 @@
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=1, DL flows=1'"/>
 
         <step name="SF-Kill-Smf" requires="^"
-              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c interrupt"/>
+              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c disassociate"/>
 
         <step name="SF-Check-Flows-2" requires="^" delay="10"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
