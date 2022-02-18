@@ -26,8 +26,12 @@
 
         <!-- Reboot SMF because it probably doesn't react well to failures -->
         <group name="AF-Restart-Smf" requires="~AF-Check-Flows-2">
-            <step name="AF-Associate-Smf" requires="^" delay="1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c disassociate"/>
+            <step name="AF-Kill-Smf" delay="1"
+                  exec="${DOCKER_COMPOSE_CMD} restart mock-smf"/>
+            <step name="AF-Configure-Smf" requires="AF-Kill-Smf"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c configure --n3-addr 140.0.0.1 --remote-peer pfcp-agent"/>
+            <step name="AF-Associate-Smf" requires="AF-Configure-Smf"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c associate"/>
         </group>
     </group>
 </scenario>
