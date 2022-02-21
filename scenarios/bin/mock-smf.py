@@ -116,10 +116,11 @@ class Session:
         if add_pdrs:
             pdr_up = craft_pdr(session=self, flow=self.uplink, src_iface=IFACE_ACCESS,
                                from_tunnel=True, tunnel_dst=args.n3_addr,
-                               precedence=args.pdr_precedence)
+                               precedence=args.pdr_precedence, wildcard=args.wildcard)
             self.add_to_req_if_rule_new(request, pdr_up, self.uplink.pdr_id, "pdr")
             pdr_down = craft_pdr(session=self, flow=self.downlink, src_iface=IFACE_CORE,
-                                 from_tunnel=False, precedence=args.pdr_precedence)
+                                 from_tunnel=False, precedence=args.pdr_precedence,
+                                 wildcard=args.wildcard)
             self.add_to_req_if_rule_new(request, pdr_down, self.downlink.pdr_id, "pdr")
 
         if add_fars:
@@ -277,7 +278,7 @@ def craft_fseid(seid: int, address: str) -> pfcp.IE_Compound:
 
 
 def craft_pdr(session: Session, flow: UeFlow, src_iface: int, from_tunnel=False,
-              tunnel_dst: str = None, precedence=2) -> pfcp.IE_Compound:
+              tunnel_dst: str = None, precedence=2, wildcard: bool =True) -> pfcp.IE_Compound:
     pdr = pfcp.IE_UpdatePDR() if flow.pdr_id in session.sent_pdrs else pfcp.IE_CreatePDR()
     pdr_id = pfcp.IE_PDR_Id()
     pdr_id.id = flow.pdr_id
@@ -320,11 +321,13 @@ def craft_pdr(session: Session, flow: UeFlow, src_iface: int, from_tunnel=False,
         net_instance.instance = "internetinternetinternetinterne"
         pdi.IE_list.append(net_instance)
 
-    # Add a fully wildcard SDF filter
     sdf = pfcp.IE_SDF_Filter()
     sdf.FD = 1
-    # FIXME: the SDF Filter is not spec-compliant. We should fix it once SD-Core supports the spec-compliant format.
-    sdf.flow_description = "permit out udp from 140.0.200.1 to assigned 80-80"
+    if wildcard:
+        sdf.flow_description = "permit out ip from 0.0.0.0/0 to assigned"
+    else:
+        # FIXME: the SDF Filter is not spec-compliant. We should fix it once SD-Core supports the spec-compliant format.
+        sdf.flow_description = "permit out udp from 140.0.200.1 to assigned 81-81"
     pdi.IE_list.append(sdf)
 
     pdr.IE_list.append(pdi)
@@ -447,8 +450,8 @@ def craft_pfcp_association_setup_packet() -> scapy.Packet:
     setup_request.IE_list.append(ie1)
     ie2 = pfcp.IE_RecoveryTimeStamp()
     setup_request.IE_list.append(ie2)
-    return IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port,
-                                                 dport=peer_port) / pfcp_header / setup_request
+    return IP(src=our_addr, dst=peer_addr) / UDP(
+        sport=our_port, dport=peer_port) / pfcp_header / setup_request
 
 
 def craft_pfcp_association_release_packet() -> scapy.Packet:
@@ -460,8 +463,8 @@ def craft_pfcp_association_release_packet() -> scapy.Packet:
     ie1 = pfcp.IE_NodeId()
     ie1.ipv4 = our_addr
     release_request.IE_list.append(ie1)
-    return IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port,
-                                                 dport=peer_port) / pfcp_header / release_request
+    return IP(src=our_addr, dst=peer_addr) / UDP(
+        sport=our_port, dport=peer_port) / pfcp_header / release_request
 
 
 def craft_pfcp_session_est_packet(args: argparse.Namespace, session: Session) -> scapy.Packet:
@@ -638,8 +641,8 @@ def send_pfcp_heartbeats() -> None:
         heartbeat.version = 1
         heartbeat.IE_list.append(pfcp.IE_RecoveryTimeStamp())
 
-        pkt = IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port,
-                                                    dport=peer_port) / pfcp_header / heartbeat
+        pkt = IP(src=our_addr, dst=peer_addr) / UDP(
+            sport=our_port, dport=peer_port) / pfcp_header / heartbeat
         send_recv_pfcp(pkt, MSG_TYPES["heartbeat_response"], session=None, verbosity_override=0)
 
 
@@ -730,6 +733,9 @@ def handle_user_input(input_file: Optional[IO] = None, output_file: Optional[IO]
         "If specified, overrides all the other --*-base arguments")
     parser.add_argument("--pdr-precedence", type=int, default=2,
                         help="The priority/precedence of PDRs.")
+    parser.add_argument('--wildcard', dest='wildcard', action='store_true')
+    parser.add_argument('--no-wildcard', dest='wildcard', action='store_false')
+    parser.set_defaults(wildcard=True)
 
     def get_user_input():
         if not input_file:
