@@ -4,10 +4,8 @@
   -->
 <scenario name="smf-setup" description="Mock SMF setup">
     <group name="Smf-Setup">
-        <step name="Mock-Smf-Start"
-              exec="${DOCKER_COMPOSE_CMD} --profile start-mock-smf up -d"/>
 
-        <step name="Mock-Smf-Configure" requires="Mock-Smf-Start"
+        <step name="Mock-Smf-Configure"
               exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c configure --n3-addr 140.0.0.1 --remote-peer pfcp-agent"/>
 
         <step name="Mock-Smf-Associate" requires="Mock-Smf-Configure"

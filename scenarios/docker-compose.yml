@@ -22,16 +22,10 @@ services:
     hostname: mock-smf
     container_name: mock-smf
     tty: true
-    stdin_open: true
-    profiles:
-      - start-mock-smf
-    ports:
-      - 54321:54321 # default gRPC server listen port
     volumes:
       - ./tmp:/tmp
       - ./topo:/topo
       - ./bin:/up4/bin
-    entrypoint: "/bin/pfcpsim"
   p4rt:
     build:
       context: ./topo
