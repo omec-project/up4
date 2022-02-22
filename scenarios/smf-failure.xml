@@ -26,7 +26,7 @@
                         exec="${DOCKER_COMPOSE_CMD} up -d mock-smf"/>
             <step name="SF-Revive-Smf-2" requires="SF-Revive-Smf-1" delay="1"
                         exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c configure --n3-addr 140.0.0.1 --remote-peer pfcp-agent"/>
-            <step name="Mock-Smf-Start-Sniffer" requires="SF-Revive-Smf-1"
+            <step name="SF-Revive-Smf-3" requires="SF-Revive-Smf-1"
                         exec="${DOCKER_COMPOSE_CMD} exec -Td mock-smf tcpdump -i eth0 -w tmp/pcaps/mock-smf_$(date +%H:%M:%S).pcap"/>
             <step name="SF-Revive-Smf-4" requires="SF-Revive-Smf-2" delay="1"
                         exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c associate"/>
