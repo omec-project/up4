@@ -7,9 +7,9 @@
     <group name="Pfcp-Agent-Failure">
         <group name="AF-Setup-Fwd">
             <step name="AF-Create-Session"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
             <step name="AF-Modify-Session" requires="^" delay="1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
         </group>
 
         <step name="AF-Check-Flows-1" requires="AF-Setup-Fwd" delay="2"

@@ -10,9 +10,9 @@
                             starts="Pfcp-Session-Create-App-Filtering-${#}"
                             ends="Pfcp-Session-App-Filtering-${#-1}">
                     <step name="Pfcp-Session-Create-App-Filtering-${#}"
-                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --nb-addr 140.0.10${#-1}.1 --filter-SDF 'permit out ip from 0.0.0.0/0 to assigned 81-81'"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1 --filter-SDF 'permit out ip from 0.0.0.0/0 to assigned 81-81'"/>
                     <step name="Pfcp-Session-App-Filtering-${#}" requires="^"
-                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --nb-addr 140.0.10${#-1}.1"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-App-Filtering" requires="Pfcp-Push-App-Filtering" delay="5"

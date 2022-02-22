@@ -7,9 +7,9 @@
     <group name="Smf-Failure">
         <group name="SF-Setup-Fwd-1">
             <step name="SF-Create-Session-1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --count 1 --baseID 1 --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --count 1 --baseID 1 --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
             <step name="SF-Modify-Session-1" requires="^" delay="1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 1 --baseID 1 --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 1 --baseID 1 --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
         </group>
 
         <step name="SF-Check-Flows-1" requires="SF-Setup-Fwd-1" delay="2"
@@ -34,9 +34,9 @@
 
         <group name="SF-Setup-Fwd-2" requires="SF-Revive-Smf">
             <step name="SF-Create-Session-2"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
             <step name="SF-Modify-Session-2" requires="^" delay="1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --ue-pool 17.0.0.0/24 --nb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
         </group>
 
         <step name="SF-Check-Flows-3" requires="SF-Setup-Fwd-2" delay="2"
