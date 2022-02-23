@@ -678,7 +678,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     private UpfSessionDownlink convertToBuffering(UpfSessionDownlink sess) {
         UpfSessionDownlink.Builder sessBuilder = UpfSessionDownlink.builder()
                 .needsBuffering(true)
-                .withUeAddress(sess.ueAddress());
+                .withUeAddress(sess.ueAddress())
+                .withSessionMeterIdx(sess.sessionMeterIdx());
 
         if (dbufTunnel != null) {
             sessBuilder.withGtpTunnelPeerId(DBUF_TUNNEL_ID);
