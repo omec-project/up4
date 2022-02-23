@@ -8,6 +8,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.grpc.Context;
+import org.apache.commons.lang3.tuple.Pair;
 import org.omecproject.dbuf.client.DbufClient;
 import org.omecproject.dbuf.client.DefaultDbufClient;
 import org.omecproject.up4.Up4Event;
@@ -50,6 +51,7 @@ import org.onosproject.net.flow.FlowRuleListener;
 import org.onosproject.net.flow.FlowRuleOperations;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.FlowEntry.FlowEntryState;
+import org.onosproject.net.meter.DefaultMeter;
 import org.onosproject.net.meter.DefaultMeterRequest;
 import org.onosproject.net.meter.Meter;
 import org.onosproject.net.meter.MeterCellId;
@@ -58,6 +60,7 @@ import org.onosproject.net.meter.MeterListener;
 import org.onosproject.net.meter.MeterRequest;
 import org.onosproject.net.meter.MeterScope;
 import org.onosproject.net.meter.MeterService;
+import org.onosproject.net.meter.MeterState;
 import org.onosproject.net.pi.runtime.PiMeterCellId;
 import org.onosproject.net.pi.service.PiPipeconfEvent;
 import org.onosproject.net.pi.service.PiPipeconfListener;
@@ -1285,20 +1288,34 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         return mRequestBuilder.remove();
     }
 
+    private Meter copyMeterForDevice(Meter original, DeviceId newDevice) {
+        var meterBuilder = DefaultMeter.builder()
+                .fromApp(original.appId())
+                .forDevice(newDevice)
+                .withCellId(original.meterCellId())
+                .withBands(original.bands())
+                .withUnit(original.unit());
+        return meterBuilder.build();
+    }
+
     private class ReconcileUpfDevices implements Runnable {
 
         @Override
         public void run() {
             try {
-                checkStateAndReconcile();
+                checkFlowRuleStateAndReconcile();
             } catch (Exception e) {
-                log.error("Error during reconciliation: {}", e.getMessage());
+                log.error("Error during flow rules reconciliation: {}", e.getMessage());
+            }
+            try {
+                checkMeterStateAndReconcile();
+            } catch (Exception e) {
+                log.error("Error during meters reconciliation: {}", e.getMessage());
             }
         }
 
-        private void checkStateAndReconcile() throws UpfProgrammableException {
-            // TODO: reconcile meters!!
-            log.trace("Running reconciliation task...");
+        private void checkFlowRuleStateAndReconcile() throws UpfProgrammableException {
+            log.debug("Running flow rules reconciliation task...");
             assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
 
             for (var entry : upfProgrammables.entrySet()) {
@@ -1358,6 +1375,64 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 missingRules.forEach(r -> ops.add(copyFlowRuleForDevice(r, deviceId)));
 
                 flowRuleService.apply(ops.build());
+            }
+        }
+
+        private void checkMeterStateAndReconcile() {
+            log.debug("Running meters reconciliation task...");
+            assertUpfIsReady(); // Use assertUpfIsReady to generate exception and log it on the caller
+
+            for (var entry : upfProgrammables.entrySet()) {
+                var deviceId = entry.getKey();
+                var upfProg = entry.getValue();
+                if (deviceId.equals(leaderUpfDevice)) {
+                    continue;
+                }
+                if (!mastershipService.isLocalMaster(deviceId)) {
+                    continue;
+                }
+                Set<Meter> leaderMeters =
+                        meterService.getMeters(leaderUpfDevice).stream()
+                                .filter(getLeaderUpfProgrammable()::fromThisUpf)
+                                .filter(m -> m.state() == MeterState.PENDING_ADD || m.state() == MeterState.ADDED)
+                                .collect(Collectors.toSet());
+                Set<Meter> followerMeters =
+                        meterService.getMeters(deviceId).stream()
+                                .filter(upfProg::fromThisUpf)
+                                .filter(m -> m.state() == MeterState.PENDING_ADD || m.state() == MeterState.ADDED)
+                                .map(m -> copyMeterForDevice(m, leaderUpfDevice))
+                                .collect(Collectors.toSet());
+
+                // Remove unexpected: Meter is in the follower but not in the leader
+                // Update stale: Meter is both on follower and leader but bands are different
+                // Add missing: Meter is in the leader but not in the follower
+
+                Set<Meter> unexpectedMeters = followerMeters.stream()
+                        .filter(fr -> leaderMeters.stream().noneMatch(lr -> lr.equals(fr)))
+                        .collect(Collectors.toSet());
+                followerMeters.removeAll(unexpectedMeters);
+
+                Set<Meter> staleMeters = leaderMeters.stream()
+                        .filter(lr -> followerMeters.stream().noneMatch(fr -> fr.equals(lr)
+                                && fr.bands().size() == lr.bands().size() &&
+                                fr.bands().containsAll(lr.bands())))
+                        .filter(lr -> followerMeters.stream().anyMatch(fr -> fr.equals(lr)))
+                        .collect(Collectors.toSet());
+                leaderMeters.removeAll(staleMeters);
+
+                Set<Meter> missingMeters = leaderMeters.stream()
+                        .filter(lr -> followerMeters.stream().noneMatch(fr -> fr.equals(lr)))
+                        .collect(Collectors.toSet());
+
+                unexpectedMeters.stream()
+                        .map(m -> Pair.of(meterToMeterRequestForDevice(m, deviceId, false), m.meterCellId()))
+                        .forEach(m -> meterService.withdraw(m.getLeft(), m.getRight()));
+                staleMeters.stream()
+                        .map(m -> meterToMeterRequestForDevice(m, deviceId, true))
+                        .forEach(m -> meterService.submit(m));
+                missingMeters.stream()
+                        .map(m -> meterToMeterRequestForDevice(m, deviceId, true))
+                        .forEach(m -> meterService.submit(m));
             }
         }
     }
