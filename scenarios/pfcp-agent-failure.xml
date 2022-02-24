@@ -7,9 +7,9 @@
     <group name="Pfcp-Agent-Failure">
         <group name="AF-Setup-Fwd">
             <step name="AF-Create-Session"
-                  exec="mock-smf-cmd create"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
             <step name="AF-Modify-Session" requires="^" delay="1"
-                  exec="mock-smf-cmd modify"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
         </group>
 
         <step name="AF-Check-Flows-1" requires="AF-Setup-Fwd" delay="2"
@@ -26,12 +26,12 @@
 
         <!-- Reboot SMF because it probably doesn't react well to failures -->
         <group name="AF-Restart-Smf" requires="~AF-Check-Flows-2">
-            <step name="AF-Kill-Smf"
-                  exec="mock-smf-cmd kill"/>
-            <step name="AF-Start-Smf" requires="^"
-                  exec="mock-smf-cmd start"/>
-            <step name="AF-Associate-Smf" requires="^" delay="1"
-                  exec="mock-smf-cmd associate"/>
+            <step name="AF-Kill-Smf" delay="1"
+                  exec="${DOCKER_COMPOSE_CMD} restart mock-smf"/>
+            <step name="AF-Configure-Smf" requires="AF-Kill-Smf"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c configure --n3-addr 140.0.0.1 --remote-peer pfcp-agent"/>
+            <step name="AF-Associate-Smf" requires="AF-Configure-Smf"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c associate"/>
         </group>
     </group>
 </scenario>
