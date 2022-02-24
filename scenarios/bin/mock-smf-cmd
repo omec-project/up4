@@ -1,0 +1,50 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: Apache-2.0
+
+set -ex
+
+imgName="mock-smf"
+logFile="tmp/mock-smf.log"
+pcapFile="tmp/mock-smf.pcap"
+agentName="pfcp-agent"
+# STC doesn't allocate a TTY so without -T docker-compose exec will fail
+dockerExec="docker-compose exec -T $imgName"
+
+echo "Provided command is $1"
+if [ "$1" = "start" ]; then
+    echo "" > $logFile
+    # Start mock SMF in detached screen session
+    ${dockerExec} screen -d -L -Logfile /$logFile -S MockSMF -m /up4/bin/mock-smf.py $agentName --pcap-file /$pcapFile
+    # Flush logs in real-time
+    # If you don't know screen and wondering what the heck colon means:
+    # https://www.gnu.org/software/screen/manual/html_node/Colon.html
+    ${dockerExec} screen -S MockSMF -X colon "logfile flush 0^M"
+    exit 0
+elif [ "$1" = "kill" ]; then
+    # Kill all windows and terminate screen, to emulate SMF crash.
+    # shellcheck disable=SC2016
+    ${dockerExec} screen -S MockSMF -X quit
+    exit 0
+elif [ "$1" = "check" ]; then
+    for _ in {1..30}; do
+        set +e
+        # Make sure the last line of the mock SMF's stdout contains just the prompt message,
+        # without any unexecuted command, likely to happen if we forgot ^M.
+        lastLine="$(tail -n 1 $logFile)"
+        if [ "${lastLine}" = "Enter your selection : " ]; then
+            # If the screen session still running?
+            ${dockerExec} screen -ls | grep "MockSMF" | grep "Detached" && exit 0
+        fi
+        set -e
+        sleep 1
+    done
+    echo "${lastLine}"
+    ${dockerExec} screen -ls
+    exit 1
+else
+    # Send any other command to mock-smf
+    # shellcheck disable=SC2068
+    ARGS="$@"
+    ${dockerExec} screen -S MockSMF -X -p 0 stuff "${ARGS}^M"
+fi
