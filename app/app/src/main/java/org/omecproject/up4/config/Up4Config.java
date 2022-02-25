@@ -111,8 +111,8 @@ public class Up4Config extends Config<ApplicationId> {
     }
 
     /**
-     * Get the slice ID configured in the netcfg. This is used only if N3 or N6
-     * interfaces are provided in the netcfg.
+     * Get the slice ID configured in the netcfg. This is used only if N3 address
+     * or UE IPv4 address pool fields are provided in the netcfg.
      *
      * @return The slice ID or empty if not configured.
      */

@@ -438,14 +438,14 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
             if (config.sliceId().isPresent()) {
                 interfaces.add(UpfInterface.createN3From(config.n3Address().get(), config.sliceId().get()));
             } else {
-                log.error("Missing slice ID in the netcfg to configure N6 interface for {}", config.n3Address().get());
+                log.error("Missing slice ID in the netcfg to configure N3 interface for {}", config.n3Address().get());
             }
         }
         for (Ip4Prefix uePool : config.uePools()) {
             if (config.sliceId().isPresent()) {
                 interfaces.add(UpfInterface.createUePoolFrom(uePool, config.sliceId().get()));
             } else {
-                log.error("Missing slice ID in the netcfg to configure N3 interface for {}", uePool);
+                log.error("Missing slice ID in the netcfg to configure N6 interface for UE subnet {}", uePool);
             }
         }
         Ip4Address dbufDrainAddr = config.dbufDrainAddr();
