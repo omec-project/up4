@@ -18,18 +18,14 @@ services:
     expose:
       - 8805
   mock-smf:
-    build:
-      context: ./topo
-      dockerfile: Dockerfile.scapy
+    image: ${PFCPSIM_IMAGE}
     hostname: mock-smf
     container_name: mock-smf
     tty: true
-    stdin_open: true
     volumes:
       - ./tmp:/tmp
       - ./topo:/topo
       - ./bin:/up4/bin
-    entrypoint: "/bin/sh"
   p4rt:
     build:
       context: ./topo
