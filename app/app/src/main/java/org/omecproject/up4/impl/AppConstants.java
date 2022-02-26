@@ -18,10 +18,10 @@ public final class AppConstants {
     // Default slice id is required for traffic coming from DBUF.
     public static final int DEFAULT_SLICE_ID = 0;
 
-    // Meters can't be provided with 0 band or rate, so the lowest value we can use
-    // is 1. This is useful if for example we don't want to specify peak or committed bands.
-    public static final long ZERO_BAND_RATE = 1;
-    public static final long ZERO_BAND_BURST = 1;
+    // Values used when you don't want to specify a band. Meaning rate = 0 for
+    // that band
+    public static final long ZERO_BAND_RATE = 0;
+    public static final long ZERO_BAND_BURST = 0;
 
     // hide default constructor
     private AppConstants() {

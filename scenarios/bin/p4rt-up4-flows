@@ -138,8 +138,8 @@ def mod_meter(name, index, max_bw, action):
     meter.index = index
     if action == "program" or action == "dry":
         # in case of "clear" don't specify bands to clear meters
-        meter.cir = 1
-        meter.cburst = 1
+        meter.cir = 0
+        meter.cburst = 0
         meter.pir = max_bw // 8
         meter.pburst = int(meter.pir * BURST_DURATION_MS * 0.001)
     if action == "dry":
