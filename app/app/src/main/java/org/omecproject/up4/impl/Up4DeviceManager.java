@@ -92,7 +92,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
-import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
+import static org.omecproject.up4.impl.AppConstants.DEFAULT_SLICE_ID;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL;
 import static org.omecproject.up4.impl.OsgiPropertyConstants.UPF_RECONCILE_INTERVAL_DEFAULT;
 import static org.onlab.util.Tools.getLongProperty;
@@ -435,16 +435,24 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     public Collection<UpfInterface> configInterfaces() {
         Collection<UpfInterface> interfaces = new ArrayList<>();
         if (config.n3Address().isPresent()) {
-            interfaces.add(UpfInterface.createN3From(config.n3Address().get(), SLICE_MOBILE));
+            if (config.sliceId().isPresent()) {
+                interfaces.add(UpfInterface.createN3From(config.n3Address().get(), config.sliceId().get()));
+            } else {
+                log.error("Missing slice ID in the netcfg to configure N3 interface for {}", config.n3Address().get());
+            }
         }
         for (Ip4Prefix uePool : config.uePools()) {
-            interfaces.add(UpfInterface.createUePoolFrom(uePool, SLICE_MOBILE));
+            if (config.sliceId().isPresent()) {
+                interfaces.add(UpfInterface.createUePoolFrom(uePool, config.sliceId().get()));
+            } else {
+                log.error("Missing slice ID in the netcfg to configure N6 interface for UE subnet {}", uePool);
+            }
         }
         Ip4Address dbufDrainAddr = config.dbufDrainAddr();
         if (dbufDrainAddr != null) {
             // TODO: change slice ID when adding multi-slice support,
             //  see: https://jira.opennetworking.org/browse/SDFAB-986
-            interfaces.add(UpfInterface.createDbufReceiverFrom(dbufDrainAddr, SLICE_MOBILE));
+            interfaces.add(UpfInterface.createDbufReceiverFrom(dbufDrainAddr, DEFAULT_SLICE_ID));
         }
         return interfaces;
     }

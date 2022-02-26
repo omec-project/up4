@@ -12,8 +12,6 @@ import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 
-import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
-
 /**
  * UP4 N3 Interface insertion command.
  */
@@ -27,15 +25,17 @@ public class InterfaceInsertCommand extends AbstractShellCommand {
             required = true)
     String n3Addr = null;
 
+    @Argument(index = 1, name = "slice-id",
+            description = "Slice ID",
+            required = true)
+    Integer sliceId = null;
+
     @Override
     protected void doExecute() throws Exception {
         Up4AdminService app = get(Up4AdminService.class);
-
         Ip4Address n3Addr = Ip4Address.valueOf(this.n3Addr);
-
         print("Adding N3 interface address: %s", n3Addr.toString());
-        // TODO: Update UpfInterface to use N3 instead of S1U
-        app.adminApply(UpfInterface.createN3From(n3Addr, SLICE_MOBILE));
+        app.adminApply(UpfInterface.createN3From(n3Addr, sliceId));
     }
 }
 

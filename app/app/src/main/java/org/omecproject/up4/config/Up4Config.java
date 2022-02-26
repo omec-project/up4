@@ -38,16 +38,26 @@ public class Up4Config extends Config<ApplicationId> {
     public static final String UE_POOLS = "uePools";
     public static final String S1U_ADDR = "s1uAddr";
     public static final String N3_ADDR = "n3Addr";
-
+    // Must be provided if using uePool, s1uAddr or n3Addr to configure N3 and N6 interfaces
+    public static final String SLICE_ID = "sliceId";
 
     @Override
     public boolean isValid() {
         return hasOnlyFields(DEVICE_ID, DEVICES, UE_POOLS, S1U_ADDR, N3_ADDR,
-                             DBUF_DRAIN_ADDR, MAX_UES, PSC_ENCAP_ENABLED) &&
+                             DBUF_DRAIN_ADDR, MAX_UES, PSC_ENCAP_ENABLED,
+                             SLICE_ID) &&
                 // Mandatory fields.
                 (hasField(DEVICE_ID) || hasField(DEVICES)) &&
+                isSliceIdFieldRequired() &&
                 !upfDeviceIds().isEmpty() &&
                 isDbufConfigValid();
+    }
+
+    private boolean isSliceIdFieldRequired() {
+        if (hasField(UE_POOLS) || hasField(S1U_ADDR) || hasField(N3_ADDR)) {
+            return hasField(SLICE_ID);
+        }
+        return true;
     }
 
     private boolean isDbufConfigValid() {
@@ -96,6 +106,20 @@ public class Up4Config extends Config<ApplicationId> {
         if (hasField(N3_ADDR)) {
             String addr = get(N3_ADDR, null);
             return addr != null ? Optional.of(Ip4Address.valueOf(addr)) : Optional.empty();
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Get the slice ID configured in the netcfg. This is used only if N3 address
+     * or UE IPv4 address pool fields are provided in the netcfg.
+     *
+     * @return The slice ID or empty if not configured.
+     */
+    public Optional<Integer> sliceId() {
+        if (hasField(SLICE_ID)) {
+            String sliceId = get(SLICE_ID, null);
+            return sliceId != null ? Optional.of(Integer.valueOf(sliceId)) : Optional.empty();
         }
         return Optional.empty();
     }
