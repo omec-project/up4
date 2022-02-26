@@ -4,13 +4,12 @@
   -->
 <scenario name="smf-setup" description="Mock SMF setup">
     <group name="Smf-Setup">
-
-        <step name="Mock-Smf-Configure"
-              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c configure --n3-addr 140.0.0.1 --remote-peer pfcp-agent"/>
-        <step name="Mock-Smf-Associate" requires="Mock-Smf-Configure"
-              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c associate"/>
-        <step name="Mock-Smf-Start-Sniffer" requires="Mock-Smf-Configure"
-              exec="${DOCKER_COMPOSE_CMD} exec -Td mock-smf tcpdump -i eth0 -w tmp/mock-smf_$(date +%H:%M:%S).pcap"/>
+        <step name="Mock-Smf-Start"
+              exec="mock-smf-cmd start"/>
+        <step name="Check-Mock-Smf-Survived-Start" requires="^"
+              exec="mock-smf-cmd check"/>
+        <step name="Mock-Smf-Associate" requires="^"
+              exec="mock-smf-cmd associate"/>
         <step name="Check-Pfcp-Agent-Survived-Start" requires="^" delay="1"
               exec="pfcp-agent-check-alive"/>
         <step name="Check-Up4-N3-Interface" requires="^"

@@ -385,11 +385,12 @@ class GtpuBaseTest(P4RuntimeTest):
                 action_params=action_params,
             ))
 
-    def add_application(self, pkt, app_id, direction, priority=10):
+    def add_application(self, pkt, app_id, direction, slice_id=DEFAULT_SLICE, priority=10):
         if direction == DIRECTION_UPLINK:
             match_fields = {"app_ip_addr": pkt[IP].dst + "/32"}
         else:
             match_fields = {"app_ip_addr": pkt[IP].src + "/32"}
+        match_fields["slice_id"] = slice_id
         l4_port = None
         ip_proto = None
         if UDP in pkt:
@@ -486,6 +487,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 pkt=inner_pkt,
                 app_id=app_id,
                 direction=DIRECTION_UPLINK,
+                slice_id=MOBILE_SLICE,
             )
 
         self.add_terminations_uplink(ue_address=inner_pkt[IP].src, ctr_idx=ctr_idx, tc=tc,
@@ -552,6 +554,7 @@ class GtpuBaseTest(P4RuntimeTest):
                 pkt=pkt,
                 app_id=app_id,
                 direction=DIRECTION_DOWNLINK,
+                slice_id=MOBILE_SLICE,
             )
 
         self.add_terminations_downlink(

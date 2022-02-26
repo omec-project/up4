@@ -12,8 +12,6 @@ import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 
-import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
-
 /**
  * UP4 N3 interface deletion command.
  */
@@ -27,15 +25,17 @@ public class InterfaceDeleteCommand extends AbstractShellCommand {
             required = true)
     String n3Addr = null;
 
+    @Argument(index = 1, name = "slice-id",
+            description = "Slice ID",
+            required = true)
+    Integer sliceId = null;
+
     @Override
     protected void doExecute() throws Exception {
         Up4Service app = get(Up4Service.class);
-
         Ip4Address n3Addr = Ip4Address.valueOf(this.n3Addr);
-
         print("Removing N3 interface address %s", n3Addr.toString());
-        // TODO: Update UpfInterface to use N3 instead of S1U
-        app.delete(UpfInterface.createN3From(n3Addr, SLICE_MOBILE));
+        app.delete(UpfInterface.createN3From(n3Addr, sliceId));
     }
 }
 

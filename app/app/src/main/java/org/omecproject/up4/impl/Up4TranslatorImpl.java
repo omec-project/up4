@@ -39,7 +39,6 @@ import org.onosproject.net.pi.runtime.PiTernaryFieldMatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.omecproject.up4.impl.AppConstants.SLICE_MOBILE;
 import static org.omecproject.up4.impl.AppConstants.ZERO_BAND_RATE;
 import static org.omecproject.up4.impl.AppConstants.ZERO_BAND_BURST;
 import static org.omecproject.up4.impl.ExtraP4InfoConstants.DIRECTION_DOWNLINK;
@@ -57,6 +56,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_PROTO;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_L4_PORT;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_IPV4_DST_PREFIX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_N3_ADDRESS;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_SLICE_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TEID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
@@ -254,10 +254,9 @@ public class Up4TranslatorImpl implements Up4Translator {
                     throw new Up4TranslationException(
                             "Attempting to translate an unsupported UP4 interface type! " + srcIfaceTypeInt);
                 }
-                // TODO: read slice_id from UP4 table entry or netcfg https://jira.opennetworking.org/browse/SDFAB-985
+                builder.setSliceId(Up4TranslatorUtil.getParamInt(entry, SLICE_ID));
                 Ip4Prefix prefix = Up4TranslatorUtil.getFieldPrefix(entry, HDR_IPV4_DST_PREFIX);
                 builder.setPrefix(prefix);
-                builder.setSliceId(SLICE_MOBILE);
                 return builder.build();
             }
             case SESSION_UPLINK: {
@@ -349,7 +348,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 if (Up4TranslatorUtil.fieldIsPresent(entry, HDR_APP_IP_PROTO)) {
                     builder.withIpProto(Up4TranslatorUtil.getFieldByte(entry, HDR_APP_IP_PROTO));
                 }
-                builder.withSliceId(SLICE_MOBILE);
+                builder.withSliceId(Up4TranslatorUtil.getFieldInt(entry, HDR_SLICE_ID));
                 return builder.build();
             }
             default:
@@ -382,7 +381,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 }
                 actionBuilder.withParameter(new PiActionParam(SRC_IFACE, srcIface))
                         .withParameter(new PiActionParam(DIRECTION, direction))
-                        .withParameter(new PiActionParam(SLICE_ID, (byte) SLICE_MOBILE));
+                        .withParameter(new PiActionParam(SLICE_ID, (byte) upfIntf.sliceId()));
                 matchBuilder.addFieldMatch(new PiLpmFieldMatch(
                         HDR_IPV4_DST_PREFIX,
                         ImmutableByteSequence.copyFrom(upfIntf.prefix().address().toOctets()),
@@ -512,6 +511,10 @@ public class Up4TranslatorImpl implements Up4Translator {
                 tableEntryBuilder.withPriority(application.priority());
                 actionBuilder.withId(PRE_QOS_PIPE_SET_APP_ID)
                         .withParameter(new PiActionParam(APP_ID, application.appId()));
+                matchBuilder.addFieldMatch(new PiExactFieldMatch(
+                        HDR_SLICE_ID,
+                        ImmutableByteSequence.copyFrom((byte) application.sliceId())
+                ));
                 if (application.ip4Prefix().isPresent()) {
                     Ip4Prefix ipPrefix = application.ip4Prefix().get();
                     matchBuilder.addFieldMatch(new PiLpmFieldMatch(

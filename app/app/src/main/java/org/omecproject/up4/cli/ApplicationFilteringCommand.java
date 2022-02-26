@@ -32,6 +32,11 @@ public class ApplicationFilteringCommand extends AbstractShellCommand {
             required = true)
     Integer priority = null;
 
+    @Argument(index = 2, name = "slice-id",
+            description = "The slice ID",
+            required = true)
+    Integer sliceId = null;
+
     @Option(name = "--ip-prefix",
             description = "IPv4 prefix",
             required = false)
@@ -58,7 +63,8 @@ public class ApplicationFilteringCommand extends AbstractShellCommand {
         Up4Service app = get(Up4Service.class);
         UpfApplication.Builder appFilterBuilder = UpfApplication.builder()
                 .withAppId(appId)
-                .withPriority(priority);
+                .withPriority(priority)
+                .withSliceId(sliceId);
         boolean oneFilter = false;
         if (ipPrefix != null) {
             appFilterBuilder.withIp4Prefix(Ip4Prefix.valueOf(ipPrefix));
