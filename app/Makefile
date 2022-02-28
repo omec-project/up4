@@ -11,7 +11,7 @@ CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 # but allow passing a directory, e.g., local ~/.m2
 mvn_cache_docker_volume := mvn-cache-up4
 MVN_CACHE ?= ${mvn_cache_docker_volume}
-MVN_FLAGS ?=
+MVN_FLAGS ?= -B
 
 onos_tools_dir := $(abspath ${CURRENT_DIR}/../scenarios/onos/tools/package/runtime/bin)
 
@@ -49,7 +49,7 @@ local-build: _build_resources
 
 build: _build_resources
 	docker run -it --rm -v ${CURRENT_DIR}:/root -v ${MVN_CACHE}:/root/.m2 -w /root \
-		${MAVEN_IMAGE} bash -c "mvn ${MVN_FLAGS} clean install -B && chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
+		${MAVEN_IMAGE} bash -c "mvn ${MVN_FLAGS} clean install && chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
 
 # ci-verify is a build profile specified in onos-dependencies's pom.xml
 # It's used to run javadoc validation and other checks that should not
