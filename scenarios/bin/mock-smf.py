@@ -278,7 +278,7 @@ def craft_fseid(seid: int, address: str) -> pfcp.IE_Compound:
 
 
 def craft_pdr(session: Session, flow: UeFlow, src_iface: int, from_tunnel=False,
-              tunnel_dst: str = None, precedence=2, wildcard: bool =True) -> pfcp.IE_Compound:
+              tunnel_dst: str = None, precedence=2, wildcard: bool = True) -> pfcp.IE_Compound:
     pdr = pfcp.IE_UpdatePDR() if flow.pdr_id in session.sent_pdrs else pfcp.IE_CreatePDR()
     pdr_id = pfcp.IE_PDR_Id()
     pdr_id.id = flow.pdr_id
@@ -450,8 +450,8 @@ def craft_pfcp_association_setup_packet() -> scapy.Packet:
     setup_request.IE_list.append(ie1)
     ie2 = pfcp.IE_RecoveryTimeStamp()
     setup_request.IE_list.append(ie2)
-    return IP(src=our_addr, dst=peer_addr) / UDP(
-        sport=our_port, dport=peer_port) / pfcp_header / setup_request
+    return IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port,
+                                                 dport=peer_port) / pfcp_header / setup_request
 
 
 def craft_pfcp_association_release_packet() -> scapy.Packet:
@@ -463,8 +463,8 @@ def craft_pfcp_association_release_packet() -> scapy.Packet:
     ie1 = pfcp.IE_NodeId()
     ie1.ipv4 = our_addr
     release_request.IE_list.append(ie1)
-    return IP(src=our_addr, dst=peer_addr) / UDP(
-        sport=our_port, dport=peer_port) / pfcp_header / release_request
+    return IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port,
+                                                 dport=peer_port) / pfcp_header / release_request
 
 
 def craft_pfcp_session_est_packet(args: argparse.Namespace, session: Session) -> scapy.Packet:
@@ -641,8 +641,8 @@ def send_pfcp_heartbeats() -> None:
         heartbeat.version = 1
         heartbeat.IE_list.append(pfcp.IE_RecoveryTimeStamp())
 
-        pkt = IP(src=our_addr, dst=peer_addr) / UDP(
-            sport=our_port, dport=peer_port) / pfcp_header / heartbeat
+        pkt = IP(src=our_addr, dst=peer_addr) / UDP(sport=our_port,
+                                                    dport=peer_port) / pfcp_header / heartbeat
         send_recv_pfcp(pkt, MSG_TYPES["heartbeat_response"], session=None, verbosity_override=0)
 
 

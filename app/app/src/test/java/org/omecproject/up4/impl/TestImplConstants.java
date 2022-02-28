@@ -48,6 +48,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_IP_PROTO;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_APP_L4_PORT;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_IPV4_DST_PREFIX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_N3_ADDRESS;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_SLICE_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TEID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_TUNNEL_PEER_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.HDR_UE_ADDRESS;
@@ -130,7 +131,7 @@ public final class TestImplConstants {
     public static final int DEFAULT_APP_METER_IDX = 0;
     public static final int DEFAULT_SESSION_METER_IDX = 0;
 
-    public static final int MOBILE_SLICE = 0;
+    public static final int MOBILE_SLICE = 10;
 
     public static final UpfGtpTunnelPeer TUNNEL_PEER = UpfGtpTunnelPeer.builder()
             .withTunnelPeerId(GTP_TUNNEL_ID)
@@ -530,6 +531,9 @@ public final class TestImplConstants {
     public static final PiTableEntry UP4_APPLICATION_FILTERING = PiTableEntry.builder()
             .forTable(PRE_QOS_PIPE_APPLICATIONS)
             .withMatchKey(PiMatchKey.builder()
+                                  .addFieldMatch(new PiExactFieldMatch(
+                                          HDR_SLICE_ID,
+                                          ImmutableByteSequence.copyFrom((byte) MOBILE_SLICE)))
                                   .addFieldMatch(new PiLpmFieldMatch(
                                           HDR_APP_IP_ADDR,
                                           ImmutableByteSequence.copyFrom(APP_IP_PREFIX.address().toOctets()),
@@ -555,7 +559,7 @@ public final class TestImplConstants {
 
     public static final PiMeterCellConfig UP4_SESSION_METER = PiMeterCellConfig.builder()
             .withMeterBand(new PiMeterBand(PiMeterBandType.PEAK, PIR, PBURST))
-            .withMeterBand(new PiMeterBand(PiMeterBandType.COMMITTED, 1, 1))
+            .withMeterBand(new PiMeterBand(PiMeterBandType.COMMITTED, 0, 0))
             .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_IDX))
             .build();
 

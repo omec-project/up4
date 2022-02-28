@@ -138,8 +138,8 @@ def mod_meter(name, index, max_bw, action):
     meter.index = index
     if action == "program" or action == "dry":
         # in case of "clear" don't specify bands to clear meters
-        meter.cir = 1
-        meter.cburst = 1
+        meter.cir = 0
+        meter.cburst = 0
         meter.pir = max_bw // 8
         meter.pburst = int(meter.pir * BURST_DURATION_MS * 0.001)
     if action == "dry":
@@ -185,6 +185,7 @@ def main():
         entry.match['ipv4_dst_prefix'] = str(args.n3_addr) + '/32'
         entry.action['src_iface'] = IFACE_ACCESS
         entry.action['direction'] = DIR_UPLINK
+        entry.action["slice_id"] = SLICE_MOBILE
         add_entry(entry, args.action)
 
     if args.add_iface_uepool or args.add_ifaces:
@@ -193,6 +194,7 @@ def main():
         entry.match['ipv4_dst_prefix'] = str(args.ue_pool)
         entry.action['src_iface'] = IFACE_CORE
         entry.action['direction'] = DIR_DOWNLINK
+        entry.action["slice_id"] = SLICE_MOBILE
         add_entry(entry, args.action)
 
     # table entry parameter generators
@@ -224,6 +226,7 @@ def main():
 
     if app_filtering:
         entry = sh.TableEntry('PreQosPipe.applications')(action='PreQosPipe.set_app_id')
+        entry.match["slice_id"] = SLICE_MOBILE
         if args.app_ipv4:
             entry.match["app_ip_addr"] = args.app_ipv4
         if args.app_l4_port:

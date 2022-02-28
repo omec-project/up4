@@ -13,18 +13,15 @@ public final class AppConstants {
     public static final String P4INFO_PATH = "/p4info.txt";
     public static final String SUPPORTED_PIPECONF_STRING = "fabric-upf";
 
-    // TODO: SLICE_MOBILE should be configurable via netcfg or from the north.
-    //  See: https://jira.opennetworking.org/browse/SDFAB-985
-    //  We should use a slice ID different than the default, slice ID should be
-    //  one of the slices configured in the slicing manager via netcfg.
-    public static final int SLICE_MOBILE = 0;
+    // TODO: change when we support multi-slice
+    //  https://jira.opennetworking.org/browse/SDFAB-986
     // Default slice id is required for traffic coming from DBUF.
     public static final int DEFAULT_SLICE_ID = 0;
 
-    // Meters can't be provided with 0 band or rate, so the lowest value we can use
-    // is 1. This is useful if for example we don't want to specify peak or committed bands.
-    public static final long ZERO_BAND_RATE = 1;
-    public static final long ZERO_BAND_BURST = 1;
+    // Values used when you don't want to specify a band. Meaning rate = 0 for
+    // that band
+    public static final long ZERO_BAND_RATE = 0;
+    public static final long ZERO_BAND_BURST = 0;
 
     // hide default constructor
     private AppConstants() {
