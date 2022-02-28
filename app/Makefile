@@ -49,7 +49,7 @@ local-build: _build_resources
 
 build: _build_resources
 	docker run -it --rm -v ${CURRENT_DIR}:/root -v ${MVN_CACHE}:/root/.m2 -w /root \
-		${MAVEN_IMAGE} bash -c "mvn ${MVN_FLAGS} clean install && chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
+		${MAVEN_IMAGE} bash -c "mvn ${MVN_FLAGS} clean install -B && chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
 
 # ci-verify is a build profile specified in onos-dependencies's pom.xml
 # It's used to run javadoc validation and other checks that should not
