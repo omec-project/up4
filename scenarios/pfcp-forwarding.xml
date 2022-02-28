@@ -5,7 +5,7 @@
 <scenario name="pfcp-forwarding" description="Set up and test UE data forwarding with the PFCP client">
     <group name="Pfcp-Forwarding">
         <group name="Pfcp-Setup-Fwd-Create">
-            <group name="Pfcp-Push-Fwd-Create" delay="5">
+            <group name="Pfcp-Push-Fwd-Create">
                 <sequential var="${ENODEB#}"
                             starts="Pfcp-Session-Create-${#}"
                             ends="Pfcp-Session-Create-${#-1}">
@@ -13,12 +13,12 @@
                           exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
-            <step name="Check-Up4-Flows-Fwd-Create" requires="Pfcp-Push-Fwd-Create" delay="5"
+            <step name="Check-Up4-Flows-Fwd-Create" requires="Pfcp-Push-Fwd-Create"
                   exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${PFCP_UP4_FLOWS}, DL flows=${PFCP_UP4_FLOWS}'"/>
-            <step name="Check-Flow-Rules-Fwd-Create" requires="Pfcp-Push-Fwd-Create" delay="5"
+            <step name="Check-Flow-Rules-Fwd-Create" requires="Pfcp-Push-Fwd-Create"
                   exec="onos-check-flows ${OCI}"/>
         </group>
-        <group name="Check-Traffic-Drop-DL" requires="Pfcp-Setup-Fwd-Create" delay="5">
+        <group name="Check-Traffic-Drop-DL" requires="Pfcp-Setup-Fwd-Create">
             <parallel var="${ENODEB#}">
                 <!-- Downlink -->
                 <step name="Downlink-Enb-Recv-Gtp-Fwd-Drop-DL-${#}" requires="Pfcp-Setup-Fwd-Create"
@@ -36,9 +36,9 @@
                            exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
-            <step name="Check-Up4-Flows-Fwd-Modify" requires="Pfcp-Push-Fwd-Modify" delay="5"
+            <step name="Check-Up4-Flows-Fwd-Modify" requires="Pfcp-Push-Fwd-Modify"
                   exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${PFCP_UP4_FLOWS}, DL flows=${PFCP_UP4_FLOWS}'"/>
-            <step name="Check-Flow-Rules-Fwd-Modify" requires="Pfcp-Push-Fwd-Modify" delay="5"
+            <step name="Check-Flow-Rules-Fwd-Modify" requires="Pfcp-Push-Fwd-Modify"
                   exec="onos-check-flows ${OCI}"/>
         </group>
         <group name="Check-Traffic-Fwd" requires="Pfcp-Setup-Fwd-Modify" delay="5">
