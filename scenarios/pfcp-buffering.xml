@@ -25,7 +25,7 @@
                 <!-- Downlink -->
                 <step name="Downlink-Enb-Recv-Gtp-Buff-Drop-DL-${#}" requires="Pfcp-Set-Buff-Create"
                       exec="mn-cmd ${ENODEB#} traffic.py recv-none -t 10"/>
-                <step name="Downlink-Pdn-Send-Udp-Buff-Drop-DL-${#}" requires="Pfcp-Set-Buff-Create" delay="5"
+                <step name="Downlink-Pdn-Send-Udp-Buff-Drop-DL-${#}" requires="Pfcp-Set-Buff-Create"
                       exec="mn-cmd pdn traffic.py send-udp -c 10 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
             </parallel>
         </group>
@@ -34,13 +34,13 @@
                 <sequential var="${ENODEB#}"
                             starts="Pfcp-Buffer-Session-Modify-${#}"
                             ends="Pfcp-Buffer-Session-Modify-${#-1}">
-                    <step name="Pfcp-Buffer-Session-Modify-${#}" requires="Check-Traffic-Buff-Drop-DL" delay="5"
+                    <step name="Pfcp-Buffer-Session-Modify-${#}" requires="Check-Traffic-Buff-Drop-DL" delay="1"
                           exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
-            <step name="Check-Up4-Flows-Buff-Modify" requires="Pfcp-Push-Buff-Modify" delay="5"
+            <step name="Check-Up4-Flows-Buff-Modify" requires="Pfcp-Push-Buff-Modify"
                   exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${PFCP_UP4_FLOWS}, DL flows=${PFCP_UP4_FLOWS}'"/>
-            <step name="Check-Flow-Rules-Buff-Modify" requires="Pfcp-Push-Buff-Modify" delay="5"
+            <step name="Check-Flow-Rules-Buff-Modify" requires="Pfcp-Push-Buff-Modify"
                   exec="onos-check-flows ${OCI}"/>
         </group>
         <group name="Pfcp-Set-Buff-Buffer" requires="Pfcp-Set-Buff-Modify">
@@ -48,13 +48,13 @@
                 <sequential var="${ENODEB#}"
                             starts="Pfcp-Buffer-Session-Buffer-${#}"
                             ends="Pfcp-Buffer-Session-Buffer-${#-1}">
-                    <step name="Pfcp-Buffer-Session-Buffer-${#}" requires="Pfcp-Set-Buff-Modify" delay="5"
+                    <step name="Pfcp-Buffer-Session-Buffer-${#}" requires="Pfcp-Set-Buff-Modify"
                           exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --buffer --notifycp --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
-            <step name="Check-Up4-Flows-Buff-Buffer" requires="Pfcp-Push-Buff-Buffer" delay="5"
+            <step name="Check-Up4-Flows-Buff-Buffer" requires="Pfcp-Push-Buff-Buffer"
                   exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=${PFCP_UP4_FLOWS}, DL flows=${PFCP_UP4_FLOWS}'"/>
-            <step name="Check-Flow-Rules-Buff-Buffer" requires="Pfcp-Push-Buff-Buffer" delay="5"
+            <step name="Check-Flow-Rules-Buff-Buffer" requires="Pfcp-Push-Buff-Buffer"
                   exec="onos-check-flows ${OCI}"/>
         </group>
         <group name="Check-Traffic-Buff" requires="Pfcp-Set-Buff-Buffer" delay="5">
@@ -70,11 +70,11 @@
                 <!-- Not going to verify TEID in buffering test -->
                 <step name="Downlink-Enb-Recv-Gtp-Buff-${#}" requires="Verify-First-Buffer-${#}"
                       exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 60 --no-verify-teid --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
-                <step name="Pfcp-Set-Fwd-After-Buff-${#}" requires="Verify-First-Buffer-${#}" delay="5"
+                <step name="Pfcp-Set-Fwd-After-Buff-${#}" requires="Verify-First-Buffer-${#}"
                       exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
-                <step name="Check-Drain-Started-${#}" requires="Pfcp-Set-Fwd-After-Buff-${#}" delay="5"
+                <step name="Check-Drain-Started-${#}" requires="Pfcp-Set-Fwd-After-Buff-${#}"
                       exec="docker-log-grep ${ODI} 'Started dbuf drain for 17.0.${#-1}' 5"/>
-                <step name="Check-Drain-Completed-${#}" requires="Pfcp-Set-Fwd-After-Buff-${#}" delay="5"
+                <step name="Check-Drain-Completed-${#}" requires="Pfcp-Set-Fwd-After-Buff-${#}" delay="2"
                       exec="docker-log-grep ${ODI} 'Dbuf drain completed for 17.0.${#-1}' 5"/>
             </parallel>
         </group>
@@ -89,7 +89,7 @@
             </group>
             <step name="Check-Up4-Flows-Fwd-After-Buff-Cleared" requires="Clear-Buff"
                   exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
-            <step name="Check-Flow-Rules-Fwd-After-Buff-Cleared" requires="Clear-Buff" delay="5"
+            <step name="Check-Flow-Rules-Fwd-After-Buff-Cleared" requires="Clear-Buff"
                   exec="onos-check-flows ${OCI}"/>
         </group>
     </group>

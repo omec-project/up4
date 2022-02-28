@@ -8,11 +8,11 @@
         <group name="SF-Setup-Fwd-1">
             <step name="SF-Create-Session-1"
                   exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --count 1 --baseID 1 --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
-            <step name="SF-Modify-Session-1" requires="^" delay="1"
+            <step name="SF-Modify-Session-1" requires="SF-Create-Session-1"
                   exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 1 --baseID 1 --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
         </group>
 
-        <step name="SF-Check-Flows-1" requires="SF-Setup-Fwd-1" delay="2"
+        <step name="SF-Check-Flows-1" requires="SF-Setup-Fwd-1"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=1, DL flows=1'"/>
 
         <step name="SF-Kill-Smf" requires="^"
@@ -21,14 +21,14 @@
         <step name="SF-Check-Flows-2" requires="^" delay="10"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
 
-      <group name="SF-Revive-Smf">
-            <step name="SF-Revive-Smf-1" requires="~SF-Check-Flows-2" delay="1"
+      <group name="SF-Revive-Smf" delay="1">
+            <step name="SF-Revive-Smf-1" requires="~SF-Check-Flows-2"
                         exec="${DOCKER_COMPOSE_CMD} up -d mock-smf"/>
-            <step name="SF-Revive-Smf-2" requires="SF-Revive-Smf-1" delay="1"
+            <step name="SF-Revive-Smf-2" requires="SF-Revive-Smf-1"
                         exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c configure --n3-addr 140.0.0.1 --remote-peer pfcp-agent"/>
             <step name="SF-Revive-Smf-3" requires="SF-Revive-Smf-1"
                         exec="${DOCKER_COMPOSE_CMD} exec -Td mock-smf tcpdump -i eth0 -w tmp/pcaps/mock-smf_$(date +%H:%M:%S).pcap"/>
-            <step name="SF-Revive-Smf-4" requires="SF-Revive-Smf-2" delay="1"
+            <step name="SF-Revive-Smf-4" requires="SF-Revive-Smf-2"
                         exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c associate"/>
       </group>
 
@@ -39,26 +39,26 @@
                   exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
         </group>
 
-        <step name="SF-Check-Flows-3" requires="SF-Setup-Fwd-2" delay="2"
+        <step name="SF-Check-Flows-3" requires="SF-Setup-Fwd-2"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=1, DL flows=1'"/>
 
         <group name="SF-Check-Fwding" requires="SF-Check-Flows-3">
             <!-- Downlink -->
             <step name="SF-Downlink-Enb-Recv-Gtp-Fwd"
                   exec="mn-cmd ${ENODEB1} traffic.py recv-gtp --teid-base 1 -t 10"/>
-            <step name="SF-Downlink-Pdn-Send-Udp-Fwd" requires="SF-Check-Flows-3" delay="5"
+            <step name="SF-Downlink-Pdn-Send-Udp-Fwd" requires="SF-Check-Flows-3"
                   exec="mn-cmd pdn traffic.py send-udp --teid-base 1 -c 10"/>
             <!-- Uplink -->
             <step name="SF-Uplink-Pdn-Recv-Udp-Fwd"
                   exec="mn-cmd pdn traffic.py recv-udp --teid-base 1 -t 10"/>
-            <step name="SF-Uplink-Enb-Send-Gtp-Fwd" delay="5"
+            <step name="SF-Uplink-Enb-Send-Gtp-Fwd"
                   exec="mn-cmd ${ENODEB1} traffic.py send-gtp --teid-base 1 -c 10"/>
         </group>
 
         <step name="SF-Clear-Flows" requires="~SF-Check-Fwding"
               exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c delete"/>
 
-        <step name="SF-Check-Flows-4" requires="^" delay="2"
+        <step name="SF-Check-Flows-4" requires="^"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
     </group>
 </scenario>
