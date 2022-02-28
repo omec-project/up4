@@ -42,7 +42,7 @@
         <step name="SF-Check-Flows-3" requires="SF-Setup-Fwd-2"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=1, DL flows=1'"/>
 
-        <group name="SF-Check-Fwding" requires="SF-Check-Flows-3" delay="2">
+        <group name="SF-Check-Fwding" requires="SF-Check-Flows-3" delay="5">
             <!-- Downlink -->
             <step name="SF-Downlink-Enb-Recv-Gtp-Fwd"
                   exec="mn-cmd ${ENODEB1} traffic.py recv-gtp --teid-base 1 -t 10"/>
