@@ -34,7 +34,7 @@
                 <sequential var="${ENODEB#}"
                             starts="Pfcp-Buffer-Session-Modify-${#}"
                             ends="Pfcp-Buffer-Session-Modify-${#-1}">
-                    <step name="Pfcp-Buffer-Session-Modify-${#}" requires="Check-Traffic-Buff-Drop-DL" delay="1"
+                    <step name="Pfcp-Buffer-Session-Modify-${#}" requires="Check-Traffic-Buff-Drop-DL"
                           exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
@@ -74,7 +74,7 @@
                       exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 <step name="Check-Drain-Started-${#}" requires="Pfcp-Set-Fwd-After-Buff-${#}"
                       exec="docker-log-grep ${ODI} 'Started dbuf drain for 17.0.${#-1}' 5"/>
-                <step name="Check-Drain-Completed-${#}" requires="Pfcp-Set-Fwd-After-Buff-${#}" delay="2"
+                <step name="Check-Drain-Completed-${#}" requires="Pfcp-Set-Fwd-After-Buff-${#}"
                       exec="docker-log-grep ${ODI} 'Dbuf drain completed for 17.0.${#-1}' 5"/>
             </parallel>
         </group>
