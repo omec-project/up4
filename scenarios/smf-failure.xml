@@ -34,9 +34,9 @@
 
         <group name="SF-Setup-Fwd-2" requires="SF-Revive-Smf">
             <step name="SF-Create-Session-2"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --baseID 255 --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
             <step name="SF-Modify-Session-2" requires="SF-Create-Session-2"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --baseID 255 --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
         </group>
 
         <step name="SF-Check-Flows-3" requires="SF-Setup-Fwd-2"
@@ -45,21 +45,21 @@
       <group name="SF-Check-Traffic" requires="SF-Check-Flows-3">
             <!-- Downlink -->
             <step name="SF-Downlink-Enb-Recv-Gtp-Fwd"
-                  exec="mn-cmd ${ENODEB1} traffic.py recv-gtp --teid-base 1 -t 10"/>
-            <step name="SF-Downlink-Pdn-Send-Udp-Fwd"
+                  exec="mn-cmd ${ENODEB1} traffic.py recv-gtp -t 10"/>
+            <step name="SF-Downlink-Pdn-Send-Udp-Fwd" delay="1"
                   exec="mn-cmd pdn traffic.py send-udp -c 10"/>
             <!-- Uplink -->
             <step name="SF-Uplink-Pdn-Recv-Udp-Fwd"
                   exec="mn-cmd pdn traffic.py recv-udp -t 10"/>
-            <step name="SF-Uplink-Enb-Send-Gtp-Fwd"
-                  exec="mn-cmd ${ENODEB1} traffic.py send-gtp --teid-base 1 -c 10"/>
+            <step name="SF-Uplink-Enb-Send-Gtp-Fwd" delay="1"
+                  exec="mn-cmd ${ENODEB1} traffic.py send-gtp -c 10"/>
       </group>
 
 
-        <step name="SF-Clear-Flows" requires="~SF-Check-Traffic"
-              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c delete"/>
+        <step name="SF-Clear-Flows" requires="~SF-Check-Traffic" delay="5"
+              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c delete --baseID 255"/>
 
-        <step name="SF-Check-Flows-4" requires="^"
+        <step name="SF-Check-Flows-4" requires="SF-Clear-Flows"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
     </group>
 </scenario>
