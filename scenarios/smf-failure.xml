@@ -43,20 +43,22 @@
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=1, DL flows=1'"/>
 
       <group name="SF-Check-Traffic" requires="SF-Check-Flows-3">
-            <!-- Downlink -->
-            <step name="SF-Downlink-Enb-Recv-Gtp-Fwd"
-                  exec="mn-cmd ${ENODEB1} traffic.py recv-gtp -t 10"/>
-            <step name="SF-Downlink-Pdn-Send-Udp-Fwd" delay="2"
-                  exec="mn-cmd pdn traffic.py send-udp -c 10"/>
-            <!-- Uplink -->
-            <step name="SF-Uplink-Pdn-Recv-Udp-Fwd"
-                  exec="mn-cmd pdn traffic.py recv-udp -t 10"/>
-            <step name="SF-Uplink-Enb-Send-Gtp-Fwd" delay="2"
-                  exec="mn-cmd ${ENODEB1} traffic.py send-gtp -c 10"/>
+            <group name="SF-Downlink-Traffic">
+                  <step name="SF-Downlink-Enb-Recv-Gtp-Fwd"
+                        exec="mn-cmd ${ENODEB1} traffic.py recv-gtp -t 10"/>
+                  <step name="SF-Downlink-Pdn-Send-Udp-Fwd"
+                        exec="mn-cmd pdn traffic.py send-udp -c 10"/>
+            </group>
+            <group name="SF-Uplink-Traffic" requires="SF-Downlink-Traffic" delay="5">
+                  <step name="SF-Uplink-Pdn-Recv-Udp-Fwd"
+                        exec="mn-cmd pdn traffic.py recv-udp -t 10"/>
+                  <step name="SF-Uplink-Enb-Send-Gtp-Fwd"
+                        exec="mn-cmd ${ENODEB1} traffic.py send-gtp -c 10"/>
+            </group>
       </group>
 
 
-        <step name="SF-Clear-Flows" requires="~SF-Check-Traffic" delay="5"
+        <step name="SF-Clear-Flows" requires="~SF-Check-Traffic" delay="10"
               exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c delete --baseID 255"/>
 
         <step name="SF-Check-Flows-4" requires="SF-Clear-Flows"
