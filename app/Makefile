@@ -11,7 +11,7 @@ CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 # but allow passing a directory, e.g., local ~/.m2
 mvn_cache_docker_volume := mvn-cache-up4
 MVN_CACHE ?= ${mvn_cache_docker_volume}
-MVN_FLAGS ?=
+MVN_FLAGS ?= -B
 
 onos_tools_dir := $(abspath ${CURRENT_DIR}/../scenarios/onos/tools/package/runtime/bin)
 
