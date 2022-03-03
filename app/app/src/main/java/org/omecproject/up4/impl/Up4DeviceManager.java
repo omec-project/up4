@@ -1364,7 +1364,10 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                         .collect(Collectors.toSet());
                 followerRules.removeAll(unexpectedRules);
                 ops.newStage();
-                unexpectedRules.forEach(r -> ops.remove(copyFlowRuleForDevice(r, deviceId)));
+                unexpectedRules.forEach(r -> {
+                    log.info("Removing {} from {}", copyFlowRuleForDevice(r, deviceId), deviceId);
+                    ops.remove(copyFlowRuleForDevice(r, deviceId));
+                });
 
                 Set<FlowRule> staleRules =
                     leaderRules.stream()
@@ -1373,14 +1376,20 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                         .collect(Collectors.toSet());
                 leaderRules.removeAll(staleRules);
                 ops.newStage();
-                staleRules.forEach(r -> ops.modify(copyFlowRuleForDevice(r, deviceId)));
+                staleRules.forEach(r -> {
+                    log.info("Modifying {} in {}", copyFlowRuleForDevice(r, deviceId), deviceId);
+                    ops.modify(copyFlowRuleForDevice(r, deviceId));
+                });
 
                 Set<FlowRule> missingRules =
                     leaderRules.stream()
                         .filter(lr -> followerRules.stream().noneMatch(fr -> fr.equals(lr)))
                         .collect(Collectors.toSet());
                 ops.newStage();
-                missingRules.forEach(r -> ops.add(copyFlowRuleForDevice(r, deviceId)));
+                missingRules.forEach(r -> {
+                    log.info("Adding {} to {}", copyFlowRuleForDevice(r, deviceId), deviceId);
+                    ops.add(copyFlowRuleForDevice(r, deviceId));
+                });
 
                 flowRuleService.apply(ops.build());
             }
