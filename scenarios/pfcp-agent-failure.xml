@@ -16,15 +16,15 @@
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=1, DL flows=1'"/>
 
         <step name="AF-Pre-Check-Interfaces" requires="^"
-              exec="onos-cli-grep ${OCI} 'up4:read-entities -i -g' 'UpfInterface(type=CORE, prefix=17.0.0.0/16'"/>
+              exec="onos-cmd ${OCI} 'up4:read-entities -i -g' 'tmp/pre_check_interface.log'"/>
 
         <step name="AF-kill-Agent" requires="^"
               exec="${DOCKER_COMPOSE_CMD} kill pfcp-agent"/>
 
-        <step name="AF-Restart-Agent" requires="^" delay="2"
+        <step name="AF-Restart-Agent" requires="^"
               exec="${DOCKER_COMPOSE_CMD} up -d pfcp-agent"/>
 
-        <step name="AF-Wait-For-Agent" requires="^"
+        <step name="AF-Wait-For-Agent" requires="^" delay="30"
               exec="pfcp-agent-wait-for-start"/>
 
         <step name="AF-Check-Flows-2" requires="^"
@@ -41,6 +41,6 @@
         </group>
 
         <step name="AF-Post-Check-Interfaces" requires="AF-Restart-Smf"
-              exec="onos-cli-grep ${OCI} 'up4:read-entities -i -g' 'UpfInterface(type=CORE, prefix=17.0.0.0/16'"/>
+              exec="onos-cmd ${OCI} 'up4:read-entities -i -g' 'tmp/post_check_interfaces.log'"/>
     </group>
 </scenario>
