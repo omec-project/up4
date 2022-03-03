@@ -25,6 +25,8 @@
             <step name="SF-Start-Smf"
                   exec="${DOCKER_COMPOSE_CMD} up -d mock-smf"/>
             <step name="SF-Associate-Smf" requires="^" delay="1"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c configure --n3-addr 140.0.0.1 --remote-peer pfcp-agent"/>
+            <step name="SF-Associate-Smf" requires="^" delay="1"
                   exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c associate"/>
         </group>
 
