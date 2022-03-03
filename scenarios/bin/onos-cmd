@@ -2,12 +2,7 @@
 # SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
 # SPDX-License-Identifier: Apache-2.0
 
-if [ -z $1 ]; then
-  echo "usage: $0 cmd [args...]"
-  exit 1
-fi
-
-# Use sshpass to skip the password prompt
-docker run -it --rm --network host ictu/sshpass \
-  -procks ssh -o "UserKnownHostsFile=/dev/null" \
-  -o "StrictHostKeyChecking=no" -o LogLevel=ERROR -p 8101 onos@localhost "$@"
+node=$1
+cliCmd=$2
+output=$3
+onos "$node" "$cliCmd" >> "$output"

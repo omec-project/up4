@@ -15,11 +15,17 @@
         <step name="AF-Check-Flows-1" requires="AF-Setup-Fwd" delay="2"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=1, DL flows=1'"/>
 
+        <step name="AF-Pre-Check-Interfaces" requires="^"
+              exec="onos-cmd ${OCI} 'up4:read-entities -i -g' 'tmp/Pre_check_interfaces.log'"/>
+
         <step name="AF-Restart-Agent" requires="^"
               exec="${DOCKER_COMPOSE_CMD} restart pfcp-agent"/>
 
         <step name="AF-Wait-For-Agent" requires="^" delay="2"
               exec="pfcp-agent-wait-for-start"/>
+
+        <step name="AF-Mid-Check-Interfaces" requires="^"
+              exec="onos-cmd ${OCI} 'up4:read-entities -i -g' 'tmp/Mid_check_interfaces.log'"/>
 
         <step name="AF-Check-Flows-2" requires="^"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
@@ -33,5 +39,8 @@
             <step name="AF-Associate-Smf" requires="^"
                   exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c associate"/>
         </group>
+
+        <step name="AF-Post-Check-Interfaces" requires="AF-Restart-Smf"
+              exec="onos-cmd ${OCI} 'up4:read-entities -i -g' 'tmp/Post_check_interfaces.log'"/>
     </group>
 </scenario>

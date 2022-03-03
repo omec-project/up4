@@ -77,7 +77,7 @@ stc-dev-build:
 	cd /tmp/onos-stc && mvn -q -B -Dmaven.test.skip=true install
 
 pull: ./tmp/.env.docker
-	${DOCKER_COMPOSE_CMD} pull
+	${DOCKER_COMPOSE_CMD} pull -q
 
 build: ./tmp/.env.docker
 	${DOCKER_COMPOSE_CMD} build --pull
