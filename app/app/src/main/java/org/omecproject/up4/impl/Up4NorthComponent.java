@@ -672,10 +672,9 @@ public class Up4NorthComponent {
         }
 
         /**
-         * Receives a pipeline config from a client. Discards all but the p4info file and cookie,
-         * and compares the received p4info to the already present hardcoded p4info. If the two
-         * match, the cookie is stored and a success response is sent. If they do not, the cookie is
-         * disarded and an error is reported.
+         * Receives a pipeline config from a client. We don't support this feature
+         * in UP4. UP4 has a pre-configured pipeline config, that is populated
+         * at runtime with sizes coming from the data plane.
          *
          * @param request          A request containing a p4info and cookie
          * @param responseObserver The thing that is fed a response to the config request.
@@ -684,19 +683,12 @@ public class Up4NorthComponent {
         public void setForwardingPipelineConfig(P4RuntimeOuterClass.SetForwardingPipelineConfigRequest request,
                                                 StreamObserver<P4RuntimeOuterClass.SetForwardingPipelineConfigResponse>
                                                         responseObserver) {
-            // Currently ignoring device_id, role_id, election_id, action
-            log.info("Received setForwardingPipelineConfig message.");
-            P4InfoOuterClass.P4Info otherP4Info = request.getConfig().getP4Info();
-            if (!otherP4Info.equals(p4Info)) {
-                log.warn("Someone attempted to write a p4info file that doesn't match our hardcoded one! What a jerk");
-            } else {
-                log.info("Received p4info correctly matches hardcoded p4info. Saving cookie.");
-                pipeconfCookie = request.getConfig().getCookie().getCookie();
-            }
-
-            // Response is currently defined to be empty per p4runtime.proto
-            responseObserver.onNext(P4RuntimeOuterClass.SetForwardingPipelineConfigResponse.getDefaultInstance());
-            responseObserver.onCompleted();
+            log.info("Attempted setForwardingPipelineConfig, not supported in UP4");
+            responseObserver.onError(
+                    io.grpc.Status.UNIMPLEMENTED
+                            .withDescription("setForwardingPipelineConfig not supported in UP4")
+                            .asException()
+            );
         }
 
         /**
@@ -709,31 +701,46 @@ public class Up4NorthComponent {
         public void getForwardingPipelineConfig(P4RuntimeOuterClass.GetForwardingPipelineConfigRequest request,
                                                 StreamObserver<P4RuntimeOuterClass.GetForwardingPipelineConfigResponse>
                                                         responseObserver) {
-
-            responseObserver.onNext(
-                    P4RuntimeOuterClass.GetForwardingPipelineConfigResponse.newBuilder()
-                            .setConfig(
-                                    P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
-                                            .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
-                                                               .setCookie(pipeconfCookie))
-                                            .setP4Info(setPhysicalSizes(p4Info))
-                                            .build())
-                            .build());
-            responseObserver.onCompleted();
+            try {
+                errorIfSwitchNotReady();
+                responseObserver.onNext(
+                        P4RuntimeOuterClass.GetForwardingPipelineConfigResponse.newBuilder()
+                                .setConfig(
+                                        P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
+                                                .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
+                                                                   .setCookie(pipeconfCookie))
+                                                .setP4Info(setPhysicalSizes(p4Info))
+                                                .build())
+                                .build());
+                responseObserver.onCompleted();
+            } catch (StatusException e) {
+                // FIXME: make it p4rt-compliant
+                // From P4RT specs: "If a P4Runtime server is in a state where
+                //  the forwarding-pipeline config is not known, the top-level config
+                //  field will be unset in the response. Examples are (i) a server
+                //  that only allows configuration via SetForwardingPipelineConfig
+                //  but this RPC hasn't been invoked yet, (ii) a server that is
+                //  configured using a different mechanism but this configuration
+                //  hasn't yet occurred." - (ii) is the UP4 case -.
+                // So, we shouldn't return an error, but simply set an empty config.
+                // However, we do return an error in this way it's easier for
+                // pfcp-agent to manage this case.
+                responseObserver.onError(e);
+            }
         }
 
 
         private void errorIfSwitchNotReady() throws StatusException {
             if (!up4Service.configIsLoaded()) {
                 log.warn("UP4 client attempted to read or write to logical switch before an app config was loaded.");
-                throw io.grpc.Status.UNAVAILABLE
+                throw io.grpc.Status.FAILED_PRECONDITION
                         .withDescription("App config not loaded.")
                         .asException();
             }
             if (!up4Service.isReady()) {
                 log.warn("UP4 client attempted to read or write to logical switch " +
                                  "while the physical device was unavailable.");
-                throw io.grpc.Status.UNAVAILABLE
+                throw io.grpc.Status.FAILED_PRECONDITION
                         .withDescription("Physical switch unavailable.")
                         .asException();
             }
