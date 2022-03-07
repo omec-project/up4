@@ -704,13 +704,12 @@ public class Up4NorthComponent {
             try {
                 errorIfSwitchNotReady();
                 responseObserver.onNext(
-                        P4RuntimeOuterClass.GetForwardingPipelineConfigResponse.newBuilder()
-                                .setConfig(
-                                        P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
-                                                .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
-                                                                   .setCookie(pipeconfCookie))
-                                                .setP4Info(setPhysicalSizes(p4Info))
-                                                .build())
+                        P4RuntimeOuterClass.GetForwardingPipelineConfigResponse.newBuilder().setConfig(
+                                P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
+                                        .setCookie(P4RuntimeOuterClass.ForwardingPipelineConfig.Cookie.newBuilder()
+                                                           .setCookie(pipeconfCookie))
+                                        .setP4Info(setPhysicalSizes(p4Info))
+                                        .build())
                                 .build());
                 responseObserver.onCompleted();
             } catch (StatusException e) {
