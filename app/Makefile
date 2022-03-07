@@ -54,7 +54,7 @@ build: _build_resources
 # ci-verify is a build profile specified in onos-dependencies's pom.xml
 # It's used to run javadoc validation and other checks that should not
 # run on local build, but during CI.
-build-ci: MVN_FLAGS := -B -q -Pci-verify -Pcoverage
+build-ci: MVN_FLAGS := -q -B -Pci-verify -Pcoverage
 build-ci: local-build
 
 clean:
