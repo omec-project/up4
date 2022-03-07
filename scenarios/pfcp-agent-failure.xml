@@ -24,11 +24,11 @@
         <step name="AF-Wait-For-Agent" requires="^" delay="2"
               exec="pfcp-agent-wait-for-start"/>
 
-        <step name="AF-Mid-Check-Interfaces" requires="^"
-              exec="onos-cmd ${OCI} 'up4:read-entities -i -g' 'tmp/Mid_check_interfaces.log'"/>
-
         <step name="AF-Check-Flows-2" requires="^"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
+
+        <step name="AF-Mid-Check-Interfaces" requires="^"
+              exec="onos-cmd ${OCI} 'up4:read-entities -i -g' 'tmp/Mid_check_interfaces.log'"/>
 
         <!-- Reboot SMF because it probably doesn't react well to failures -->
         <group name="AF-Restart-Smf" requires="~AF-Check-Flows-2">
@@ -42,5 +42,10 @@
 
         <step name="AF-Post-Check-Interfaces" requires="AF-Restart-Smf"
               exec="onos-cmd ${OCI} 'up4:read-entities -i -g' 'tmp/Post_check_interfaces.log'"/>
+
+        <step name="AF-Check-Up4-N3-Interface" requires="AF-Restart-Smf"
+              exec="onos-cli-grep ${OCI} up4:read-interfaces 'UpfInterface(type=ACCESS, prefix=140.0.0.1/32'"/>
+        <step name="AF-Check-Up4-Uepool-Interface" requires="AF-Restart-Smf"
+              exec="onos-cli-grep ${OCI} up4:read-interfaces 'UpfInterface(type=CORE, prefix=17.0.0.0/16'"/>
     </group>
 </scenario>
