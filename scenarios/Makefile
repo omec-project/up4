@@ -74,7 +74,7 @@ onos-test:
 stc-dev-build:
 	rm -rf /tmp/onos-stc
 	cd /tmp && git clone -b quotes --depth 1 https://github.com/opennetworkinglab/onos-stc.git
-	cd /tmp/onos-stc && mvn -Dmaven.test.skip=true install
+	cd /tmp/onos-stc && mvn -q -B -Dmaven.test.skip=true install
 
 pull: ./tmp/.env.docker
 	${DOCKER_COMPOSE_CMD} pull
@@ -139,4 +139,3 @@ versions: ./tmp/.env.docker
     docker inspect $${PFCP_AGENT_IMAGE} | jq -r '.[0].Config.Labels' && \
     echo $${MN_STRATUM_IMAGE} && \
     docker inspect $${MN_STRATUM_IMAGE} | jq -r '.[0].Config.Labels'
-
