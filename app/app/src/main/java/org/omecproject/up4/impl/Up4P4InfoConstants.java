@@ -80,6 +80,9 @@ public final class Up4P4InfoConstants {
     public static final PiMatchFieldId HDR_SRC_IFACE =
             PiMatchFieldId.of("src_iface");
     public static final int HDR_SRC_IFACE_BITWIDTH = 8;
+    public static final PiMatchFieldId HDR_TC_UNKNOWN =
+            PiMatchFieldId.of("tc_unknown");
+    public static final int HDR_TC_UNKNOWN_BITWIDTH = 1;
     public static final PiMatchFieldId HDR_TEID = PiMatchFieldId.of("teid");
     public static final int HDR_TEID_BITWIDTH = 32;
     public static final PiMatchFieldId HDR_TUNNEL_PEER_ID =
@@ -95,6 +98,8 @@ public final class Up4P4InfoConstants {
             PiTableId.of("PreQosPipe.Routing.routes_v4");
     public static final PiTableId PRE_QOS_PIPE_APPLICATIONS =
             PiTableId.of("PreQosPipe.applications");
+    public static final PiTableId PRE_QOS_PIPE_DEFAULT_TC =
+            PiTableId.of("PreQosPipe.default_tc");
     public static final PiTableId PRE_QOS_PIPE_INTERFACES =
             PiTableId.of("PreQosPipe.interfaces");
     public static final PiTableId PRE_QOS_PIPE_MY_STATION =
@@ -148,6 +153,8 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.load_tunnel_param");
     public static final PiActionId PRE_QOS_PIPE_SET_APP_ID =
             PiActionId.of("PreQosPipe.set_app_id");
+    public static final PiActionId PRE_QOS_PIPE_SET_DEFAULT_TC =
+            PiActionId.of("PreQosPipe.set_default_tc");
     public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK =
             PiActionId.of("PreQosPipe.set_session_downlink");
     public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF =
@@ -209,4 +216,6 @@ public final class Up4P4InfoConstants {
             PiMeterId.of("PreQosPipe.app_meter");
     public static final PiMeterId PRE_QOS_PIPE_SESSION_METER =
             PiMeterId.of("PreQosPipe.session_meter");
+    public static final PiMeterId PRE_QOS_PIPE_SLICE_TC_METER =
+            PiMeterId.of("PreQosPipe.slice_tc_meter");
 }

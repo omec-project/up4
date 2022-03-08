@@ -180,14 +180,6 @@
           "15": {
             "name": "Slice Mobile",
             "tcs": {
-              "CONTROL": {
-                "queueId": 2,
-                "maxRateBps": 10000000
-              },
-              "REAL_TIME": {
-                "queueId": 3,
-                "maxRateBps": 10000000
-              },
               "ELASTIC": {
                 "queueId": 6,
                 "gminRateBps": 10000000

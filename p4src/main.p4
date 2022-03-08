@@ -130,6 +130,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     counter<counter_index_t>(MAX_PDRS, CounterType.packets_and_bytes) pre_qos_counter;
     meter<app_meter_idx_t>(MAX_APP_METERS, MeterType.bytes) app_meter;
     meter<session_meter_idx_t>(MAX_SESSION_METERS, MeterType.bytes) session_meter;
+    meter<slice_tc_meter_idx_t>(1 << SLICE_TC_WIDTH, MeterType.bytes) slice_tc_meter;
 
     action _initialize_metadata() {
         local_meta.session_meter_idx_internal = DEFAULT_SESSION_METER_IDX;
@@ -256,6 +257,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
 
     action uplink_term_fwd(counter_index_t ctr_idx, tc_t tc, app_meter_idx_t app_meter_idx) {
         uplink_term_fwd_no_tc(ctr_idx, app_meter_idx);
+        local_meta.tc_unknown = false;
         local_meta.tc = tc;
     }
 
@@ -274,6 +276,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     // QFI = 0 for 4G traffic
     action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, tc_t tc, app_meter_idx_t app_meter_idx) {
         downlink_term_fwd_no_tc(ctr_idx, teid, qfi, app_meter_idx);
+        local_meta.tc_unknown = false;
         local_meta.tc = tc;
     }
 
@@ -344,6 +347,23 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         actions = {
             load_tunnel_param;
         }
+    }
+
+    action set_default_tc(tc_t tc) {
+        local_meta.tc = tc;
+    }
+
+    table default_tc {
+        key = {
+            local_meta.slice_id:    exact @name("slice_id");
+            local_meta.tc_unknown:  exact @name("tc_unknown");
+        }
+        actions = {
+            set_default_tc;
+            @defaultonly NoAction;
+        }
+        const default_action = NoAction;
+        size = 1 << SLICE_ID_WIDTH;
     }
 
     @hidden
@@ -504,6 +524,13 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                 if (local_meta.needs_buffering) {
                     do_buffer();
                 }
+
+                default_tc.apply();
+                slice_tc_meter.execute_meter<MeterColor>(local_meta.slice_id++local_meta.tc, local_meta.slice_tc_color);
+                if (local_meta.slice_tc_color == MeterColor.RED) {
+                    local_meta.needs_dropping = true;
+                }
+
                 if (local_meta.needs_tunneling) {
                     if (local_meta.tunnel_out_qfi == 0) {
                         // 4G

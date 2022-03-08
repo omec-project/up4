@@ -22,6 +22,7 @@ parser ParserImpl (packet_in packet,
     // We assume the first header will always be the Ethernet one, unless the
     // the packet is a packet-out coming from the CPU_PORT.
     state start {
+        local_meta.tc_unknown = true;
         transition select(std_meta.ingress_port) {
             CPU_PORT: parse_packet_out;
             default: parse_ethernet;

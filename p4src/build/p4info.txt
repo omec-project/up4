@@ -333,6 +333,35 @@ tables {
   }
   size: 1024
 }
+tables {
+  preamble {
+    id: 38896582
+    name: "PreQosPipe.default_tc"
+    alias: "default_tc"
+  }
+  match_fields {
+    id: 1
+    name: "slice_id"
+    bitwidth: 4
+    match_type: EXACT
+  }
+  match_fields {
+    id: 2
+    name: "tc_unknown"
+    bitwidth: 1
+    match_type: EXACT
+  }
+  action_refs {
+    id: 26119176
+  }
+  action_refs {
+    id: 21257015
+    annotations: "@defaultonly"
+    scope: DEFAULT_ONLY
+  }
+  const_default_action_id: 21257015
+  size: 16
+}
 actions {
   preamble {
     id: 21257015
@@ -652,6 +681,18 @@ actions {
 }
 actions {
   preamble {
+    id: 26119176
+    name: "PreQosPipe.set_default_tc"
+    alias: "set_default_tc"
+  }
+  params {
+    id: 1
+    name: "tc"
+    bitwidth: 2
+  }
+}
+actions {
+  preamble {
     id: 29247910
     name: "PreQosPipe.do_gtpu_tunnel"
     alias: "do_gtpu_tunnel"
@@ -728,6 +769,17 @@ meters {
     unit: BYTES
   }
   size: 1024
+}
+meters {
+  preamble {
+    id: 336833095
+    name: "PreQosPipe.slice_tc_meter"
+    alias: "slice_tc_meter"
+  }
+  spec {
+    unit: BYTES
+  }
+  size: 64
 }
 controller_packet_metadata {
   preamble {
