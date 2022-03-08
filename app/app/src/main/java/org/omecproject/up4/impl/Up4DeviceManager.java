@@ -1446,10 +1446,16 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
                 unexpectedMeters.stream()
                         .map(m -> Pair.of(meterToMeterRequestForDevice(m, deviceId, false), m.meterCellId()))
-                        .forEach(m -> meterService.withdraw(m.getLeft(), m.getRight()));
+                        .forEach(m -> {
+                            log.trace("Removing {} from {}", m, deviceId);
+                            meterService.withdraw(m.getLeft(), m.getRight());
+                        });
                 staleMeters.stream()
                         .map(m -> meterToMeterRequestForDevice(m, deviceId, true))
-                        .forEach(m -> meterService.submit(m));
+                        .forEach(m -> {
+                            log.trace("Modifying {} in {}", m, deviceId);
+                            meterService.submit(m);
+                        });
                 missingMeters.stream()
                         .map(m -> meterToMeterRequestForDevice(m, deviceId, true))
                         .forEach(m -> {
