@@ -11,6 +11,8 @@
             </parallel>
             <step name="Log-Dump-Pfcp-Agent"
                   exec="docker-log-dump pfcp-agent"/>
+            <step name="Log-Dump-Mock-Smf"
+                  exec="docker-log-dump mock-smf"/>
         </group>
         <step name="Docker-Compose-Down" requires="Dump-Logs"
               exec="${DOCKER_COMPOSE_CMD} down -t0"/>
