@@ -1365,7 +1365,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 followerRules.removeAll(unexpectedRules);
                 ops.newStage();
                 unexpectedRules.forEach(r -> {
-                    log.info("Removing {} from {}", copyFlowRuleForDevice(r, deviceId), deviceId);
+                    log.trace("Removing {} from {}", copyFlowRuleForDevice(r, deviceId), deviceId);
                     ops.remove(copyFlowRuleForDevice(r, deviceId));
                 });
 
@@ -1377,7 +1377,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 leaderRules.removeAll(staleRules);
                 ops.newStage();
                 staleRules.forEach(r -> {
-                    log.info("Modifying {} in {}", copyFlowRuleForDevice(r, deviceId), deviceId);
+                    log.trace("Modifying {} in {}", copyFlowRuleForDevice(r, deviceId), deviceId);
                     ops.modify(copyFlowRuleForDevice(r, deviceId));
                 });
 
@@ -1387,7 +1387,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                         .collect(Collectors.toSet());
                 ops.newStage();
                 missingRules.forEach(r -> {
-                    log.info("Adding {} to {}", copyFlowRuleForDevice(r, deviceId), deviceId);
+                    log.trace("Adding {} to {}", copyFlowRuleForDevice(r, deviceId), deviceId);
                     ops.add(copyFlowRuleForDevice(r, deviceId));
                 });
 
