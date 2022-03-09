@@ -988,8 +988,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     return Math.min(config.maxUes() * 2, entitySize);
                 }
                 break;
+            // SLICE_METER: independent on the number of UEs, keep value from UPF device
             default:
-
         }
         return entitySize;
     }
