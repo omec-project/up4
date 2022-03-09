@@ -45,6 +45,8 @@ IP_PROTO_ICMP = 0x01
 DIRECTION_UPLINK = "UL"
 DIRECTION_DOWNLINK = "DL"
 
+TC_ELASTIC = 3
+
 
 class GtpuBaseTest(P4RuntimeTest):
 
@@ -336,7 +338,7 @@ class GtpuBaseTest(P4RuntimeTest):
             ))
 
     def add_terminations_uplink(self, ue_address, ctr_idx, app_meter_idx=DEFAULT_APP_METER_IDX,
-                                tc=None, drop=False, app_id=APP_ID_UNKNOWN):
+                                tc=TC_ELASTIC, drop=False, app_id=APP_ID_UNKNOWN):
         match_fields = {
             "ue_address": ue_address,
             "app_id": app_id,
@@ -345,12 +347,9 @@ class GtpuBaseTest(P4RuntimeTest):
         if drop:
             action_name = "PreQosPipe.uplink_term_drop"
         else:
+            action_name = "PreQosPipe.uplink_term_fwd"
             action_params["app_meter_idx"] = app_meter_idx
-            if tc is None:
-                action_name = "PreQosPipe.uplink_term_fwd_no_tc"
-            else:
-                action_params["tc"] = tc
-                action_name = "PreQosPipe.uplink_term_fwd"
+            action_params["tc"] = tc
         self.insert(
             self.helper.build_table_entry(
                 table_name="PreQosPipe.terminations_uplink",
@@ -360,7 +359,7 @@ class GtpuBaseTest(P4RuntimeTest):
             ))
 
     def add_terminations_downlink(self, ue_address, ctr_idx, app_meter_idx=DEFAULT_APP_METER_IDX,
-                                  tc=None, teid=None, qfi=None, drop=False, app_id=APP_ID_UNKNOWN):
+                                  tc=TC_ELASTIC, teid=None, qfi=None, drop=False, app_id=APP_ID_UNKNOWN):
         match_fields = {
             "ue_address": ue_address,
             "app_id": app_id,
@@ -369,14 +368,11 @@ class GtpuBaseTest(P4RuntimeTest):
         if drop:
             action_name = "PreQosPipe.downlink_term_drop"
         else:
+            action_name = "PreQosPipe.downlink_term_fwd"
             action_params["teid"] = teid
             action_params["qfi"] = qfi
             action_params["app_meter_idx"] = app_meter_idx
-            if tc:
-                action_params["tc"] = tc
-                action_name = "PreQosPipe.downlink_term_fwd"
-            else:
-                action_name = "PreQosPipe.downlink_term_fwd_no_tc"
+            action_params["tc"] = tc
         self.insert(
             self.helper.build_table_entry(
                 table_name="PreQosPipe.terminations_downlink",
@@ -453,7 +449,8 @@ class GtpuBaseTest(P4RuntimeTest):
                                    session_meter_idx=DEFAULT_SESSION_METER_IDX,
                                    session_meter_max_bitrate=None,
                                    app_meter_idx=DEFAULT_APP_METER_IDX, app_meter_max_bitrate=None,
-                                   tc=0, app_filtering=False, drop=False):
+                                   slice_meter_max_bitrate=None, tc=TC_ELASTIC, app_filtering=False,
+                                   drop=False):
         """ Add all table entries required for the given uplink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -496,6 +493,8 @@ class GtpuBaseTest(P4RuntimeTest):
             self.add_app_meter(app_meter_idx, app_meter_max_bitrate)
         if session_meter_max_bitrate is not None:
             self.add_session_meter(session_meter_idx, session_meter_max_bitrate)
+        if slice_meter_max_bitrate is not None:
+            self.add_slice_meter(MOBILE_SLICE, tc, slice_meter_max_bitrate)
         # Add routing entry even if drop, UPF drop should be perfomed before routing
         self.add_routing_entry(
             ip_prefix=exp_pkt[IP].dst + '/32',
@@ -509,7 +508,9 @@ class GtpuBaseTest(P4RuntimeTest):
                                      session_meter_max_bitrate=None,
                                      app_meter_idx=DEFAULT_APP_METER_IDX,
                                      app_meter_max_bitrate=None, drop=False, buffer=False,
-                                     tun_id=None, qfi=0, tc=0, push_qfi=False, app_filtering=False):
+                                     slice_meter_max_bitrate=None, tun_id=None,
+                                     qfi=0, tc=TC_ELASTIC, push_qfi=False,
+                                     app_filtering=False):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -571,6 +572,8 @@ class GtpuBaseTest(P4RuntimeTest):
             self.add_app_meter(app_meter_idx, app_meter_max_bitrate)
         if session_meter_max_bitrate is not None:
             self.add_session_meter(session_meter_idx, session_meter_max_bitrate)
+        if slice_meter_max_bitrate is not None:
+            self.add_slice_meter(MOBILE_SLICE, tc, slice_meter_max_bitrate)
         # Add routing entry even if drop, UPF drop should be perfomed before routing
         self.add_routing_entry(
             ip_prefix=exp_pkt[IP].dst + '/32',
@@ -585,6 +588,11 @@ class GtpuBaseTest(P4RuntimeTest):
     def add_session_meter(self, session_meter_idx, session_meter_max_bitrate):
         self.__add_meter_helper("PreQosPipe.session_meter", session_meter_idx,
                                 session_meter_max_bitrate)
+
+    def add_slice_meter(self, slice_id, tc, slice_max_bitrate):
+        self.__add_meter_helper("PreQosPipe.slice_tc_meter",
+                                (slice_id << 2) + tc,
+                                slice_max_bitrate)
 
     def set_up_ddn_digest(self, ack_timeout_ns):
         # No timeout, not batching. Not recommended for production.
