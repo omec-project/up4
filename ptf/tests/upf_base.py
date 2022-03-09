@@ -591,7 +591,7 @@ class GtpuBaseTest(P4RuntimeTest):
 
     def add_slice_meter(self, slice_id, tc, slice_max_bitrate):
         self.__add_meter_helper("PreQosPipe.slice_tc_meter",
-                                (slice_id << 2) + tc,
+                                (slice_id << 2) + (tc & 0b11),
                                 slice_max_bitrate)
 
     def set_up_ddn_digest(self, ack_timeout_ns):
