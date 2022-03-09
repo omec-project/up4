@@ -250,14 +250,9 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.terminations_hit = true;
     }
 
-    action uplink_term_fwd_no_tc(counter_index_t ctr_idx, app_meter_idx_t app_meter_idx) {
+    action uplink_term_fwd(counter_index_t ctr_idx, tc_t tc, app_meter_idx_t app_meter_idx) {
         common_term(ctr_idx);
         local_meta.app_meter_idx_internal = app_meter_idx;
-    }
-
-    action uplink_term_fwd(counter_index_t ctr_idx, tc_t tc, app_meter_idx_t app_meter_idx) {
-        uplink_term_fwd_no_tc(ctr_idx, app_meter_idx);
-        local_meta.tc_unknown = false;
         local_meta.tc = tc;
     }
 
@@ -266,17 +261,12 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.needs_dropping = true;
     }
 
-    action downlink_term_fwd_no_tc(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, app_meter_idx_t app_meter_idx) {
+    // QFI = 0 for 4G traffic
+    action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, tc_t tc, app_meter_idx_t app_meter_idx) {
         common_term(ctr_idx);
         local_meta.tunnel_out_teid = teid;
         local_meta.tunnel_out_qfi = qfi;
         local_meta.app_meter_idx_internal = app_meter_idx;
-    }
-
-    // QFI = 0 for 4G traffic
-    action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, tc_t tc, app_meter_idx_t app_meter_idx) {
-        downlink_term_fwd_no_tc(ctr_idx, teid, qfi, app_meter_idx);
-        local_meta.tc_unknown = false;
         local_meta.tc = tc;
     }
 
@@ -292,7 +282,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         }
         actions = {
             uplink_term_fwd;
-            uplink_term_fwd_no_tc;
             uplink_term_drop;
             @defaultonly do_drop;
         }
@@ -307,7 +296,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         actions = {
             downlink_term_fwd;
             downlink_term_drop;
-            downlink_term_fwd_no_tc;
             @defaultonly do_drop;
         }
         const default_action = do_drop;
@@ -347,23 +335,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         actions = {
             load_tunnel_param;
         }
-    }
-
-    action set_default_tc(tc_t tc) {
-        local_meta.tc = tc;
-    }
-
-    table default_tc {
-        key = {
-            local_meta.slice_id:    exact @name("slice_id");
-            local_meta.tc_unknown:  exact @name("tc_unknown");
-        }
-        actions = {
-            set_default_tc;
-            @defaultonly NoAction;
-        }
-        const default_action = NoAction;
-        size = 1 << SLICE_ID_WIDTH;
     }
 
     @hidden
@@ -513,6 +484,11 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                     session_meter.execute_meter<MeterColor>(local_meta.session_meter_idx_internal, local_meta.session_color);
                     if (local_meta.session_color == MeterColor.RED) {
                         local_meta.needs_dropping = true;
+                    } else {
+                        slice_tc_meter.execute_meter<MeterColor>(local_meta.slice_id++local_meta.tc, local_meta.slice_tc_color);
+                        if (local_meta.slice_tc_color == MeterColor.RED) {
+                            local_meta.needs_dropping = true;
+                        }
                     }
                 }
 
@@ -524,13 +500,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                 if (local_meta.needs_buffering) {
                     do_buffer();
                 }
-
-                default_tc.apply();
-                slice_tc_meter.execute_meter<MeterColor>(local_meta.slice_id++local_meta.tc, local_meta.slice_tc_color);
-                if (local_meta.slice_tc_color == MeterColor.RED) {
-                    local_meta.needs_dropping = true;
-                }
-
                 if (local_meta.needs_tunneling) {
                     if (local_meta.tunnel_out_qfi == 0) {
                         // 4G

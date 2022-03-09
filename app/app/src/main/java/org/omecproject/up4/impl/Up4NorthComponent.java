@@ -252,7 +252,8 @@ public class Up4NorthComponent {
         try {
             UpfEntityType entityType = up4Translator.getEntityType(requestedEntry);
             boolean isMeter = entityType.equals(UpfEntityType.SESSION_METER) ||
-                    entityType.equals(UpfEntityType.APPLICATION_METER);
+                    entityType.equals(UpfEntityType.APPLICATION_METER) ||
+                    entityType.equals(UpfEntityType.SLICE_METER);
             Collection<? extends UpfEntity> entities = up4Service.readAll(entityType);
             for (UpfEntity entity : entities) {
                 log.debug("Translating a {} entity for a read request: {}", entity.type(), entity);

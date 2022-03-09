@@ -80,9 +80,6 @@ public final class Up4P4InfoConstants {
     public static final PiMatchFieldId HDR_SRC_IFACE =
             PiMatchFieldId.of("src_iface");
     public static final int HDR_SRC_IFACE_BITWIDTH = 8;
-    public static final PiMatchFieldId HDR_TC_UNKNOWN =
-            PiMatchFieldId.of("tc_unknown");
-    public static final int HDR_TC_UNKNOWN_BITWIDTH = 1;
     public static final PiMatchFieldId HDR_TEID = PiMatchFieldId.of("teid");
     public static final int HDR_TEID_BITWIDTH = 32;
     public static final PiMatchFieldId HDR_TUNNEL_PEER_ID =
@@ -98,8 +95,6 @@ public final class Up4P4InfoConstants {
             PiTableId.of("PreQosPipe.Routing.routes_v4");
     public static final PiTableId PRE_QOS_PIPE_APPLICATIONS =
             PiTableId.of("PreQosPipe.applications");
-    public static final PiTableId PRE_QOS_PIPE_DEFAULT_TC =
-            PiTableId.of("PreQosPipe.default_tc");
     public static final PiTableId PRE_QOS_PIPE_INTERFACES =
             PiTableId.of("PreQosPipe.interfaces");
     public static final PiTableId PRE_QOS_PIPE_MY_STATION =
@@ -147,14 +142,10 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.downlink_term_drop");
     public static final PiActionId PRE_QOS_PIPE_DOWNLINK_TERM_FWD =
             PiActionId.of("PreQosPipe.downlink_term_fwd");
-    public static final PiActionId PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC =
-            PiActionId.of("PreQosPipe.downlink_term_fwd_no_tc");
     public static final PiActionId PRE_QOS_PIPE_LOAD_TUNNEL_PARAM =
             PiActionId.of("PreQosPipe.load_tunnel_param");
     public static final PiActionId PRE_QOS_PIPE_SET_APP_ID =
             PiActionId.of("PreQosPipe.set_app_id");
-    public static final PiActionId PRE_QOS_PIPE_SET_DEFAULT_TC =
-            PiActionId.of("PreQosPipe.set_default_tc");
     public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK =
             PiActionId.of("PreQosPipe.set_session_downlink");
     public static final PiActionId PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF =
@@ -171,8 +162,6 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.uplink_term_drop");
     public static final PiActionId PRE_QOS_PIPE_UPLINK_TERM_FWD =
             PiActionId.of("PreQosPipe.uplink_term_fwd");
-    public static final PiActionId PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC =
-            PiActionId.of("PreQosPipe.uplink_term_fwd_no_tc");
     // Action Param IDs
     public static final PiActionParamId APP_ID = PiActionParamId.of("app_id");
     public static final PiActionParamId APP_METER_IDX =

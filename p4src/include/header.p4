@@ -136,7 +136,6 @@ struct local_metadata_t {
 
     slice_id_t slice_id;
     tc_t tc;
-    bool tc_unknown;
 
     ipv4_addr_t next_hop_ip;
 

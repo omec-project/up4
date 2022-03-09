@@ -227,9 +227,6 @@ tables {
     id: 28305359
   }
   action_refs {
-    id: 21760615
-  }
-  action_refs {
     id: 20977365
   }
   action_refs {
@@ -263,9 +260,6 @@ tables {
   }
   action_refs {
     id: 31264233
-  }
-  action_refs {
-    id: 26185804
   }
   action_refs {
     id: 28401267
@@ -332,35 +326,6 @@ tables {
     scope: DEFAULT_ONLY
   }
   size: 1024
-}
-tables {
-  preamble {
-    id: 38896582
-    name: "PreQosPipe.default_tc"
-    alias: "default_tc"
-  }
-  match_fields {
-    id: 1
-    name: "slice_id"
-    bitwidth: 4
-    match_type: EXACT
-  }
-  match_fields {
-    id: 2
-    name: "tc_unknown"
-    bitwidth: 1
-    match_type: EXACT
-  }
-  action_refs {
-    id: 26119176
-  }
-  action_refs {
-    id: 21257015
-    annotations: "@defaultonly"
-    scope: DEFAULT_ONLY
-  }
-  const_default_action_id: 21257015
-  size: 16
 }
 actions {
   preamble {
@@ -525,23 +490,6 @@ actions {
 }
 actions {
   preamble {
-    id: 21760615
-    name: "PreQosPipe.uplink_term_fwd_no_tc"
-    alias: "uplink_term_fwd_no_tc"
-  }
-  params {
-    id: 1
-    name: "ctr_idx"
-    bitwidth: 32
-  }
-  params {
-    id: 2
-    name: "app_meter_idx"
-    bitwidth: 32
-  }
-}
-actions {
-  preamble {
     id: 28305359
     name: "PreQosPipe.uplink_term_fwd"
     alias: "uplink_term_fwd"
@@ -571,33 +519,6 @@ actions {
   params {
     id: 1
     name: "ctr_idx"
-    bitwidth: 32
-  }
-}
-actions {
-  preamble {
-    id: 26185804
-    name: "PreQosPipe.downlink_term_fwd_no_tc"
-    alias: "downlink_term_fwd_no_tc"
-  }
-  params {
-    id: 1
-    name: "ctr_idx"
-    bitwidth: 32
-  }
-  params {
-    id: 2
-    name: "teid"
-    bitwidth: 32
-  }
-  params {
-    id: 3
-    name: "qfi"
-    bitwidth: 6
-  }
-  params {
-    id: 4
-    name: "app_meter_idx"
     bitwidth: 32
   }
 }
@@ -677,18 +598,6 @@ actions {
     id: 3
     name: "sport"
     bitwidth: 16
-  }
-}
-actions {
-  preamble {
-    id: 26119176
-    name: "PreQosPipe.set_default_tc"
-    alias: "set_default_tc"
-  }
-  params {
-    id: 1
-    name: "tc"
-    bitwidth: 2
   }
 }
 actions {
