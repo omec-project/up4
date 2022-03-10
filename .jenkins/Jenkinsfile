@@ -125,7 +125,7 @@ pipeline {
         }
       }
     }
-    stage("Init retryCount") {
+    stage("Init retryCount leaf-spine") {
         steps {
             script {
                 env.retryCount = '0'
@@ -135,10 +135,12 @@ pipeline {
     stage("Smoke test leaf-spine") {
       options { retry(3) }
       steps {
-        tryCount = env.retryCount as Integer
-        tryCount ++
-        runSTCSmokeTest("leafspine")
-        env.retryCount = tryCount as String
+        script {
+            tryCount = env.retryCount as Integer
+            tryCount++
+            runSTCSmokeTest("leafspine")
+            env.retryCount = tryCount as String
+        }
       }
       post {
         always {
@@ -146,7 +148,7 @@ pipeline {
         }
       }
     }
-    stage("Init retryCount") {
+    stage("Init retryCount pair-leaf") {
         steps {
             script {
                 env.retryCount = '0'
@@ -156,10 +158,12 @@ pipeline {
     stage("Smoke test single pair-leaf") {
       options { retry(3) }
       steps {
-        tryCount = env.retryCount as Integer
-        tryCount ++
-        runSTCSmokeTest("singlepair")
-        env.retryCount = tryCount as String
+        script {
+            tryCount = env.retryCount as Integer
+            tryCount++
+            runSTCSmokeTest("singlepair")
+            env.retryCount = tryCount as String
+        }
       }
       post {
         always {
