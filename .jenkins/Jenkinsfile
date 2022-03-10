@@ -16,7 +16,7 @@ pipeline {
     label "${params.buildNode}"
   }
   options {
-    timeout(time: 30, unit: 'MINUTES')
+    timeout(time: 60, unit: 'MINUTES')
   }
 
   environment {
@@ -24,6 +24,7 @@ pipeline {
     UP4_CTRL = "${up4Ctrl}"
     JAVA_HOME = "/usr/lib/jvm/java-11-amazon-corretto"
     GITHUB_URL = "ssh://git@github.com/omec-project/up4.git"
+    retryCount = "0"
   }
 
   stages {
@@ -124,25 +125,43 @@ pipeline {
         }
       }
     }
+    stage("Init retryCount") {
+        steps {
+            script {
+                env.retryCount = '0'
+            }
+        }
+    }
     stage("Smoke test leaf-spine") {
       options { retry(3) }
       steps {
+        tryCount = env.retryCount as Integer
         runSTCSmokeTest("leafspine")
+        env.retryCount = tryCount as String
       }
       post {
         always {
-          exportArtifactsScenarios("leafspine")
+          exportArtifactsScenarios("leafspine-${env.retryCount}")
         }
       }
+    }
+    stage("Init retryCount") {
+        steps {
+            script {
+                env.retryCount = '0'
+            }
+        }
     }
     stage("Smoke test single pair-leaf") {
       options { retry(3) }
       steps {
+        tryCount = env.retryCount as Integer
         runSTCSmokeTest("singlepair")
+        env.retryCount = tryCount as String
       }
       post {
         always {
-          exportArtifactsScenarios("singlepair")
+          exportArtifactsScenarios("singlepair-${env.retryCount}")
         }
       }
     }
