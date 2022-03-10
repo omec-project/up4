@@ -1365,8 +1365,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 followerRules.removeAll(unexpectedRules);
                 ops.newStage();
                 unexpectedRules.forEach(r -> {
-                    log.info("Removing {} from {}", copyFlowRuleForDevice(r, deviceId), deviceId);
-                    ops.remove(copyFlowRuleForDevice(r, deviceId));
+                    FlowRule flowRule = copyFlowRuleForDevice(r, deviceId);
+                    log.trace("Removing {} from {}", flowRule, deviceId);
+                    ops.remove(flowRule);
                 });
 
                 Set<FlowRule> staleRules =
@@ -1377,8 +1378,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                 leaderRules.removeAll(staleRules);
                 ops.newStage();
                 staleRules.forEach(r -> {
-                    log.info("Modifying {} in {}", copyFlowRuleForDevice(r, deviceId), deviceId);
-                    ops.modify(copyFlowRuleForDevice(r, deviceId));
+                    FlowRule flowRule = copyFlowRuleForDevice(r, deviceId);
+                    log.trace("Modifying {} in {}", flowRule, deviceId);
+                    ops.modify(flowRule);
                 });
 
                 Set<FlowRule> missingRules =
@@ -1387,8 +1389,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                         .collect(Collectors.toSet());
                 ops.newStage();
                 missingRules.forEach(r -> {
-                    log.info("Adding {} to {}", copyFlowRuleForDevice(r, deviceId), deviceId);
-                    ops.add(copyFlowRuleForDevice(r, deviceId));
+                    FlowRule flowRule = copyFlowRuleForDevice(r, deviceId);
+                    log.trace("Adding {} to {}", flowRule, deviceId);
+                    ops.add(flowRule);
                 });
 
                 flowRuleService.apply(ops.build());
@@ -1443,13 +1446,22 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
                 unexpectedMeters.stream()
                         .map(m -> Pair.of(meterToMeterRequestForDevice(m, deviceId, false), m.meterCellId()))
-                        .forEach(m -> meterService.withdraw(m.getLeft(), m.getRight()));
+                        .forEach(m -> {
+                            log.trace("Removing {} from {}", m, deviceId);
+                            meterService.withdraw(m.getLeft(), m.getRight());
+                        });
                 staleMeters.stream()
                         .map(m -> meterToMeterRequestForDevice(m, deviceId, true))
-                        .forEach(m -> meterService.submit(m));
+                        .forEach(m -> {
+                            log.trace("Modifying {} in {}", m, deviceId);
+                            meterService.submit(m);
+                        });
                 missingMeters.stream()
                         .map(m -> meterToMeterRequestForDevice(m, deviceId, true))
-                        .forEach(m -> meterService.submit(m));
+                        .forEach(m -> {
+                            log.trace("Adding {} to {}", m, deviceId);
+                            meterService.submit(m);
+                        });
             }
         }
     }
