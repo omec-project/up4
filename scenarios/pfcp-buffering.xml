@@ -12,11 +12,7 @@
                             starts="Pfcp-Buffer-Session-Create-${#}"
                             ends="Pfcp-Buffer-Session-Create-${#-1}">
                     <step name="Pfcp-Buffer-Session-Create-${#}" requires="Push-Netcfg-Dbuf" delay="5"
-<<<<<<< HEAD
                           exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session create --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
-=======
-                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
->>>>>>> 95bf0ae1a21d8e73b19dec6a5e67476b0fe58317
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-Buff-Create" requires="Pfcp-Push-Buff-Create" delay="5"
@@ -39,11 +35,7 @@
                             starts="Pfcp-Buffer-Session-Modify-${#}"
                             ends="Pfcp-Buffer-Session-Modify-${#-1}">
                     <step name="Pfcp-Buffer-Session-Modify-${#}" requires="Check-Traffic-Buff-Drop-DL" delay="5"
-<<<<<<< HEAD
                           exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
-=======
-                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
->>>>>>> 95bf0ae1a21d8e73b19dec6a5e67476b0fe58317
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-Buff-Modify" requires="Pfcp-Push-Buff-Modify" delay="5"
