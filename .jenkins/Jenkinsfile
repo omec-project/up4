@@ -136,6 +136,7 @@ pipeline {
       options { retry(3) }
       steps {
         tryCount = env.retryCount as Integer
+        tryCount ++
         runSTCSmokeTest("leafspine")
         env.retryCount = tryCount as String
       }
@@ -156,6 +157,7 @@ pipeline {
       options { retry(3) }
       steps {
         tryCount = env.retryCount as Integer
+        tryCount ++
         runSTCSmokeTest("singlepair")
         env.retryCount = tryCount as String
       }
