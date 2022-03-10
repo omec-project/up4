@@ -54,23 +54,20 @@
         </group>
         <group name="Pfcp-Clear-App-Filtering-1">
             <sequential var="${ENODEB#}"
-                starts="Clear-App-Filtering-${#}-1"
-                ends="Clear-App-Filtering-${#-1}-1">
+                        starts="Clear-App-Filtering-${#}-1"
+                        ends="Clear-App-Filtering-${#-1}-1">
                 <step name="Clear-App-Filtering-${#}-1" requires="~Check-Traffic-App-Filtering-Negative-1,~Check-Traffic-App-Filtering-Positive-1"
                       exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session delete --count 5 --baseID ${#}0"/>
             </sequential>
         </group>
-    </group>
-
-    <group name="Pfcp-App-Filtering-2">
-        <group name="Pfcp-Setup-App-Filtering-2">
+        <group name="Pfcp-Setup-App-Filtering-2" requires="Pfcp-Clear-App-Filtering-1">
             <group name="Pfcp-Push-App-Filtering-2" delay="5">
                 <sequential var="${ENODEB#}"
                             starts="Pfcp-Session-Create-App-Filtering-${#}-2"
                             ends="Pfcp-Session-App-Filtering-${#-1}-2">
-                    <step name="Pfcp-Session-Create-App-Filtering-${#}-2" requires="Pfcp-Clear-App-Filtering-1"
+                    <step name="Pfcp-Session-Create-App-Filtering-${#}-2"
                           exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session create --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1 --sdf-filter 'permit out ip from 0.0.0.0/0 to assigned 81-81' --gate-status"/>
-                    <step name="Pfcp-Session-App-Filtering-${#}-2" requires="Pfcp-Clear-App-Filtering-1,Pfcp-Session-Create-App-Filtering-${#}-2"
+                    <step name="Pfcp-Session-App-Filtering-${#}-2" requires="Pfcp-Session-Create-App-Filtering-${#}-2"
                           exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
