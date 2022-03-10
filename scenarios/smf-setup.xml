@@ -5,9 +5,9 @@
 <scenario name="smf-setup" description="Mock SMF setup">
     <group name="Smf-Setup">
         <step name="Mock-Smf-Start"
-              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c configure --n3-addr 140.0.0.1 --remote-peer pfcp-agent"/>
+              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl service configure --n3-addr 140.0.0.1 --remote-peer-addr pfcp-agent"/>
         <step name="Mock-Smf-Associate" requires="^"
-              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c associate"/>
+              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl service associate"/>
         <step name="Check-Pfcp-Agent-Survived-Start" requires="^" delay="1"
               exec="pfcp-agent-check-alive"/>
         <step name="Check-Up4-N3-Interface" requires="^"

@@ -7,9 +7,9 @@
     <group name="Smf-Failure">
         <group name="SF-Setup-Fwd-1">
             <step name="SF-Create-Session-1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session create --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
             <step name="SF-Modify-Session-1" requires="^" delay="1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session modify --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
         </group>
 
         <step name="SF-Check-Flows-1" requires="SF-Setup-Fwd-1" delay="2"
@@ -25,16 +25,16 @@
             <step name="SF-Start-Smf"
                   exec="${DOCKER_COMPOSE_CMD} up -d mock-smf"/>
             <step name="SF-Configure-Smf" requires="^" delay="1"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c configure --n3-addr 140.0.0.1 --remote-peer pfcp-agent"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl service configure --n3-addr 140.0.0.1 --remote-peer-addr pfcp-agent"/>
             <step name="SF-Associate-Smf" requires="^"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c associate"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl service associate"/>
         </group>
 
         <group name="SF-Setup-Fwd-2" requires="SF-Revive-Smf">
             <step name="SF-Create-Session-2"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c create --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session create --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
             <step name="SF-Modify-Session-2" requires="^"
-                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c modify --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
+                  exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session modify --ue-pool 17.0.0.0/24 --gnb-addr 140.0.100.1"/>
         </group>
 
         <step name="SF-Check-Flows-3" requires="SF-Setup-Fwd-2" delay="2"
@@ -54,7 +54,7 @@
         </group>
 
         <step name="SF-Clear-Flows" requires="~SF-Check-Fwding"
-              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl -c delete"/>
+              exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session delete"/>
 
         <step name="SF-Check-Flows-4" requires="^" delay="2"
               exec="onos-cli-grep ${OCI} up4:read-flows 'UL flows=0, DL flows=0'"/>
