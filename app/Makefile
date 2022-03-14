@@ -54,7 +54,7 @@ build: _build_resources
 # ci-verify is a build profile specified in onos-dependencies's pom.xml
 # It's used to run javadoc validation and other checks that should not
 # run on local build, but during CI.
-build-ci: MVN_FLAGS := -Pci-verify -Pcoverage
+build-ci: MVN_FLAGS := -B -q -Pci-verify -Pcoverage
 build-ci: local-build
 
 clean:
@@ -80,7 +80,7 @@ p4rt-bash:
 	cd ../scenarios && docker-compose exec p4rt /bin/bash
 
 app-load:
-	${onos_tools_dir}/onos-app localhost install! app/target/up4-app-1.1.0-SNAPSHOT.oar
+	${onos_tools_dir}/onos-app localhost install! app/target/up4-app-1.2.0-SNAPSHOT.oar
 
 app-reload:
-	${onos_tools_dir}/onos-app localhost reinstall! app/target/up4-app-1.1.0-SNAPSHOT.oar
+	${onos_tools_dir}/onos-app localhost reinstall! app/target/up4-app-1.2.0-SNAPSHOT.oar

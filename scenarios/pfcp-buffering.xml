@@ -12,7 +12,7 @@
                             starts="Pfcp-Buffer-Session-Create-${#}"
                             ends="Pfcp-Buffer-Session-Create-${#-1}">
                     <step name="Pfcp-Buffer-Session-Create-${#}" requires="Push-Netcfg-Dbuf" delay="5"
-                          exec="mock-smf-cmd create --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session create --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-Buff-Create" requires="Pfcp-Push-Buff-Create" delay="5"
@@ -35,7 +35,7 @@
                             starts="Pfcp-Buffer-Session-Modify-${#}"
                             ends="Pfcp-Buffer-Session-Modify-${#-1}">
                     <step name="Pfcp-Buffer-Session-Modify-${#}" requires="Check-Traffic-Buff-Drop-DL" delay="5"
-                          exec="mock-smf-cmd modify --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-Buff-Modify" requires="Pfcp-Push-Buff-Modify" delay="5"
@@ -49,7 +49,7 @@
                             starts="Pfcp-Buffer-Session-Buffer-${#}"
                             ends="Pfcp-Buffer-Session-Buffer-${#-1}">
                     <step name="Pfcp-Buffer-Session-Buffer-${#}" requires="Pfcp-Set-Buff-Modify" delay="5"
-                          exec="mock-smf-cmd modify --buffer --notifycp --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session modify --buffer --notifycp --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-Buff-Buffer" requires="Pfcp-Push-Buff-Buffer" delay="5"
@@ -71,7 +71,7 @@
                 <step name="Downlink-Enb-Recv-Gtp-Buff-${#}" requires="Verify-First-Buffer-${#}"
                       exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 60 --no-verify-teid --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
                 <step name="Pfcp-Set-Fwd-After-Buff-${#}" requires="Verify-First-Buffer-${#}" delay="5"
-                      exec="mock-smf-cmd modify --session-count 5 --sleep-time 1 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                      exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 <step name="Check-Drain-Started-${#}" requires="Pfcp-Set-Fwd-After-Buff-${#}" delay="5"
                       exec="docker-log-grep ${ODI} 'Started dbuf drain for 17.0.${#-1}' 5"/>
                 <step name="Check-Drain-Completed-${#}" requires="Pfcp-Set-Fwd-After-Buff-${#}" delay="5"
@@ -84,7 +84,7 @@
                             starts="Pfcp-Unset-Fwd-After-Buff-${#}"
                             ends="Pfcp-Unset-Fwd-After-Buff-${#-1}">
                     <step name="Pfcp-Unset-Fwd-After-Buff-${#}"
-                          exec="mock-smf-cmd delete --session-count 5 --base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session delete --count 5 --baseID ${#}0"/>
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-Fwd-After-Buff-Cleared" requires="Clear-Buff"
