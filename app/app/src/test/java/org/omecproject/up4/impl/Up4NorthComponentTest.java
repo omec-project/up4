@@ -578,6 +578,7 @@ public class Up4NorthComponentTest {
     public void setPipelineConfigTest() {
         MockStreamObserver<P4RuntimeOuterClass.SetForwardingPipelineConfigResponse> responseObserver
                 = new MockStreamObserver<>();
+        responseObserver.setErrorExpected(io.grpc.Status.UNIMPLEMENTED.asException());
         var setPipeRequest = P4RuntimeOuterClass.SetForwardingPipelineConfigRequest.newBuilder()
                 .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
                 .setConfig(P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
@@ -587,9 +588,6 @@ public class Up4NorthComponentTest {
                                    .build())
                 .build();
         up4NorthService.setForwardingPipelineConfig(setPipeRequest, responseObserver);
-        var response = responseObserver.lastResponse();
-        assertThat(response,
-                   equalTo(P4RuntimeOuterClass.SetForwardingPipelineConfigResponse.getDefaultInstance()));
     }
 
     @Test
