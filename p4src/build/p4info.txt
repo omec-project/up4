@@ -793,4 +793,28 @@ type_info {
       }
     }
   }
+  serializable_enums {
+    key: "TrafficClass"
+    value {
+      underlying_type {
+        bitwidth: 2
+      }
+      members {
+        name: "BEST_EFFORT"
+        value: "\000"
+      }
+      members {
+        name: "CONTROL"
+        value: "\001"
+      }
+      members {
+        name: "REAL_TIME"
+        value: "\002"
+      }
+      members {
+        name: "ELASTIC"
+        value: "\003"
+      }
+    }
+  }
 }

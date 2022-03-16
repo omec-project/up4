@@ -116,6 +116,13 @@ enum bit<4> Slice {
     DEFAULT = 0x0
 }
 
+enum bit<2> TrafficClass {
+    BEST_EFFORT = 0,
+    CONTROL = 1,
+    REAL_TIME = 2,
+    ELASTIC = 3
+}
+
 enum bit<2> MeterColor {
     GREEN = V1MODEL_METER_COLOR_GREEN,
     YELLOW = V1MODEL_METER_COLOR_YELLOW,

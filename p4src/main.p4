@@ -250,7 +250,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.terminations_hit = true;
     }
 
-    action uplink_term_fwd(counter_index_t ctr_idx, tc_t tc, app_meter_idx_t app_meter_idx) {
+    action uplink_term_fwd(counter_index_t ctr_idx, TrafficClass tc, app_meter_idx_t app_meter_idx) {
         common_term(ctr_idx);
         local_meta.app_meter_idx_internal = app_meter_idx;
         local_meta.tc = tc;
@@ -262,7 +262,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     }
 
     // QFI = 0 for 4G traffic
-    action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, tc_t tc, app_meter_idx_t app_meter_idx) {
+    action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, TrafficClass tc, app_meter_idx_t app_meter_idx) {
         common_term(ctr_idx);
         local_meta.tunnel_out_teid = teid;
         local_meta.tunnel_out_qfi = qfi;
