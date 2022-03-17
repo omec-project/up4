@@ -1,0 +1,10 @@
+{
+  "sliceName" : "MOBILE",
+  "sliceQos": {
+    "uplinkMbr": 10000,
+    "uplinkBurstSize": 10000,
+    "downlinkMbr": 10000,
+    "downlinkBurstSize": 10000,
+    "bitrateUnit": "Kbps"
+  }
+}
