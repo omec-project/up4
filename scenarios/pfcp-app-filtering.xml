@@ -24,13 +24,14 @@
             <step name="Check-Flow-Rules-App-Filtering-1" requires="Pfcp-Push-App-Filtering-1" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
+        <!-- Verify that traffic not matching the application filter is dropped -->
         <group name="Check-Traffic-App-Filtering-Negative-1" requires="Pfcp-Setup-App-Filtering-1" delay="5">
             <parallel var="${ENODEB#}">
                 <!-- Downlink -->
                 <step name="Downlink-Enb-Recv-Gtp-Drop-App-Filtering-${#}-1" requires="Pfcp-Setup-App-Filtering-1"
                       exec="mn-cmd ${ENODEB#} traffic.py recv-none -t 10"/>
                 <step name="Downlink-Pdn-Send-Udp-Drop-App-Filtering-${#}-1" requires="Pfcp-Setup-App-Filtering-1" delay="5"
-                      exec="mn-cmd pdn traffic.py send-udp -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port ${#}00"/>
+                      exec="mn-cmd pdn traffic.py send-udp -c 10 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 100"/>
                 <!-- Uplink -->
                 <step name="Uplink-Pdn-Recv-Udp-Drop-App-Filtering-${#}-1"
                       requires="Pfcp-Setup-App-Filtering-1,~Downlink-Enb-Recv-Gtp-Drop-App-Filtering-${#}-1,~Downlink-Pdn-Send-Udp-Drop-App-Filtering-${#}-1"
@@ -38,9 +39,10 @@
                 <step name="Uplink-Enb-Send-Gtp-Drop-App-Filtering-${#}-1"
                       requires="Pfcp-Setup-App-Filtering-1,~Downlink-Enb-Recv-Gtp-Drop-App-Filtering-${#}-1,~Downlink-Pdn-Send-Udp-Drop-App-Filtering-${#}-1"
                       delay="5"
-                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port ${#}00"/>
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 100"/>
             </parallel>
         </group>
+        <!-- Verify that traffic matching the application filter is forwarded -->
         <group name="Check-Traffic-App-Filtering-Positive-1" requires="~Check-Traffic-App-Filtering-Negative-1" delay="5">
             <parallel var="${ENODEB#}">
                 <!-- Downlink -->
