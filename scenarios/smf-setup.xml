@@ -8,7 +8,7 @@
               exec="pfcp-agent-push-slice-config -j ./topo/pfcp-slice-config.json"/>
         <!-- index = slice_id++tc = (15 << 2) + 3 = 63-->
         <step name="Check-Slice-Meter-Config-1" requires="Slice-Meter-Config" delay="5"
-              exec="onos-cli-grep ${OCI} up4:slice-meters 'type=SLICE_METER, index=63'"/>
+              exec="onos-cli-grep ${OCI} up4:slice-meters 'type=SLICE_METER, index=63, committed=null, peak=DefaultBand{rate=10000000, burst-size=10000'"/>
         <step name="Check-Slice-Meter-Config-2" requires="Slice-Meter-Config" delay="5"
               exec="onos-check-meters ${OCI}"/>
         <step name="Mock-Smf-Start"
