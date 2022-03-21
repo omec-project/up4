@@ -34,11 +34,9 @@
                   exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl service associate"/>
         </group>
 
-        <step name="AF-Slice-Meter-Config" requires="AF-Restart-Smf"
-              exec="curl -X POST -H 'Content-Type:application/json' http://localhost:8080/v1/config/network-slices -d@./topo/sliceMeterConfig.json"/>
-        <step name="AF-Check-Slice-Meter-Config" requires="^" delay="5"
-              exec="onos-check-meters ${OCI}"/>
-
+        <!-- index = slice_id++tc = (15 << 2) + 3 = 63-->
+        <step name="AF-Check-Slice-Meter" requires="AF-Restart-Smf"
+              exec="onos-cli-grep ${OCI} up4:slice-meters 'type=SLICE_METER, index=63'"/>
         <step name="AF-Check-Up4-N3-Interface" requires="AF-Restart-Smf"
               exec="onos-cli-grep ${OCI} up4:read-interfaces 'UpfInterface(type=ACCESS, prefix=140.0.0.1/32'"/>
         <step name="AF-Check-Up4-Uepool-Interface" requires="AF-Restart-Smf"

@@ -233,7 +233,7 @@
             }
           },
           "15": {
-            "name": "Slice Mobile",
+            "name": "P4-UPF-1",
             "tcs": {
               "ELASTIC": {
                 "queueId": 6,

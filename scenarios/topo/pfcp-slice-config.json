@@ -1,5 +1,5 @@
 {
-  "sliceName" : "MOBILE",
+  "sliceName" : "P4-UPF-1",
   "sliceQos": {
     "uplinkMbr": 10000,
     "uplinkBurstSize": 10000,
