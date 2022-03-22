@@ -24,7 +24,7 @@ pipeline {
     UP4_CTRL = "${up4Ctrl}"
     JAVA_HOME = "/usr/lib/jvm/java-11-amazon-corretto"
     GITHUB_URL = "ssh://git@github.com/omec-project/up4.git"
-    retryCount = "0"
+    retryCount = '0'
   }
 
   stages {
@@ -136,9 +136,13 @@ pipeline {
       options { retry(3) }
       steps {
         script {
+            echo "env.TryCount Before: ${env.retryCount}"
             tryCount = env.retryCount as Integer
+            echo "TryCount Before: ${tryCount}"
             tryCount++
+            echo "TryCount After: ${tryCount}"
             env.retryCount = tryCount as String
+            echo "env.TryCount After: ${env.retryCount}"
             runSTCSmokeTest("leafspine")
         }
       }
