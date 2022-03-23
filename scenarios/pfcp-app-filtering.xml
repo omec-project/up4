@@ -14,13 +14,13 @@
                             starts="Pfcp-Session-Create-App-Filtering-${#}-1"
                             ends="Pfcp-Session-App-Filtering-${#-1}-1">
                     <step name="Pfcp-Session-Create-App-Filtering-${#}-1"
-                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session create --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1 --app-filter 'udp:0.0.0.0/0:81-81:allow'"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session create --count 5 --baseID ${#}00 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1 --app-filter 'udp:0.0.0.0/0:81-81:allow' --app-filter 'tcp:0.0.0.0/0:82-82:deny'"/>
                     <step name="Pfcp-Session-App-Filtering-${#}-1" requires="^"
-                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session modify --count 5 --baseID ${#}00 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-App-Filtering-1" requires="Pfcp-Push-App-Filtering-1" delay="5"
-                  exec="onos-cli-grep ${OCI} up4:read-flows 'Apps=1, UL sess=${PFCP_UP4_FLOWS}, UL flows=${PFCP_UP4_FLOWS}, DL flows=${PFCP_UP4_FLOWS}'"/>
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'Apps=2, UL sess=${PFCP_UP4_SESSIONS}, UL flows=${PFCP_UP4_APP_FILTER_FLOWS}, DL flows=${PFCP_UP4_APP_FILTER_FLOWS}'"/>
             <step name="Check-Flow-Rules-App-Filtering-1" requires="Pfcp-Push-App-Filtering-1" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
@@ -39,7 +39,7 @@
                 <step name="Uplink-Enb-Send-Gtp-Drop-App-Filtering-${#}-1"
                       requires="Pfcp-Setup-App-Filtering-1,~Downlink-Enb-Recv-Gtp-Drop-App-Filtering-${#}-1,~Downlink-Pdn-Send-Udp-Drop-App-Filtering-${#}-1"
                       delay="5"
-                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 100"/>
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --teid-base ${#}00 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 100"/>
             </parallel>
         </group>
         <!-- Verify that traffic matching the application filter is forwarded -->
@@ -47,14 +47,14 @@
             <parallel var="${ENODEB#}">
                 <!-- Downlink -->
                 <step name="Downlink-Enb-Recv-Gtp-App-Filtering-${#}-1" requires="~Check-Traffic-App-Filtering-Negative-1"
-                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 10 --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 81"/>
+                      exec="mn-cmd ${ENODEB#} traffic.py recv-gtp -t 10 --flow-count 5 --teid-base ${#}00 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 81"/>
                 <step name="Downlink-Pdn-Send-Udp-App-Filtering-${#}-1" requires="~Check-Traffic-App-Filtering-Negative-1" delay="5"
                       exec="mn-cmd pdn traffic.py send-udp -c 10 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 81"/>
                 <!-- Uplink -->
                 <step name="Uplink-Pdn-Recv-Udp-App-Filtering-${#}-1" requires="~Check-Traffic-App-Filtering-Negative-1"
                       exec="mn-cmd pdn traffic.py recv-udp -t 10 --flow-count 5 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 81"/>
                 <step name="Uplink-Enb-Send-Gtp-App-Filtering-${#}-1" requires="~Check-Traffic-App-Filtering-Negative-1" delay="5"
-                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --flow-count 5 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 81"/>
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --flow-count 5 --teid-base ${#}00 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port 81"/>
             </parallel>
         </group>
         <group name="Pfcp-Clear-App-Filtering-1">
@@ -62,7 +62,7 @@
                         starts="Clear-App-Filtering-${#}-1"
                         ends="Clear-App-Filtering-${#-1}-1">
                 <step name="Clear-App-Filtering-${#}-1" requires="~Check-Traffic-App-Filtering-Negative-1,~Check-Traffic-App-Filtering-Positive-1"
-                      exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session delete --count 5 --baseID ${#}0"/>
+                      exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session delete --count 5 --baseID ${#}00"/>
             </sequential>
         </group>
         <group name="Pfcp-Setup-App-Filtering-2" requires="Pfcp-Clear-App-Filtering-1">
@@ -71,13 +71,13 @@
                             starts="Pfcp-Session-Create-App-Filtering-${#}-2"
                             ends="Pfcp-Session-App-Filtering-${#-1}-2">
                     <step name="Pfcp-Session-Create-App-Filtering-${#}-2"
-                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session create --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1 --app-filter 'ip:any:any:deny'"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session create --count 5 --baseID ${#}00 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1 --app-filter 'ip:any:any:deny'"/>
                     <step name="Pfcp-Session-App-Filtering-${#}-2" requires="Pfcp-Session-Create-App-Filtering-${#}-2"
-                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session modify --count 5 --baseID ${#}0 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
+                          exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session modify --count 5 --baseID ${#}00 --ue-pool 17.0.${#-1}.0/24 --gnb-addr 140.0.10${#-1}.1"/>
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-App-Filtering-2" requires="Pfcp-Push-App-Filtering-2" delay="5"
-                  exec="onos-cli-grep ${OCI} up4:read-flows 'Apps=1, UL sess=${PFCP_UP4_FLOWS}, UL flows=${PFCP_UP4_FLOWS}, DL flows=${PFCP_UP4_FLOWS}'"/>
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'Apps=2, UL sess=${PFCP_UP4_SESSIONS}, UL flows=${PFCP_UP4_FLOWS}, DL flows=${PFCP_UP4_FLOWS}'"/>
             <step name="Check-Flow-Rules-App-Filtering-2" requires="Pfcp-Push-App-Filtering-2" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
@@ -95,7 +95,7 @@
                 <step name="Uplink-Enb-Send-Gtp-Drop-App-Filtering-${#}-2"
                       requires="Pfcp-Setup-App-Filtering-2,~Downlink-Enb-Recv-Gtp-Drop-App-Filtering-${#}-2,~Downlink-Pdn-Send-Udp-Drop-App-Filtering-${#}-2"
                       delay="5"
-                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --teid-base ${#}0 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port ${#}00"/>
+                      exec="mn-cmd ${ENODEB#} traffic.py send-gtp -c 10 --teid-base ${#}00 --ue-pool 17.0.${#-1}.0/24 --enb-addr 140.0.10${#-1}.1 --pdn-port ${#}00"/>
             </parallel>
         </group>
         <group name="Pfcp-Clear-App-Filtering-2">
@@ -103,7 +103,7 @@
                         starts="Clear-App-Filtering-${#}-2"
                         ends="Clear-App-Filtering-${#-1}-2">
                 <step name="Clear-App-Filtering-${#}-2" requires="~Check-Traffic-App-Filtering-Negative-2"
-                      exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session delete --count 5 --baseID ${#}0"/>
+                      exec="${DOCKER_COMPOSE_CMD} exec -T mock-smf pfcpctl session delete --count 5 --baseID ${#}00"/>
             </sequential>
         </group>
     </group>
