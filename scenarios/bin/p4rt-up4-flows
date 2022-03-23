@@ -240,12 +240,9 @@ def main():
         add_entry(entry, args.action)
 
     if args.slice_bw_meter is not None:
-        mod_meter(
-            'PreQosPipe.slice_tc_meter',
-            (int(SLICE_MOBILE) << 2) + (int(TRAFFIC_CLASS) & 0b11),
-            args.slice_bw_meter,
-            args.action
-        )
+        mod_meter('PreQosPipe.slice_tc_meter',
+                  (int(SLICE_MOBILE) << 2) + (int(TRAFFIC_CLASS) & 0b11), args.slice_bw_meter,
+                  args.action)
 
     for ue_index in range(args.ue_count):
         ue_addr = next(ue_addr_gen)
