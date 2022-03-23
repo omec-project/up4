@@ -1,0 +1,28 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2022-present Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: Apache-2.0
+
+function help() {
+  echo "usage: $0 [-i] [-p] -j"
+  exit 1
+}
+
+ip="localhost"
+port="8080"
+while getopts i:p:j:h flag
+do
+  case "${flag}" in
+  i) ip=${OPTARG};;
+  p) port=${OPTARG};;
+  j) jsonpath=${OPTARG};;
+  h) help;;
+  *) help;;
+  esac
+done
+if [ -z "${jsonpath}" ]; then
+  echo "Missing JSON file"
+  help
+fi
+curl -X POST -H 'Content-Type:application/json' http://"${ip}":"${port}"/v1/config/network-slices -d@"${jsonpath}"
+
+

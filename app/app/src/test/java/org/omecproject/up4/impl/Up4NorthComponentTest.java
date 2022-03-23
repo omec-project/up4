@@ -349,6 +349,12 @@ public class Up4NorthComponentTest {
         readTest(TestImplConstants.UP4_APP_METER);
     }
 
+    @Test
+    public void sliceMeterReadTest() throws Exception {
+        mockUp4Service.apply(TestImplConstants.SLICE_METER);
+        readTest(TestImplConstants.UP4_SLICE_METER);
+    }
+
     // ------------------- INSERTION TESTS -------------------------------------
 
     @Test
@@ -401,6 +407,7 @@ public class Up4NorthComponentTest {
 
     @Test
     public void applicationFilteringInsertionTest() throws Exception {
+        // Meter cannot be inserted!
         PiTableEntry entry = TestImplConstants.UP4_APPLICATION_FILTERING;
         insertionTest(entry);
         assertThat(mockUp4Service.readAll(UpfEntityType.APPLICATION).size(), equalTo(1));
@@ -418,7 +425,6 @@ public class Up4NorthComponentTest {
 
     @Test
     public void sessionMeterModification() throws Exception {
-        // Meter cannot be inserted!
         PiMeterCellConfig meterEntry = TestImplConstants.UP4_SESSION_METER;
         modificationTest(meterEntry);
         assertThat(mockUp4Service.readAll(UpfEntityType.SESSION_METER).size(), equalTo(1));
@@ -426,10 +432,16 @@ public class Up4NorthComponentTest {
 
     @Test
     public void appMeterModification() throws Exception {
-        // Meter cannot be inserted!
         PiMeterCellConfig meterEntry = TestImplConstants.UP4_APP_METER;
         modificationTest(meterEntry);
         assertThat(mockUp4Service.readAll(UpfEntityType.APPLICATION_METER).size(), equalTo(1));
+    }
+
+    @Test
+    public void sliceMeterModification() throws Exception {
+        PiMeterCellConfig meterEntry = TestImplConstants.UP4_SLICE_METER;
+        modificationTest(meterEntry);
+        assertThat(mockUp4Service.readAll(UpfEntityType.SLICE_METER).size(), equalTo(1));
     }
 
     // ------------------- DELETION TESTS --------------------------------------
@@ -578,6 +590,7 @@ public class Up4NorthComponentTest {
     public void setPipelineConfigTest() {
         MockStreamObserver<P4RuntimeOuterClass.SetForwardingPipelineConfigResponse> responseObserver
                 = new MockStreamObserver<>();
+        responseObserver.setErrorExpected(io.grpc.Status.UNIMPLEMENTED.asException());
         var setPipeRequest = P4RuntimeOuterClass.SetForwardingPipelineConfigRequest.newBuilder()
                 .setDeviceId(NorthTestConstants.P4RUNTIME_DEVICE_ID)
                 .setConfig(P4RuntimeOuterClass.ForwardingPipelineConfig.newBuilder()
@@ -587,9 +600,6 @@ public class Up4NorthComponentTest {
                                    .build())
                 .build();
         up4NorthService.setForwardingPipelineConfig(setPipeRequest, responseObserver);
-        var response = responseObserver.lastResponse();
-        assertThat(response,
-                   equalTo(P4RuntimeOuterClass.SetForwardingPipelineConfigResponse.getDefaultInstance()));
     }
 
     @Test

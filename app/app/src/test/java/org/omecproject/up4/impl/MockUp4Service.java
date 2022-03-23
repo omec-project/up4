@@ -28,6 +28,7 @@ public class MockUp4Service implements Up4Service {
     final List<UpfEntity> ifaces = new ArrayList<>();
     final List<UpfEntity> sessionMeters = new ArrayList<>();
     final List<UpfEntity> applicationMeters = new ArrayList<>();
+    final List<UpfEntity> sliceMeters = new ArrayList<>();
     final List<ByteBuffer> sentPacketOuts = new ArrayList<>();
 
     public void hideState(boolean hideUpfProgrammable, boolean hideConfig) {
@@ -90,6 +91,9 @@ public class MockUp4Service implements Up4Service {
             case APPLICATION_METER:
                 applicationMeters.add(entity);
                 break;
+            case SLICE_METER:
+                sliceMeters.add(entity);
+                break;
             default:
                 break;
         }
@@ -117,6 +121,8 @@ public class MockUp4Service implements Up4Service {
                 return sessionMeters;
             case APPLICATION_METER:
                 return applicationMeters;
+            case SLICE_METER:
+                return sliceMeters;
             default:
                 break;
         }
@@ -188,6 +194,9 @@ public class MockUp4Service implements Up4Service {
             case APPLICATION_METER:
                 entities = applicationMeters;
                 break;
+            case SLICE_METER:
+                entities = sliceMeters;
+                break;
             default:
                 return;
         }
@@ -226,6 +235,9 @@ public class MockUp4Service implements Up4Service {
                 break;
             case APPLICATION_METER:
                 applicationMeters.clear();
+                break;
+            case SLICE_METER:
+                sliceMeters.clear();
                 break;
             default:
                 break;

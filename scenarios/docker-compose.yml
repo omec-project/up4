@@ -16,7 +16,9 @@ services:
     command: [ "-config", "/config.json"]
     working_dir: /bin/
     expose:
-      - 8805
+      - 8805 # PFCP
+    ports:
+      - "8080:8080" # HTTP: REST API for slice meter configuration
   mock-smf:
     image: ${PFCPSIM_IMAGE}
     hostname: mock-smf

@@ -20,7 +20,7 @@ TUNNEL_SPORT = '2152'
 TUNNEL_TYPE_GPDU = '3'
 
 SLICE_MOBILE = "15"
-TRAFFIC_CLASS = "1"
+TRAFFIC_CLASS = "3"
 
 DEFAULT_APP_ID = 0
 
@@ -87,6 +87,8 @@ def get_args():
                         help="App meter max bitrate (bps)")
     parser.add_argument("--sess-bw-meter", type=int, default=None,
                         help="Session meter max bitrate (bps)")
+    parser.add_argument("--slice-bw-meter", type=int, default=None,
+                        help="Slice meter max bitrate (bps)")
     parser.add_argument("--server", type=str, default="onos1:51001",
                         help="Address and port of the p4runtime server.")
     parser.add_argument("action", choices=["program", "clear", "dry"])
@@ -236,6 +238,14 @@ def main():
         entry.action["app_id"] = str(app_id)
         entry.priority = args.app_prio
         add_entry(entry, args.action)
+
+    if args.slice_bw_meter is not None:
+        mod_meter(
+            'PreQosPipe.slice_tc_meter',
+            (int(SLICE_MOBILE) << 2) + (int(TRAFFIC_CLASS) & 0b11),
+            args.slice_bw_meter,
+            args.action
+        )
 
     for ue_index in range(args.ue_count):
         ue_addr = next(ue_addr_gen)

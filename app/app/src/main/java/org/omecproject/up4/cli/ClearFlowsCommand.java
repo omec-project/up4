@@ -34,6 +34,7 @@ public class ClearFlowsCommand extends AbstractShellCommand {
         app.deleteAll(UpfEntityType.TUNNEL_PEER);
         adminApp.resetAllSessionMeters();
         adminApp.resetAllApplicationMeters();
+        adminApp.resetAllSliceMeters();
     }
 }
 

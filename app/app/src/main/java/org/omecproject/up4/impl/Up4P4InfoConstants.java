@@ -142,8 +142,6 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.downlink_term_drop");
     public static final PiActionId PRE_QOS_PIPE_DOWNLINK_TERM_FWD =
             PiActionId.of("PreQosPipe.downlink_term_fwd");
-    public static final PiActionId PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC =
-            PiActionId.of("PreQosPipe.downlink_term_fwd_no_tc");
     public static final PiActionId PRE_QOS_PIPE_LOAD_TUNNEL_PARAM =
             PiActionId.of("PreQosPipe.load_tunnel_param");
     public static final PiActionId PRE_QOS_PIPE_SET_APP_ID =
@@ -164,8 +162,6 @@ public final class Up4P4InfoConstants {
             PiActionId.of("PreQosPipe.uplink_term_drop");
     public static final PiActionId PRE_QOS_PIPE_UPLINK_TERM_FWD =
             PiActionId.of("PreQosPipe.uplink_term_fwd");
-    public static final PiActionId PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC =
-            PiActionId.of("PreQosPipe.uplink_term_fwd_no_tc");
     // Action Param IDs
     public static final PiActionParamId APP_ID = PiActionParamId.of("app_id");
     public static final PiActionParamId APP_METER_IDX =
@@ -209,4 +205,6 @@ public final class Up4P4InfoConstants {
             PiMeterId.of("PreQosPipe.app_meter");
     public static final PiMeterId PRE_QOS_PIPE_SESSION_METER =
             PiMeterId.of("PreQosPipe.session_meter");
+    public static final PiMeterId PRE_QOS_PIPE_SLICE_TC_METER =
+            PiMeterId.of("PreQosPipe.slice_tc_meter");
 }

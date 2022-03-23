@@ -173,6 +173,7 @@ struct local_metadata_t {
     app_meter_idx_t app_meter_idx_internal;
     MeterColor session_color;
     MeterColor app_color;
+    MeterColor slice_tc_color;
 
     @field_list(0)
     PortId_t preserved_ingress_port;
