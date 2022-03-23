@@ -141,7 +141,7 @@ pipeline {
             echo "TryCount Before: ${tryCount}"
             tryCount++
             echo "TryCount After: ${tryCount}"
-            env.retryCount = tryCount as String
+            env.retryCount = tryCount.toString()
             echo "env.TryCount After: ${env.retryCount}"
             runSTCSmokeTest("leafspine")
         }
@@ -165,7 +165,7 @@ pipeline {
         script {
             tryCount = env.retryCount as Integer
             tryCount++
-            env.retryCount = tryCount as String
+            env.retryCount = tryCount.toString()
             runSTCSmokeTest("singlepair")
         }
       }
