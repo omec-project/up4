@@ -32,6 +32,7 @@
 #define GTPU_EXT_PSC_HDR_BYTES 4
 #define SLICE_ID_WIDTH 4
 #define TC_WIDTH 2
+#define SLICE_TC_WIDTH 6
 // Some field values that would be excessive as enums
 const bit<4> IP_VERSION_4 = 4;
 const bit<8> DEFAULT_IPV4_TTL = 64;
@@ -58,6 +59,7 @@ typedef bit<32> counter_index_t;
 typedef bit<8> tunnel_peer_id_t;
 typedef bit<32> app_meter_idx_t;
 typedef bit<32> session_meter_idx_t;
+typedef bit<SLICE_TC_WIDTH> slice_tc_meter_idx_t;
 
 typedef bit<SLICE_ID_WIDTH> slice_id_t;
 typedef bit<TC_WIDTH> tc_t; // Traffic Class (for QoS) within a slice
@@ -112,6 +114,13 @@ enum bit<8> InterfaceType {
 
 enum bit<4> Slice {
     DEFAULT = 0x0
+}
+
+enum bit<2> TrafficClass {
+    BEST_EFFORT = 0,
+    CONTROL = 1,
+    REAL_TIME = 2,
+    ELASTIC = 3
 }
 
 enum bit<2> MeterColor {

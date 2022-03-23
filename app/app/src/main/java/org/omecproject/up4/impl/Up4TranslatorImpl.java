@@ -65,7 +65,6 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APPLICATI
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APP_METER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_INTERFACES;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_LOAD_TUNNEL_PARAM;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_PRE_QOS_COUNTER;
@@ -79,12 +78,12 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSI
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_UPLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_UPLINK_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SOURCE_IFACE;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SLICE_TC_METER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_DOWNLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_UPLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TUNNEL_PEERS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.QFI;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SESSION_METER_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SLICE_ID;
@@ -137,6 +136,8 @@ public class Up4TranslatorImpl implements Up4Translator {
                     return UpfEntityType.SESSION_METER;
                 } else if (meterCellConfig.cellId().meterId().equals(PRE_QOS_PIPE_APP_METER)) {
                     return UpfEntityType.APPLICATION_METER;
+                } else if (meterCellConfig.cellId().meterId().equals(PRE_QOS_PIPE_SLICE_TC_METER)) {
+                    return UpfEntityType.SLICE_METER;
                 }
             default:
                 break;
@@ -149,43 +150,40 @@ public class Up4TranslatorImpl implements Up4Translator {
             case SESSION_METER: {
                 if (meterEntry.isDefaultConfig()) {
                     return UpfMeter.resetSession((int) meterEntry.cellId().index());
-                } else {
-                    // Session meter can only have peak bands, committed bands should be 1
-                    PiMeterBand committedBand = meterEntry.committedBand();
-                    if (committedBand != null &&
-                            (committedBand.rate() != ZERO_BAND_RATE || committedBand.burst() != ZERO_BAND_BURST)) {
-                        throw new Up4TranslationException(
-                                "Session meters supports only peak bands (committed = " + committedBand + ")");
-                    }
-                    PiMeterBand peakBand = meterEntry.peakBand();
-                    if (peakBand == null) {
-                        throw new Up4TranslationException("Missing peak band");
-                    }
-                    return UpfMeter.builder()
-                            .setSession()
-                            .setCellId((int) meterEntry.cellId().index())
-                            .setPeakBand(peakBand.rate(), peakBand.burst())
-                            .build();
                 }
+                assertOnlyPeakBand(meterEntry);
+                PiMeterBand peakBand = meterEntry.peakBand();
+                return UpfMeter.builder()
+                        .setSession()
+                        .setCellId((int) meterEntry.cellId().index())
+                        .setPeakBand(peakBand.rate(), peakBand.burst())
+                        .build();
             }
             case APPLICATION_METER: {
                 if (meterEntry.isDefaultConfig()) {
                     return UpfMeter.resetApplication((int) meterEntry.cellId().index());
-                } else {
-                    PiMeterBand committedBand = meterEntry.committedBand();
-                    PiMeterBand peakBand = meterEntry.peakBand();
-                    if (committedBand == null || peakBand == null) {
-                        throw new Up4TranslationException(
-                                "Missing committed or peak band (committed=" + committedBand +
-                                        ", peak=" + peakBand + ")");
-                    }
-                    return UpfMeter.builder()
-                            .setApplication()
-                            .setCellId((int) meterEntry.cellId().index())
-                            .setPeakBand(peakBand.rate(), peakBand.burst())
-                            .setCommittedBand(committedBand.rate(), committedBand.burst())
-                            .build();
                 }
+                assertPeakAndCommittedBands(meterEntry);
+                PiMeterBand committedBand = meterEntry.committedBand();
+                PiMeterBand peakBand = meterEntry.peakBand();
+                return UpfMeter.builder()
+                        .setApplication()
+                        .setCellId((int) meterEntry.cellId().index())
+                        .setPeakBand(peakBand.rate(), peakBand.burst())
+                        .setCommittedBand(committedBand.rate(), committedBand.burst())
+                        .build();
+            }
+            case SLICE_METER: {
+                if (meterEntry.isDefaultConfig()) {
+                    return UpfMeter.resetSlice((int) meterEntry.cellId().index());
+                }
+                assertOnlyPeakBand(meterEntry);
+                PiMeterBand peakBand = meterEntry.peakBand();
+                return UpfMeter.builder()
+                        .setSlice()
+                        .setCellId((int) meterEntry.cellId().index())
+                        .setPeakBand(peakBand.rate(), peakBand.burst())
+                        .build();
             }
             default:
                 throw new Up4TranslationException(
@@ -202,6 +200,9 @@ public class Up4TranslatorImpl implements Up4Translator {
                 break;
             case APPLICATION_METER:
                 meterId = PRE_QOS_PIPE_APP_METER;
+                break;
+            case SLICE_METER:
+                meterId = PRE_QOS_PIPE_SLICE_TC_METER;
                 break;
             default:
                 throw new Up4TranslationException(
@@ -454,14 +455,9 @@ public class Up4TranslatorImpl implements Up4Translator {
                 if (upfTerminationUl.needsDropping()) {
                     actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_DROP);
                 } else {
-                    if (upfTerminationUl.trafficClass() != null) {
-                        actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_FWD);
-                        actionBuilder.withParameter(new PiActionParam(TC, upfTerminationUl.trafficClass()));
-                    } else {
-                        actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC);
-                    }
-                    actionBuilder.withParameter(
-                            new PiActionParam(APP_METER_IDX, upfTerminationUl.appMeterIdx()));
+                    actionBuilder.withId(PRE_QOS_PIPE_UPLINK_TERM_FWD)
+                            .withParameter(new PiActionParam(TC, upfTerminationUl.trafficClass()))
+                            .withParameter(new PiActionParam(APP_METER_IDX, upfTerminationUl.appMeterIdx()));
                 }
                 break;
             case TERMINATION_DOWNLINK:
@@ -480,16 +476,11 @@ public class Up4TranslatorImpl implements Up4Translator {
                 if (upfTerminationDl.needsDropping()) {
                     actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_DROP);
                 } else {
-                    actionBuilder.withParameter(new PiActionParam(TEID, upfTerminationDl.teid()))
-                            .withParameter(new PiActionParam(QFI, upfTerminationDl.qfi()));
-                    if (upfTerminationDl.trafficClass() != null) {
-                        actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_FWD);
-                        actionBuilder.withParameter(new PiActionParam(TC, upfTerminationDl.trafficClass()));
-                    } else {
-                        actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC);
-                    }
-                    actionBuilder.withParameter(
-                            new PiActionParam(APP_METER_IDX, upfTerminationDl.appMeterIdx()));
+                    actionBuilder.withId(PRE_QOS_PIPE_DOWNLINK_TERM_FWD)
+                            .withParameter(new PiActionParam(TEID, upfTerminationDl.teid()))
+                            .withParameter(new PiActionParam(QFI, upfTerminationDl.qfi()))
+                            .withParameter(new PiActionParam(TC, upfTerminationDl.trafficClass()))
+                            .withParameter(new PiActionParam(APP_METER_IDX, upfTerminationDl.appMeterIdx()));
                 }
                 break;
             case TUNNEL_PEER:
@@ -540,6 +531,7 @@ public class Up4TranslatorImpl implements Up4Translator {
                 break;
             case SESSION_METER:
             case APPLICATION_METER:
+            case SLICE_METER:
             case COUNTER:
             default:
                 throw new Up4TranslationException(
@@ -548,5 +540,31 @@ public class Up4TranslatorImpl implements Up4Translator {
         return tableEntryBuilder.withMatchKey(matchBuilder.build())
                 .withAction(actionBuilder.build())
                 .build();
+    }
+
+    private void assertOnlyPeakBand(PiMeterCellConfig meterEntry) throws Up4TranslationException {
+        PiMeterBand committedBand = meterEntry.committedBand();
+        if (committedBand != null &&
+                (committedBand.rate() != ZERO_BAND_RATE || committedBand.burst() != ZERO_BAND_BURST)) {
+            throw new Up4TranslationException(
+                    getEntityType(meterEntry).toString() +
+                            " meters supports only peak bands (committed = " +
+                            committedBand +
+                            ")");
+        }
+        PiMeterBand peakBand = meterEntry.peakBand();
+        if (peakBand == null) {
+            throw new Up4TranslationException("Missing peak band");
+        }
+    }
+
+    private void assertPeakAndCommittedBands(PiMeterCellConfig meterEntry) throws Up4TranslationException {
+        PiMeterBand committedBand = meterEntry.committedBand();
+        PiMeterBand peakBand = meterEntry.peakBand();
+        if (committedBand == null || peakBand == null) {
+            throw new Up4TranslationException(
+                    "Missing committed or peak band (committed=" + committedBand +
+                            ", peak=" + peakBand + ")");
+        }
     }
 }

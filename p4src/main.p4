@@ -130,6 +130,7 @@ control PreQosPipe (inout parsed_headers_t    hdr,
     counter<counter_index_t>(MAX_PDRS, CounterType.packets_and_bytes) pre_qos_counter;
     meter<app_meter_idx_t>(MAX_APP_METERS, MeterType.bytes) app_meter;
     meter<session_meter_idx_t>(MAX_SESSION_METERS, MeterType.bytes) session_meter;
+    meter<slice_tc_meter_idx_t>(1 << SLICE_TC_WIDTH, MeterType.bytes) slice_tc_meter;
 
     action _initialize_metadata() {
         local_meta.session_meter_idx_internal = DEFAULT_SESSION_METER_IDX;
@@ -249,13 +250,9 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.terminations_hit = true;
     }
 
-    action uplink_term_fwd_no_tc(counter_index_t ctr_idx, app_meter_idx_t app_meter_idx) {
+    action uplink_term_fwd(counter_index_t ctr_idx, TrafficClass tc, app_meter_idx_t app_meter_idx) {
         common_term(ctr_idx);
         local_meta.app_meter_idx_internal = app_meter_idx;
-    }
-
-    action uplink_term_fwd(counter_index_t ctr_idx, tc_t tc, app_meter_idx_t app_meter_idx) {
-        uplink_term_fwd_no_tc(ctr_idx, app_meter_idx);
         local_meta.tc = tc;
     }
 
@@ -264,16 +261,12 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         local_meta.needs_dropping = true;
     }
 
-    action downlink_term_fwd_no_tc(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, app_meter_idx_t app_meter_idx) {
+    // QFI = 0 for 4G traffic
+    action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, TrafficClass tc, app_meter_idx_t app_meter_idx) {
         common_term(ctr_idx);
         local_meta.tunnel_out_teid = teid;
         local_meta.tunnel_out_qfi = qfi;
         local_meta.app_meter_idx_internal = app_meter_idx;
-    }
-
-    // QFI = 0 for 4G traffic
-    action downlink_term_fwd(counter_index_t ctr_idx, teid_t teid, qfi_t qfi, tc_t tc, app_meter_idx_t app_meter_idx) {
-        downlink_term_fwd_no_tc(ctr_idx, teid, qfi, app_meter_idx);
         local_meta.tc = tc;
     }
 
@@ -289,7 +282,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         }
         actions = {
             uplink_term_fwd;
-            uplink_term_fwd_no_tc;
             uplink_term_drop;
             @defaultonly do_drop;
         }
@@ -304,7 +296,6 @@ control PreQosPipe (inout parsed_headers_t    hdr,
         actions = {
             downlink_term_fwd;
             downlink_term_drop;
-            downlink_term_fwd_no_tc;
             @defaultonly do_drop;
         }
         const default_action = do_drop;
@@ -493,6 +484,11 @@ control PreQosPipe (inout parsed_headers_t    hdr,
                     session_meter.execute_meter<MeterColor>(local_meta.session_meter_idx_internal, local_meta.session_color);
                     if (local_meta.session_color == MeterColor.RED) {
                         local_meta.needs_dropping = true;
+                    } else {
+                        slice_tc_meter.execute_meter<MeterColor>(local_meta.slice_id++local_meta.tc, local_meta.slice_tc_color);
+                        if (local_meta.slice_tc_color == MeterColor.RED) {
+                            local_meta.needs_dropping = true;
+                        }
                     }
                 }
 
