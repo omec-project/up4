@@ -78,6 +78,11 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
             required = false)
     boolean sessMeters = false;
 
+    @Option(name = "--slice-meter", aliases = "-slm",
+            description = "Include the UPF Slice Meters",
+            required = false)
+    boolean sliceMeters = false;
+
 
     @Override
     protected void doExecute() {
@@ -96,6 +101,7 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                 printedTypes.add(UpfEntityType.INTERFACE);
                 printedTypes.add(UpfEntityType.SESSION_METER);
                 printedTypes.add(UpfEntityType.APPLICATION_METER);
+                printedTypes.add(UpfEntityType.SLICE_METER);
                 filterCounters = true;
             } else if (ue) {
                 printedTypes.add(UpfEntityType.APPLICATION);
@@ -134,6 +140,9 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                 }
                 if (sessMeters) {
                     printedTypes.add(UpfEntityType.SESSION_METER);
+                }
+                if (sliceMeters) {
+                    printedTypes.add(UpfEntityType.SLICE_METER);
                 }
             }
             for (var type : printedTypes) {

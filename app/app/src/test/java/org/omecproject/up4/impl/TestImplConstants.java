@@ -56,7 +56,6 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APPLICATI
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APP_METER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_INTERFACES;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_LOAD_TUNNEL_PARAM;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_DOWNLINK;
@@ -67,12 +66,12 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSI
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_DOWNLINK_BUFF;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SESSION_UPLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SET_SOURCE_IFACE;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SLICE_TC_METER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_DOWNLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_UPLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TUNNEL_PEERS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_DROP;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD;
-import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.QFI;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SESSION_METER_IDX;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.SLICE_ID;
@@ -161,12 +160,6 @@ public final class TestImplConstants {
             .withTrafficClass(TRAFFIC_CLASS_UL)
             .build();
 
-    public static final UpfTerminationUplink UPLINK_TERMINATION_NO_TC = UpfTerminationUplink.builder()
-            .withUeSessionId(UE_ADDR)
-            .withCounterId(UPLINK_COUNTER_CELL_ID)
-            .withAppMeterIdx(METER_IDX)
-            .build();
-
     public static final UpfTerminationUplink UPLINK_TERMINATION_DROP = UpfTerminationUplink.builder()
             .withUeSessionId(UE_ADDR)
             .withCounterId(UPLINK_COUNTER_CELL_ID)
@@ -202,14 +195,6 @@ public final class TestImplConstants {
             .withQfi(DOWNLINK_QFI)
             .withCounterId(DOWNLINK_COUNTER_CELL_ID)
             .withTrafficClass(TRAFFIC_CLASS_DL)
-            .build();
-
-    public static final UpfTerminationDownlink DOWNLINK_TERMINATION_NO_TC = UpfTerminationDownlink.builder()
-            .withUeSessionId(UE_ADDR)
-            .withTeid(TEID)
-            .withQfi(DOWNLINK_QFI)
-            .withCounterId(DOWNLINK_COUNTER_CELL_ID)
-            .withAppMeterIdx(METER_IDX)
             .build();
 
     public static final UpfTerminationDownlink DOWNLINK_TERMINATION_DROP = UpfTerminationDownlink.builder()
@@ -251,6 +236,17 @@ public final class TestImplConstants {
 
     public static final UpfMeter APP_METER_RESET = UpfMeter.builder()
             .setApplication()
+            .setCellId(METER_IDX)
+            .build();
+
+    public static final UpfMeter SLICE_METER = UpfMeter.builder()
+            .setSlice()
+            .setCellId(METER_IDX)
+            .setPeakBand(PIR, PBURST)
+            .build();
+
+    public static final UpfMeter SLICE_METER_RESET = UpfMeter.builder()
+            .setSlice()
             .setCellId(METER_IDX)
             .build();
 
@@ -367,26 +363,6 @@ public final class TestImplConstants {
             )
             .build();
 
-    public static final PiTableEntry UP4_UPLINK_TERMINATION_NO_TC = PiTableEntry.builder()
-            .forTable(PRE_QOS_PIPE_TERMINATIONS_UPLINK)
-            .withMatchKey(
-                    PiMatchKey.builder()
-                            .addFieldMatch(new PiExactFieldMatch(
-                                    HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
-                            .addFieldMatch(new PiExactFieldMatch(
-                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(DEFAULT_APP_ID)
-                            ))
-                            .build()
-            )
-            .withAction(
-                    PiAction.builder()
-                            .withId(PRE_QOS_PIPE_UPLINK_TERM_FWD_NO_TC)
-                            .withParameter(new PiActionParam(CTR_IDX, UPLINK_COUNTER_CELL_ID))
-                            .withParameter(new PiActionParam(APP_METER_IDX, METER_IDX))
-                            .build()
-            )
-            .build();
-
     public static final PiTableEntry UP4_UPLINK_TERMINATION_DROP = PiTableEntry.builder()
             .forTable(PRE_QOS_PIPE_TERMINATIONS_UPLINK)
             .withMatchKey(
@@ -448,28 +424,6 @@ public final class TestImplConstants {
                             .withParameter(new PiActionParam(QFI, DOWNLINK_QFI))
                             .withParameter(new PiActionParam(TC, TRAFFIC_CLASS_DL))
                             .withParameter(new PiActionParam(APP_METER_IDX, DEFAULT_APP_METER_IDX))
-                            .build()
-            )
-            .build();
-
-    public static final PiTableEntry UP4_DOWNLINK_TERMINATION_NO_TC = PiTableEntry.builder()
-            .forTable(PRE_QOS_PIPE_TERMINATIONS_DOWNLINK)
-            .withMatchKey(
-                    PiMatchKey.builder()
-                            .addFieldMatch(new PiExactFieldMatch(
-                                    HDR_UE_ADDRESS, ImmutableByteSequence.copyFrom(UE_ADDR.toOctets())))
-                            .addFieldMatch(new PiExactFieldMatch(
-                                    HDR_APP_ID, ImmutableByteSequence.copyFrom(DEFAULT_APP_ID)
-                            ))
-                            .build()
-            )
-            .withAction(
-                    PiAction.builder()
-                            .withId(PRE_QOS_PIPE_DOWNLINK_TERM_FWD_NO_TC)
-                            .withParameter(new PiActionParam(CTR_IDX, DOWNLINK_COUNTER_CELL_ID))
-                            .withParameter(new PiActionParam(Up4P4InfoConstants.TEID, TEID))
-                            .withParameter(new PiActionParam(QFI, DOWNLINK_QFI))
-                            .withParameter(new PiActionParam(APP_METER_IDX, METER_IDX))
                             .build()
             )
             .build();
@@ -574,6 +528,15 @@ public final class TestImplConstants {
 
     public static final PiMeterCellConfig UP4_APP_METER_RESET = PiMeterCellConfig
             .reset(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_APP_METER, METER_IDX));
+
+    public static final PiMeterCellConfig UP4_SLICE_METER = PiMeterCellConfig.builder()
+            .withMeterBand(new PiMeterBand(PiMeterBandType.PEAK, PIR, PBURST))
+            .withMeterBand(new PiMeterBand(PiMeterBandType.COMMITTED, 0, 0))
+            .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SLICE_TC_METER, METER_IDX))
+            .build();
+
+    public static final PiMeterCellConfig UP4_SLICE_METER_RESET = PiMeterCellConfig
+            .reset(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SLICE_TC_METER, METER_IDX));
 
     /**
      * Hidden constructor for utility class.

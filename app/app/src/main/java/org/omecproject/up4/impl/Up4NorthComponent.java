@@ -76,6 +76,7 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_PRE_QOS_C
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_DOWNLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSIONS_UPLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSION_METER;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SLICE_TC_METER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_DOWNLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_UPLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TUNNEL_PEERS;
@@ -252,7 +253,8 @@ public class Up4NorthComponent {
         try {
             UpfEntityType entityType = up4Translator.getEntityType(requestedEntry);
             boolean isMeter = entityType.equals(UpfEntityType.SESSION_METER) ||
-                    entityType.equals(UpfEntityType.APPLICATION_METER);
+                    entityType.equals(UpfEntityType.APPLICATION_METER) ||
+                    entityType.equals(UpfEntityType.SLICE_METER);
             Collection<? extends UpfEntity> entities = up4Service.readAll(entityType);
             for (UpfEntity entity : entities) {
                 log.debug("Translating a {} entity for a read request: {}", entity.type(), entity);
@@ -291,6 +293,7 @@ public class Up4NorthComponent {
         long physicalCounterSize;
         long physicalSessionMeterSize;
         long physicalAppMeterSize;
+        long physicalSliceMeterSize;
         long physicalSessionsUlTableSize;
         long physicalSessionsDlTableSize;
         long physicalTerminationsUlTableSize;
@@ -300,6 +303,7 @@ public class Up4NorthComponent {
             physicalCounterSize = up4Service.tableSize(UpfEntityType.COUNTER);
             physicalSessionMeterSize = up4Service.tableSize(UpfEntityType.SESSION_METER);
             physicalAppMeterSize = up4Service.tableSize(UpfEntityType.APPLICATION_METER);
+            physicalSliceMeterSize = up4Service.tableSize(UpfEntityType.SLICE_METER);
             physicalSessionsUlTableSize = up4Service.tableSize(UpfEntityType.SESSION_UPLINK);
             physicalSessionsDlTableSize = up4Service.tableSize(UpfEntityType.SESSION_DOWNLINK);
             physicalTerminationsUlTableSize = up4Service.tableSize(UpfEntityType.TERMINATION_UPLINK);
@@ -312,6 +316,7 @@ public class Up4NorthComponent {
         int egressPdrCounterId;
         int sessionMeterId;
         int appMeterId;
+        int sliceMeterId;
         int sessionsUlTable;
         int sessionsDlTable;
         int terminationsUlTable;
@@ -325,6 +330,8 @@ public class Up4NorthComponent {
                     .getByName(PRE_QOS_PIPE_SESSION_METER.id()).getPreamble().getId();
             appMeterId = browser.meters()
                     .getByName(PRE_QOS_PIPE_APP_METER.id()).getPreamble().getId();
+            sliceMeterId = browser.meters()
+                    .getByName(PRE_QOS_PIPE_SLICE_TC_METER.id()).getPreamble().getId();
             egressPdrCounterId = browser.counters()
                     .getByName(POST_QOS_PIPE_POST_QOS_COUNTER.id()).getPreamble().getId();
             sessionsUlTable = browser.tables()
@@ -361,6 +368,10 @@ public class Up4NorthComponent {
                 newP4InfoBuilder.addMeters(
                         P4InfoOuterClass.Meter.newBuilder(meter)
                                 .setSize(physicalAppMeterSize)).build();
+            } else if (meter.getPreamble().getId() == sliceMeterId) {
+                newP4InfoBuilder.addMeters(
+                        P4InfoOuterClass.Meter.newBuilder(meter)
+                                .setSize(physicalSliceMeterSize)).build();
             } else {
                 // Any other meters go unchanged
                 newP4InfoBuilder.addMeters(meter);

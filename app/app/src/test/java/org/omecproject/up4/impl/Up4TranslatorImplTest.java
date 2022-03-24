@@ -21,6 +21,7 @@ import static org.omecproject.up4.impl.TestImplConstants.PBURST;
 import static org.omecproject.up4.impl.TestImplConstants.PIR;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_APP_METER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SESSION_METER;
+import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SLICE_TC_METER;
 
 public class Up4TranslatorImplTest {
 
@@ -67,6 +68,7 @@ public class Up4TranslatorImplTest {
                     break;
                 case SESSION_METER:
                 case APPLICATION_METER:
+                case SLICE_METER:
                     translatedEntity = up4Translator.upfEntityToUp4MeterEntry(up4Entry);
                     break;
                 default:
@@ -117,11 +119,6 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
-    public void up4EntryToUplinkTerminationNoTcTest() {
-        up4ToUpfEntity(TestImplConstants.UPLINK_TERMINATION_NO_TC, TestImplConstants.UP4_UPLINK_TERMINATION_NO_TC);
-    }
-
-    @Test
     public void up4EntryToUplinkTerminationDropTest() {
         up4ToUpfEntity(TestImplConstants.UPLINK_TERMINATION_DROP, TestImplConstants.UP4_UPLINK_TERMINATION_DROP);
     }
@@ -137,11 +134,6 @@ public class Up4TranslatorImplTest {
                 TestImplConstants.DOWNLINK_TERMINATION_DEFAULT_METER,
                 TestImplConstants.UP4_DOWNLINK_TERMINATION_DEFAULT_METER
         );
-    }
-
-    @Test
-    public void up4EntryToDownlinkTerminationNoTcTest() {
-        up4ToUpfEntity(TestImplConstants.DOWNLINK_TERMINATION_NO_TC, TestImplConstants.UP4_DOWNLINK_TERMINATION_NO_TC);
     }
 
     @Test
@@ -185,6 +177,16 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
+    public void up4MeterEntryToSliceMeterTest() {
+        up4ToUpfEntity(TestImplConstants.SLICE_METER, TestImplConstants.UP4_SLICE_METER);
+    }
+
+    @Test
+    public void up4MeterEntryToSliceMeterResetTest() {
+        up4ToUpfEntity(TestImplConstants.SLICE_METER_RESET, TestImplConstants.UP4_SLICE_METER_RESET);
+    }
+
+    @Test
     public void missingPeakBandToAppMeterTest() throws Exception {
         exceptionRule.expect(Up4Translator.Up4TranslationException.class);
         up4Translator.up4MeterEntryToUpfEntity(
@@ -222,10 +224,39 @@ public class Up4TranslatorImplTest {
          */
         exceptionRule.expect(Up4Translator.Up4TranslationException.class);
         exceptionRule.expectMessage(
-                "Session meters supports only peak bands (committed = PiMeterBand{type=COMMITTED, rate=10, burst=10})");
+                "SESSION_METER meters supports only peak bands (committed" +
+                        " = PiMeterBand{type=COMMITTED, rate=10, burst=10})");
         up4Translator.up4MeterEntryToUpfEntity(
                 PiMeterCellConfig.builder()
                         .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SESSION_METER, METER_IDX))
+                        .withCommittedBand(10, 10)
+                        .withPeakBand(PIR, PBURST)
+                        .build());
+    }
+
+    @Test
+    public void missingPeakBandToSliceMeterTest() throws Exception {
+        exceptionRule.expect(Up4Translator.Up4TranslationException.class);
+        up4Translator.up4MeterEntryToUpfEntity(
+                PiMeterCellConfig.builder()
+                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SLICE_TC_METER, METER_IDX))
+                        .withCommittedBand(10, 10)
+                        .build());
+    }
+
+    @Test
+    public void sliceMeterWithNonUnspecifiedCommitted() throws Exception {
+        /**
+         * Unspecified Rate: {@link AppConstants#ZERO_BAND_RATE)
+         * Unspecified Burst: {@link AppConstants#ZERO_BAND_BURST)
+         */
+        exceptionRule.expect(Up4Translator.Up4TranslationException.class);
+        exceptionRule.expectMessage(
+                "SLICE_METER meters supports only peak bands (committed " +
+                        "= PiMeterBand{type=COMMITTED, rate=10, burst=10})");
+        up4Translator.up4MeterEntryToUpfEntity(
+                PiMeterCellConfig.builder()
+                        .withMeterCellId(PiMeterCellId.ofIndirect(PRE_QOS_PIPE_SLICE_TC_METER, METER_IDX))
                         .withCommittedBand(10, 10)
                         .withPeakBand(PIR, PBURST)
                         .build());
@@ -277,11 +308,6 @@ public class Up4TranslatorImplTest {
     }
 
     @Test
-    public void uplinkTerminationNoTcToUp4EntryTest() {
-        upfEntityToUp4(TestImplConstants.UP4_UPLINK_TERMINATION_NO_TC, TestImplConstants.UPLINK_TERMINATION_NO_TC);
-    }
-
-    @Test
     public void uplinkTerminationDropToUp4EntryTest() {
         upfEntityToUp4(TestImplConstants.UP4_UPLINK_TERMINATION_DROP, TestImplConstants.UPLINK_TERMINATION_DROP);
     }
@@ -297,11 +323,6 @@ public class Up4TranslatorImplTest {
                 TestImplConstants.UP4_DOWNLINK_TERMINATION_DEFAULT_METER,
                 TestImplConstants.DOWNLINK_TERMINATION_DEFAULT_METER
         );
-    }
-
-    @Test
-    public void downlinkTerminationNoTcToUp4EntryTest() {
-        upfEntityToUp4(TestImplConstants.UP4_DOWNLINK_TERMINATION_NO_TC, TestImplConstants.DOWNLINK_TERMINATION_NO_TC);
     }
 
     @Test
@@ -332,5 +353,15 @@ public class Up4TranslatorImplTest {
     @Test
     public void sessionMeterResetToUp4EntryTest() {
         upfEntityToUp4(TestImplConstants.UP4_SESSION_METER_RESET, TestImplConstants.SESSION_METER_RESET);
+    }
+
+    @Test
+    public void sliceMeterToUp4EntryTest() {
+        upfEntityToUp4(TestImplConstants.UP4_SLICE_METER, TestImplConstants.SLICE_METER);
+    }
+
+    @Test
+    public void sliceMeterResetToUp4EntryTest() {
+        upfEntityToUp4(TestImplConstants.UP4_SLICE_METER_RESET, TestImplConstants.SLICE_METER_RESET);
     }
 }

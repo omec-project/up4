@@ -101,6 +101,7 @@ import static org.onosproject.net.behaviour.upf.UpfEntityType.APPLICATION_METER;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.COUNTER;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_DOWNLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_METER;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.SLICE_METER;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_DOWNLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TERMINATION_UPLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.TUNNEL_PEER;
@@ -965,7 +966,14 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     @Override
     public void resetAllApplicationMeters() throws UpfProgrammableException {
         for (UpfEntity e : this.readAll(APPLICATION_METER)) {
-            this.apply(UpfMeter.resetSession(((UpfMeter) e).cellId()));
+            this.apply(UpfMeter.resetApplication(((UpfMeter) e).cellId()));
+        }
+    }
+
+    @Override
+    public void resetAllSliceMeters() throws UpfProgrammableException {
+        for (UpfEntity e : this.readAll(SLICE_METER)) {
+            this.apply(UpfMeter.resetSlice(((UpfMeter) e).cellId()));
         }
     }
 
@@ -988,8 +996,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     return Math.min(config.maxUes() * 2, entitySize);
                 }
                 break;
+            // SLICE_METER: independent on the number of UEs, keep value from UPF device
             default:
-
         }
         return entitySize;
     }

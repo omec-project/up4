@@ -116,4 +116,11 @@ public interface Up4AdminService {
      * @throws UpfProgrammableException propagate the exception from the UPF data plane.
      */
     void resetAllApplicationMeters() throws UpfProgrammableException;
+
+    /**
+     * Resets all installed slice meters.
+     *
+     * @throws UpfProgrammableException propagate the exception from the UPF data plane.
+     */
+    void resetAllSliceMeters() throws UpfProgrammableException;
 }
