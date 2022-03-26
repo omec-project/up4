@@ -359,7 +359,8 @@ class GtpuBaseTest(P4RuntimeTest):
             ))
 
     def add_terminations_downlink(self, ue_address, ctr_idx, app_meter_idx=DEFAULT_APP_METER_IDX,
-                                  tc=TC_ELASTIC, teid=None, qfi=None, drop=False, app_id=APP_ID_UNKNOWN):
+                                  tc=TC_ELASTIC, teid=None, qfi=None, drop=False,
+                                  app_id=APP_ID_UNKNOWN):
         match_fields = {
             "ue_address": ue_address,
             "app_id": app_id,
@@ -508,9 +509,8 @@ class GtpuBaseTest(P4RuntimeTest):
                                      session_meter_max_bitrate=None,
                                      app_meter_idx=DEFAULT_APP_METER_IDX,
                                      app_meter_max_bitrate=None, drop=False, buffer=False,
-                                     slice_meter_max_bitrate=None, tun_id=None,
-                                     qfi=0, tc=TC_ELASTIC, push_qfi=False,
-                                     app_filtering=False):
+                                     slice_meter_max_bitrate=None, tun_id=None, qfi=0,
+                                     tc=TC_ELASTIC, push_qfi=False, app_filtering=False):
         """ Add all table entries required for the given downlink packet to flow through the UPF
             and emit as the given expected packet.
         """
@@ -590,8 +590,7 @@ class GtpuBaseTest(P4RuntimeTest):
                                 session_meter_max_bitrate)
 
     def add_slice_meter(self, slice_id, tc, slice_max_bitrate):
-        self.__add_meter_helper("PreQosPipe.slice_tc_meter",
-                                (slice_id << 2) + (tc & 0b11),
+        self.__add_meter_helper("PreQosPipe.slice_tc_meter", (slice_id << 2) + (tc & 0b11),
                                 slice_max_bitrate)
 
     def set_up_ddn_digest(self, ack_timeout_ns):
