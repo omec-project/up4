@@ -14,6 +14,7 @@ UE_PORT = 400
 PDN_PORT = 80
 GPDU_PORT = 2152
 
+# TEID_STEP reflects the SessionStep in pfcpsim, which is used to generate TEIDs.
 TEID_STEP = 10
 
 GTPU_EXT_PSC_TYPE_UL = 1
