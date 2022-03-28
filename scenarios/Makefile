@@ -2,6 +2,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+OSTYPE := $(shell uname -s)
+ifeq ($(OSTYPE),Linux)
+NPROCS := $(shell nproc)
+else ifeq ($(OSTYPE),Darwin) # Assume Mac OS X
+NPROCS := $(shell sysctl -n hw.physicalcpu)
+else
+NPROCS := 1
+endif
+
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 
@@ -13,6 +22,14 @@ CURRENT_USER       := $(shell id -u):$(shell id -g)
 
 # Set to devel to use in-development versions of components
 UP4_ENV ?= stable
+
+# Build sdfabric-onos image as part of the deps step
+BUILD_SDFABRIC ?= true
+ifeq ($(UP4_ENV),devel)
+SDFABRIC_DOCKER_TAG := master
+else
+SDFABRIC_DOCKER_TAG := stable
+endif
 
 # TODO: release 2.6 with support for quotes in step commands
 STC_VERSION ?= 2.6-SNAPSHOT
@@ -62,7 +79,7 @@ $(SCENARIOS): onos-test ./tmp /tmp/stc ./tmp/.env.docker
 		export TOPO_NETCFG=${TOPO_NETCFG} && \
 		stc $@
 
-deps: pull build stc-dev-build onos-test
+deps: build-sdfabric pull build stc-dev-build onos-test
 
 onos-test:
 	curl -sS --fail https://repo1.maven.org/maven2/org/onosproject/onos-releases/2.5.4/onos-test-2.5.4.tar.gz --output onos-test.tar.gz
@@ -77,10 +94,37 @@ stc-dev-build:
 	cd /tmp/onos-stc && mvn -q -B -Dmaven.test.skip=true install
 
 pull: ./tmp/.env.docker
+ifeq ($(BUILD_SDFABRIC),true)
+	@#avoid pulling the ONOS image if we build it locally
+	${DOCKER_COMPOSE_CMD} pull pfcp-agent mock-smf p4rt mininet atomix1 atomix2 atomix3
+else
 	${DOCKER_COMPOSE_CMD} pull
+endif
 
 build: ./tmp/.env.docker
+ifeq ($(BUILD_SDFABRIC),true)
+	@#avoid pulling the ONOS image if we build it locally
+	${DOCKER_COMPOSE_CMD} build --pull pfcp-agent mock-smf p4rt mininet atomix1 atomix2 atomix3
+else
 	${DOCKER_COMPOSE_CMD} build --pull
+endif
+
+build-sdfabric: ./tmp/.env.docker sdfabric-onos
+ifeq ($(BUILD_SDFABRIC),true)
+	@export $(shell cat "${CURRENT_DIR}"/tmp/.env.docker | grep -v '#' | xargs) && \
+	cd sdfabric-onos && git pull origin master && \
+	USE_LOCAL_SNAPSHOT_ARTIFACTS=true DOCKER_TAG=${SDFABRIC_DOCKER_TAG} DOCKER_REPOSITORY=sdfabric-onos make docker-build JOBS=${NPROCS}
+	#USE_LOCAL_SNAPSHOT_ARTIFACTS=true DOCKER_TAG=${SDFABRIC_DOCKER_TAG} DOCKER_REPOSITORY=sdfabric-onos make package JOBS=${NPROCS}
+	@sed -i '' -e 's/ONOS_IMAGE=.*/ONOS_IMAGE=sdfabric-onos:master/' "${CURRENT_DIR}"/tmp/.env.docker
+	@sed -i '' -e 's/ONOS_IMAGE=.*/ONOS_IMAGE=sdfabric-onos:master/' "${CURRENT_DIR}"/../.env.${UP4_ENV}
+else
+	@echo "SKIP build sdfabric-onos, fetching from remote"
+endif
+
+sdfabric-onos:
+ifeq ($(BUILD_SDFABRIC),true)
+	git clone "https://gerrit.onosproject.org/sdfabric-onos" sdfabric-onos
+endif
 
 reset:
 	-${DOCKER_COMPOSE_CMD} down -t0 --remove-orphans
