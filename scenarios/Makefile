@@ -72,6 +72,8 @@ endif
 
 $(SCENARIOS): onos-test ./tmp /tmp/stc ./tmp/.env.docker
 	$(info *** Running STC scenario: $@)
+ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
+	@# DO NOT PUSH UP4 when we build sdfabric-onos locally
 	@export $(shell cat "${CURRENT_DIR}"/"${STC_ENV}" | grep -v '#' | xargs) && \
 		export PATH="${CURRENT_DIR}/bin:${ONOS_TEST}/tools/test/bin:${ONOS_TEST}/tools/test/scenarios/bin:${ONOS_TEST}/tools/package/runtime/bin:${PATH}" && \
 		export WORKSPACE=${CURRENT_DIR} && \
@@ -82,6 +84,19 @@ $(SCENARIOS): onos-test ./tmp /tmp/stc ./tmp/.env.docker
 		export STC_ENV_FILE=${STC_ENV} && \
 		export TOPO_NETCFG=${TOPO_NETCFG} && \
 		stc $@
+else
+	@export $(shell cat "${CURRENT_DIR}"/"${STC_ENV}" | grep -v '#' | xargs) && \
+		export PATH="${CURRENT_DIR}/bin:${ONOS_TEST}/tools/test/bin:${ONOS_TEST}/tools/test/scenarios/bin:${ONOS_TEST}/tools/package/runtime/bin:${PATH}" && \
+		export WORKSPACE=${CURRENT_DIR} && \
+		export ONOS_ROOT=${ONOS_TEST} && \
+		export UP4_ROOT=${UP4_ROOT} && \
+		export STC_VERSION=${STC_VERSION} && \
+		export DOCKER_COMPOSE_CMD="${DOCKER_COMPOSE_CMD}" && \
+		export STC_ENV_FILE=${STC_ENV} && \
+		export TOPO_NETCFG=${TOPO_NETCFG} && \
+		export PUSH_UP4=True && \
+		stc $@
+endif
 
 deps: build-sdfabric-onos pull build stc-dev-build onos-test
 
@@ -98,7 +113,7 @@ stc-dev-build:
 	cd /tmp/onos-stc && mvn -q -B -Dmaven.test.skip=true install
 
 pull: ./tmp/.env.docker
-ifeq ($(ONOS_IMAGE),sdfabric-onos-local)
+ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
 	@#avoid pulling the ONOS image if we build it locally
 	${DOCKER_COMPOSE_CMD} pull ${STC_COMPOSE_SERVICES_WO_ONOS}
 else
@@ -106,7 +121,7 @@ else
 endif
 
 build: ./tmp/.env.docker
-ifeq ($(ONOS_IMAGE),sdfabric-onos-local)
+ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
 	@#avoid pulling the ONOS image if we build it locally
 	${DOCKER_COMPOSE_CMD} build --pull ${STC_COMPOSE_SERVICES_WO_ONOS}
 else
@@ -115,17 +130,17 @@ endif
 
 build-sdfabric-onos: .build-sdfabric-onos
 .build-sdfabric-onos: ./tmp/.env.docker sdfabric-onos
-ifeq ($(ONOS_IMAGE),sdfabric-onos-local)
+ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
 	cd sdfabric-onos && \
 	git pull origin master && \
-	USE_LOCAL_SNAPSHOT_ARTIFACTS=true DOCKER_TAG=${UP4_ENV} DOCKER_REPOSITORY=${ONOS_IMAGE} make package JOBS=${NPROCS}
+	USE_LOCAL_SNAPSHOT_ARTIFACTS=true DOCKER_TAG=master DOCKER_REPOSITORY=`echo ${ONOS_IMAGE} | sed 's/:master//'` make package JOBS=${NPROCS}
 	@# use the .build-sdfabric-onos to cache the current built sdfabric-onos image
 	@# to reset it, call "make reset-sdfabric-onos"
 	touch .build-sdfabric-onos
 endif
 
 sdfabric-onos:
-ifeq ($(ONOS_IMAGE),sdfabric-onos-local)
+ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
 	git clone "https://gerrit.onosproject.org/sdfabric-onos" sdfabric-onos
 endif
 

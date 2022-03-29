@@ -71,7 +71,7 @@ pipeline {
                     script: "cat ../.env.stable | grep \'ONOS_IMAGE=\'| sed \'s/ONOS_IMAGE=//\'",
                     returnStdout: true
             ).trim()
-            if (ONOS_IMAGE_STABLE == "sdfabric-onos-local") {
+            if (ONOS_IMAGE_STABLE == "sdfabric-onos-local:master") {
               skipOtherStages = true
             }
           }
