@@ -33,6 +33,12 @@ else
 include ../.env.stable
 endif
 
+ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
+ifndef $(UP4_VERSION)
+UP4_VERSION := $(shell git rev-parse --abbrev-ref HEAD)
+endif
+endif
+
 # TODO: release 2.6 with support for quotes in step commands
 STC_VERSION ?= 2.6-SNAPSHOT
 
@@ -133,7 +139,14 @@ build-sdfabric-onos: .build-sdfabric-onos
 ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
 	cd sdfabric-onos && \
 	git pull origin master && \
-	USE_LOCAL_SNAPSHOT_ARTIFACTS=true DOCKER_TAG=master DOCKER_REPOSITORY=`echo ${ONOS_IMAGE} | sed 's/:master//'` make package JOBS=${NPROCS}
+	ONOS_VERSION=${ONOS_VERSION} \
+		TRELLIS_CONTROL_VERSION=${TRELLIS_CONTROL_VERSION} \
+		FABRIC_TNA_VERSION=${FABRIC_TNA_VERSION} \
+		UP4_VERSION=${UP4_VERSION} \
+		USE_LOCAL_SNAPSHOT_ARTIFACTS=true \
+		DOCKER_TAG=master \
+		DOCKER_REPOSITORY=`echo ${ONOS_IMAGE} | sed 's/:master//'` \
+		make docker-build JOBS=${NPROCS}
 	@# use the .build-sdfabric-onos to cache the current built sdfabric-onos image
 	@# to reset it, call "make reset-sdfabric-onos"
 	touch .build-sdfabric-onos
