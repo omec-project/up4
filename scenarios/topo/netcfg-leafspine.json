@@ -159,7 +159,7 @@
           "device:leaf1",
           "device:leaf2"
         ],
-        "maxUes": 32,
+        "maxUes": 64,
         "dbufDrainAddr": "140.0.0.2",
         "pscEncapEnabled": false
       }
