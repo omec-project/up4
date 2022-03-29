@@ -77,7 +77,7 @@
                 </sequential>
             </group>
             <step name="Check-Up4-Flows-App-Filtering-2" requires="Pfcp-Push-App-Filtering-2" delay="5"
-                  exec="onos-cli-grep ${OCI} up4:read-flows 'Apps=1, UL sess=${PFCP_UP4_FLOWS}, UL flows=${PFCP_UP4_FLOWS}, DL flows=${PFCP_UP4_FLOWS}'"/>
+                  exec="onos-cli-grep ${OCI} up4:read-flows 'Apps=0, UL sess=${PFCP_UP4_FLOWS}, UL flows=${PFCP_UP4_FLOWS}, DL flows=${PFCP_UP4_FLOWS}'"/>
             <step name="Check-Flow-Rules-App-Filtering-2" requires="Pfcp-Push-App-Filtering-2" delay="5"
                   exec="onos-check-flows ${OCI}"/>
         </group>
