@@ -11,6 +11,10 @@ else
 NPROCS := 1
 endif
 
+# Extracts the services from docker-compose file
+STC_COMPOSE_SERVICES = $(shell python3 -c "import yaml; f = open('docker-compose.yml'); y = yaml.safe_load(f); print(' '.join(y['services'])); f.close();")
+STC_COMPOSE_SERVICES_WO_ONOS := $(filter-out onos%,$(STC_COMPOSE_SERVICES))
+
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 
@@ -20,15 +24,13 @@ SCENARIOS          := *.xml
 DOCKER_COMPOSE_CMD := docker-compose --env-file ./tmp/.env.docker
 CURRENT_USER       := $(shell id -u):$(shell id -g)
 
-# Set to devel to use in-development versions of components
+# Set to master to use tip of master versions of components
 UP4_ENV ?= stable
-
-# Build sdfabric-onos image as part of the deps step
-BUILD_SDFABRIC ?= true
-ifeq ($(UP4_ENV),devel)
-SDFABRIC_DOCKER_TAG := master
+# Loading the env file allows to use the env variable as make variable
+ifeq ($(UP4_ENV),master)
+include ../.env.master
 else
-SDFABRIC_DOCKER_TAG := stable
+include ../.env.devel
 endif
 
 # TODO: release 2.6 with support for quotes in step commands
@@ -52,6 +54,8 @@ TOPO_NETCFG := ${UP4_ROOT}/scenarios/topo/netcfg-${TOPO}.json
 ./tmp:
 	@mkdir -p ./tmp
 
+asd:
+	python3 -c "import yaml; f = open('docker-compose.yml'); y = yaml.safe_load(f); print(' '.join(y['services'])); f.close();"
 # Empty files to record the last value of a variable
 ./tmp/makevar.env.$(UP4_ENV): ./tmp
 	@rm -f ./tmp/makevar.env.*
@@ -79,7 +83,7 @@ $(SCENARIOS): onos-test ./tmp /tmp/stc ./tmp/.env.docker
 		export TOPO_NETCFG=${TOPO_NETCFG} && \
 		stc $@
 
-deps: build-sdfabric pull build stc-dev-build onos-test
+deps: build-sdfabric-onos pull build stc-dev-build onos-test
 
 onos-test:
 	curl -sS --fail https://repo1.maven.org/maven2/org/onosproject/onos-releases/2.5.4/onos-test-2.5.4.tar.gz --output onos-test.tar.gz
@@ -94,37 +98,39 @@ stc-dev-build:
 	cd /tmp/onos-stc && mvn -q -B -Dmaven.test.skip=true install
 
 pull: ./tmp/.env.docker
-ifeq ($(BUILD_SDFABRIC),true)
+ifeq ($(ONOS_IMAGE),sdfabric-onos-local)
 	@#avoid pulling the ONOS image if we build it locally
-	${DOCKER_COMPOSE_CMD} pull pfcp-agent mock-smf p4rt mininet atomix1 atomix2 atomix3
+	${DOCKER_COMPOSE_CMD} pull ${STC_COMPOSE_SERVICES_WO_ONOS}
 else
 	${DOCKER_COMPOSE_CMD} pull
 endif
 
 build: ./tmp/.env.docker
-ifeq ($(BUILD_SDFABRIC),true)
+ifeq ($(ONOS_IMAGE),sdfabric-onos-local)
 	@#avoid pulling the ONOS image if we build it locally
-	${DOCKER_COMPOSE_CMD} build --pull pfcp-agent mock-smf p4rt mininet atomix1 atomix2 atomix3
+	${DOCKER_COMPOSE_CMD} build --pull ${STC_COMPOSE_SERVICES_WO_ONOS}
 else
 	${DOCKER_COMPOSE_CMD} build --pull
 endif
 
-build-sdfabric: ./tmp/.env.docker sdfabric-onos
-ifeq ($(BUILD_SDFABRIC),true)
-	@export $(shell cat "${CURRENT_DIR}"/tmp/.env.docker | grep -v '#' | xargs) && \
-	cd sdfabric-onos && git pull origin master && \
-	USE_LOCAL_SNAPSHOT_ARTIFACTS=true DOCKER_TAG=${SDFABRIC_DOCKER_TAG} DOCKER_REPOSITORY=sdfabric-onos make docker-build JOBS=${NPROCS}
-	#USE_LOCAL_SNAPSHOT_ARTIFACTS=true DOCKER_TAG=${SDFABRIC_DOCKER_TAG} DOCKER_REPOSITORY=sdfabric-onos make package JOBS=${NPROCS}
-	@sed -i '' -e 's/ONOS_IMAGE=.*/ONOS_IMAGE=sdfabric-onos:master/' "${CURRENT_DIR}"/tmp/.env.docker
-	@sed -i '' -e 's/ONOS_IMAGE=.*/ONOS_IMAGE=sdfabric-onos:master/' "${CURRENT_DIR}"/../.env.${UP4_ENV}
-else
-	@echo "SKIP build sdfabric-onos, fetching from remote"
+build-sdfabric-onos: .build-sdfabric-onos
+.build-sdfabric-onos: ./tmp/.env.docker sdfabric-onos
+ifeq ($(ONOS_IMAGE),sdfabric-onos-local)
+	cd sdfabric-onos && \
+	git pull origin master && \
+	USE_LOCAL_SNAPSHOT_ARTIFACTS=true DOCKER_TAG=${UP4_ENV} DOCKER_REPOSITORY=${ONOS_IMAGE} make docker-build JOBS=${NPROCS}
+	@# use the .build-sdfabric-onos to cache the current built sdfabric-onos image
+	@# to reset it, call "make reset-sdfabric-onos"
+	touch .build-sdfabric-onos
 endif
 
 sdfabric-onos:
-ifeq ($(BUILD_SDFABRIC),true)
+ifeq ($(ONOS_IMAGE),sdfabric-onos-local)
 	git clone "https://gerrit.onosproject.org/sdfabric-onos" sdfabric-onos
 endif
+
+reset-sdfabric-onos:
+	-rm .build-sdfabric-onos
 
 reset:
 	-${DOCKER_COMPOSE_CMD} down -t0 --remove-orphans
