@@ -30,7 +30,7 @@ UP4_ENV ?= stable
 ifeq ($(UP4_ENV),master)
 include ../.env.master
 else
-include ../.env.devel
+include ../.env.stable
 endif
 
 # TODO: release 2.6 with support for quotes in step commands
@@ -118,7 +118,7 @@ build-sdfabric-onos: .build-sdfabric-onos
 ifeq ($(ONOS_IMAGE),sdfabric-onos-local)
 	cd sdfabric-onos && \
 	git pull origin master && \
-	USE_LOCAL_SNAPSHOT_ARTIFACTS=true DOCKER_TAG=${UP4_ENV} DOCKER_REPOSITORY=${ONOS_IMAGE} make docker-build JOBS=${NPROCS}
+	USE_LOCAL_SNAPSHOT_ARTIFACTS=true DOCKER_TAG=${UP4_ENV} DOCKER_REPOSITORY=${ONOS_IMAGE} make package JOBS=${NPROCS}
 	@# use the .build-sdfabric-onos to cache the current built sdfabric-onos image
 	@# to reset it, call "make reset-sdfabric-onos"
 	touch .build-sdfabric-onos
