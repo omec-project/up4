@@ -85,10 +85,12 @@ pipeline {
     stage("Dependencies") {
       options { retry(3) }
       steps {
-        dir("${env.WORKSPACE}/up4") {
-          sh "make deps"
-          sh "cd app && make deps"
-          sh "cd scenarios && make deps"
+        sshagent(credentials: ["github-onf-bot-ssh-key"]) {
+          dir("${env.WORKSPACE}/up4") {
+            sh "make deps"
+            sh "cd app && make deps"
+            sh "cd scenarios && make deps"
+          }
         }
       }
     }
