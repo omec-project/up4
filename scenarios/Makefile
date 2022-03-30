@@ -60,8 +60,6 @@ TOPO_NETCFG := ${UP4_ROOT}/scenarios/topo/netcfg-${TOPO}.json
 ./tmp:
 	@mkdir -p ./tmp
 
-asd:
-	python3 -c "import yaml; f = open('docker-compose.yml'); y = yaml.safe_load(f); print(' '.join(y['services'])); f.close();"
 # Empty files to record the last value of a variable
 ./tmp/makevar.env.$(UP4_ENV): ./tmp
 	@rm -f ./tmp/makevar.env.*
