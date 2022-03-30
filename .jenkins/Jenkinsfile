@@ -62,6 +62,12 @@ pipeline {
                           passwordVariable: "PASSWORD"]]) {
           sh 'docker login registry.aetherproject.org -u $USERNAME -p $PASSWORD'
         }
+        withCredentials([[$class          : "UsernamePasswordMultiBinding",
+                          credentialsId   : "registry.opennetworking.org",
+                          usernameVariable: "USERNAME",
+                          passwordVariable: "PASSWORD"]]) {
+          sh 'docker login registry.opennetworking.org -u $USERNAME -p $PASSWORD'
+        }
         // Set JDK 11
         sh "sudo update-java-alternatives -s java-11-amazon-corretto"
       }
