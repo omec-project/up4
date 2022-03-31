@@ -14,6 +14,9 @@ UE_PORT = 400
 PDN_PORT = 80
 GPDU_PORT = 2152
 
+# TEID_STEP reflects the SessionStep in pfcpsim, which is used to generate TEIDs.
+TEID_STEP = 10
+
 GTPU_EXT_PSC_TYPE_UL = 1
 GTPU_EXT_PSC_TYPE_DL = 0  # Unused
 
@@ -35,7 +38,7 @@ def addrs_from_prefix(prefix: IPv4Network, count: int):
 def send_gtp(args: argparse.Namespace):
     pkts = []
     # Uplink TEIDs each differ by 2, since each UE is assigned two TEIDs: one for up, one for down
-    for (teid, ue_addr) in zip(range(args.teid_base, args.teid_base + args.flow_count * 2, 2),
+    for (teid, ue_addr) in zip(range(args.teid_base, args.teid_base + args.flow_count * TEID_STEP, TEID_STEP),
                                addrs_from_prefix(args.ue_pool, args.flow_count)):
         pkt = IP(src=str(args.enb_addr), dst=str(args.n3_addr)) / \
               UDP(dport=GPDU_PORT) / \
@@ -186,7 +189,7 @@ def sniff_stuff(args: argparse.Namespace, kind: str):
         ue_addresses_expected.add(IPv4Address(ue_addr))
     # Add downlink TEIDs for which we expect to receive packets to the global set
     if kind == 'gtp' and not args.no_verify_teid:
-        for teid in range(args.teid_base, args.teid_base + args.flow_count * 2, 2):
+        for teid in range(args.teid_base, args.teid_base + args.flow_count * TEID_STEP, TEID_STEP):
             # We assign 2 TEIDs to a UE and the second one is for downlink
             downlink_teids_expected.add(teid + 1)
 
