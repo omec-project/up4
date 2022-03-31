@@ -144,7 +144,7 @@ ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
 		USE_LOCAL_SNAPSHOT_ARTIFACTS=true \
 		DOCKER_TAG=master \
 		DOCKER_REPOSITORY=`echo ${ONOS_IMAGE} | sed 's/:master//'` \
-		make docker-build JOBS=${NPROCS}
+		make docker-build JOBS=${NPROCS} SHOW_SENSITIVE_OUTPUT=false
 	@# use the .build-sdfabric-onos to cache the current built sdfabric-onos image
 	@# to reset it, call "make reset-sdfabric-onos"
 	touch .build-sdfabric-onos

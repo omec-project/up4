@@ -8,7 +8,7 @@
 
 // sha1 used for PRs, while commitHash is populated for postmerge
 def commitHash = params.commitHash ? params.commitHash : params.sha1
-def skipOtherStages = false
+def runOtherStages = false
 
 pipeline {
 
@@ -72,7 +72,7 @@ pipeline {
                     returnStdout: true
             ).trim()
             if (ONOS_IMAGE_STABLE == "sdfabric-onos-local:master") {
-              skipOtherStages = true
+              runOtherStages = true
             }
           }
         }
@@ -81,7 +81,7 @@ pipeline {
     stage("Prepare env with latest SHA") {
       when {
         expression {
-          !skipOtherStages
+          runOtherStages
         }
       }
       steps {
@@ -103,7 +103,7 @@ pipeline {
     stage("Dependencies") {
       when {
         expression {
-          !skipOtherStages
+          runOtherStages
         }
       }
       options { retry(3) }
@@ -118,7 +118,7 @@ pipeline {
     stage("Build P4 and constants") {
       when {
         expression {
-          !skipOtherStages
+          runOtherStages
         }
       }
       steps {
@@ -130,7 +130,7 @@ pipeline {
     stage("Build ONOS app") {
       when {
         expression {
-          !skipOtherStages
+          runOtherStages
         }
       }
       steps {
@@ -142,7 +142,7 @@ pipeline {
     stage("Smoke test leaf-spine P4RT") {
       when {
         expression {
-          !skipOtherStages
+          runOtherStages
         }
       }
       options { retry(3) }
@@ -158,7 +158,7 @@ pipeline {
     stage("Smoke test single pair-leaf P4RT") {
       when {
         expression {
-          !skipOtherStages
+          runOtherStages
         }
       }
       options { retry(3) }
@@ -174,7 +174,7 @@ pipeline {
     stage("Smoke test leaf-spine PFCP") {
       when {
         expression {
-          !skipOtherStages
+          runOtherStages
         }
       }
       options { retry(3) }
@@ -190,7 +190,7 @@ pipeline {
     stage("Smoke test single pair-leaf PFCP") {
       when {
         expression {
-          !skipOtherStages
+          runOtherStages
         }
       }
       options { retry(3) }
@@ -206,7 +206,7 @@ pipeline {
     stage("Smoke test single pair-leaf PFCP") {
       when {
         expression {
-          !skipOtherStages
+          runOtherStages
         }
       }
       steps {
