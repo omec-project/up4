@@ -70,10 +70,10 @@
                   exec="onos-check-apps ${OC#} org.omecproject.up4 includes"
                   requires="Up4-App-Install-Local-Build"/>
             <step name="Up4-Set-Log-Debug-${#}"
-                  exec="onos ${OC#} log:set DEBUG org.omecproject.up4"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T ${OD#} apache-karaf-4.2.14/bin/client 'log:set DEBUG org.omecproject.up4'"
                   requires="Onos-Check-Up4-App-${#}"/>
             <step name="Onos-Enable-Grpc-Log-${#}"
-                  exec="onos ${OC#} cfg set org.onosproject.grpc.ctl.GrpcChannelControllerImpl enableMessageLog true"
+                  exec="${DOCKER_COMPOSE_CMD} exec -T ${OD#} apache-karaf-4.2.14/bin/client 'cfg set org.onosproject.grpc.ctl.GrpcChannelControllerImpl enableMessageLog true'"
                   requires="Onos-Check-Up4-App-${#}"/>
             <step name="Onos-Check-Components-${#}" exec="onos-check-components ${OC#}"
                   delay="5" requires="Onos-Check-Up4-App-${#}"/>

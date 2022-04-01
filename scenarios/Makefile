@@ -102,11 +102,25 @@ mn-cli: ./tmp/.env.docker
 mn-log:
 	docker logs -f mininet
 
-onos-cli:
+onos-cli: onos-cli1
+
+onos-cli1:
 	ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o LogLevel=ERROR -p 8101 localhost
 
-onos-log: ./tmp/.env.docker
+onos-cli2:
+	ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o LogLevel=ERROR -p 8102 localhost
+
+onos-cli3:
+	ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o LogLevel=ERROR -p 8103 localhost
+
+onos-log-1: ./tmp/.env.docker
 	${DOCKER_COMPOSE_CMD} logs -f onos1
+
+onos-log-2: ./tmp/.env.docker
+	${DOCKER_COMPOSE_CMD} logs -f onos2
+
+onos-log-3: ./tmp/.env.docker
+	${DOCKER_COMPOSE_CMD} logs -f onos3
 
 onos-ui:
 	open http://localhost:8181/onos/ui
