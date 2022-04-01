@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: 2020 Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: Apache-2.0
+#
+
+# Verifies if SD-Fabric ONOS is built as part of STC, if so, opens a PR that uses
+# the latest SD-Fabric master tag sha instead. Runs at 00:00 on Monday.
+
+name: Change stable env
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+
+jobs:
+  change_stable_env:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      ref: 'master'
+    - name: Read sdfabric ONOS image from stable env
+      run: echo ONOS_IMAGE=$(cat ../.env.stable | grep \'ONOS_IMAGE=\'| sed \'s/ONOS_IMAGE=//\'") >> $GITHUB_ENV
+    - name: Get sdfabric ONOS master latest
+      if: ${{ env.ONOS_IMAGE == 'sdfabric-onos-local:master' }}
+      run: echo SDFABRIC_ONOS_MASTER_SHA=$(docker inspect --format='{{index .RepoDigests 0}}' opennetworking/sdfabric-onos:master) >> $GITHUB_ENV
+    - name: Cleanup stable env file
+      if: ${{ env.ONOS_IMAGE == 'sdfabric-onos-local:master' }}
+      run: |
+        sed - i '' -e '/ONOS_VERSION=.*/d' ".env.stable"
+        sed - i '' -e '/TRELLIS_CONTROL_VERSION=.*/d' ".env.stable"
+        sed - i '' -e '/UP4_VERSION=.*/d' ".env.stable"
+        sed - i '' -e '/FABRIC_TNA_VERSION=.*/d' ".env.stable"
+        sed - i '' -e 's/ONOS_IMAGE=.*/ONOS_IMAGE=${{ env.SDFABRIC_ONOS_MASTER_SHA }}/' "./.env.stable"
+    - name: Pull request
+      if: ${{ env.ONOS_IMAGE == 'sdfabric-onos-local:master' }}
+      uses: peter-evans/create-pull-request@v3
+      with:
+        commit-message: Update stable env to released master SHA
+        title: Update stable env to released master SHA
+        author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+        labels: update_stable
+        branch: update_stable
