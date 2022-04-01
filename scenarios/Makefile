@@ -11,7 +11,8 @@ else
 NPROCS := 1
 endif
 
-# Extracts the services from docker-compose file
+# Extracts the services from docker-compose, this is needed to avoid pulling
+# sdfabric-onos images built locally, when downloading dependencies for docker-compose
 STC_COMPOSE_SERVICES = $(shell python3 -c "import yaml; f = open('docker-compose.yml'); y = yaml.safe_load(f); print(' '.join(y['services'])); f.close();")
 STC_COMPOSE_SERVICES_WO_ONOS := $(filter-out onos%,$(STC_COMPOSE_SERVICES))
 
