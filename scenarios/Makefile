@@ -65,10 +65,10 @@ $(SCENARIOS): onos-test ./tmp /tmp/stc ./tmp/.env.docker
 deps: pull build stc-dev-build onos-test
 
 onos-test:
-	curl -sS --fail https://repo1.maven.org/maven2/org/onosproject/onos-releases/2.5.4/onos-test-2.5.4.tar.gz --output onos-test.tar.gz
+	curl -sS --fail https://repo1.maven.org/maven2/org/onosproject/onos-releases/2.5.7-rc3/onos-test-2.5.7-rc3.tar.gz --output onos-test.tar.gz
 	tar xf onos-test.tar.gz
 	rm onos-test.tar.gz
-	mv onos-test-2.5.4 onos-test
+	mv onos-test-2.5.7-rc3 onos-test
 
 #FIXME: remove once 'quotes' branch is merged and 2.6 released:
 stc-dev-build:
