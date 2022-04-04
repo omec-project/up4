@@ -11,11 +11,6 @@ else
 NPROCS := 1
 endif
 
-# Extracts the services from docker-compose, this is needed to avoid pulling
-# sdfabric-onos images built locally, when downloading dependencies for docker-compose
-STC_COMPOSE_SERVICES = $(shell python3 -c "import yaml; f = open('docker-compose.yml'); y = yaml.safe_load(f); print(' '.join(y['services'])); f.close();")
-STC_COMPOSE_SERVICES_WO_ONOS := $(filter-out onos%,$(STC_COMPOSE_SERVICES))
-
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 
@@ -25,19 +20,37 @@ SCENARIOS          := *.xml
 DOCKER_COMPOSE_CMD := docker-compose --env-file ./tmp/.env.docker
 CURRENT_USER       := $(shell id -u):$(shell id -g)
 
-# Set to master to use tip of master versions of components
+# Set to latest to use latest versions of components
 UP4_ENV ?= stable
+
 # Loading the env file allows to use the env variable as make variable
-ifeq ($(UP4_ENV),master)
-include ../.env.master
+ifeq ($(UP4_ENV),latest)
+include ../.env.latest
 else
 include ../.env.stable
 endif
 
-ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
-ifndef $(UP4_VERSION)
+# Used when building the sdfabric-onos image
 UP4_VERSION := $(shell git rev-parse --abbrev-ref HEAD)
+
+ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
+BUILD_SDFABRIC_ONOS := true
+# UP4 is built as part of sdfabric-onos, to avoid pushing UP4, we need to set
+# PUSH_UP4 to a null value
+PUSH_UP4            :=
+else
+BUILD_SDFABRIC_ONOS := false
+PUSH_UP4            := true
 endif
+
+# Extracts the services from docker-compose, this is needed to avoid pulling
+# sdfabric-onos images built locally, when downloading dependencies for docker-compose
+STC_COMPOSE_SERVICES = $(shell $(CURRENT_DIR)/bin/parse_compose_services '$(CURRENT_DIR)/docker-compose.yml')
+ifeq ($(BUILD_SDFABRIC_ONOS),true)
+#avoid pulling the ONOS image if we build it locally
+STC_COMPOSE_SERVICES_TO_PULL := $(filter-out onos%,$(STC_COMPOSE_SERVICES))
+else
+STC_COMPOSE_SERVICES_TO_PULL := $(STC_COMPOSE_SERVICES)
 endif
 
 # TODO: release 2.6 with support for quotes in step commands
@@ -77,8 +90,6 @@ endif
 
 $(SCENARIOS): onos-test ./tmp /tmp/stc ./tmp/.env.docker
 	$(info *** Running STC scenario: $@)
-ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
-	@# DO NOT PUSH UP4 when we build sdfabric-onos locally
 	@export $(shell cat "${CURRENT_DIR}"/"${STC_ENV}" | grep -v '#' | xargs) && \
 		export PATH="${CURRENT_DIR}/bin:${ONOS_TEST}/tools/test/bin:${ONOS_TEST}/tools/test/scenarios/bin:${ONOS_TEST}/tools/package/runtime/bin:${PATH}" && \
 		export WORKSPACE=${CURRENT_DIR} && \
@@ -88,20 +99,8 @@ ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
 		export DOCKER_COMPOSE_CMD="${DOCKER_COMPOSE_CMD}" && \
 		export STC_ENV_FILE=${STC_ENV} && \
 		export TOPO_NETCFG=${TOPO_NETCFG} && \
+		export PUSH_UP4=$(PUSH_UP4) && \
 		stc $@
-else
-	@export $(shell cat "${CURRENT_DIR}"/"${STC_ENV}" | grep -v '#' | xargs) && \
-		export PATH="${CURRENT_DIR}/bin:${ONOS_TEST}/tools/test/bin:${ONOS_TEST}/tools/test/scenarios/bin:${ONOS_TEST}/tools/package/runtime/bin:${PATH}" && \
-		export WORKSPACE=${CURRENT_DIR} && \
-		export ONOS_ROOT=${ONOS_TEST} && \
-		export UP4_ROOT=${UP4_ROOT} && \
-		export STC_VERSION=${STC_VERSION} && \
-		export DOCKER_COMPOSE_CMD="${DOCKER_COMPOSE_CMD}" && \
-		export STC_ENV_FILE=${STC_ENV} && \
-		export TOPO_NETCFG=${TOPO_NETCFG} && \
-		export PUSH_UP4=True && \
-		stc $@
-endif
 
 deps: build-sdfabric-onos pull build stc-dev-build onos-test
 
@@ -118,24 +117,14 @@ stc-dev-build:
 	cd /tmp/onos-stc && mvn -q -B -Dmaven.test.skip=true install
 
 pull: ./tmp/.env.docker
-ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
-	@#avoid pulling the ONOS image if we build it locally
-	${DOCKER_COMPOSE_CMD} pull ${STC_COMPOSE_SERVICES_WO_ONOS}
-else
-	${DOCKER_COMPOSE_CMD} pull
-endif
+	${DOCKER_COMPOSE_CMD} pull $(STC_COMPOSE_SERVICES_TO_PULL)
 
 build: ./tmp/.env.docker
-ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
-	@#avoid pulling the ONOS image if we build it locally
-	${DOCKER_COMPOSE_CMD} build --pull ${STC_COMPOSE_SERVICES_WO_ONOS}
-else
-	${DOCKER_COMPOSE_CMD} build --pull
-endif
+	${DOCKER_COMPOSE_CMD} build --pull $(STC_COMPOSE_SERVICES_TO_PULL)
 
 build-sdfabric-onos: .build-sdfabric-onos
 .build-sdfabric-onos: ./tmp/.env.docker sdfabric-onos
-ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
+ifeq ($(BUILD_SDFABRIC_ONOS),true)
 	cd sdfabric-onos && \
 	git pull origin master && \
 	ONOS_VERSION=${ONOS_VERSION} \
@@ -152,7 +141,7 @@ ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
 endif
 
 sdfabric-onos:
-ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
+ifeq ($(BUILD_SDFABRIC_ONOS),true)
 	git clone "https://gerrit.onosproject.org/sdfabric-onos" sdfabric-onos
 endif
 

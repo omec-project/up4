@@ -29,12 +29,11 @@ jobs:
         sed - i '' -e '/UP4_VERSION=.*/d' ".env.stable"
         sed - i '' -e '/FABRIC_TNA_VERSION=.*/d' ".env.stable"
         sed - i '' -e 's/ONOS_IMAGE=.*/ONOS_IMAGE=${{ env.SDFABRIC_ONOS_MASTER_SHA }}/' "./.env.stable"
-    - name: Pull request
+    - name: Create pull request
       if: ${{ env.ONOS_IMAGE == 'sdfabric-onos-local:master' }}
       uses: peter-evans/create-pull-request@v3
       with:
-        commit-message: Update stable env to released master SHA
-        title: Update stable env to released master SHA
-        author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+        commit-message: Update stable env to latest sdfabric-onos image
+        title: Update stable env to latest sdfabric-onos image
         labels: update_stable
         branch: update_stable

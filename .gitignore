@@ -20,6 +20,7 @@
 /scenarios/onos-test
 /scenarios/sdfabric-onos
 /scenarios/.build-sdfabric-onos
+/scenarios/.venv
 
 # FIXME: .bin format of P4info changes accross builds
 #  Ignore for now to avoid breaking CI (which makes sure

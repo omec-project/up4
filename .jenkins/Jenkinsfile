@@ -91,6 +91,8 @@ pipeline {
     stage("Dependencies") {
       options { retry(3) }
       steps {
+        // SSH keys are needed to eventually pull git repositories that uses SSH
+        // in sdfabric-onos when building sdfabric-onos as part of the STC deps.
         sshagent(credentials: ["github-onf-bot-ssh-key"]) {
           dir("${env.WORKSPACE}/up4") {
             sh "make deps"
