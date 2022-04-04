@@ -113,13 +113,15 @@ onos-cli2:
 onos-cli3:
 	ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o LogLevel=ERROR -p 8103 localhost
 
-onos-log-1: ./tmp/.env.docker
+onos-log: onos-log1
+
+onos-log1: ./tmp/.env.docker
 	${DOCKER_COMPOSE_CMD} logs -f onos1
 
-onos-log-2: ./tmp/.env.docker
+onos-log2: ./tmp/.env.docker
 	${DOCKER_COMPOSE_CMD} logs -f onos2
 
-onos-log-3: ./tmp/.env.docker
+onos-log3: ./tmp/.env.docker
 	${DOCKER_COMPOSE_CMD} logs -f onos3
 
 onos-ui:
