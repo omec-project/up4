@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 for _ in {1..30}; do
-    docker-compose ps | grep "pfcp-agent" && \
-        docker-compose logs pfcp-agent | grep "listening for new PFCP connections" \
+    ${DOCKER_COMPOSE_CMD} ps | grep "pfcp-agent" && \
+        ${DOCKER_COMPOSE_CMD} logs pfcp-agent | grep "listening for new PFCP connections" \
         && exit 0 || sleep 1
 done
 exit 1

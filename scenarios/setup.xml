@@ -4,7 +4,7 @@
   -->
 <scenario name="setup" description="Environment setup">
     <group name="Setup">
-        <step name="Docker-Compose-Up" exec="${DOCKER_COMPOSE_CMD} up -d"/>
+        <step name="Docker-Compose-Up" exec="docker-compose-up"/>
 
         <step name="Mn-Wait-For-Start-Dbuf"
               exec="file-grep tmp/dbuf_dbuf1.log 'Listening for gRPC requests'"

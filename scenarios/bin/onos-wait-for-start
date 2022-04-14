@@ -4,8 +4,8 @@
 
 # Wait until ApplicationManager is available
 for _ in {1..60}; do
-    docker-compose logs "$1" | grep "ApplicationManager.*Started" && break || sleep 1
+    ${DOCKER_COMPOSE_CMD} logs "$1" | grep "ApplicationManager.*Started" && break || sleep 1
 done
 
-docker-compose logs "$1" | grep "ApplicationManager.*Started"
+${DOCKER_COMPOSE_CMD} logs "$1" | grep "ApplicationManager.*Started"
 

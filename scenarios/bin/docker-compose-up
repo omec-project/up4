@@ -1,0 +1,38 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2022-present Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: Apache-2.0
+
+# Run multiple times docker-compose up. If it fails, teardown and retry.
+# This is required due to a bug in Rancher Desktop.
+# See: https://github.com/rancher-sandbox/rancher-desktop/issues/1209
+
+teardown () {
+  ${DOCKER_COMPOSE_CMD} down -t0 --remove-orphans && sleep 1
+  return $?
+}
+check_logs () {
+  ${DOCKER_COMPOSE_CMD} logs onos1 | grep "[EventAdminConfigurationNotifier] Sending Event Admin notification" && \
+    ${DOCKER_COMPOSE_CMD} logs onos2 | grep "[EventAdminConfigurationNotifier] Sending Event Admin notification" && \
+    ${DOCKER_COMPOSE_CMD} logs onos3 | grep "[EventAdminConfigurationNotifier] Sending Event Admin notification"
+  return $?
+}
+for _ in {1..5}; do
+  ${DOCKER_COMPOSE_CMD} up -d
+  if [ $? -ne 0 ]; then
+    teardown
+  else
+    # let's give ONOS some time to start and ensure ONOS has correctly started
+    sleep 5
+    for _ in {1..10}; do
+      check_logs && break || echo "FAILED" && sleep 1
+    done
+    check_logs
+    if [ $? -ne 0 ]; then
+      teardown
+    else
+      exit 0
+    fi
+  fi
+done
+
+exit 1
