@@ -38,8 +38,9 @@ def addrs_from_prefix(prefix: IPv4Network, count: int):
 def send_gtp(args: argparse.Namespace):
     pkts = []
     # Uplink TEIDs each differ by 2, since each UE is assigned two TEIDs: one for up, one for down
-    for (teid, ue_addr) in zip(range(args.teid_base, args.teid_base + args.flow_count * TEID_STEP, TEID_STEP),
-                               addrs_from_prefix(args.ue_pool, args.flow_count)):
+    for (teid, ue_addr) in zip(
+            range(args.teid_base, args.teid_base + args.flow_count * TEID_STEP, TEID_STEP),
+            addrs_from_prefix(args.ue_pool, args.flow_count)):
         pkt = IP(src=str(args.enb_addr), dst=str(args.n3_addr)) / \
               UDP(dport=GPDU_PORT) / \
               gtp.GTP_U_Header(gtp_type=0xff, teid=teid)
