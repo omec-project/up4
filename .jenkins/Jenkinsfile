@@ -187,7 +187,7 @@ void runSTCSmokeTest(String topo) {
 
 void exportArtifactsScenarios(String topo) {
   dir("${env.WORKSPACE}/up4/scenarios") {
-    BUILDVERSION = sh(script: "echo `date +%s`", returnStdout: true).trim()
+    timestamp = sh(script: "echo `date +%s`", returnStdout: true).trim()
     // Print Docker image version labels, etc.
     sh "make versions > ./tmp/versions.txt"
     // Onos shared folders contain jars and other stuff that is too big and unnecessary,
@@ -195,7 +195,7 @@ void exportArtifactsScenarios(String topo) {
     sh "make fix-permissions"
     sh "find ./tmp/onos*/ -type f -not -name \"grpc_*.log\" -print -delete"
     sh "tar -czvf ${topo}-scenarios-tmp.tar.gz ./tmp"
-    archiveArtifacts artifacts: "${topo}-scenarios-tmp-{BUILDVERSION}.tar.gz"
+    archiveArtifacts artifacts: "${topo}-scenarios-tmp-{timestamp}.tar.gz"
   }
 }
 
