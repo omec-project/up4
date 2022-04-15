@@ -195,7 +195,7 @@ void exportArtifactsScenarios(String topo) {
     sh "make fix-permissions"
     sh "find ./tmp/onos*/ -type f -not -name \"grpc_*.log\" -print -delete"
     sh "tar -czvf ${topo}-scenarios-tmp.tar.gz ./tmp"
-    archiveArtifacts artifacts: "${topo}-scenarios-tmp-{timestamp}.tar.gz"
+    archiveArtifacts artifacts: "${topo}-scenarios-tmp-${timestamp}.tar.gz"
   }
 }
 
