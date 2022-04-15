@@ -35,8 +35,8 @@ UP4_VERSION := $(shell git rev-parse --abbrev-ref HEAD)
 
 ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
 BUILD_SDFABRIC_ONOS := true
-# UP4 is built as part of sdfabric-onos, to avoid pushing UP4, we need to set
-# PUSH_UP4 to a null value
+# UP4 is built as part of sdfabric-onos, to avoid re-installing UP4 in ONOS at
+# runtime, we need to set PUSH_UP4 to a null value
 PUSH_UP4            :=
 else
 BUILD_SDFABRIC_ONOS := false
@@ -45,9 +45,8 @@ endif
 
 # Extracts the services from docker-compose, this is needed to avoid pulling
 # sdfabric-onos images built locally, when downloading dependencies for docker-compose
-STC_COMPOSE_SERVICES = $(shell $(CURRENT_DIR)/bin/parse_compose_services '$(CURRENT_DIR)/docker-compose.yml')
+STC_COMPOSE_SERVICES = $(shell $(CURRENT_DIR)/bin/parse-compose-services '$(CURRENT_DIR)/docker-compose.yml')
 ifeq ($(BUILD_SDFABRIC_ONOS),true)
-#avoid pulling the ONOS image if we build it locally
 STC_COMPOSE_SERVICES_TO_PULL := $(filter-out onos%,$(STC_COMPOSE_SERVICES))
 else
 STC_COMPOSE_SERVICES_TO_PULL := $(STC_COMPOSE_SERVICES)

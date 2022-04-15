@@ -35,5 +35,6 @@ jobs:
       with:
         commit-message: Update stable env to latest sdfabric-onos image
         title: Update stable env to latest sdfabric-onos image
+        # Always push on the same branch, commit will appear on the same PR if it's still open.
         labels: update_stable
         branch: update_stable
