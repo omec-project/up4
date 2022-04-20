@@ -58,7 +58,6 @@ under the License.
 EOF
 
 if [ "$http_proxy$https_proxy" != "" ] ; then
-  echo "ASD"
   echo "  <proxies>" >> mvn_settings.proxy.xml
   for PROTOCOL in http https ; do
     proxy="${PROTOCOL}_proxy"
@@ -81,6 +80,8 @@ if [ "$http_proxy$https_proxy" != "" ] ; then
   done
   echo "  </proxies>" >> mvn_settings.proxy.xml
 
-  sed -i '' '/<!--PROXY-->/r mvn_settings.proxy.xml' mvn_settings.xml
+  sed -i.bak -e '/<!--PROXY-->/r mvn_settings.proxy.xml' mvn_settings.xml
+  # This is needed to be compatible with both BSD and GNU sed
+  rm mvn_settings.xml.bak
   rm mvn_settings.proxy.xml
 fi
