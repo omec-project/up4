@@ -11,7 +11,7 @@ CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 # but allow passing a directory, e.g., local ~/.m2
 mvn_cache_docker_volume := mvn-cache-up4
 MVN_CACHE ?= ${mvn_cache_docker_volume}
-MVN_FLAGS ?= -B
+MVN_FLAGS ?= -B -s /root/mvn_settings.xml
 
 onos_tools_dir := $(abspath ${CURRENT_DIR}/../scenarios/onos/tools/package/runtime/bin)
 
@@ -41,7 +41,8 @@ app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java: app/external/dbuf/dbuf.pr
 
 _build_resources: \
 	app/src/main/resources/p4info.txt \
-	app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java
+	app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java \
+	mvn_settings.xml
 
 # Is this still needed if we allow passing a local mvn cache to make build?
 local-build: _build_resources
@@ -56,6 +57,9 @@ build: _build_resources
 # run on local build, but during CI.
 build-ci: MVN_FLAGS := -B -q -Pci-verify -Pcoverage
 build-ci: local-build
+
+mvn_settings.xml: mvn_settings.sh ## : Builds mvn_settings file for proxy
+	@./$<
 
 clean:
 	rm -rf app/target/
