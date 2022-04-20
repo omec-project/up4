@@ -187,7 +187,7 @@ void runSTCSmokeTest(String topo) {
 
 void exportArtifactsScenarios(String topo) {
   dir("${env.WORKSPACE}/up4/scenarios") {
-    timestamp = sh(script: "echo `date +%s`", returnStdout: true).trim()
+    timestamp = sh(script: "echo `date +%Y%m%d-%H%M%S`", returnStdout: true).trim()
     // Print Docker image version labels, etc.
     sh "make versions > ./tmp/versions.txt"
     // Onos shared folders contain jars and other stuff that is too big and unnecessary,
