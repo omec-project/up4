@@ -64,6 +64,23 @@ public interface Up4AdminService {
     void adminApply(UpfEntity entity) throws UpfProgrammableException;
 
     /**
+     * Reset the given UPF counter cell ID.
+     *
+     * @param cellId the UPF counter cell ID to reset.
+     * @throws UpfProgrammableException propagate the exception from the UPF data plane.
+     */
+    void resetCounter(int cellId) throws UpfProgrammableException;
+
+    /**
+     * Reset the given UPF counter cell ID on the given device.
+     *
+     * @param cellId the UPF counter cell ID to reset.
+     * @param device the device into reset the counter
+     * @throws UpfProgrammableException propagate the exception from the UPF data plane.
+     */
+    void resetCounter(int cellId, DeviceId device) throws UpfProgrammableException;
+
+    /**
      * Reads the given type of UPF entity from the UPF data plane, without filtering
      * out reads to entries directly managed by UP4.
      *

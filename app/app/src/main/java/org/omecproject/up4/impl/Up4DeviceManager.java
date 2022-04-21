@@ -744,6 +744,8 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     throw new UpfProgrammableException("Cannot apply the DBUF GTP Tunnel Peer");
                 }
                 break;
+            case COUNTER:
+                applyUpfCounter((UpfCounter) entity);
             default:
                 break;
         }
@@ -788,8 +790,59 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         }
     }
 
+    private void applyUpfCounter(UpfCounter upfCounter) throws UpfProgrammableException {
+        // When writing counters we need to explicitly write on all UPF physical devices.
+        // We don't have any explicit asynchronous mechanism to reconcile state
+        // between different UPF physical devices (as we have for meters and flow rules).
+        boolean exception = false;
+        assertUpfIsReady();
+        for (UpfProgrammable upfProg : upfProgrammables.values()) {
+            try {
+                upfProg.apply(upfCounter);
+            } catch (UpfProgrammableException e) {
+                // Avoid to immediately propagating exception to callee.
+                // This is done to try applying the same state on all devices
+                // even if we get exceptions (i.e., we may fail to update just
+                // ingress or egress counters).
+                log.error(e.getMessage());
+                exception = true;
+            }
+        }
+        if (exception) {
+            throw new UpfProgrammableException(
+                    "Error while writing UPF counters! Check ONOS log for more information.");
+        }
+    }
+
     public void adminApply(UpfEntity entity) throws UpfProgrammableException {
         getLeaderUpfProgrammable().apply(entity);
+    }
+
+    @Override
+    public void resetCounter(int cellId) throws UpfProgrammableException {
+        // TODO: add helper method in UpfCounter to build a reset counter
+        UpfCounter resetCounter = UpfCounter.builder()
+                .withCellId(cellId)
+                .setIngress(0, 0)
+                .setEgress(0, 0)
+                .build();
+        apply(resetCounter);
+    }
+
+    @Override
+    public void resetCounter(int cellId, DeviceId device) throws UpfProgrammableException {
+        // TODO: add helper method in UpfCounter to build a reset counter
+        UpfCounter resetCounter = UpfCounter.builder()
+                .withCellId(cellId)
+                .setIngress(0, 0)
+                .setEgress(0, 0)
+                .build();
+        if (!upfProgrammables.containsKey(device)) {
+            throw new UpfProgrammableException("Provided Device ID is not a UPF Programmable!");
+        }
+        assertUpfIsReady();
+        UpfProgrammable upfProgrammable = upfProgrammables.get(device);
+        upfProgrammable.apply(resetCounter);
     }
 
     @Override
@@ -947,6 +1000,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         if (!upfProgrammables.containsKey(device)) {
             throw new UpfProgrammableException("Provided Device ID is not a UPF Programmable!");
         }
+        assertUpfIsReady();
         if (isMaxUeSet() && counterIdx >= getMaxUe() * 2) {
             throw new UpfProgrammableException(
                     "Requested PDR counter cell index above max supported UE value.",
