@@ -1,9 +1,11 @@
 /*
  SPDX-License-Identifier: Apache-2.0
+ SPDX-FileCopyrightText: 2022-present Intel Corporation
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4.impl;
 
+import com.google.common.collect.Maps;
 import org.omecproject.up4.Up4EventListener;
 import org.omecproject.up4.Up4Service;
 import org.onosproject.net.behaviour.upf.UpfCounter;
@@ -15,6 +17,17 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.LongStream;
+
+import static org.omecproject.up4.impl.TestImplConstants.PHYSICAL_APPLICATIONS_SIZE;
+import static org.omecproject.up4.impl.TestImplConstants.PHYSICAL_COUNTER_SIZE;
+import static org.omecproject.up4.impl.TestImplConstants.PHYSICAL_MAX_INTERFACES;
+import static org.omecproject.up4.impl.TestImplConstants.PHYSICAL_MAX_METERS;
+import static org.omecproject.up4.impl.TestImplConstants.PHYSICAL_MAX_SESSIONS;
+import static org.omecproject.up4.impl.TestImplConstants.PHYSICAL_MAX_TERMINATIONS;
+import static org.omecproject.up4.impl.TestImplConstants.PHYSICAL_MAX_TUNNEL_PEERS;
+
 
 public class MockUp4Service implements Up4Service {
     boolean upfProgrammableAvailable = true;
@@ -29,7 +42,18 @@ public class MockUp4Service implements Up4Service {
     final List<UpfEntity> sessionMeters = new ArrayList<>();
     final List<UpfEntity> applicationMeters = new ArrayList<>();
     final List<UpfEntity> sliceMeters = new ArrayList<>();
+    final Map<Integer, UpfCounter> counters = Maps.newHashMap();
     final List<ByteBuffer> sentPacketOuts = new ArrayList<>();
+
+    public MockUp4Service() {
+        LongStream.range(0, PHYSICAL_COUNTER_SIZE)
+                .forEach(i -> counters.put((int) i, UpfCounter.builder()
+                        .withCellId((int) i)
+                        .setIngress(0, 0)
+                        .setEgress(0, 0)
+                        .build())
+                );
+    }
 
     public void hideState(boolean hideUpfProgrammable, boolean hideConfig) {
         upfProgrammableAvailable = !hideUpfProgrammable;
@@ -94,6 +118,10 @@ public class MockUp4Service implements Up4Service {
             case SLICE_METER:
                 sliceMeters.add(entity);
                 break;
+            case COUNTER:
+                UpfCounter counter = (UpfCounter) entity;
+                counters.put(counter.getCellId(), counter);
+                break;
             default:
                 break;
         }
@@ -123,6 +151,8 @@ public class MockUp4Service implements Up4Service {
                 return applicationMeters;
             case SLICE_METER:
                 return sliceMeters;
+            case COUNTER:
+                return counters.values();
             default:
                 break;
         }
@@ -141,26 +171,12 @@ public class MockUp4Service implements Up4Service {
 
     @Override
     public UpfCounter readCounter(int cellId) {
-        return UpfCounter.builder()
-                .withCellId(cellId)
-                .setEgress(NorthTestConstants.EGRESS_COUNTER_PKTS, NorthTestConstants.EGRESS_COUNTER_BYTES)
-                .setIngress(NorthTestConstants.INGRESS_COUNTER_PKTS, NorthTestConstants.INGRESS_COUNTER_BYTES)
-                .build();
+        return counters.get(cellId);
     }
 
     @Override
     public Collection<UpfCounter> readCounters(long maxCounterId) {
-        List<UpfCounter> stats = new ArrayList<>();
-        for (int i = 0; i < TestImplConstants.PHYSICAL_COUNTER_SIZE; i++) {
-            stats.add(UpfCounter.builder()
-                              .withCellId(i)
-                              .setEgress(NorthTestConstants.EGRESS_COUNTER_PKTS,
-                                         NorthTestConstants.EGRESS_COUNTER_BYTES)
-                              .setIngress(NorthTestConstants.INGRESS_COUNTER_PKTS,
-                                          NorthTestConstants.INGRESS_COUNTER_BYTES)
-                              .build());
-        }
-        return stats;
+        return counters.values();
     }
 
     @Override
@@ -248,22 +264,22 @@ public class MockUp4Service implements Up4Service {
     public long tableSize(UpfEntityType entityType) throws UpfProgrammableException {
         switch (entityType) {
             case INTERFACE:
-                return TestImplConstants.PHYSICAL_MAX_INTERFACES;
+                return PHYSICAL_MAX_INTERFACES;
             case TERMINATION_DOWNLINK:
             case TERMINATION_UPLINK:
-                return TestImplConstants.PHYSICAL_MAX_TERMINATIONS;
+                return PHYSICAL_MAX_TERMINATIONS;
             case SESSION_UPLINK:
             case SESSION_DOWNLINK:
-                return TestImplConstants.PHYSICAL_MAX_SESSIONS;
+                return PHYSICAL_MAX_SESSIONS;
             case TUNNEL_PEER:
-                return TestImplConstants.PHYSICAL_MAX_TUNNEL_PEERS;
+                return PHYSICAL_MAX_TUNNEL_PEERS;
             case COUNTER:
-                return TestImplConstants.PHYSICAL_COUNTER_SIZE;
+                return PHYSICAL_COUNTER_SIZE;
             case APPLICATION:
-                return TestImplConstants.PHYSICAL_APPLICATIONS_SIZE;
+                return PHYSICAL_APPLICATIONS_SIZE;
             case SESSION_METER:
             case APPLICATION_METER:
-                return TestImplConstants.PHYSICAL_MAX_METERS;
+                return PHYSICAL_MAX_METERS;
             default:
                 break;
         }

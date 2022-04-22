@@ -1,5 +1,6 @@
 /*
  SPDX-License-Identifier: Apache-2.0
+ SPDX-FileCopyrightText: 2022-present Intel Corporation
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4.impl;
@@ -12,6 +13,7 @@ import org.onosproject.core.ApplicationId;
 import org.onosproject.core.DefaultApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.behaviour.upf.UpfApplication;
+import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
 import org.onosproject.net.behaviour.upf.UpfInterface;
 import org.onosproject.net.behaviour.upf.UpfMeter;
@@ -112,8 +114,10 @@ public final class TestImplConstants {
     public static final int PHYSICAL_APPLICATIONS_SIZE = 100;
     public static final int PHYSICAL_MAX_METERS = 256;
 
-    public static final long COUNTER_BYTES = 12;
-    public static final long COUNTER_PKTS = 15;
+    public static final long UL_COUNTER_BYTES = 12;
+    public static final long UL_COUNTER_PKTS = 15;
+    public static final long DL_COUNTER_BYTES = 13;
+    public static final long DL_COUNTER_PKTS = 16;
 
     public static final byte APP_FILTER_ID = 10;
     public static final byte DEFAULT_APP_ID = 0;
@@ -248,6 +252,30 @@ public final class TestImplConstants {
     public static final UpfMeter SLICE_METER_RESET = UpfMeter.builder()
             .setSlice()
             .setCellId(METER_IDX)
+            .build();
+
+    public static final UpfCounter UPLINK_COUNTER = UpfCounter.builder()
+            .withCellId(UPLINK_COUNTER_CELL_ID)
+            .setIngress(UL_COUNTER_PKTS, UL_COUNTER_BYTES)
+            .setEgress(UL_COUNTER_PKTS, UL_COUNTER_BYTES)
+            .build();
+
+    public static final UpfCounter ZERO_UPLINK_COUNTER = UpfCounter.builder()
+            .withCellId(UPLINK_COUNTER_CELL_ID)
+            .setIngress(0, 0)
+            .setEgress(0, 0)
+            .build();
+
+    public static final UpfCounter DOWNLINK_COUNTER = UpfCounter.builder()
+            .withCellId(DOWNLINK_COUNTER_CELL_ID)
+            .setIngress(DL_COUNTER_PKTS, DL_COUNTER_BYTES)
+            .setEgress(DL_COUNTER_PKTS, DL_COUNTER_BYTES)
+            .build();
+
+    public static final UpfCounter ZERO_DOWNLINK_COUNTER = UpfCounter.builder()
+            .withCellId(DOWNLINK_COUNTER_CELL_ID)
+            .setIngress(0, 0)
+            .setEgress(0, 0)
             .build();
 
     public static final PiTableEntry UP4_TUNNEL_PEER = PiTableEntry.builder()

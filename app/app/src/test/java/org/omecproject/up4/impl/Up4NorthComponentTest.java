@@ -1,5 +1,6 @@
 /*
  SPDX-License-Identifier: Apache-2.0
+ SPDX-FileCopyrightText: 2022-present Intel Corporation
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4.impl;
@@ -12,6 +13,7 @@ import junit.framework.AssertionFailedError;
 import org.junit.Before;
 import org.junit.Test;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
+import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 import org.onosproject.net.pi.model.PiCounterId;
 import org.onosproject.net.pi.model.PiPipeconf;
 import org.onosproject.net.pi.runtime.PiCounterCell;
@@ -34,11 +36,17 @@ import static junit.framework.TestCase.assertTrue;
 import static junit.framework.TestCase.fail;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.omecproject.up4.impl.NorthTestConstants.DOWNLINK_COUNTER_INDEX;
 import static org.omecproject.up4.impl.NorthTestConstants.P4RUNTIME_DEVICE_ID;
 import static org.omecproject.up4.impl.NorthTestConstants.P4RUNTIME_ELECTION_ID;
 import static org.omecproject.up4.impl.NorthTestConstants.P4RUNTIME_ROLE;
 import static org.omecproject.up4.impl.NorthTestConstants.PKT_OUT_METADATA_1;
 import static org.omecproject.up4.impl.NorthTestConstants.PKT_OUT_PAYLOAD;
+import static org.omecproject.up4.impl.NorthTestConstants.UPLINK_COUNTER_INDEX;
+import static org.omecproject.up4.impl.TestImplConstants.DL_COUNTER_BYTES;
+import static org.omecproject.up4.impl.TestImplConstants.DL_COUNTER_PKTS;
+import static org.omecproject.up4.impl.TestImplConstants.UL_COUNTER_BYTES;
+import static org.omecproject.up4.impl.TestImplConstants.UL_COUNTER_PKTS;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.POST_QOS_PIPE_POST_QOS_COUNTER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_PRE_QOS_COUNTER;
 
@@ -243,9 +251,8 @@ public class Up4NorthComponentTest {
         readPartialWildcardCounterTest(POST_QOS_PIPE_POST_QOS_COUNTER);
     }
 
-    private void readCounterTest(PiCounterId counterId, long expectedPackets, long expectedBytes) {
+    private void readCounterTest(PiCounterId counterId, int cellIndex, long expectedPackets, long expectedBytes) {
         MockStreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver = new MockStreamObserver<>();
-        int cellIndex = 1;
         PiCounterCell requestedCell = new PiCounterCell(
                 PiCounterCellId.ofIndirect(counterId, cellIndex), 0, 0);
         P4RuntimeOuterClass.Entity entity;
@@ -278,15 +285,28 @@ public class Up4NorthComponentTest {
     }
 
     @Test
-    public void readIngressCounterTest() {
-        readCounterTest(PRE_QOS_PIPE_PRE_QOS_COUNTER,
-                        NorthTestConstants.INGRESS_COUNTER_PKTS, NorthTestConstants.INGRESS_COUNTER_BYTES);
-    }
+    public void readIgEgCounterTest() throws UpfProgrammableException {
+        mockUp4Service.apply(TestImplConstants.UPLINK_COUNTER);
+        mockUp4Service.apply(TestImplConstants.DOWNLINK_COUNTER);
+        readCounterTest(PRE_QOS_PIPE_PRE_QOS_COUNTER, UPLINK_COUNTER_INDEX,
+                        UL_COUNTER_PKTS, UL_COUNTER_BYTES);
+        readCounterTest(PRE_QOS_PIPE_PRE_QOS_COUNTER, DOWNLINK_COUNTER_INDEX,
+                        DL_COUNTER_PKTS, DL_COUNTER_BYTES);
+        readCounterTest(POST_QOS_PIPE_POST_QOS_COUNTER, UPLINK_COUNTER_INDEX,
+                        UL_COUNTER_PKTS, UL_COUNTER_BYTES);
+        readCounterTest(POST_QOS_PIPE_POST_QOS_COUNTER, DOWNLINK_COUNTER_INDEX,
+                        DL_COUNTER_PKTS, DL_COUNTER_BYTES);
 
-    @Test
-    public void readEgressCounterTest() {
-        readCounterTest(POST_QOS_PIPE_POST_QOS_COUNTER,
-                        NorthTestConstants.EGRESS_COUNTER_PKTS, NorthTestConstants.EGRESS_COUNTER_BYTES);
+        mockUp4Service.apply(TestImplConstants.ZERO_UPLINK_COUNTER);
+        mockUp4Service.apply(TestImplConstants.ZERO_DOWNLINK_COUNTER);
+        readCounterTest(PRE_QOS_PIPE_PRE_QOS_COUNTER, UPLINK_COUNTER_INDEX,
+                        0, 0);
+        readCounterTest(PRE_QOS_PIPE_PRE_QOS_COUNTER, DOWNLINK_COUNTER_INDEX,
+                        0, 0);
+        readCounterTest(POST_QOS_PIPE_POST_QOS_COUNTER, UPLINK_COUNTER_INDEX,
+                        0, 0);
+        readCounterTest(POST_QOS_PIPE_POST_QOS_COUNTER, DOWNLINK_COUNTER_INDEX,
+                        0, 0);
     }
 
     @Test
@@ -443,6 +463,8 @@ public class Up4NorthComponentTest {
         modificationTest(meterEntry);
         assertThat(mockUp4Service.readAll(UpfEntityType.SLICE_METER).size(), equalTo(1));
     }
+
+    // TODO: add modify counter tests when supporting it from UP4 northbound
 
     // ------------------- DELETION TESTS --------------------------------------
 
