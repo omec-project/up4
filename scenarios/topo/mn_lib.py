@@ -47,12 +47,12 @@ class DbufHost(IPv4Host):
     def __init__(self, name, inNamespace=False, **params):
         super(DbufHost, self).__init__(name, inNamespace, **params)
 
-    def config(self, drainIp=None, drainMac=None, **_params):
+    def config(self, drainIp=None, drainMac=None, logLevel="info", **_params):
         super(DbufHost, self).config(**_params)
         self.setDrainIpAndMac(self.defaultIntf(), drainIp, drainMac)
-        self.startDbuf()
+        self.startDbuf(logLevel)
 
-    def startDbuf(self):
+    def startDbuf(self, logLevel):
         args = map(str, [
             "-max_queues",
             DBUF_NUM_QUEUES,
@@ -60,6 +60,8 @@ class DbufHost(IPv4Host):
             DBUF_MAX_PKTS_PER_QUEUE,
             "-queue_drop_timeout",
             DBUF_DROP_TIMEOUT_SEC,
+            "-log_level",
+            logLevel
         ])
         # Send to background
         cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
