@@ -54,14 +54,8 @@ class DbufHost(IPv4Host):
 
     def startDbuf(self, logLevel):
         args = map(str, [
-            "-max_queues",
-            DBUF_NUM_QUEUES,
-            "-max_packet_slots_per_queue",
-            DBUF_MAX_PKTS_PER_QUEUE,
-            "-queue_drop_timeout",
-            DBUF_DROP_TIMEOUT_SEC,
-            "-log_level",
-            logLevel
+            "-max_queues", DBUF_NUM_QUEUES, "-max_packet_slots_per_queue", DBUF_MAX_PKTS_PER_QUEUE,
+            "-queue_drop_timeout", DBUF_DROP_TIMEOUT_SEC, "-log_level", logLevel
         ])
         # Send to background
         cmd = '/usr/local/bin/dbuf %s > /tmp/dbuf_%s.log 2>&1 &' \
