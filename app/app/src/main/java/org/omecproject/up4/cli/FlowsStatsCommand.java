@@ -58,38 +58,40 @@ public class FlowsStatsCommand extends AbstractShellCommand {
             return;
         }
         for (Ip4Address ueSessionId : beforeDownlink.keySet()) {
-            if (!beforeUplink.containsKey(ueSessionId) || !afterDownlink.containsKey(ueSessionId) || !afterUplink.containsKey())
-            print("UE session: " + ueSessionId.toString());
-            UpfCounter bfUl = beforeUplink.get(ueSessionId);
-            UpfCounter bfDl = beforeDownlink.get(ueSessionId);
-            UpfCounter afUl = afterUplink.get(ueSessionId);
-            UpfCounter afDl = afterDownlink.get(ueSessionId);
-            long droppedPktsUl = (afUl.getIngressPkts() - afUl.getEgressPkts()) -
-                    (bfUl.getIngressPkts() - bfUl.getEgressPkts());
-            long droppedPktsDl = (afDl.getIngressPkts() - afDl.getEgressPkts()) -
-                    (bfDl.getIngressPkts() - bfDl.getEgressPkts());
+            if (!beforeUplink.containsKey(ueSessionId) ||
+                    !afterDownlink.containsKey(ueSessionId) ||
+                    !afterUplink.containsKey(ueSessionId)) {
+                print("UE session: " + ueSessionId.toString());
+                UpfCounter bfUl = beforeUplink.get(ueSessionId);
+                UpfCounter bfDl = beforeDownlink.get(ueSessionId);
+                UpfCounter afUl = afterUplink.get(ueSessionId);
+                UpfCounter afDl = afterDownlink.get(ueSessionId);
+                long droppedPktsUl = (afUl.getIngressPkts() - afUl.getEgressPkts()) -
+                        (bfUl.getIngressPkts() - bfUl.getEgressPkts());
+                long droppedPktsDl = (afDl.getIngressPkts() - afDl.getEgressPkts()) -
+                        (bfDl.getIngressPkts() - bfDl.getEgressPkts());
 
-            long txPktsUl = (afUl.getEgressPkts() - bfUl.getEgressPkts()) / SLEEP_TIME_MS;
-            long txBytesUl = (afUl.getEgressBytes() - bfUl.getEgressBytes()) / SLEEP_TIME_MS;
-            long txPktsDl = (afDl.getEgressPkts() - bfDl.getEgressPkts()) / SLEEP_TIME_MS;
-            long txBytesDl = (afDl.getEgressBytes() - bfDl.getEgressBytes()) / SLEEP_TIME_MS;
+                long txPktsUl = (afUl.getEgressPkts() - bfUl.getEgressPkts()) / SLEEP_TIME_MS;
+                long txBytesUl = (afUl.getEgressBytes() - bfUl.getEgressBytes()) / SLEEP_TIME_MS;
+                long txPktsDl = (afDl.getEgressPkts() - bfDl.getEgressPkts()) / SLEEP_TIME_MS;
+                long txBytesDl = (afDl.getEgressBytes() - bfDl.getEgressBytes()) / SLEEP_TIME_MS;
 
-            long rxPktsUl = (afUl.getIngressPkts() - bfUl.getIngressPkts()) / SLEEP_TIME_MS;
-            long rxBytesUl = (afUl.getIngressBytes() - bfUl.getIngressBytes()) / SLEEP_TIME_MS;
-            long rxPktsDl = (afDl.getIngressPkts() - bfDl.getIngressPkts()) / SLEEP_TIME_MS;
-            long rxBytesDl = (afDl.getIngressBytes() - bfDl.getIngressBytes()) / SLEEP_TIME_MS;
+                long rxPktsUl = (afUl.getIngressPkts() - bfUl.getIngressPkts()) / SLEEP_TIME_MS;
+                long rxBytesUl = (afUl.getIngressBytes() - bfUl.getIngressBytes()) / SLEEP_TIME_MS;
+                long rxPktsDl = (afDl.getIngressPkts() - bfDl.getIngressPkts()) / SLEEP_TIME_MS;
+                long rxBytesDl = (afDl.getIngressBytes() - bfDl.getIngressBytes()) / SLEEP_TIME_MS;
 
-            print("UPLINK");
-            print("    RX:  %s  %s", toReadable(rxBytesUl, "Bps"), toReadable(rxPktsUl, "pkt/s"));
-            print("    TX:  %s  %s", toReadable(txBytesUl, "Bps"), toReadable(txPktsUl, "pkt/s"));
-            print("    DROPPED:  %d", droppedPktsDl);
-            print("DOWNLINK");
-            print("    RX:  %s  %s", toReadable(rxBytesDl, "Bps"), toReadable(rxPktsDl, "pkt/s"));
-            print("    TX:  %s  %s", toReadable(txBytesDl, "Bps"), toReadable(txPktsDl, "pkt/s"));
-            print("    DROPPED:  %d", droppedPktsUl);
-            print(SEPARATOR);
+                print("UPLINK");
+                print("    RX:  %s  %s", toReadable(rxBytesUl, "Bps"), toReadable(rxPktsUl, "pkt/s"));
+                print("    TX:  %s  %s", toReadable(txBytesUl, "Bps"), toReadable(txPktsUl, "pkt/s"));
+                print("    DROPPED:  %d", droppedPktsDl);
+                print("DOWNLINK");
+                print("    RX:  %s  %s", toReadable(rxBytesDl, "Bps"), toReadable(rxPktsDl, "pkt/s"));
+                print("    TX:  %s  %s", toReadable(txBytesDl, "Bps"), toReadable(txPktsDl, "pkt/s"));
+                print("    DROPPED:  %d", droppedPktsUl);
+                print(SEPARATOR);
+            }
         }
-
     }
 
     String toReadable(long value, String unit) {
