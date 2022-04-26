@@ -24,6 +24,5 @@ jobs:
       with:
         commit-message: Auto-prettify ${{ github.sha }}
         title: Auto-prettify 💅
-        author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
         labels: prettybot
         branch: prettybot

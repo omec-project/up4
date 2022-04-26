@@ -63,29 +63,26 @@
                   exec="test -f ${UP4_ROOT}/app/app/target/up4-app-1.2.0-SNAPSHOT.oar"/>
             <step name="Up4-App-Install-Local-Build" requires="^" delay="5"
                   exec="onos-app ${OCI} reinstall! ${UP4_ROOT}/app/app/target/up4-app-1.2.0-SNAPSHOT.oar"/>
-            <parallel var="${OD#}">
-                <!-- FIXME: ${OC#} pointing to the same instance localhost, should we use a container that can resolve onos1/2/3 hostnames? -->
-                <step name="Onos-Check-Up4-App-${#}"
-                      exec="onos-check-apps ${OC#} org.omecproject.up4 includes"
-                      requires="Up4-App-Install-Local-Build"/>
-            </parallel>
         </group>
+
         <parallel var="${OD#}">
-                <step name="Up4-Set-Log-Debug-${#}"
-                      exec="onos ${OC#} log:set DEBUG org.omecproject.up4"
-                      requires="Reinstall-Up4,Onos-Wait-For-Ready"/>
-                <step name="Onos-Enable-Grpc-Log-${#}"
-                      exec="onos ${OC#} cfg set org.onosproject.grpc.ctl.GrpcChannelControllerImpl enableMessageLog true"
-                      requires="Reinstall-Up4,Onos-Wait-For-Ready"/>
-                <step name="Onos-Check-Components-${#}" exec="onos-check-components ${OC#}"
-                      delay="5" requires="Reinstall-Up4,Onos-Wait-For-Ready"/>
-            </parallel>
-        </group>
-        <!-- FIXME: re-enable log checking after bundle refresh will be fixed in ONOS 2.5
-             Bundle refresh causes many exception that are deemed non harmful. Since we also
-             check component status in the previous steps, we have enough confidence that the
-             system is a in a good state at this point...
-        <step name="Onos-Check-Logs-${#}" exec="onos-check-logs ${OD#}"
-              requires="Onos-Check-Components-${#}"/>
-        -->
+            <step name="Onos-Check-Up4-App-${#}"
+                  exec="onos-check-apps ${OC#} org.omecproject.up4 includes"
+                  requires="Up4-App-Install-Local-Build"/>
+            <step name="Up4-Set-Log-Debug-${#}"
+                  exec="onos-cli ${OD#} 'log:set DEBUG org.omecproject.up4'"
+                  requires="Onos-Check-Up4-App-${#}"/>
+            <step name="Onos-Enable-Grpc-Log-${#}"
+                  exec="onos-cli ${OD#} 'cfg set org.onosproject.grpc.ctl.GrpcChannelControllerImpl enableMessageLog true'"
+                  requires="Onos-Check-Up4-App-${#}"/>
+            <step name="Onos-Check-Components-${#}" exec="onos-check-components ${OC#}"
+                  delay="5" requires="Onos-Check-Up4-App-${#}"/>
+            <!-- FIXME: re-enable log checking after bundle refresh will be fixed in ONOS 2.5
+                 Bundle refresh causes many exception that are deemed non harmful. Since we also
+                 check component status in the previous steps, we have enough confidence that the
+                 system is a in a good state at this point...
+            <step name="Onos-Check-Logs-${#}" exec="onos-check-logs ${OD#}"
+                  requires="Onos-Check-Components-${#}"/>
+            -->
+        </parallel>
 </scenario>

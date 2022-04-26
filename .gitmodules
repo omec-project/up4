@@ -2,4 +2,4 @@
 # SPDX-License-Identifier: Apache-2.0
 [submodule "app/app/external/dbuf"]
 	path = app/app/external/dbuf
-	url = git@github.com:omec-project/dbuf.git
+	url = https://github.com/omec-project/dbuf.git

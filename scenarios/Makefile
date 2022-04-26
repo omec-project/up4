@@ -104,10 +104,10 @@ $(SCENARIOS): onos-test ./tmp /tmp/stc ./tmp/.env.docker
 deps: build-sdfabric-onos pull build stc-dev-build onos-test
 
 onos-test:
-	curl -sS --fail https://repo1.maven.org/maven2/org/onosproject/onos-releases/2.5.4/onos-test-2.5.4.tar.gz --output onos-test.tar.gz
+	curl -sS --fail https://repo1.maven.org/maven2/org/onosproject/onos-releases/2.5.7-rc3/onos-test-2.5.7-rc3.tar.gz --output onos-test.tar.gz
 	tar xf onos-test.tar.gz
 	rm onos-test.tar.gz
-	mv onos-test-2.5.4 onos-test
+	mv onos-test-2.5.7-rc3 onos-test
 
 #FIXME: remove once 'quotes' branch is merged and 2.6 released:
 stc-dev-build:
@@ -167,11 +167,27 @@ mn-cli: ./tmp/.env.docker
 mn-log:
 	docker logs -f mininet
 
-onos-cli:
+onos-cli: onos-cli1
+
+onos-cli1:
 	ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o LogLevel=ERROR -p 8101 localhost
 
-onos-log: ./tmp/.env.docker
+onos-cli2:
+	ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o LogLevel=ERROR -p 8102 localhost
+
+onos-cli3:
+	ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o LogLevel=ERROR -p 8103 localhost
+
+onos-log: onos-log1
+
+onos-log1: ./tmp/.env.docker
 	${DOCKER_COMPOSE_CMD} logs -f onos1
+
+onos-log2: ./tmp/.env.docker
+	${DOCKER_COMPOSE_CMD} logs -f onos2
+
+onos-log3: ./tmp/.env.docker
+	${DOCKER_COMPOSE_CMD} logs -f onos3
 
 onos-ui:
 	open http://localhost:8181/onos/ui
