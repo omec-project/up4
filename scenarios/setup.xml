@@ -65,10 +65,16 @@
                   exec="onos-app ${OCI} reinstall! ${UP4_ROOT}/app/app/target/up4-app-1.2.0-SNAPSHOT.oar"/>
         </group>
 
+        <!-- activate pre-installed up4 -->
+        <group name="Activate-Up4" unless="${PUSH_UP4}" requires="Onos-Wait-For-Ready">
+            <step name="Up4-App-Activate" requires="Onos-Wait-For-Ready" exec="onos-cli ${OD1} 'app activate org.omecproject.up4'"/>
+        </group>
+
         <parallel var="${OD#}">
+            <!-- FIXME: ${OC#} pointing to the same instance localhost, should we use a container that can resolve onos1/2/3 hostnames? -->
             <step name="Onos-Check-Up4-App-${#}"
                   exec="onos-check-apps ${OC#} org.omecproject.up4 includes"
-                  requires="Reinstall-Up4"/>
+                  requires="Activate-Up4,Reinstall-Up4,Onos-Wait-For-Ready"/>
             <step name="Up4-Set-Log-Debug-${#}"
                   exec="onos-cli ${OD#} 'log:set DEBUG org.omecproject.up4'"
                   requires="Onos-Check-Up4-App-${#}"/>
