@@ -68,7 +68,7 @@
         <parallel var="${OD#}">
             <step name="Onos-Check-Up4-App-${#}"
                   exec="onos-check-apps ${OC#} org.omecproject.up4 includes"
-                  requires="Up4-App-Install-Local-Build"/>
+                  requires="Reinstall-Up4"/>
             <step name="Up4-Set-Log-Debug-${#}"
                   exec="onos-cli ${OD#} 'log:set DEBUG org.omecproject.up4'"
                   requires="Onos-Check-Up4-App-${#}"/>
@@ -85,4 +85,5 @@
                   requires="Onos-Check-Components-${#}"/>
             -->
         </parallel>
+    </group>
 </scenario>
