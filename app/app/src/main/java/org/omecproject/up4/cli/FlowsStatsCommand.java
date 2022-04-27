@@ -31,7 +31,6 @@ public class FlowsStatsCommand extends AbstractShellCommand {
             required = false)
     int sleepTimeMs = DEFAULT_SLEEP_TIME;
 
-    // Add completer?
     @Argument(index = 1, name = "ue-session-id",
             description = "UE Session ID (IPv4 UE address)",
             required = false)
