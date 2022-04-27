@@ -6,12 +6,16 @@ CURRENT_UID              := $(shell id -u)
 CURRENT_GID              := $(shell id -g)
 MKFILE_PATH              := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
+CURRENT_DIR_SHA          := $(shell echo -n "$(CURRENT_DIR)" | shasum | cut -c1-7)
 
 # By default use docker volume to persist mvn cache,
 # but allow passing a directory, e.g., local ~/.m2
 mvn_cache_docker_volume := mvn-cache-up4
 MVN_CACHE ?= ${mvn_cache_docker_volume}
-MVN_FLAGS ?= -B -s ${CURRENT_DIR}/mvn_settings.xml
+# By default use the maven settings in local ~/.m2, but allow passing a custom
+# settings.
+MVN_SETTINGS ?= $(shell test -f ~/.m2/settings.xml && echo "~/.m2/settings.xml")
+MVN_FLAGS ?= -B
 
 onos_tools_dir := $(abspath ${CURRENT_DIR}/../scenarios/onos/tools/package/runtime/bin)
 
@@ -41,14 +45,13 @@ app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java: app/external/dbuf/dbuf.pr
 
 _build_resources: \
 	app/src/main/resources/p4info.txt \
-	app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java \
-	mvn_settings.xml
+	app/src/main/java/org/omecproject/dbuf/grpc/Dbuf.java
 
 # Is this still needed if we allow passing a local mvn cache to make build?
 local-build: _build_resources
 	mvn ${MVN_FLAGS} clean install
 
-build: _build_resources
+build: _build_resources mvn_settings
 	docker run -it --rm -v ${CURRENT_DIR}:${CURRENT_DIR} -v ${MVN_CACHE}:/root/.m2 -w ${CURRENT_DIR} \
 		${MAVEN_IMAGE} bash -c "mvn ${MVN_FLAGS} clean install && chown -R ${CURRENT_UID}:${CURRENT_GID} ${CURRENT_DIR}"
 
@@ -58,8 +61,15 @@ build: _build_resources
 build-ci: MVN_FLAGS := -B -q -Pci-verify -Pcoverage
 build-ci: local-build
 
-mvn_settings.xml: mvn_settings.sh ## : Builds mvn_settings file for proxy
-	@./$<
+# Copy the mvn settings file into the docker volume cache if we use one
+mvn_settings:
+ifneq ($(MVN_SETTINGS),)
+ifeq ($(MVN_CACHE),$(mvn_cache_docker_volume))
+	docker run -d --rm --name dummy_$(CURRENT_DIR_SHA) -v ${MVN_CACHE}:/root/.m2 ${MAVEN_IMAGE} tail -f /dev/null
+	docker cp $(MVN_SETTINGS) dummy_$(CURRENT_DIR_SHA):/root/.m2/settings.xml
+	docker stop -t0 dummy_$(CURRENT_DIR_SHA)
+endif
+endif
 
 clean:
 	rm -rf app/target/
