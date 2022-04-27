@@ -18,9 +18,12 @@ jobs:
       ref: 'master'
     - name: Read sdfabric ONOS image from stable env
       run: echo ONOS_IMAGE=$(cat ../.env.stable | grep \'ONOS_IMAGE=\'| sed \'s/ONOS_IMAGE=//\'") >> $GITHUB_ENV
-    - name: Get sdfabric ONOS master latest
+    - name: Pull latest sdfabric ONOS image
       if: ${{ env.ONOS_IMAGE == 'sdfabric-onos-local:master' }}
-      run: echo SDFABRIC_ONOS_MASTER_SHA=$(docker inspect --format='{{index .RepoDigests 0}}' opennetworking/sdfabric-onos:master) >> $GITHUB_ENV
+      run: docker pull opennetworking/sdfabric-onos:master
+    - name: Get sdfabric ONOS latest
+      if: ${{ env.ONOS_IMAGE == 'sdfabric-onos-local:master' }}
+      run: echo SDFABRIC_ONOS_LATEST_SHA=$(docker inspect --format='{{index .RepoDigests 0}}' opennetworking/sdfabric-onos:master) >> $GITHUB_ENV
     - name: Cleanup stable env file
       if: ${{ env.ONOS_IMAGE == 'sdfabric-onos-local:master' }}
       run: |
@@ -28,7 +31,7 @@ jobs:
         sed - i '' -e '/TRELLIS_CONTROL_VERSION=.*/d' ".env.stable"
         sed - i '' -e '/UP4_VERSION=.*/d' ".env.stable"
         sed - i '' -e '/FABRIC_TNA_VERSION=.*/d' ".env.stable"
-        sed - i '' -e 's/ONOS_IMAGE=.*/ONOS_IMAGE=${{ env.SDFABRIC_ONOS_MASTER_SHA }}/' "./.env.stable"
+        sed - i '' -e 's/ONOS_IMAGE=.*/ONOS_IMAGE=${{ env.SDFABRIC_ONOS_LATEST_SHA }}/' "./.env.stable"
     - name: Create pull request
       if: ${{ env.ONOS_IMAGE == 'sdfabric-onos-local:master' }}
       uses: peter-evans/create-pull-request@v3
