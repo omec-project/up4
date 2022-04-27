@@ -91,8 +91,6 @@ pipeline {
     stage("Dependencies") {
       options { retry(3) }
       steps {
-        // SSH keys are needed to eventually pull git repositories that uses SSH
-        // in sdfabric-onos when building sdfabric-onos as part of the STC deps.
         dir("${env.WORKSPACE}/up4") {
           sh "make deps"
           sh "cd app && make deps"
@@ -217,14 +215,15 @@ void runSTCSmokeTest(String topo) {
 
 void exportArtifactsScenarios(String topo) {
   dir("${env.WORKSPACE}/up4/scenarios") {
+    timestamp = sh(script: "echo `date +%Y%m%d-%H%M%S`", returnStdout: true).trim()
     // Print Docker image version labels, etc.
     sh "make versions > ./tmp/versions.txt"
     // Onos shared folders contain jars and other stuff that is too big and unnecessary,
     // keep just the grpc logs.
     sh "make fix-permissions"
     sh "find ./tmp/onos*/ -type f -not -name \"grpc_*.log\" -print -delete"
-    sh "tar -czvf ${topo}-scenarios-tmp.tar.gz ./tmp"
-    archiveArtifacts artifacts: "${topo}-scenarios-tmp.tar.gz"
+    sh "tar -czvf ${topo}-scenarios-tmp-${timestamp}.tar.gz ./tmp"
+    archiveArtifacts artifacts: "${topo}-scenarios-tmp-${timestamp}.tar.gz"
   }
 }
 
