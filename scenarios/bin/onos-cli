@@ -1,0 +1,11 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2022-present Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: Apache-2.0
+
+set -ex
+
+node=$1
+cliCmd=$2
+KARAF_VERSION=$(grep "KARAF_VERSION=" "${ONOS_ROOT}"/tools/build/envDefaults | awk -F '=' '{print $2}')
+
+${DOCKER_COMPOSE_CMD} exec -T "${node}" apache-karaf-"${KARAF_VERSION}"/bin/client "${cliCmd}"
