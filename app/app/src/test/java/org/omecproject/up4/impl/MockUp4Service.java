@@ -1,6 +1,5 @@
 /*
  SPDX-License-Identifier: Apache-2.0
- SPDX-FileCopyrightText: 2022-present Intel Corporation
  SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4.impl;
@@ -27,7 +26,6 @@ import static org.omecproject.up4.impl.TestImplConstants.PHYSICAL_MAX_METERS;
 import static org.omecproject.up4.impl.TestImplConstants.PHYSICAL_MAX_SESSIONS;
 import static org.omecproject.up4.impl.TestImplConstants.PHYSICAL_MAX_TERMINATIONS;
 import static org.omecproject.up4.impl.TestImplConstants.PHYSICAL_MAX_TUNNEL_PEERS;
-
 
 public class MockUp4Service implements Up4Service {
     boolean upfProgrammableAvailable = true;
