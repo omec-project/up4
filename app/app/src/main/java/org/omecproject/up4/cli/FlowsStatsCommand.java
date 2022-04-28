@@ -31,7 +31,7 @@ public class FlowsStatsCommand extends AbstractShellCommand {
             valueToShowInHelp = "2")
     float sleepTimeS = DEFAULT_SLEEP_TIME;
 
-    @Option(name = "-s", aliases = "--session-id",
+    @Option(name = "-s", aliases = "--session",
             description = "UE Session ID (IPv4 UE address)",
             valueToShowInHelp = "10.0.0.1")
     String ueSessionId = null;
