@@ -6,6 +6,6 @@ set -ex
 
 node=$1
 cliCmd=$2
-KARAF_VERSION=$(grep "KARAF_VERSION=" "${ONOS_ROOT}"/tools/build/envDefaults | awk -F '=' '{print $2}')
+KARAF_VERSION=$(${DOCKER_COMPOSE_CMD} exec -T "${node}" ls | grep "apache-karaf-" | sed "s/apache-karaf-//")
 
 ${DOCKER_COMPOSE_CMD} exec -T "${node}" apache-karaf-"${KARAF_VERSION}"/bin/client "${cliCmd}"

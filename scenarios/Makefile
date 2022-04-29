@@ -2,6 +2,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+OSTYPE := $(shell uname -s)
+ifeq ($(OSTYPE),Linux)
+NPROCS := $(shell nproc)
+else ifeq ($(OSTYPE),Darwin) # Assume Mac OS X
+NPROCS := $(shell sysctl -n hw.physicalcpu)
+else
+NPROCS := 1
+endif
+
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 
@@ -11,8 +20,37 @@ SCENARIOS          := *.xml
 DOCKER_COMPOSE_CMD := docker-compose --env-file ./tmp/.env.docker
 CURRENT_USER       := $(shell id -u):$(shell id -g)
 
-# Set to devel to use in-development versions of components
+# Set to latest to use latest versions of components
 UP4_ENV ?= stable
+
+# Loading the env file allows to use the env variable as make variable
+ifeq ($(UP4_ENV),latest)
+include ../.env.latest
+else
+include ../.env.stable
+endif
+
+# Used when building the sdfabric-onos image
+UP4_VERSION := $(shell git rev-parse --abbrev-ref HEAD)
+
+ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
+BUILD_SDFABRIC_ONOS := true
+# UP4 is built as part of sdfabric-onos, to avoid re-installing UP4 in ONOS at
+# runtime, we need to set PUSH_UP4 to a null value
+PUSH_UP4            :=
+else
+BUILD_SDFABRIC_ONOS := false
+PUSH_UP4            := true
+endif
+
+# Extracts the services from docker-compose, this is needed to avoid pulling
+# sdfabric-onos images built locally, when downloading dependencies for docker-compose
+STC_COMPOSE_SERVICES = $(shell $(CURRENT_DIR)/bin/parse-compose-services '$(CURRENT_DIR)/docker-compose.yml')
+ifeq ($(BUILD_SDFABRIC_ONOS),true)
+STC_COMPOSE_SERVICES_TO_PULL := $(filter-out onos%,$(STC_COMPOSE_SERVICES))
+else
+STC_COMPOSE_SERVICES_TO_PULL := $(STC_COMPOSE_SERVICES)
+endif
 
 # TODO: release 2.6 with support for quotes in step commands
 STC_VERSION ?= 2.6-SNAPSHOT
@@ -60,9 +98,10 @@ $(SCENARIOS): onos-test ./tmp /tmp/stc ./tmp/.env.docker
 		export DOCKER_COMPOSE_CMD="${DOCKER_COMPOSE_CMD}" && \
 		export STC_ENV_FILE=${STC_ENV} && \
 		export TOPO_NETCFG=${TOPO_NETCFG} && \
+		export PUSH_UP4=$(PUSH_UP4) && \
 		stc $@
 
-deps: pull build stc-dev-build onos-test
+deps: build-sdfabric-onos pull build stc-dev-build onos-test
 
 onos-test:
 	curl -sS --fail https://repo1.maven.org/maven2/org/onosproject/onos-releases/2.5.7-rc3/onos-test-2.5.7-rc3.tar.gz --output onos-test.tar.gz
@@ -77,10 +116,36 @@ stc-dev-build:
 	cd /tmp/onos-stc && mvn -q -B -Dmaven.test.skip=true install
 
 pull: ./tmp/.env.docker
-	${DOCKER_COMPOSE_CMD} pull
+	${DOCKER_COMPOSE_CMD} pull $(STC_COMPOSE_SERVICES_TO_PULL)
 
 build: ./tmp/.env.docker
-	${DOCKER_COMPOSE_CMD} build --pull
+	${DOCKER_COMPOSE_CMD} build --pull $(STC_COMPOSE_SERVICES_TO_PULL)
+
+build-sdfabric-onos: .build-sdfabric-onos
+.build-sdfabric-onos: ./tmp/.env.docker sdfabric-onos
+ifeq ($(BUILD_SDFABRIC_ONOS),true)
+	cd sdfabric-onos && \
+	git pull origin master && \
+	ONOS_VERSION=${ONOS_VERSION} \
+		TRELLIS_CONTROL_VERSION=${TRELLIS_CONTROL_VERSION} \
+		FABRIC_TNA_VERSION=${FABRIC_TNA_VERSION} \
+		UP4_VERSION=${UP4_VERSION} \
+		USE_LOCAL_SNAPSHOT_ARTIFACTS=true \
+		DOCKER_TAG=master \
+		DOCKER_REPOSITORY=`echo ${ONOS_IMAGE} | sed 's/:master//'` \
+		make docker-build JOBS=${NPROCS} SHOW_SENSITIVE_OUTPUT=false
+	@# use the .build-sdfabric-onos to cache the current built sdfabric-onos image
+	@# to reset it, call "make reset-sdfabric-onos"
+	touch .build-sdfabric-onos
+endif
+
+sdfabric-onos:
+ifeq ($(BUILD_SDFABRIC_ONOS),true)
+	git clone "https://gerrit.onosproject.org/sdfabric-onos" sdfabric-onos
+endif
+
+reset-sdfabric-onos:
+	-rm .build-sdfabric-onos
 
 reset:
 	-${DOCKER_COMPOSE_CMD} down -t0 --remove-orphans

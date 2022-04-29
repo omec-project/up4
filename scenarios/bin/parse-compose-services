@@ -1,0 +1,27 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2020-present Open Networking Foundation <info@opennetworking.org>
+# SPDX-License-Identifier: Apache-2.0
+
+# Retrieves the list of services deployed with docker-compose from a docker-compose file
+
+set -eu -o pipefail
+
+VENV=".venv"
+# check if venv exists, use it if exists
+if [ -e ${VENV}/bin/activate ]
+then
+  # venv exists, use it
+  . ${VENV}/bin/activate
+else
+  # create venv and install pyyaml
+  python3 -m venv .venv
+  # shellcheck disable=SC1091
+  . ${VENV}/bin/activate
+  python3 -m pip install pyyaml > /dev/null
+fi
+python -c "import yaml; \
+    f = open('${1}'); \
+    y = yaml.safe_load(f); \
+    print(' '.join(y['services'])); \
+    f.close();"
+deactivate
