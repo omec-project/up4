@@ -11,6 +11,7 @@ import io.grpc.stub.StreamObserver;
 import junit.framework.AssertionFailedError;
 import org.junit.Before;
 import org.junit.Test;
+import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfProgrammableException;
 import org.onosproject.net.pi.model.PiCounterId;
@@ -42,10 +43,20 @@ import static org.omecproject.up4.impl.NorthTestConstants.P4RUNTIME_ROLE;
 import static org.omecproject.up4.impl.NorthTestConstants.PKT_OUT_METADATA_1;
 import static org.omecproject.up4.impl.NorthTestConstants.PKT_OUT_PAYLOAD;
 import static org.omecproject.up4.impl.NorthTestConstants.UPLINK_COUNTER_INDEX;
-import static org.omecproject.up4.impl.TestImplConstants.DL_COUNTER_BYTES;
-import static org.omecproject.up4.impl.TestImplConstants.DL_COUNTER_PKTS;
-import static org.omecproject.up4.impl.TestImplConstants.UL_COUNTER_BYTES;
-import static org.omecproject.up4.impl.TestImplConstants.UL_COUNTER_PKTS;
+import static org.omecproject.up4.impl.TestImplConstants.DL_EG_COUNTER_BYTES;
+import static org.omecproject.up4.impl.TestImplConstants.DL_EG_COUNTER_PKTS;
+import static org.omecproject.up4.impl.TestImplConstants.DL_IG_COUNTER_BYTES;
+import static org.omecproject.up4.impl.TestImplConstants.DL_IG_COUNTER_PKTS;
+import static org.omecproject.up4.impl.TestImplConstants.DOWNLINK_COUNTER_CELL_ID;
+import static org.omecproject.up4.impl.TestImplConstants.UL_EG_COUNTER_BYTES;
+import static org.omecproject.up4.impl.TestImplConstants.UL_EG_COUNTER_PKTS;
+import static org.omecproject.up4.impl.TestImplConstants.UL_IG_COUNTER_BYTES;
+import static org.omecproject.up4.impl.TestImplConstants.UL_IG_COUNTER_PKTS;
+import static org.omecproject.up4.impl.TestImplConstants.UP4_DOWNLINK_EG_COUNTER;
+import static org.omecproject.up4.impl.TestImplConstants.UP4_DOWNLINK_IG_COUNTER;
+import static org.omecproject.up4.impl.TestImplConstants.UP4_UPLINK_EG_COUNTER;
+import static org.omecproject.up4.impl.TestImplConstants.UP4_UPLINK_IG_COUNTER;
+import static org.omecproject.up4.impl.TestImplConstants.UPLINK_COUNTER_CELL_ID;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.POST_QOS_PIPE_POST_QOS_COUNTER;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_PRE_QOS_COUNTER;
 
@@ -288,23 +299,19 @@ public class Up4NorthComponentTest {
         mockUp4Service.apply(TestImplConstants.UPLINK_COUNTER);
         mockUp4Service.apply(TestImplConstants.DOWNLINK_COUNTER);
         readCounterTest(PRE_QOS_PIPE_PRE_QOS_COUNTER, UPLINK_COUNTER_INDEX,
-                        UL_COUNTER_PKTS, UL_COUNTER_BYTES);
+                        UL_IG_COUNTER_PKTS, UL_IG_COUNTER_BYTES);
         readCounterTest(PRE_QOS_PIPE_PRE_QOS_COUNTER, DOWNLINK_COUNTER_INDEX,
-                        DL_COUNTER_PKTS, DL_COUNTER_BYTES);
+                        DL_IG_COUNTER_PKTS, DL_IG_COUNTER_BYTES);
         readCounterTest(POST_QOS_PIPE_POST_QOS_COUNTER, UPLINK_COUNTER_INDEX,
-                        UL_COUNTER_PKTS, UL_COUNTER_BYTES);
+                        UL_EG_COUNTER_PKTS, UL_EG_COUNTER_BYTES);
         readCounterTest(POST_QOS_PIPE_POST_QOS_COUNTER, DOWNLINK_COUNTER_INDEX,
-                        DL_COUNTER_PKTS, DL_COUNTER_BYTES);
+                        DL_EG_COUNTER_PKTS, DL_EG_COUNTER_BYTES);
 
         mockUp4Service.apply(TestImplConstants.ZERO_UPLINK_COUNTER);
         mockUp4Service.apply(TestImplConstants.ZERO_DOWNLINK_COUNTER);
         readCounterTest(PRE_QOS_PIPE_PRE_QOS_COUNTER, UPLINK_COUNTER_INDEX,
                         0, 0);
         readCounterTest(PRE_QOS_PIPE_PRE_QOS_COUNTER, DOWNLINK_COUNTER_INDEX,
-                        0, 0);
-        readCounterTest(POST_QOS_PIPE_POST_QOS_COUNTER, UPLINK_COUNTER_INDEX,
-                        0, 0);
-        readCounterTest(POST_QOS_PIPE_POST_QOS_COUNTER, DOWNLINK_COUNTER_INDEX,
                         0, 0);
     }
 
@@ -463,7 +470,35 @@ public class Up4NorthComponentTest {
         assertThat(mockUp4Service.readAll(UpfEntityType.SLICE_METER).size(), equalTo(1));
     }
 
-    // TODO: add modify counter tests when supporting it from UP4 northbound
+    @Test
+    public void ingressCounterModification() throws Exception {
+        modificationTest(UP4_UPLINK_IG_COUNTER);
+        modificationTest(UP4_DOWNLINK_IG_COUNTER);
+
+        UpfCounter actualUlCounter = mockUp4Service.readCounter(
+                UPLINK_COUNTER_CELL_ID, UpfEntityType.INGRESS_COUNTER);
+        UpfCounter actualDlCounter = mockUp4Service.readCounter(
+                DOWNLINK_COUNTER_CELL_ID, UpfEntityType.INGRESS_COUNTER);
+        assertThat(actualUlCounter.getIngressPkts().get(), equalTo(UP4_UPLINK_IG_COUNTER.data().packets()));
+        assertThat(actualUlCounter.getIngressBytes().get(), equalTo(UP4_UPLINK_IG_COUNTER.data().bytes()));
+        assertThat(actualDlCounter.getIngressPkts().get(), equalTo(UP4_DOWNLINK_IG_COUNTER.data().packets()));
+        assertThat(actualDlCounter.getIngressBytes().get(), equalTo(UP4_DOWNLINK_IG_COUNTER.data().bytes()));
+    }
+
+    @Test
+    public void egressCounterModification() throws Exception {
+        modificationTest(UP4_UPLINK_EG_COUNTER);
+        modificationTest(UP4_DOWNLINK_EG_COUNTER);
+
+        UpfCounter actualUlCounter = mockUp4Service.readCounter(
+                UPLINK_COUNTER_CELL_ID, UpfEntityType.EGRESS_COUNTER);
+        UpfCounter actualDlCounter = mockUp4Service.readCounter(
+                DOWNLINK_COUNTER_CELL_ID, UpfEntityType.EGRESS_COUNTER);
+        assertThat(actualUlCounter.getEgressPkts().get(), equalTo(UP4_UPLINK_EG_COUNTER.data().packets()));
+        assertThat(actualUlCounter.getEgressBytes().get(), equalTo(UP4_UPLINK_EG_COUNTER.data().bytes()));
+        assertThat(actualDlCounter.getEgressPkts().get(), equalTo(UP4_DOWNLINK_EG_COUNTER.data().packets()));
+        assertThat(actualDlCounter.getEgressBytes().get(), equalTo(UP4_DOWNLINK_EG_COUNTER.data().bytes()));
+    }
 
     // ------------------- DELETION TESTS --------------------------------------
 

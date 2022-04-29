@@ -14,6 +14,7 @@ import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.cli.net.DeviceIdCompleter;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.behaviour.upf.UpfCounter;
+import org.onosproject.net.behaviour.upf.UpfEntityType;
 
 /**
  * Counter read command.
@@ -39,10 +40,10 @@ public class CounterReadCommand extends AbstractShellCommand {
         UpfCounter stats;
         if (deviceId != null) {
             Up4AdminService app = get(Up4AdminService.class);
-            stats = app.readCounter(ctrIndex, DeviceId.deviceId(deviceId));
+            stats = app.readCounter(ctrIndex, UpfEntityType.COUNTER, DeviceId.deviceId(deviceId));
         } else {
             Up4Service app = get(Up4Service.class);
-            stats = app.readCounter(ctrIndex);
+            stats = app.readCounter(ctrIndex, UpfEntityType.COUNTER);
         }
         print(stats.toString());
     }

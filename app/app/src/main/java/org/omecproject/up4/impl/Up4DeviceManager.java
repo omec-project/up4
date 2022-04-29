@@ -99,6 +99,8 @@ import static org.onlab.util.Tools.getLongProperty;
 import static org.onlab.util.Tools.groupedThreads;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.APPLICATION_METER;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.COUNTER;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.EGRESS_COUNTER;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.INGRESS_COUNTER;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_DOWNLINK;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.SESSION_METER;
 import static org.onosproject.net.behaviour.upf.UpfEntityType.SLICE_METER;
@@ -469,7 +471,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         for (UpfEntity t : uplinkTerm) {
             UpfTerminationUplink term = (UpfTerminationUplink) t;
             uplinkFlows.add(UplinkUpfFlow.builder().withTerminationUplink(term)
-                                    .withCounter(this.readCounter(term.counterId()))
+                                    .withCounter(this.readCounter(term.counterId(), COUNTER))
                                     .withAppMeter(appMeters.getOrDefault(term.appMeterIdx(), null))
                                     .build());
         }
@@ -509,7 +511,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                                       .withTerminationDownlink(term)
                                       .withSessionDownlink(sess)
                                       .withTunnelPeer(tunn)
-                                      .withCounter(this.readCounter(term.counterId()))
+                                      .withCounter(this.readCounter(term.counterId(), COUNTER))
                                       .withAppMeter(aMeter)
                                       .withSessionMeter(sMeter)
                                       .build());
@@ -847,9 +849,9 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     @Override
     public Collection<? extends UpfEntity> readAll(UpfEntityType entityType) throws UpfProgrammableException {
-        if (entityType.equals(COUNTER)) {
+        if (entityType.equals(COUNTER) || entityType.equals(INGRESS_COUNTER) || entityType.equals(EGRESS_COUNTER)) {
             // Counters can't be read from only the leader UPF.
-            return this.readCounters(-1);
+            return this.readCounters(-1, entityType);
         } else {
             Collection<? extends UpfEntity> entities = getLeaderUpfProgrammable().readAll(entityType);
             switch (entityType) {
@@ -887,15 +889,15 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
 
     public Collection<? extends UpfEntity> adminReadAll(UpfEntityType entityType)
             throws UpfProgrammableException {
-        if (entityType.equals(COUNTER)) {
+        if (entityType.equals(COUNTER) || entityType.equals(INGRESS_COUNTER) || entityType.equals(EGRESS_COUNTER)) {
             // Counters can't be read from only the leader UPF.
-            return this.readCounters(-1);
+            return this.readCounters(-1, entityType);
         }
         return getLeaderUpfProgrammable().readAll(entityType);
     }
 
     @Override
-    public UpfCounter readCounter(int counterIdx) throws UpfProgrammableException {
+    public UpfCounter readCounter(int counterIdx, UpfEntityType type) throws UpfProgrammableException {
         if (isMaxUeSet() && counterIdx >= getMaxUe() * 2) {
             throw new UpfProgrammableException(
                     "Requested PDR counter cell index above max supported UE value.",
@@ -904,20 +906,15 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         // When reading counters we need to explicitly read on all UPF physical
         // devices and aggregate counter values.
         assertUpfIsReady();
-        // TODO: add get on builder can simply this, by removing the need for building the PdrStat every time.
-        UpfCounter.Builder builder = UpfCounter.builder();
-        builder.withCellId(counterIdx);
-        UpfCounter prevStats = builder.build();
+        UpfCounter counterStats = UpfCounter.builder()
+                .withCellId(counterIdx)
+                .setIngress(0, 0)
+                .setEgress(0, 0)
+                .build();
         for (UpfProgrammable upfProg : upfProgrammables.values()) {
-            UpfCounter pdrStat = upfProg.readCounter(counterIdx);
-            builder.setIngress(pdrStat.getIngressPkts() + prevStats.getIngressPkts(),
-                               pdrStat.getIngressBytes() + prevStats.getIngressBytes());
-            builder.setEgress(pdrStat.getEgressPkts() + prevStats.getEgressPkts(),
-                              pdrStat.getEgressBytes() + prevStats.getEgressBytes());
-            prevStats = builder.build();
+            counterStats = counterStats.sum(upfProg.readCounter(counterIdx, type));
         }
-        builder.withCellId(counterIdx);
-        return builder.build();
+        return counterStats;
     }
 
     @Override
@@ -996,7 +993,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
-    public UpfCounter readCounter(int counterIdx, DeviceId device) throws UpfProgrammableException {
+    public UpfCounter readCounter(int counterIdx, UpfEntityType type, DeviceId device) throws UpfProgrammableException {
         if (!upfProgrammables.containsKey(device)) {
             throw new UpfProgrammableException("Provided Device ID is not a UPF Programmable!");
         }
@@ -1007,7 +1004,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
                     UpfProgrammableException.Type.ENTITY_OUT_OF_RANGE, UpfEntityType.COUNTER);
         }
         UpfProgrammable upfProgrammable = upfProgrammables.get(device);
-        return upfProgrammable.readCounter(counterIdx);
+        return upfProgrammable.readCounter(counterIdx, type);
     }
 
     @Override
@@ -1057,7 +1054,7 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
     }
 
     @Override
-    public Collection<UpfCounter> readCounters(long maxCounterId) throws UpfProgrammableException {
+    public Collection<UpfCounter> readCounters(long maxCounterId, UpfEntityType type) throws UpfProgrammableException {
         if (isMaxUeSet()) {
             if (maxCounterId == -1) {
                 maxCounterId = getMaxUe() * 2;
@@ -1068,22 +1065,16 @@ public class Up4DeviceManager extends AbstractListenerManager<Up4Event, Up4Event
         // When reading counters we need to explicitly read on all UPF physical
         // devices and aggregate counter values.
         assertUpfIsReady();
-        // TODO: add get on builder can simply this, by removing the need for building the PdrStat every time.
-        UpfCounter.Builder builder = UpfCounter.builder();
+
         Map<Integer, UpfCounter> mapCounterIdStats = Maps.newHashMap();
         for (UpfProgrammable upfProg : upfProgrammables.values()) {
-            Collection<UpfCounter> pdrStats = upfProg.readCounters(maxCounterId);
+            Collection<UpfCounter> pdrStats = upfProg.readCounters(maxCounterId, type);
             pdrStats.forEach(currStat -> {
                 mapCounterIdStats.compute(currStat.getCellId(), (counterId, prevStats) -> {
                     if (prevStats == null) {
                         return currStat;
                     }
-                    builder.setIngress(currStat.getIngressPkts() + prevStats.getIngressPkts(),
-                                       currStat.getIngressBytes() + prevStats.getIngressBytes());
-                    builder.setEgress(currStat.getEgressPkts() + prevStats.getEgressPkts(),
-                                      currStat.getEgressBytes() + prevStats.getEgressBytes());
-                    builder.withCellId(counterId);
-                    return builder.build();
+                    return prevStats.sum(currStat);
                 });
             });
         }

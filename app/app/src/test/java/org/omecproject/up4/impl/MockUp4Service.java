@@ -119,7 +119,31 @@ public class MockUp4Service implements Up4Service {
             case COUNTER:
                 UpfCounter counter = (UpfCounter) entity;
                 counters.put(counter.getCellId(), counter);
-                break;
+            break;
+            case INGRESS_COUNTER:
+                UpfCounter igCounter = (UpfCounter) entity;
+                UpfCounter currIgCounter = counters.get(igCounter.getCellId());
+                counters.put(igCounter.getCellId(),
+                             UpfCounter.builder()
+                                     .withCellId(igCounter.getCellId())
+                                     .setEgress(currIgCounter.getEgressPkts().get(),
+                                                currIgCounter.getEgressBytes().get())
+                                     .setIngress(igCounter.getIngressPkts().get(),
+                                                 igCounter.getIngressBytes().get())
+                                     .build());
+            break;
+            case EGRESS_COUNTER:
+                UpfCounter egCounter = (UpfCounter) entity;
+                UpfCounter currEgCounter = counters.get(egCounter.getCellId());
+                counters.put(egCounter.getCellId(),
+                             UpfCounter.builder()
+                                     .withCellId(egCounter.getCellId())
+                                     .setEgress(egCounter.getEgressPkts().get(),
+                                                egCounter.getEgressBytes().get())
+                                     .setIngress(currEgCounter.getIngressPkts().get(),
+                                                 currEgCounter.getIngressBytes().get())
+                                     .build());
+            break;
             default:
                 break;
         }
@@ -150,7 +174,9 @@ public class MockUp4Service implements Up4Service {
             case SLICE_METER:
                 return sliceMeters;
             case COUNTER:
-                return counters.values();
+            case INGRESS_COUNTER:
+            case EGRESS_COUNTER:
+                return this.readCounters(-1, entityType);
             default:
                 break;
         }
@@ -168,13 +194,44 @@ public class MockUp4Service implements Up4Service {
     }
 
     @Override
-    public UpfCounter readCounter(int cellId) {
-        return counters.get(cellId);
+    public UpfCounter readCounter(int cellId, UpfEntityType type) {
+        UpfCounter currentCounter = this.counters.get(cellId);
+        if (type.equals(UpfEntityType.COUNTER)) {
+            return currentCounter;
+        }
+
+        UpfCounter.Builder builder = UpfCounter.builder()
+                .withCellId(cellId);
+        if (type.equals(UpfEntityType.INGRESS_COUNTER)) {
+            builder.setIngress(currentCounter.getIngressPkts().get(), currentCounter.getIngressBytes().get());
+        }
+        if (type.equals(UpfEntityType.EGRESS_COUNTER)) {
+            builder.setEgress(currentCounter.getEgressPkts().get(), currentCounter.getEgressBytes().get());
+        }
+        return builder.build();
     }
 
     @Override
-    public Collection<UpfCounter> readCounters(long maxCounterId) {
-        return counters.values();
+    public Collection<UpfCounter> readCounters(long maxCounterId, UpfEntityType type) {
+        List<UpfCounter> stats = new ArrayList<>();
+        for (int i = 0; i < TestImplConstants.PHYSICAL_COUNTER_SIZE; i++) {
+            UpfCounter currentCounter = this.counters.get(i);
+            if (type.equals(UpfEntityType.COUNTER)) {
+                stats.add(currentCounter);
+                continue;
+            }
+
+            UpfCounter.Builder builder = UpfCounter.builder()
+                    .withCellId(i);
+            if (type.equals(UpfEntityType.INGRESS_COUNTER)) {
+                builder.setIngress(currentCounter.getIngressPkts().get(), currentCounter.getIngressBytes().get());
+            }
+            if (type.equals(UpfEntityType.EGRESS_COUNTER)) {
+                builder.setEgress(currentCounter.getEgressPkts().get(), currentCounter.getEgressBytes().get());
+            }
+            stats.add(builder.build());
+        }
+        return stats;
     }
 
     @Override
