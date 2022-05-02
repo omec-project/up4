@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.ONF_BOT_GH_TOKEN }}
     - name: Read sdfabric ONOS image from stable env
       run: echo ONOS_IMAGE=$(cat .env.stable | grep "ONOS_IMAGE="| sed "s/ONOS_IMAGE=//") >> $GITHUB_ENV
     - name: Pull latest sdfabric ONOS image
@@ -38,6 +40,7 @@ jobs:
       if: ${{ env.ONOS_IMAGE }} == 'sdfabric-onos-local:master'
       uses: peter-evans/create-pull-request@v3
       with:
+        token: ${{ secrets.ONF_BOT_GH_TOKEN }}
         commit-message: Update stable env to latest sdfabric-onos image
         title: Update stable env to latest sdfabric-onos image
         # Always push on the same branch, commit will appear on the same PR if it's still open.
