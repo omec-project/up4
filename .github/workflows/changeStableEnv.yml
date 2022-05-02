@@ -15,8 +15,9 @@ jobs:
   change_stable_env:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-      ref: 'master'
+    - uses: actions/checkout@v3
+      with:
+        ref: 'master'
     - name: Read sdfabric ONOS image from stable env
       run: echo ONOS_IMAGE=$(cat ../.env.stable | grep \'ONOS_IMAGE=\'| sed \'s/ONOS_IMAGE=//\'") >> $GITHUB_ENV
     - name: Pull latest sdfabric ONOS image
