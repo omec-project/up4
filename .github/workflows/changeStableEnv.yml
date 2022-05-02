@@ -15,26 +15,27 @@ jobs:
   change_stable_env:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-      ref: 'master'
+    - uses: actions/checkout@v3
     - name: Read sdfabric ONOS image from stable env
-      run: echo ONOS_IMAGE=$(cat ../.env.stable | grep \'ONOS_IMAGE=\'| sed \'s/ONOS_IMAGE=//\'") >> $GITHUB_ENV
+      run: echo ONOS_IMAGE=$(cat .env.stable | grep "ONOS_IMAGE="| sed "s/ONOS_IMAGE=//") >> $GITHUB_ENV
     - name: Pull latest sdfabric ONOS image
-      if: ${{ env.ONOS_IMAGE == 'sdfabric-onos-local:master' }}
+      if: ${{ env.ONOS_IMAGE }} == 'sdfabric-onos-local:master'
       run: docker pull opennetworking/sdfabric-onos:master
     - name: Get sdfabric ONOS latest
-      if: ${{ env.ONOS_IMAGE == 'sdfabric-onos-local:master' }}
+      if: ${{ env.ONOS_IMAGE }} == 'sdfabric-onos-local:master'
       run: echo SDFABRIC_ONOS_LATEST_SHA=$(docker inspect --format='{{index .RepoDigests 0}}' opennetworking/sdfabric-onos:master) >> $GITHUB_ENV
     - name: Cleanup stable env file
-      if: ${{ env.ONOS_IMAGE == 'sdfabric-onos-local:master' }}
+      if: ${{ env.ONOS_IMAGE }} == 'sdfabric-onos-local:master'
       run: |
-        sed - i '' -e '/ONOS_VERSION=.*/d' ".env.stable"
-        sed - i '' -e '/TRELLIS_CONTROL_VERSION=.*/d' ".env.stable"
-        sed - i '' -e '/UP4_VERSION=.*/d' ".env.stable"
-        sed - i '' -e '/FABRIC_TNA_VERSION=.*/d' ".env.stable"
-        sed - i '' -e 's/ONOS_IMAGE=.*/ONOS_IMAGE=${{ env.SDFABRIC_ONOS_LATEST_SHA }}/' "./.env.stable"
+        sed -i "/ONOS_VERSION=.*/d" ".env.stable"
+        sed -i "/TRELLIS_CONTROL_VERSION=.*/d" ".env.stable"
+        sed -i "/UP4_VERSION=.*/d" ".env.stable"
+        sed -i "/FABRIC_TNA_VERSION=.*/d" ".env.stable"
+        sed -i "s#ONOS_IMAGE=.*#ONOS_IMAGE=${{ env.SDFABRIC_ONOS_LATEST_SHA }}#" "./.env.stable"
+      # For last sed you must use a different delimiter than /, @ or :
+      # Those are included in env.SDFABRIC_ONOS_LATEST_SHA
     - name: Create pull request
-      if: ${{ env.ONOS_IMAGE == 'sdfabric-onos-local:master' }}
+      if: ${{ env.ONOS_IMAGE }} == 'sdfabric-onos-local:master'
       uses: peter-evans/create-pull-request@v3
       with:
         commit-message: Update stable env to latest sdfabric-onos image
