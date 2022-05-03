@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        token: ${{ secrets.ONF_BOT_GH_TOKEN }}
     - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
@@ -23,6 +25,7 @@ jobs:
       uses: peter-evans/create-pull-request@v3
       with:
         commit-message: Auto-prettify ${{ github.sha }}
+        token: ${{ secrets.ONF_BOT_GH_TOKEN }}
         title: Auto-prettify 💅
         labels: prettybot
         branch: prettybot
