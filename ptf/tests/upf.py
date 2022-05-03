@@ -57,7 +57,8 @@ class GtpuDecapUplinkTest(GtpuBaseTest):
                 self.testPacket(pkt, app_filtering)
 
     @autocleanup
-    def testPacket(self, pkt, app_filtering, app_bitrate=None, session_bitrate=None,
+    def testPacket(self, pkt, app_filtering, app_bitrate=None,
+                   session_bitrate=None,
                    slice_bitrate=None):
 
         if gtp.GTP_U_Header not in pkt:
