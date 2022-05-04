@@ -5,15 +5,20 @@
 package org.omecproject.up4.cli;
 
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Option;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
+import org.omecproject.up4.impl.DownlinkUpfFlow;
 import org.omecproject.up4.impl.Up4AdminService;
+import org.omecproject.up4.impl.UplinkUpfFlow;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.cli.AbstractShellCommand;
 import org.onosproject.net.behaviour.upf.UpfCounter;
 
+import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * UP4 UE traffic statistics.
@@ -49,28 +54,10 @@ public class FlowsStatsCommand extends AbstractShellCommand {
         Up4AdminService adminService = get(Up4AdminService.class);
         Ip4Address ueAddr = ueSessionId != null ? Ip4Address.valueOf(ueSessionId) : null;
         do {
-            Map<Ip4Address, UpfCounter> beforeDownlink = Maps.newHashMap();
-            adminService.getDownlinkFlows().stream()
-                    .filter(upfFlow -> ueAddr == null || ueAddr.equals(upfFlow.getTermination().ueSessionId()))
-                    .forEach(
-                            dlUpfFlow -> beforeDownlink.compute(
-                                    dlUpfFlow.getTermination().ueSessionId(),
-                                    (key, value) -> (value == null) ?
-                                            dlUpfFlow.getCounter() :
-                                            sumUpfCounters(value, dlUpfFlow.getCounter())
-                            )
-                    );
-            Map<Ip4Address, UpfCounter> beforeUplink = Maps.newHashMap();
-            adminService.getUplinkFlows().stream()
-                    .filter(upfFlow -> ueAddr == null || ueAddr.equals(upfFlow.getTermination().ueSessionId()))
-                    .forEach(
-                            ulUpfFlow -> beforeUplink.compute(
-                                    ulUpfFlow.getTermination().ueSessionId(),
-                                    (key, value) -> (value == null) ?
-                                            ulUpfFlow.getCounter() :
-                                            sumUpfCounters(value, ulUpfFlow.getCounter())
-                            )
-                    );
+            Map<Ip4Address, UpfCounter> beforeDownlink =
+                    sumDownlinkUpfCountersPerSession(adminService.getDownlinkFlows(), ueAddr);
+            Map<Ip4Address, UpfCounter> beforeUplink =
+                    sumUplinkUpfCountersPerSession(adminService.getUplinkFlows(), ueAddr);
 
             if (beforeDownlink.isEmpty() || beforeUplink.isEmpty()) {
                 print("No UE Sessions\n");
@@ -82,28 +69,10 @@ public class FlowsStatsCommand extends AbstractShellCommand {
 
             Thread.sleep((int) (sleepTimeS * 1000));
 
-            Map<Ip4Address, UpfCounter> afterDownlink = Maps.newHashMap();
-            adminService.getDownlinkFlows().stream()
-                    .filter(upfFlow -> ueAddr == null || ueAddr.equals(upfFlow.getTermination().ueSessionId()))
-                    .forEach(
-                            dlUpfFlow -> afterDownlink.compute(
-                                    dlUpfFlow.getTermination().ueSessionId(),
-                                    (key, value) -> (value == null) ?
-                                            dlUpfFlow.getCounter() :
-                                            sumUpfCounters(value, dlUpfFlow.getCounter())
-                            )
-                    );
-            Map<Ip4Address, UpfCounter> afterUplink = Maps.newHashMap();
-            adminService.getUplinkFlows().stream()
-                    .filter(upfFlow -> ueAddr == null || ueAddr.equals(upfFlow.getTermination().ueSessionId()))
-                    .forEach(
-                            ulUpfFlow -> afterUplink.compute(
-                                    ulUpfFlow.getTermination().ueSessionId(),
-                                    (key, value) -> (value == null) ?
-                                            ulUpfFlow.getCounter() :
-                                            sumUpfCounters(value, ulUpfFlow.getCounter())
-                            )
-                    );
+            Map<Ip4Address, UpfCounter> afterDownlink =
+                    sumDownlinkUpfCountersPerSession(adminService.getDownlinkFlows(), ueAddr);
+            Map<Ip4Address, UpfCounter> afterUplink =
+                    sumUplinkUpfCountersPerSession(adminService.getUplinkFlows(), ueAddr);
 
             if (beforeDownlink.keySet().containsAll(beforeUplink.keySet()) &&
                     beforeDownlink.keySet().equals(afterUplink.keySet()) &&
@@ -217,5 +186,60 @@ public class FlowsStatsCommand extends AbstractShellCommand {
                            first.getEgressBytes() + second.getEgressBytes())
                 .withCellId(first.getCellId())
                 .build();
+    }
+
+    private Map<Ip4Address, UpfCounter> sumDownlinkUpfCountersPerSession(
+            Collection<DownlinkUpfFlow> downlinkUpfFlowList, Ip4Address ueAddr) {
+        Map<Ip4Address, Set<UpfCounter>> dlUpfCountersPerSession = Maps.newHashMap();
+        downlinkUpfFlowList.stream()
+                .filter(upfFlow -> ueAddr == null || ueAddr.equals(upfFlow.getTermination().ueSessionId()))
+                .forEach(dlUpfFlow -> dlUpfCountersPerSession.compute(
+                        dlUpfFlow.getTermination().ueSessionId(),
+                        (key, value) -> {
+                            if (value == null) {
+                                return Sets.newHashSet(dlUpfFlow.getCounter());
+                            } else {
+                                value.add(dlUpfFlow.getCounter());
+                                return value;
+                            }
+                        })
+                );
+        return sumCountersPerSession(dlUpfCountersPerSession);
+    }
+
+    private Map<Ip4Address, UpfCounter> sumUplinkUpfCountersPerSession(
+            Collection<UplinkUpfFlow> uplinkUpfFlowList, Ip4Address ueAddr) {
+        Map<Ip4Address, Set<UpfCounter>> ulUpfCountersPerSession = Maps.newHashMap();
+        uplinkUpfFlowList.stream()
+                .filter(upfFlow -> ueAddr == null || ueAddr.equals(upfFlow.getTermination().ueSessionId()))
+                .forEach(ulUpfFlow -> ulUpfCountersPerSession.compute(
+                        ulUpfFlow.getTermination().ueSessionId(),
+                        (key, value) -> {
+                            if (value == null) {
+                                return Sets.newHashSet(ulUpfFlow.getCounter());
+                            } else {
+                                value.add(ulUpfFlow.getCounter());
+                                return value;
+                            }
+                        })
+                );
+        return sumCountersPerSession(ulUpfCountersPerSession);
+    }
+
+    private Map<Ip4Address, UpfCounter> sumCountersPerSession(
+            Map<Ip4Address, Set<UpfCounter>> countersPerSession) {
+        Map<Ip4Address, UpfCounter> sumCountersSession = Maps.newHashMap();
+        countersPerSession.forEach((ueSession, upfCounters) -> {
+            UpfCounter result = null;
+            for (UpfCounter upfCounter : upfCounters) {
+                if (result == null) {
+                    result = upfCounter;
+                } else {
+                    result = sumUpfCounters(result, upfCounter);
+                }
+            }
+            sumCountersSession.put(ueSession, result);
+        });
+        return sumCountersSession;
     }
 }
