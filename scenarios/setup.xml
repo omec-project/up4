@@ -54,21 +54,27 @@
         />
 
         <!-- remove pre-installed up4, install local build -->
-        <step name="Up4-App-Uninstall" requires="Onos-Wait-For-Ready"
-              exec="onos-app ${OCI} uninstall org.omecproject.up4"/>
-        <step name="Up4-App-Wait-For-Uninstalled" requires="^"
-              exec="docker-log-grep ${ODI} 'Application org.omecproject.up4 has been uninstalled'"/>
-        <step name="Up4-Oar-Exists" requires="^"
-              exec="test -f ${UP4_ROOT}/app/app/target/up4-app-1.2.0-SNAPSHOT.oar"/>
-        <step name="Up4-App-Install-Local-Build" requires="^" delay="5"
-              exec="onos-app ${OCI} reinstall! ${UP4_ROOT}/app/app/target/up4-app-1.2.0-SNAPSHOT.oar"/>
+        <group name="Reinstall-Up4" if="${PUSH_UP4}" requires="Onos-Wait-For-Ready">
+            <step name="Up4-App-Uninstall" requires="Onos-Wait-For-Ready"
+                  exec="onos-app ${OCI} uninstall org.omecproject.up4"/>
+            <step name="Up4-App-Wait-For-Uninstalled" requires="^"
+                  exec="docker-log-grep ${ODI} 'Application org.omecproject.up4 has been uninstalled'"/>
+            <step name="Up4-Oar-Exists" requires="^"
+                  exec="test -f ${UP4_ROOT}/app/app/target/up4-app-1.2.0-SNAPSHOT.oar"/>
+            <step name="Up4-App-Install-Local-Build" requires="^" delay="5"
+                  exec="onos-app ${OCI} reinstall! ${UP4_ROOT}/app/app/target/up4-app-1.2.0-SNAPSHOT.oar"/>
+        </group>
 
+        <!-- activate pre-installed up4 -->
+        <group name="Activate-Up4" unless="${PUSH_UP4}" requires="Onos-Wait-For-Ready">
+            <step name="Up4-App-Activate" requires="Onos-Wait-For-Ready" exec="onos-cli ${OD1} 'app activate org.omecproject.up4'"/>
+        </group>
 
         <parallel var="${OD#}">
             <!-- FIXME: ${OC#} pointing to the same instance localhost, should we use a container that can resolve onos1/2/3 hostnames? -->
             <step name="Onos-Check-Up4-App-${#}"
                   exec="onos-check-apps ${OC#} org.omecproject.up4 includes"
-                  requires="Up4-App-Install-Local-Build"/>
+                  requires="Activate-Up4,Reinstall-Up4,Onos-Wait-For-Ready"/>
             <step name="Up4-Set-Log-Debug-${#}"
                   exec="onos-cli ${OD#} 'log:set DEBUG org.omecproject.up4'"
                   requires="Onos-Check-Up4-App-${#}"/>

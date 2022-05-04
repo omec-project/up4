@@ -9,6 +9,7 @@ def up4Env = params.up4Env ? "${params.up4Env}" : "stable"
 // The type of control mode to use.
 // Can be either pfcp (uses a mock-smf with pfcp-agent) or p4rt (uses p4rt-shell directly).
 def up4Ctrl = params.up4Ctrl ? "${params.up4Ctrl}" : "pfcp"
+def skipUp4Build = false
 
 pipeline {
 
@@ -16,7 +17,7 @@ pipeline {
     label "${params.buildNode}"
   }
   options {
-    timeout(time: 70, unit: 'MINUTES')
+    timeout(time: 90, unit: 'MINUTES')
   }
 
   environment {
@@ -61,8 +62,30 @@ pipeline {
                           passwordVariable: "PASSWORD"]]) {
           sh 'docker login registry.aetherproject.org -u $USERNAME -p $PASSWORD'
         }
+        withCredentials([[$class          : "UsernamePasswordMultiBinding",
+                          credentialsId   : "registry.opennetworking.org",
+                          usernameVariable: "USERNAME",
+                          passwordVariable: "PASSWORD"]]) {
+          sh 'docker login registry.opennetworking.org -u $USERNAME -p $PASSWORD'
+        }
         // Set JDK 11
         sh "sudo update-java-alternatives -s java-11-amazon-corretto"
+      }
+    }
+    stage("Check if we need to build UP4 as part of CI") {
+      steps {
+        dir("${env.WORKSPACE}/up4") {
+          script {
+            ONOS_IMAGE_STABLE = sh(
+                    script: "cat ../.env.stable | grep \'ONOS_IMAGE=\'| sed \'s/ONOS_IMAGE=//\'",
+                    returnStdout: true
+            ).trim()
+            if (ONOS_IMAGE_STABLE == "sdfabric-onos-local:master") {
+              sh echo "SKIP UP4 build. UP4 is built as part of the scenarios deps step"
+              skipUp4Build = true
+            }
+          }
+        }
       }
     }
     stage("Dependencies") {
@@ -104,6 +127,11 @@ pipeline {
       }
     }
     stage("Build ONOS app") {
+      when {
+        expression {
+          !skipUp4Build
+        }
+      }
       steps {
         dir("${env.WORKSPACE}/up4/app") {
           sh "make build-ci"
@@ -170,7 +198,7 @@ pipeline {
           emailext(
               subject: "[${env.JOB_NAME}] ${currentBuild.currentResult}: ${params.sha1}",
               body: "Check results at ${env.BUILD_URL}",
-              to: "daniele@opennetworking.org"
+              to: "daniele.moro@intel.com"
           )
         }
       }
