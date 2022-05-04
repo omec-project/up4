@@ -1,6 +1,6 @@
 /*
  SPDX-License-Identifier: Apache-2.0
- SPDX-FileCopyrightText: 2022-present Intel Corporation
+ SPDX-FileCopyrightText: 2022-present Open Networking Foundation <info@opennetworking.org>
  */
 package org.omecproject.up4.cli;
 
@@ -105,83 +105,82 @@ public class FlowsStatsCommand extends AbstractShellCommand {
                             )
                     );
 
-            if (!(beforeDownlink.keySet().containsAll(beforeUplink.keySet()) &&
+            if (beforeDownlink.keySet().containsAll(beforeUplink.keySet()) &&
                     beforeDownlink.keySet().equals(afterUplink.keySet()) &&
-                    beforeDownlink.keySet().equals(afterDownlink.keySet()))) {
-                print("Error while reading stats!\n");
-                continue;
-            }
+                    beforeDownlink.keySet().equals(afterDownlink.keySet())) {
+                print(SEPARATOR);
+                for (Ip4Address ueSessionId : beforeDownlink.keySet()) {
+                    if (ueAddr == null || ueAddr.equals(ueSessionId)) {
+                        print("Session: " + ueSessionId.toString());
+                        UpfCounter bfUl = beforeUplink.get(ueSessionId);
+                        UpfCounter bfDl = beforeDownlink.get(ueSessionId);
+                        UpfCounter afUl = afterUplink.get(ueSessionId);
+                        UpfCounter afDl = afterDownlink.get(ueSessionId);
 
-            print(SEPARATOR);
-            for (Ip4Address ueSessionId : beforeDownlink.keySet()) {
-                if (ueAddr == null || ueAddr.equals(ueSessionId)) {
-                    print("Session: " + ueSessionId.toString());
-                    UpfCounter bfUl = beforeUplink.get(ueSessionId);
-                    UpfCounter bfDl = beforeDownlink.get(ueSessionId);
-                    UpfCounter afUl = afterUplink.get(ueSessionId);
-                    UpfCounter afDl = afterDownlink.get(ueSessionId);
+                        long rxPktsUl = afUl.getIngressPkts() - bfUl.getIngressPkts();
+                        long rxPktsDl = afDl.getIngressPkts() - bfDl.getIngressPkts();
+                        long txPktsUl = afUl.getEgressPkts() - bfUl.getEgressPkts();
+                        long txPktsDl = afDl.getEgressPkts() - bfDl.getEgressPkts();
 
-                    long rxPktsUl = afUl.getIngressPkts() - bfUl.getIngressPkts();
-                    long rxPktsDl = afDl.getIngressPkts() - bfDl.getIngressPkts();
-                    long txPktsUl = afUl.getEgressPkts() - bfUl.getEgressPkts();
-                    long txPktsDl = afDl.getEgressPkts() - bfDl.getEgressPkts();
+                        long rxBitsUl = (afUl.getIngressBytes() - bfUl.getIngressBytes()) * 8;
+                        long rxBitsDl = (afDl.getIngressBytes() - bfDl.getIngressBytes()) * 8;
+                        long txBitsUl = (afUl.getEgressBytes() - bfUl.getEgressBytes()) * 8;
+                        long txBitsDl = (afDl.getEgressBytes() - bfDl.getEgressBytes()) * 8;
 
-                    long rxBitsUl = (afUl.getIngressBytes() - bfUl.getIngressBytes()) * 8;
-                    long rxBitsDl = (afDl.getIngressBytes() - bfDl.getIngressBytes()) * 8;
-                    long txBitsUl = (afUl.getEgressBytes() - bfUl.getEgressBytes()) * 8;
-                    long txBitsDl = (afDl.getEgressBytes() - bfDl.getEgressBytes()) * 8;
+                        long droppedPktsUl = (afUl.getIngressPkts() - afUl.getEgressPkts()) -
+                                (bfUl.getIngressPkts() - bfUl.getEgressPkts());
+                        long droppedPktsDl = (afDl.getIngressPkts() - afDl.getEgressPkts()) -
+                                (bfDl.getIngressPkts() - bfDl.getEgressPkts());
+                        long droppedBitsUl = ((afUl.getIngressPkts() - afUl.getEgressPkts()) -
+                                (bfUl.getIngressPkts() - bfUl.getEgressPkts())) * 8;
+                        long droppedBitsDl = ((afDl.getIngressBytes() - afDl.getEgressBytes()) -
+                                (bfDl.getIngressBytes() - bfDl.getEgressBytes())) * 8;
 
-                    long droppedPktsUl = (afUl.getIngressPkts() - afUl.getEgressPkts()) -
-                            (bfUl.getIngressPkts() - bfUl.getEgressPkts());
-                    long droppedPktsDl = (afDl.getIngressPkts() - afDl.getEgressPkts()) -
-                            (bfDl.getIngressPkts() - bfDl.getEgressPkts());
-                    long droppedBitsUl = ((afUl.getIngressPkts() - afUl.getEgressPkts()) -
-                            (bfUl.getIngressPkts() - bfUl.getEgressPkts())) * 8;
-                    long droppedBitsDl = ((afDl.getIngressBytes() - afDl.getEgressBytes()) -
-                            (bfDl.getIngressBytes() - bfDl.getEgressBytes())) * 8;
+                        if (droppedPktsUl > rxPktsUl) {
+                            print("  Uplink: more dropped packets than received! (%d > %d)", droppedPktsUl, rxPktsUl);
+                        }
+                        print("  Uplink: %s / %s (%.2f%% dropped)",
+                              toReadable((double) txBitsUl / sleepTimeS, "bps"),
+                              toReadable((double) txPktsUl / sleepTimeS, "pps"),
+                              rxPktsUl == 0 ? 0.0 : ((double) droppedPktsUl / (double) rxPktsUl) * 100.0);
+                        if (debug) {
+                            print("    RX: %s / %s",
+                                  toReadable(rxPktsUl, "pkts"),
+                                  toReadable(rxBitsUl, "bit"));
+                            print("    TX: %s / %s",
+                                  toReadable(txPktsUl, "pkts"),
+                                  toReadable(txBitsUl, "bit"));
+                            print("    Dropped: %s / %s",
+                                  toReadable(droppedPktsUl, "pkts"),
+                                  toReadable(droppedBitsUl, "bit"));
+                        }
 
-                    print("  Uplink: %s / %s (%.2f%% dropped)",
-                          toReadable((double) txBitsUl / sleepTimeS, "bps"),
-                          toReadable((double) txPktsUl / sleepTimeS, "pps"),
-                          rxPktsUl == 0 ? 0.0 : ((double) droppedPktsUl / (double) rxPktsUl) * 100.0);
-                    if (droppedPktsUl > rxPktsUl) {
-                        print("    More dropped packets than received! (%d > %d)", droppedPktsUl, rxPktsUl);
+                        if (droppedPktsDl > rxPktsDl) {
+                            print("  Downlink: more dropped packets than received! (%d > %d)", droppedPktsDl, rxPktsDl);
+                        }
+                        print("  Downlink: %s / %s (%.2f%% dropped)",
+                              toReadable((double) txBitsDl / sleepTimeS, "bps"),
+                              toReadable((double) txPktsDl / sleepTimeS, "pps"),
+                              rxPktsDl == 0 ? 0.0 : ((double) droppedPktsDl / (double) rxPktsDl) * 100.0);
+                        if (debug) {
+                            print("    RX: %s / %s",
+                                  toReadable(rxPktsDl, "pkts"),
+                                  toReadable(rxBitsDl, "bit"));
+                            print("    TX: %s / %s",
+                                  toReadable(txPktsDl, "pkts"),
+                                  toReadable(txBitsDl, "bit"));
+                            print("    Dropped: %s / %s",
+                                  toReadable(droppedPktsDl, "pkts"),
+                                  toReadable(droppedBitsDl, "bit"));
+                        }
+                        print(SEPARATOR);
                     }
-                    if (debug) {
-                        print("    RX: %s / %s",
-                              toReadable(rxPktsUl, "pkts"),
-                              toReadable(rxBitsUl, "bit"));
-                        print("    TX: %s / %s",
-                              toReadable(txPktsUl, "pkts"),
-                              toReadable(txBitsUl, "bit"));
-                        print("    Dropped: %s / %s",
-                              toReadable(droppedPktsUl, "pkts"),
-                              toReadable(droppedBitsUl, "bit"));
-                    }
-
-                    print("  Downlink: %s / %s (%.2f%% dropped)",
-                          toReadable((double) txBitsDl / sleepTimeS, "bps"),
-                          toReadable((double) txPktsDl / sleepTimeS, "pps"),
-                          rxPktsDl == 0 ? 0.0 : ((double) droppedPktsDl / (double) rxPktsDl) * 100.0);
-                    if (droppedPktsDl > rxPktsDl) {
-                        print("    More dropped packets than received! (%d > %d)", droppedPktsDl, rxPktsDl);
-                    }
-                    if (debug) {
-                        print("    RX: %s / %s",
-                              toReadable(rxPktsDl, "pkts"),
-                              toReadable(rxBitsDl, "bit"));
-                        print("    TX: %s / %s",
-                              toReadable(txPktsDl, "pkts"),
-                              toReadable(txBitsDl, "bit"));
-                        print("    Dropped: %s / %s",
-                              toReadable(droppedPktsDl, "pkts"),
-                              toReadable(droppedBitsDl, "bit"));
-                    }
-                    print(SEPARATOR);
                 }
-            }
-            if (cont) {
-                print("");
+                if (cont) {
+                    print("");
+                }
+            } else {
+                print("Error while reading stats!\n");
             }
         } while (cont);
     }
