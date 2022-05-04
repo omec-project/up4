@@ -6,8 +6,6 @@ CURRENT_UID              := $(shell id -u)
 CURRENT_GID              := $(shell id -g)
 MKFILE_PATH              := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
-CURRENT_DIR_SHA          := $(shell echo -n "$(CURRENT_DIR)" | shasum | cut -c1-7)
-
 # By default use docker volume to persist mvn cache,
 # but allow passing a directory, e.g., local ~/.m2
 mvn_cache_docker_volume := mvn-cache-up4
