@@ -68,7 +68,6 @@ services:
       - PARALLEL_LINKS=${PARALLEL_LINKS}
       - MN_SCRIPT=${MN_SCRIPT}
   onos1:
-    # Tost image comes with latest trellis apps
     image: ${ONOS_IMAGE}
     hostname: onos1
     container_name: onos1
