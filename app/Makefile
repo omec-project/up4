@@ -14,7 +14,7 @@ mvn_cache_docker_volume := mvn-cache-up4
 MVN_CACHE ?= ${mvn_cache_docker_volume}
 # By default use the maven settings in local ~/.m2, but allow passing a custom
 # settings.
-MVN_SETTINGS ?= $(shell test -f ~/.m2/settings.xml && echo "~/.m2/settings.xml")
+MVN_SETTINGS ?= $(shell test -f ~/.m2/settings.xml && echo "$${HOME}/.m2/settings.xml")
 MVN_FLAGS ?= -B
 
 onos_tools_dir := $(abspath ${CURRENT_DIR}/../scenarios/onos/tools/package/runtime/bin)
@@ -52,7 +52,8 @@ local-build: _build_resources
 	mvn ${MVN_FLAGS} clean install
 
 build: _build_resources mvn_settings
-	docker run -it --rm -v ${CURRENT_DIR}:/root -v ${MVN_CACHE}:/root/.m2 -w /root \
+	docker run -it --rm -v ${CURRENT_DIR}:/root -v ${MVN_CACHE}:/root/.m2 \
+		${MVN_SETTINGS_MOUNT} -w /root \
 		${MAVEN_IMAGE} bash -c "mvn ${MVN_FLAGS} clean install && chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
 
 # ci-verify is a build profile specified in onos-dependencies's pom.xml
@@ -61,13 +62,10 @@ build: _build_resources mvn_settings
 build-ci: MVN_FLAGS := -B -q -Pci-verify -Pcoverage
 build-ci: local-build
 
-# Copy the mvn settings file into the docker volume cache if we use one
 mvn_settings:
 ifneq ($(MVN_SETTINGS),)
 ifeq ($(MVN_CACHE),$(mvn_cache_docker_volume))
-	docker run -d --rm --name dummy_$(CURRENT_DIR_SHA) -v ${MVN_CACHE}:/root/.m2 ${MAVEN_IMAGE} tail -f /dev/null
-	docker cp $(MVN_SETTINGS) dummy_$(CURRENT_DIR_SHA):/root/.m2/settings.xml
-	docker stop -t0 dummy_$(CURRENT_DIR_SHA)
+	$(eval MVN_SETTINGS_MOUNT := -v $(MVN_SETTINGS):/root/.m2/settings.xml)
 endif
 endif
 
