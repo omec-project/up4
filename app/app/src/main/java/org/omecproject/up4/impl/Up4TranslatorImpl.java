@@ -200,11 +200,13 @@ public class Up4TranslatorImpl implements Up4Translator {
                 return UpfCounter.builder()
                         .withCellId((int) counterEntry.cellId().index())
                         .setIngress(counterEntry.data().packets(), counterEntry.data().bytes())
+                        .isIngressCounter()
                         .build();
             case EGRESS_COUNTER:
                 return UpfCounter.builder()
                         .withCellId((int) counterEntry.cellId().index())
                         .setEgress(counterEntry.data().packets(), counterEntry.data().bytes())
+                        .isEgressCounter()
                         .build();
             default:
                 throw new Up4TranslationException(

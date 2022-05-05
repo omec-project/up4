@@ -203,10 +203,12 @@ public class MockUp4Service implements Up4Service {
         UpfCounter.Builder builder = UpfCounter.builder()
                 .withCellId(cellId);
         if (type.equals(UpfEntityType.INGRESS_COUNTER)) {
-            builder.setIngress(currentCounter.getIngressPkts().get(), currentCounter.getIngressBytes().get());
+            builder.setIngress(currentCounter.getIngressPkts().get(), currentCounter.getIngressBytes().get())
+                    .isIngressCounter();
         }
         if (type.equals(UpfEntityType.EGRESS_COUNTER)) {
-            builder.setEgress(currentCounter.getEgressPkts().get(), currentCounter.getEgressBytes().get());
+            builder.setEgress(currentCounter.getEgressPkts().get(), currentCounter.getEgressBytes().get())
+                    .isEgressCounter();
         }
         return builder.build();
     }
@@ -224,10 +226,12 @@ public class MockUp4Service implements Up4Service {
             UpfCounter.Builder builder = UpfCounter.builder()
                     .withCellId(i);
             if (type.equals(UpfEntityType.INGRESS_COUNTER)) {
-                builder.setIngress(currentCounter.getIngressPkts().get(), currentCounter.getIngressBytes().get());
+                builder.setIngress(currentCounter.getIngressPkts().get(), currentCounter.getIngressBytes().get())
+                        .isIngressCounter();
             }
             if (type.equals(UpfEntityType.EGRESS_COUNTER)) {
-                builder.setEgress(currentCounter.getEgressPkts().get(), currentCounter.getEgressBytes().get());
+                builder.setEgress(currentCounter.getEgressPkts().get(), currentCounter.getEgressBytes().get())
+                        .isEgressCounter();
             }
             stats.add(builder.build());
         }
