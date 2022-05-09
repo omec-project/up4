@@ -9,6 +9,7 @@
     "p4rtc_port": "51001",
     "access_ip": "140.0.0.1/32",
     "slice_id": 15,
-    "default_tc": 3
+    "default_tc": 3,
+    "clear_state_on_restart": true
   }
 }
