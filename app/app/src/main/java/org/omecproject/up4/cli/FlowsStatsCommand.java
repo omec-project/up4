@@ -1,6 +1,6 @@
 /*
  SPDX-License-Identifier: Apache-2.0
- SPDX-FileCopyrightText: 2022-present Open Networking Foundation <info@opennetworking.org>
+ SPDX-FileCopyrightText: 2022-present Intel Corporation
  */
 package org.omecproject.up4.cli;
 
@@ -41,7 +41,7 @@ public class FlowsStatsCommand extends AbstractShellCommand {
             valueToShowInHelp = "10.0.0.1")
     String ueSessionId = null;
 
-    @Option(name = "-c", aliases = "--continue",
+    @Option(name = "-w", aliases = "--watch",
             description = "Continue to print stats, until ctrl+c")
     boolean cont = false;
 
