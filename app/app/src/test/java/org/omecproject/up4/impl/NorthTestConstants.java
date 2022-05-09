@@ -16,10 +16,6 @@ public final class NorthTestConstants {
     public static final long PIPECONF_COOKIE = 0xbeefcafe;
     public static final int UPLINK_COUNTER_INDEX = 1;
     public static final int DOWNLINK_COUNTER_INDEX = 2;
-    public static final long INGRESS_COUNTER_PKTS = 1;
-    public static final long INGRESS_COUNTER_BYTES = 2;
-    public static final long EGRESS_COUNTER_PKTS = 3;
-    public static final long EGRESS_COUNTER_BYTES = 4;
     // Bytes of a random but valid Ethernet frame.
     public static final byte[] PKT_OUT_PAYLOAD = HexString.fromHexString(
             "00060708090a0001020304058100000a08004500006a000100004011f92ec0a80001c0a8000204d2005" +
