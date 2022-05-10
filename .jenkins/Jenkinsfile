@@ -77,7 +77,7 @@ pipeline {
         dir("${env.WORKSPACE}/up4") {
           script {
             ONOS_IMAGE_STABLE = sh(
-                    script: "cat ../.env.stable | grep \'ONOS_IMAGE=\'| sed \'s/ONOS_IMAGE=//\'",
+                    script: "cat .env.stable | grep \'ONOS_IMAGE=\'| sed \'s/ONOS_IMAGE=//\'",
                     returnStdout: true
             ).trim()
             if (ONOS_IMAGE_STABLE == "sdfabric-onos-local:master") {
