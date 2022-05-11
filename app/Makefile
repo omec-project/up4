@@ -6,11 +6,13 @@ CURRENT_UID              := $(shell id -u)
 CURRENT_GID              := $(shell id -g)
 MKFILE_PATH              := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR              := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
-
 # By default use docker volume to persist mvn cache,
 # but allow passing a directory, e.g., local ~/.m2
 mvn_cache_docker_volume := mvn-cache-up4
 MVN_CACHE ?= ${mvn_cache_docker_volume}
+# By default use the maven settings in local ~/.m2, but allow passing a custom
+# settings.
+MVN_SETTINGS ?= $(shell test -f ~/.m2/settings.xml && echo "$${HOME}/.m2/settings.xml")
 MVN_FLAGS ?= -B
 
 onos_tools_dir := $(abspath ${CURRENT_DIR}/../scenarios/onos/tools/package/runtime/bin)
@@ -47,8 +49,9 @@ _build_resources: \
 local-build: _build_resources
 	mvn ${MVN_FLAGS} clean install
 
-build: _build_resources
-	docker run -it --rm -v ${CURRENT_DIR}:/root -v ${MVN_CACHE}:/root/.m2 -w /root \
+build: _build_resources mvn_settings
+	docker run -it --rm -v ${CURRENT_DIR}:/root -v ${MVN_CACHE}:/root/.m2 \
+		${MVN_SETTINGS_MOUNT} -w /root \
 		${MAVEN_IMAGE} bash -c "mvn ${MVN_FLAGS} clean install && chown -R ${CURRENT_UID}:${CURRENT_GID} /root"
 
 # ci-verify is a build profile specified in onos-dependencies's pom.xml
@@ -56,6 +59,13 @@ build: _build_resources
 # run on local build, but during CI.
 build-ci: MVN_FLAGS := -B -q -Pci-verify -Pcoverage
 build-ci: local-build
+
+mvn_settings:
+ifneq ($(MVN_SETTINGS),)
+ifeq ($(MVN_CACHE),$(mvn_cache_docker_volume))
+	$(eval MVN_SETTINGS_MOUNT := -v $(MVN_SETTINGS):/root/.m2/settings.xml)
+endif
+endif
 
 clean:
 	rm -rf app/target/
