@@ -81,7 +81,7 @@ pipeline {
                     returnStdout: true
             ).trim()
             if (ONOS_IMAGE_STABLE == "sdfabric-onos-local:master") {
-              sh(script 'echo "SKIP UP4 build. UP4 is built as part of the scenarios deps step"')
+              sh(script: 'echo "SKIP UP4 build. UP4 is built as part of the scenarios deps step"')
               skipUp4Build = true
             }
           }
