@@ -86,24 +86,44 @@ public class FlowsStatsCommand extends AbstractShellCommand {
                         UpfCounter afUl = afterUplink.get(ueSessionId);
                         UpfCounter afDl = afterDownlink.get(ueSessionId);
 
-                        long rxPktsUl = afUl.getIngressPkts() - bfUl.getIngressPkts();
-                        long rxPktsDl = afDl.getIngressPkts() - bfDl.getIngressPkts();
-                        long txPktsUl = afUl.getEgressPkts() - bfUl.getEgressPkts();
-                        long txPktsDl = afDl.getEgressPkts() - bfDl.getEgressPkts();
+                        long afUlIngressPkts = afUl.getIngressPkts().orElse(0L);
+                        long afUlEgressPkts = afUl.getEgressPkts().orElse(0L);
+                        long afDlIngressPkts = afDl.getIngressPkts().orElse(0L);
+                        long afDlEgressPkts = afDl.getEgressPkts().orElse(0L);
 
-                        long rxBitsUl = (afUl.getIngressBytes() - bfUl.getIngressBytes()) * 8;
-                        long rxBitsDl = (afDl.getIngressBytes() - bfDl.getIngressBytes()) * 8;
-                        long txBitsUl = (afUl.getEgressBytes() - bfUl.getEgressBytes()) * 8;
-                        long txBitsDl = (afDl.getEgressBytes() - bfDl.getEgressBytes()) * 8;
+                        long afUlIngressBytes = afUl.getIngressBytes().orElse(0L);
+                        long afUlEgressBytes = afUl.getEgressBytes().orElse(0L);
+                        long afDlIngressBytes = afDl.getIngressBytes().orElse(0L);
+                        long afDlEgressBytes = afDl.getEgressBytes().orElse(0L);
 
-                        long droppedPktsUl = (afUl.getIngressPkts() - afUl.getEgressPkts()) -
-                                (bfUl.getIngressPkts() - bfUl.getEgressPkts());
-                        long droppedPktsDl = (afDl.getIngressPkts() - afDl.getEgressPkts()) -
-                                (bfDl.getIngressPkts() - bfDl.getEgressPkts());
-                        long droppedBitsUl = ((afUl.getIngressPkts() - afUl.getEgressPkts()) -
-                                (bfUl.getIngressPkts() - bfUl.getEgressPkts())) * 8;
-                        long droppedBitsDl = ((afDl.getIngressBytes() - afDl.getEgressBytes()) -
-                                (bfDl.getIngressBytes() - bfDl.getEgressBytes())) * 8;
+                        long bfUlIngressPkts = bfUl.getIngressPkts().orElse(0L);
+                        long bfUlEgressPkts = bfUl.getEgressPkts().orElse(0L);
+                        long bfDlIngressPkts = bfDl.getIngressPkts().orElse(0L);
+                        long bfDlEgressPkts = bfDl.getEgressPkts().orElse(0L);
+
+                        long bfUlIngressBytes = bfUl.getIngressBytes().orElse(0L);
+                        long bfUlEgressBytes = bfUl.getEgressBytes().orElse(0L);
+                        long bfDlIngressBytes = bfDl.getIngressBytes().orElse(0L);
+                        long bfDlEgressBytes = bfDl.getEgressBytes().orElse(0L);
+
+                        long rxPktsUl = afUlIngressPkts - bfUlIngressPkts;
+                        long rxPktsDl = afDlIngressPkts - bfDlIngressPkts;
+                        long txPktsUl = afUlEgressPkts - bfUlEgressPkts;
+                        long txPktsDl = afDlEgressPkts - bfDlEgressPkts;
+
+                        long rxBitsUl = (afUlIngressBytes - bfUlIngressBytes) * 8;
+                        long rxBitsDl = (afDlIngressBytes - bfDlIngressBytes) * 8;
+                        long txBitsUl = (afUlEgressBytes - bfUlEgressBytes) * 8;
+                        long txBitsDl = (afDlEgressBytes - bfDlEgressBytes) * 8;
+
+                        long droppedPktsUl = (afUlIngressPkts - afUlEgressPkts) -
+                                (bfUlIngressPkts - bfUlEgressPkts);
+                        long droppedPktsDl = (afDlIngressPkts - afDlEgressPkts) -
+                                (bfDlIngressPkts - bfDlEgressPkts);
+                        long droppedBitsUl = ((afUlIngressPkts - afUlEgressPkts) -
+                                (bfUlIngressPkts - bfUlEgressPkts)) * 8;
+                        long droppedBitsDl = ((afDlIngressBytes - afDlEgressBytes) -
+                                (bfDlIngressBytes - bfDlEgressBytes)) * 8;
 
                         if (droppedPktsUl > rxPktsUl) {
                             print("  Uplink: more dropped packets than received! (%d > %d)", droppedPktsUl, rxPktsUl);
@@ -180,10 +200,10 @@ public class FlowsStatsCommand extends AbstractShellCommand {
 
     private UpfCounter sumUpfCounters(UpfCounter first, UpfCounter second) {
         return UpfCounter.builder()
-                .setIngress(first.getIngressPkts() + second.getIngressPkts(),
-                            first.getIngressBytes() + second.getIngressBytes())
-                .setEgress(first.getEgressPkts() + second.getEgressPkts(),
-                           first.getEgressBytes() + second.getEgressBytes())
+                .setIngress(first.getIngressPkts().orElse(0L) + second.getIngressPkts().orElse(0L),
+                            first.getIngressBytes().orElse(0L) + second.getIngressBytes().orElse(0L))
+                .setEgress(first.getEgressPkts().orElse(0L) + second.getEgressPkts().orElse(0L),
+                           first.getEgressBytes().orElse(0L) + second.getEgressBytes().orElse(0L))
                 .withCellId(first.getCellId())
                 .build();
     }
