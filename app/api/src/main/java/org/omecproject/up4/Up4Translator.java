@@ -6,6 +6,7 @@ package org.omecproject.up4;
 
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
+import org.onosproject.net.pi.runtime.PiCounterCell;
 import org.onosproject.net.pi.runtime.PiEntity;
 import org.onosproject.net.pi.runtime.PiMeterCellConfig;
 import org.onosproject.net.pi.runtime.PiTableEntry;
@@ -41,6 +42,15 @@ public interface Up4Translator {
      * @throws Up4TranslationException if the entry cannot be translated
      */
     UpfEntity up4MeterEntryToUpfEntity(PiMeterCellConfig meterEntry) throws Up4TranslationException;
+
+    /**
+     * Translates the given UP4 logical counter entry into the UPF entity.
+     *
+     * @param counterEntry the UP4 logical counter entry
+     * @return the UPF entity
+     * @throws Up4TranslationException if the entry cannot be translated
+     */
+    UpfEntity up4CounterEntryToUpfEntity(PiCounterCell counterEntry) throws Up4TranslationException;
 
     /**
      * Translates the give UPF meter entity into a UP4 logical pipeline meter entry.

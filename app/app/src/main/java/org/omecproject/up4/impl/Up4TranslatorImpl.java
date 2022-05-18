@@ -9,6 +9,7 @@ import org.omecproject.up4.Up4Translator;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.util.ImmutableByteSequence;
 import org.onosproject.net.behaviour.upf.UpfApplication;
+import org.onosproject.net.behaviour.upf.UpfCounter;
 import org.onosproject.net.behaviour.upf.UpfEntity;
 import org.onosproject.net.behaviour.upf.UpfEntityType;
 import org.onosproject.net.behaviour.upf.UpfGtpTunnelPeer;
@@ -125,9 +126,10 @@ public class Up4TranslatorImpl implements Up4Translator {
                 break;
             case COUNTER_CELL:
                 PiCounterCell counterCell = (PiCounterCell) entry;
-                if (counterCell.cellId().counterId().equals(POST_QOS_PIPE_POST_QOS_COUNTER) ||
-                        counterCell.cellId().counterId().equals(PRE_QOS_PIPE_PRE_QOS_COUNTER)) {
-                    return UpfEntityType.COUNTER;
+                if (counterCell.cellId().counterId().equals(PRE_QOS_PIPE_PRE_QOS_COUNTER)) {
+                    return UpfEntityType.INGRESS_COUNTER;
+                } else if (counterCell.cellId().counterId().equals(POST_QOS_PIPE_POST_QOS_COUNTER)) {
+                    return UpfEntityType.EGRESS_COUNTER;
                 }
                 break;
             case METER_CELL_CONFIG:
@@ -188,6 +190,28 @@ public class Up4TranslatorImpl implements Up4Translator {
             default:
                 throw new Up4TranslationException(
                         "Attempting to translate an unsupported UP4 meter entry! " + meterEntry);
+        }
+    }
+
+    @Override
+    public UpfEntity up4CounterEntryToUpfEntity(PiCounterCell counterEntry) throws Up4TranslationException {
+        switch (getEntityType(counterEntry)) {
+            case INGRESS_COUNTER:
+                return UpfCounter.builder()
+                        .withCellId((int) counterEntry.cellId().index())
+                        .setIngress(counterEntry.data().packets(), counterEntry.data().bytes())
+                        .isIngressCounter()
+                        .build();
+            case EGRESS_COUNTER:
+                return UpfCounter.builder()
+                        .withCellId((int) counterEntry.cellId().index())
+                        .setEgress(counterEntry.data().packets(), counterEntry.data().bytes())
+                        .isEgressCounter()
+                        .build();
+            default:
+                throw new Up4TranslationException(
+                        "Attempting to translate an unsupported UP4 counter entry! " + counterEntry);
+
         }
     }
 
@@ -533,6 +557,8 @@ public class Up4TranslatorImpl implements Up4Translator {
             case APPLICATION_METER:
             case SLICE_METER:
             case COUNTER:
+            case INGRESS_COUNTER:
+            case EGRESS_COUNTER:
             default:
                 throw new Up4TranslationException(
                         "Attempting to translate an unsupported UPF entity to a table entry! " + entity);

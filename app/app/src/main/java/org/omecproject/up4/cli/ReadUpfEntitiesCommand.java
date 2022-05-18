@@ -152,7 +152,7 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                         UpfTerminationUplink term = (UpfTerminationUplink) t;
                         print(term.toString());
                         if (filterCounters) {
-                            print(up4Service.readCounter(term.counterId()).toString());
+                            print(up4Service.readCounter(term.counterId(), UpfEntityType.COUNTER).toString());
                         }
                     }
                 } else if (type.equals(UpfEntityType.TERMINATION_DOWNLINK)) {
@@ -161,7 +161,7 @@ public class ReadUpfEntitiesCommand extends AbstractShellCommand {
                         UpfTerminationDownlink term = (UpfTerminationDownlink) t;
                         print(term.toString());
                         if (filterCounters) {
-                            print(up4Service.readCounter(term.counterId()).toString());
+                            print(up4Service.readCounter(term.counterId(), UpfEntityType.COUNTER).toString());
                         }
                     }
                 } else {

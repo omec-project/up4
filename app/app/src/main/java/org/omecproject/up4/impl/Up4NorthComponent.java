@@ -5,6 +5,8 @@
 package org.omecproject.up4.impl;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.TextFormat;
@@ -80,7 +82,13 @@ import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_SLICE_TC_
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_DOWNLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TERMINATIONS_UPLINK;
 import static org.omecproject.up4.impl.Up4P4InfoConstants.PRE_QOS_PIPE_TUNNEL_PEERS;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.COUNTER;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.EGRESS_COUNTER;
+import static org.onosproject.net.behaviour.upf.UpfEntityType.INGRESS_COUNTER;
 import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT;
+import static p4.v1.P4RuntimeOuterClass.Entity.EntityCase.COUNTER_ENTRY;
+import static p4.v1.P4RuntimeOuterClass.Entity.EntityCase.METER_ENTRY;
+import static p4.v1.P4RuntimeOuterClass.Entity.EntityCase.TABLE_ENTRY;
 
 
 /* TODO: listen for netcfg changes. If the grpc port in the netcfg is different from the default,
@@ -91,6 +99,8 @@ import static org.onosproject.net.pi.model.PiPipeconf.ExtensionType.P4_INFO_TEXT
 public class Up4NorthComponent {
     private static final ImmutableByteSequence ZERO_SEQ = ImmutableByteSequence.ofZeros(4);
     private static final int DEFAULT_DEVICE_ID = 1;
+    private static final ImmutableSet<P4RuntimeOuterClass.Entity.EntityCase> SUPPORTED_WRITE_ENTITIES =
+            ImmutableSet.of(COUNTER_ENTRY, METER_ENTRY, TABLE_ENTRY);
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected Up4Service up4Service;
@@ -268,7 +278,8 @@ public class Up4NorthComponent {
                 }
                 translatedEntries.add(responseEntity);
             }
-        } catch (Up4Translator.Up4TranslationException | UpfProgrammableException | CodecException e) {
+        } catch (Up4Translator.Up4TranslationException |
+                 UpfProgrammableException | CodecException e) {
             log.warn("Unable to encode/translate a read entry to a UP4 read response: {}",
                      e.getMessage());
             throw INVALID_ARGUMENT
@@ -300,7 +311,7 @@ public class Up4NorthComponent {
         long physicalTerminationsDlTableSize;
         long physicalTunnelPeerTableSize;
         try {
-            physicalCounterSize = up4Service.tableSize(UpfEntityType.COUNTER);
+            physicalCounterSize = up4Service.tableSize(COUNTER);
             physicalSessionMeterSize = up4Service.tableSize(UpfEntityType.SESSION_METER);
             physicalAppMeterSize = up4Service.tableSize(UpfEntityType.APPLICATION_METER);
             physicalSliceMeterSize = up4Service.tableSize(UpfEntityType.SLICE_METER);
@@ -422,17 +433,15 @@ public class Up4NorthComponent {
         if (message.hasIndex()) {
             index = (int) message.getIndex().getIndex();
         }
-        String counterName = null;
         PiCounterId piCounterId = null;
         int counterId = message.getCounterId();
         // FYI a counterId of 0 corresponds to a wildcard read of all counters
         if (counterId != 0) {
             try {
-                counterName = PipeconfHelper.getP4InfoBrowser(pipeconf).counters()
-                        .getById(message.getCounterId())
-                        .getPreamble()
-                        .getName();
-                piCounterId = PiCounterId.of(counterName);
+                piCounterId = PiCounterId.of(PipeconfHelper.getP4InfoBrowser(pipeconf).counters()
+                                                     .getById(message.getCounterId())
+                                                     .getPreamble()
+                                                     .getName());
             } catch (P4InfoBrowser.NotFoundException e) {
                 log.warn("Unable to find UP4 counter with ID {}", counterId);
                 throw INVALID_ARGUMENT
@@ -440,58 +449,68 @@ public class Up4NorthComponent {
                         .asException();
             }
         }
-        // At this point, the counterName is null if all counters are requested, and non-null if a specific
-        //  counter was requested. The index is null if all cells are requested, and non-null if a specific
-        //  cell was requested.
-        if (counterName != null && index != null) {
+
+        // At this point, the piCounterId is null if all counters are requested,
+        // and non-null if a specific counter was requested. The index is null if
+        // all cells are requested, and non-null if a specific cell was requested.
+        List<UpfCounter> readCounters = Lists.newArrayList();
+        if (piCounterId != null && index != null) {
             // A single counter cell was requested
-            UpfCounter ctrValues;
-            try {
-                ctrValues = up4Service.readCounter(index);
-            } catch (UpfProgrammableException e) {
-                throw INVALID_ARGUMENT
-                        .withDescription(e.getMessage())
-                        .asException();
-            }
-            long pkts;
-            long bytes;
-            if (piCounterId.equals(PRE_QOS_PIPE_PRE_QOS_COUNTER)) {
-                pkts = ctrValues.getIngressPkts();
-                bytes = ctrValues.getIngressBytes();
-            } else if (piCounterId.equals(POST_QOS_PIPE_POST_QOS_COUNTER)) {
-                pkts = ctrValues.getEgressPkts();
-                bytes = ctrValues.getEgressBytes();
-            } else {
+            // Fake counter cell, used to retrieve the entity type.
+            UpfEntityType counterType = up4Translator.getEntityType(
+                    new PiCounterCell(PiCounterCellId.ofIndirect(piCounterId, index), 0, 0));
+            if (counterType == null) {
                 log.warn("Received read request for unknown counter {}", piCounterId);
                 throw INVALID_ARGUMENT
                         .withDescription("Invalid UP4 counter identifier.")
                         .asException();
             }
-            responseCells.add(new PiCounterCell(PiCounterCellId.ofIndirect(piCounterId, index), pkts, bytes));
-        } else {
-            // All cells were requested, either for a specific counter or all counters
-            // FIXME: only read the counter that was requested, instead of both ingress and egress unconditionally
-            Collection<UpfCounter> allStats;
             try {
-                allStats = up4Service.readCounters(-1);
+                readCounters.add(up4Service.readCounter(index, counterType));
+            } catch (UpfProgrammableException e) {
+                throw INVALID_ARGUMENT
+                        .withDescription(e.getMessage())
+                        .asException();
+            }
+        } else if (piCounterId != null) {
+            // All cells were requested, for a specific counter
+            UpfEntityType counterType = up4Translator.getEntityType(
+                    new PiCounterCell(PiCounterCellId.ofIndirect(piCounterId, 0), 0, 0));
+            if (counterType == null) {
+                log.warn("Received read request for unknown counter {}", piCounterId);
+                throw INVALID_ARGUMENT
+                        .withDescription("Invalid UP4 counter identifier.")
+                        .asException();
+            }
+            try {
+                readCounters.addAll(up4Service.readCounters(-1, counterType));
             } catch (UpfProgrammableException e) {
                 throw io.grpc.Status.UNKNOWN.withDescription(e.getMessage()).asException();
             }
-            for (UpfCounter stat : allStats) {
-                if (piCounterId == null || piCounterId.equals(PRE_QOS_PIPE_PRE_QOS_COUNTER)) {
-                    // If all counters were requested, or just the ingress one
-                    responseCells.add(new PiCounterCell(
-                            PiCounterCellId.ofIndirect(PRE_QOS_PIPE_PRE_QOS_COUNTER, stat.getCellId()),
-                            stat.getIngressPkts(), stat.getIngressBytes()));
-                }
-                if (piCounterId == null || piCounterId.equals(POST_QOS_PIPE_POST_QOS_COUNTER)) {
-                    // If all counters were requested, or just the egress one
-                    responseCells.add(new PiCounterCell(
-                            PiCounterCellId.ofIndirect(POST_QOS_PIPE_POST_QOS_COUNTER, stat.getCellId()),
-                            stat.getEgressPkts(), stat.getEgressBytes()));
-                }
+        } else {
+            // All cells were requested, for all counters
+            try {
+                readCounters.addAll(up4Service.readCounters(-1, COUNTER));
+            } catch (UpfProgrammableException e) {
+                throw io.grpc.Status.UNKNOWN.withDescription(e.getMessage()).asException();
             }
         }
+
+        for (UpfCounter stat : readCounters) {
+            if (stat.type().equals(INGRESS_COUNTER) || stat.type().equals(COUNTER)) {
+                responseCells.add(new PiCounterCell(
+                        PiCounterCellId.ofIndirect(PRE_QOS_PIPE_PRE_QOS_COUNTER, stat.getCellId()),
+                        stat.getIngressPkts().isPresent() ? stat.getIngressPkts().get() : 0,
+                        stat.getIngressBytes().isPresent() ? stat.getIngressBytes().get() : 0));
+            }
+            if (stat.type().equals(EGRESS_COUNTER) || stat.type().equals(COUNTER)) {
+                responseCells.add(new PiCounterCell(
+                        PiCounterCellId.ofIndirect(POST_QOS_PIPE_POST_QOS_COUNTER, stat.getCellId()),
+                        stat.getEgressPkts().isPresent() ? stat.getEgressPkts().get() : 0,
+                        stat.getEgressBytes().isPresent() ? stat.getEgressBytes().get() : 0));
+            }
+        }
+
         List<P4RuntimeOuterClass.Entity> responseEntities = new ArrayList<>();
         for (PiCounterCell cell : responseCells) {
             try {
@@ -771,45 +790,45 @@ public class Up4NorthComponent {
                     continue;
                 }
                 P4RuntimeOuterClass.Entity requestEntity = update.getEntity();
+                if (!SUPPORTED_WRITE_ENTITIES.contains(requestEntity.getEntityCase())) {
+                    log.warn("Received write request for unsupported entity type {}",
+                             requestEntity.getEntityCase());
+                    throw INVALID_ARGUMENT
+                            .withDescription("Unsupported entity type")
+                            .asException();
+                }
+                PiEntity piEntity;
+                try {
+                    piEntity = Codecs.CODECS.entity().decode(requestEntity, null, pipeconf);
+                } catch (CodecException e) {
+                    log.warn("Unable to decode p4runtime entity update message", e);
+                    throw INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
+                }
+
                 switch (requestEntity.getEntityCase()) {
                     case COUNTER_ENTRY:
                         // TODO: support counter cell writes, including wildcard writes
                         break;
                     case METER_ENTRY:
-                        PiEntity piMeterEntity;
-                        try {
-                            piMeterEntity = Codecs.CODECS.entity().decode(requestEntity, null, pipeconf);
-                        } catch (CodecException e) {
-                            log.warn("Unable to decode p4runtime entity update message", e);
-                            throw INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
-                        }
-                        PiMeterCellConfig meterEntry = (PiMeterCellConfig) piMeterEntity;
                         if (update.getType() == P4RuntimeOuterClass.Update.Type.MODIFY) {
-                            // The only operation supported for meters is MODIFY
-                            translateEntryAndApply(meterEntry);
+                            // The only operation supported for meters and counters is MODIFY
+                            translateEntryAndApply(piEntity);
                         } else {
-                            log.error("Unsupported update type for meter entry!");
+                            log.error("Unsupported update type for {} entry!",
+                                      requestEntity.getEntityCase());
                             throw INVALID_ARGUMENT
                                     .withDescription("Unsupported update type")
                                     .asException();
                         }
                         break;
                     case TABLE_ENTRY:
-                        PiEntity piTableEntity;
-                        try {
-                            piTableEntity = Codecs.CODECS.entity().decode(requestEntity, null, pipeconf);
-                        } catch (CodecException e) {
-                            log.warn("Unable to decode p4runtime entity update message", e);
-                            throw INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
-                        }
-                        PiTableEntry entry = (PiTableEntry) piTableEntity;
                         switch (update.getType()) {
                             case INSERT:
                             case MODIFY:
-                                translateEntryAndApply(entry);
+                                translateEntryAndApply(piEntity);
                                 break;
                             case DELETE:
-                                translateEntryAndDelete(entry);
+                                translateEntryAndDelete((PiTableEntry) piEntity);
                                 break;
                             default:
                                 log.warn("Unsupported update type for a table entry");
@@ -819,11 +838,8 @@ public class Up4NorthComponent {
                         }
                         break;
                     default:
-                        log.warn("Received write request for unsupported entity type {}",
-                                 requestEntity.getEntityCase());
-                        throw INVALID_ARGUMENT
-                                .withDescription("Unsupported entity type")
-                                .asException();
+                        // I should never reach this point
+                        log.error("I should never reach this point");
                 }
             }
             // Response is currently defined to be empty per p4runtime.proto
@@ -854,13 +870,11 @@ public class Up4NorthComponent {
         private void doRead(P4RuntimeOuterClass.ReadRequest request,
                             StreamObserver<P4RuntimeOuterClass.ReadResponse> responseObserver)
                 throws StatusException {
+            List<P4RuntimeOuterClass.Entity> entities = Lists.newArrayList();
             for (P4RuntimeOuterClass.Entity requestEntity : request.getEntitiesList()) {
                 switch (requestEntity.getEntityCase()) {
                     case COUNTER_ENTRY:
-                        responseObserver.onNext(
-                                P4RuntimeOuterClass.ReadResponse.newBuilder()
-                                        .addAllEntities(readCountersAndTranslate(requestEntity.getCounterEntry()))
-                                        .build());
+                        entities = readCountersAndTranslate(requestEntity.getCounterEntry());
                         break;
                     case METER_ENTRY:
                     case TABLE_ENTRY:
@@ -872,15 +886,18 @@ public class Up4NorthComponent {
                             log.warn("Unable to decode p4runtime read request entity", e);
                             throw INVALID_ARGUMENT.withDescription(e.getMessage()).asException();
                         }
-                        responseObserver.onNext(
-                                P4RuntimeOuterClass.ReadResponse.newBuilder()
-                                        .addAllEntities(readEntriesAndTranslate(requestEntry))
-                                        .build());
+                        entities = readEntriesAndTranslate(requestEntry);
                         break;
                     default:
                         log.warn("Received read request for an entity we don't yet support. Skipping");
                         break;
                 }
+            }
+            if (!entities.isEmpty()) {
+                responseObserver.onNext(
+                        P4RuntimeOuterClass.ReadResponse.newBuilder()
+                                .addAllEntities(entities)
+                                .build());
             }
             responseObserver.onCompleted();
         }

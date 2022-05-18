@@ -9,6 +9,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.omecproject.up4.Up4Translator;
 import org.onosproject.net.behaviour.upf.UpfEntity;
+import org.onosproject.net.pi.runtime.PiCounterCell;
 import org.onosproject.net.pi.runtime.PiEntity;
 import org.onosproject.net.pi.runtime.PiMeterCellConfig;
 import org.onosproject.net.pi.runtime.PiMeterCellId;
@@ -40,6 +41,9 @@ public class Up4TranslatorImplTest {
                 case METER_CELL_CONFIG:
                     translatedEntity = up4Translator.up4MeterEntryToUpfEntity((PiMeterCellConfig) up4Entry);
                     break;
+                case COUNTER_CELL:
+                    translatedEntity = up4Translator.up4CounterEntryToUpfEntity((PiCounterCell) up4Entry);
+                    break;
                 default:
                     assertThat("Unsupported PI entity!", false);
                     return null;
@@ -62,7 +66,6 @@ public class Up4TranslatorImplTest {
                 case SESSION_DOWNLINK:
                 case SESSION_UPLINK:
                 case TUNNEL_PEER:
-                case COUNTER:
                 case APPLICATION:
                     translatedEntity = up4Translator.upfEntityToUp4TableEntry(up4Entry);
                     break;
@@ -260,6 +263,18 @@ public class Up4TranslatorImplTest {
                         .withCommittedBand(10, 10)
                         .withPeakBand(PIR, PBURST)
                         .build());
+    }
+
+    @Test
+    public void up4CounterEntryToIngressCounterTest() {
+        up4ToUpfEntity(TestImplConstants.DOWNLINK_IG_COUNTER, TestImplConstants.UP4_DOWNLINK_IG_COUNTER);
+        up4ToUpfEntity(TestImplConstants.UPLINK_IG_COUNTER, TestImplConstants.UP4_UPLINK_IG_COUNTER);
+    }
+
+    @Test
+    public void up4CounterEntryToEgressCounterTest() {
+        up4ToUpfEntity(TestImplConstants.DOWNLINK_EG_COUNTER, TestImplConstants.UP4_DOWNLINK_EG_COUNTER);
+        up4ToUpfEntity(TestImplConstants.UPLINK_EG_COUNTER, TestImplConstants.UP4_UPLINK_EG_COUNTER);
     }
 
     // -------------------------------------------------------------------------
