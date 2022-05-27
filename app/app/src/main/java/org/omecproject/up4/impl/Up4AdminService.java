@@ -96,12 +96,13 @@ public interface Up4AdminService {
      * Reads a counter at the given ID from the given UPF data plane device.
      *
      * @param counterIdx Counter ID
+     * @param type UPF counter type ({@code COUNTER, INGRESS_COUNTER, EGRESS_COUNTER})
      * @param device UPF data plane device
      * @return The UPF counter
      * @throws UpfProgrammableException propagate the exception from the UPF data plane
      * and if the given device is not a UPF programmable.
      */
-    UpfCounter readCounter(int counterIdx, DeviceId device) throws UpfProgrammableException;
+    UpfCounter readCounter(int counterIdx, UpfEntityType type, DeviceId device) throws UpfProgrammableException;
 
     /**
      * Resets all installed session meters.

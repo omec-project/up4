@@ -31,7 +31,7 @@ include ../.env.stable
 endif
 
 # Used when building the sdfabric-onos image
-UP4_VERSION := $(shell git rev-parse --abbrev-ref HEAD)
+UP4_VERSION := $(shell git rev-parse HEAD)
 
 ifeq ($(ONOS_IMAGE),sdfabric-onos-local:master)
 BUILD_SDFABRIC_ONOS := true

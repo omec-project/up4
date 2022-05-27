@@ -65,8 +65,8 @@ public final class UplinkUpfFlow {
 
         String statString = "NO STATISTICS!";
         if (counter != null) {
-            long ingressPkts = counter.getIngressPkts();
-            long egressPkts = counter.getEgressPkts();
+            long ingressPkts = counter.getIngressPkts().isPresent() ? counter.getIngressPkts().get() : -1;
+            long egressPkts = counter.getEgressPkts().isPresent() ? counter.getEgressPkts().get() : -1;
             statString = String.format(
                     "packets_ingress=%5d, packets_egress=%5d, packets_dropped=%5d",
                     ingressPkts, egressPkts, ingressPkts - egressPkts

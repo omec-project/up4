@@ -77,11 +77,11 @@ pipeline {
         dir("${env.WORKSPACE}/up4") {
           script {
             ONOS_IMAGE_STABLE = sh(
-                    script: "cat ../.env.stable | grep \'ONOS_IMAGE=\'| sed \'s/ONOS_IMAGE=//\'",
+                    script: "bash -c 'cat .env.stable | grep \"ONOS_IMAGE=\"| sed \"s/ONOS_IMAGE=//\"'",
                     returnStdout: true
             ).trim()
             if (ONOS_IMAGE_STABLE == "sdfabric-onos-local:master") {
-              sh echo "SKIP UP4 build. UP4 is built as part of the scenarios deps step"
+              sh(script: 'echo "SKIP UP4 build. UP4 is built as part of the scenarios deps step"')
               skipUp4Build = true
             }
           }
