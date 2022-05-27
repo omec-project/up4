@@ -808,6 +808,7 @@ public class Up4NorthComponent {
                 switch (requestEntity.getEntityCase()) {
                     case COUNTER_ENTRY:
                         // TODO: support counter cell writes, including wildcard writes
+                        log.info("Got counter write request, silently ignoring it: {}", requestEntity);
                         break;
                     case METER_ENTRY:
                         if (update.getType() == P4RuntimeOuterClass.Update.Type.MODIFY) {
