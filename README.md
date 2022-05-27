@@ -8,8 +8,8 @@ SPDX-License-Identifier: Apache-2.0
 [![codecov](https://codecov.io/gh/omec-project/up4/branch/master/graph/badge.svg?token=ZJ1RZ6CFXK)](https://codecov.io/gh/omec-project/up4)
 [![Build Status](https://jenkins.opencord.org/buildStatus/icon?job=up4-postmerge-pfcp&subject=up4-postmerge-pfcp)](https://jenkins.opencord.org/job/up4-postmerge-pfcp/)
 [![Build Status](https://jenkins.opencord.org/buildStatus/icon?job=up4-postmerge-p4rt&subject=up4-postmerge-p4rt)](https://jenkins.opencord.org/job/up4-postmerge-p4rt/)
-[![Build Status](https://jenkins.opencord.org/buildStatus/icon?job=up4-devel-nightly-pfcp&subject=up4-devel-nightly-pfcp)](https://jenkins.opencord.org/job/up4-devel-nightly-pfcp/)
-[![Build Status](https://jenkins.opencord.org/buildStatus/icon?job=up4-devel-nightly-p4rt&subject=up4-devel-nightly-p4rt)](https://jenkins.opencord.org/job/up4-devel-nightly-p4rt/)
+[![Build Status](https://jenkins.opencord.org/buildStatus/icon?job=up4-latest-nightly-pfcp&subject=up4-latest-nightly-pfcp)](https://jenkins.opencord.org/job/up4-latest-nightly-pfcp/)
+[![Build Status](https://jenkins.opencord.org/buildStatus/icon?job=up4-latest-nightly-p4rt&subject=up4-latest-nightly-p4rt)](https://jenkins.opencord.org/job/up4-latest-nightly-p4rt/)
 
 This repository is part of the SD-Fabric project. It provides an ONOS app that
 abstracts a network of one or more fabric switches as a virtual "One-Big-UPF",
