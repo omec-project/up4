@@ -112,7 +112,7 @@ onos-test:
 #FIXME: remove once 'quotes' branch is merged and 2.6 released:
 stc-dev-build:
 	rm -rf /tmp/onos-stc
-	cd /tmp && git clone -b quotes --depth 1 https://github.com/opennetworkinglab/onos-stc.git
+	cd /tmp && git clone --depth 1 https://github.com/opennetworkinglab/onos-stc.git
 	cd /tmp/onos-stc && mvn -q -B -Dmaven.test.skip=true install
 
 pull: ./tmp/.env.docker
